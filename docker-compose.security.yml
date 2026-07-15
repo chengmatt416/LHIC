@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  lhic-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chengmatt416/lhic-agent:latest
+    environment:
+      - LHIC_ENV=production
+      - LHIC_TRACE_DIRECTORY=/tmp/traces
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
+      - LHIC_KMS_DEFAULT_PUBLIC_KEY=/run/secrets/kms_pub.pem
+    ports:
+      - "8000:8000"
+    security_opt:
+      # Load Chromium hardened seccomp system-call restriction profile
+      - seccomp=./chrome-seccomp.json
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          memory: 1G
+    # Enforce non-root execution and read-only container root file-system
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /run:mode=1777
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
