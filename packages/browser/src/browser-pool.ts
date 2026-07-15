@@ -4,6 +4,8 @@ export interface BrowserPoolConfig {
   maxSize?: number;
   headless?: boolean;
   warmInstances?: number;
+  proxies?: string[];
+  stealth?: boolean;
 }
 
 export class BrowserPool {
@@ -12,11 +14,15 @@ export class BrowserPool {
   private readonly maxSize: number;
   private readonly headless: boolean;
   private readonly warmInstances: number;
+  private readonly proxies: string[];
+  private readonly stealth: boolean;
 
   public constructor(config: BrowserPoolConfig = {}) {
     this.maxSize = config.maxSize ?? 5;
     this.headless = config.headless ?? true;
     this.warmInstances = config.warmInstances ?? 1;
+    this.proxies = config.proxies ?? [];
+    this.stealth = config.stealth ?? true;
   }
 
   private async ensureBrowser(): Promise<Browser> {
@@ -26,13 +32,39 @@ export class BrowserPool {
     return this.browser;
   }
 
+  private getNextProxy(): { server: string } | undefined {
+    if (this.proxies.length === 0) {
+      return undefined;
+    }
+    const randomIndex = Math.floor(Math.random() * this.proxies.length);
+    const proxyUrl = this.proxies[randomIndex];
+    return proxyUrl ? { server: proxyUrl } : undefined;
+  }
+
+  private async configureContext(context: BrowserContext): Promise<void> {
+    if (this.stealth) {
+      // Evade standard automation fingerprinting check
+      await context.addInitScript(() => {
+        try {
+          Object.defineProperty(navigator, "webdriver", {
+            get: () => undefined,
+          });
+        } catch {
+          // ignore error
+        }
+      });
+    }
+  }
+
   /**
    * Pre-warms the browser pool by ensuring the browser is launched and instantiating contexts.
    */
   public async prewarm(): Promise<void> {
     const browser = await this.ensureBrowser();
     while (this.contexts.size < this.warmInstances) {
-      const context = await browser.newContext();
+      const proxy = this.getNextProxy();
+      const context = await browser.newContext(proxy ? { proxy } : {});
+      await this.configureContext(context);
       await context.newPage();
       this.contexts.add(context);
     }
@@ -53,7 +85,9 @@ export class BrowserPool {
       context = next;
       this.contexts.delete(context);
     } else {
-      context = await browser.newContext();
+      const proxy = this.getNextProxy();
+      context = await browser.newContext(proxy ? { proxy } : {});
+      await this.configureContext(context);
     }
 
     let page = (await context.pages())[0];

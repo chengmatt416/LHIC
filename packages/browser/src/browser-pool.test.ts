@@ -42,4 +42,20 @@ describe("BrowserPool", () => {
     await pool.releasePage(extraContext);
     expect(pool.getPoolSize()).toBe(3);
   });
+
+  it("applies stealth settings and configures proxy configuration options without crashing", async () => {
+    pool = new BrowserPool({
+      stealth: true,
+      proxies: ["http://127.0.0.1:8080", "http://127.0.0.1:8081"],
+      warmInstances: 1,
+    });
+    await pool.prewarm();
+    const { page, context } = await pool.acquirePage();
+    expect(page).toBeDefined();
+    expect(context).toBeDefined();
+
+    // Verify navigator.webdriver evasion init script runs on page evaluate
+    const isWebdriver = await page.evaluate(() => navigator.webdriver);
+    expect(isWebdriver).toBeUndefined();
+  });
 });

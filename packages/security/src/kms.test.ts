@@ -53,4 +53,28 @@ describe("KmsKeyManager", () => {
     const vaultKey = await vaultManager.fetchPublicKey("vault-key");
     expect(vaultKey).toContain("MOCKVAULTKEY");
   });
+
+  it("handles key revocation check and cache expiration properly", async () => {
+    const manager = new KmsKeyManager({ provider: "aws", cacheTtlMs: 50 });
+
+    // Try fetching a revoked key -> should reject/throw
+    await expect(manager.fetchPublicKey("revoked-key")).rejects.toThrow(
+      "KMS Key revoked-key is disabled/revoked in AWS KMS.",
+    );
+
+    // Fetch normal key
+    const normalKey = await manager.fetchPublicKey("ok-key");
+    expect(normalKey).toBeDefined();
+
+    // Cache is active, normal key resolves
+    const cachedKey = await manager.fetchPublicKey("ok-key");
+    expect(cachedKey).toBe(normalKey);
+
+    // Wait for TTL (50ms) to expire
+    await new Promise((resolve) => setTimeout(resolve, 80));
+
+    // Refetching after TTL works
+    const normalKey2 = await manager.fetchPublicKey("ok-key");
+    expect(normalKey2).toBe(normalKey);
+  });
 });
