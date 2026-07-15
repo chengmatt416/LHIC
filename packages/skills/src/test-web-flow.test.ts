@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VerifierEngine } from "@lhic/verifier";
 import { createActionApproval } from "@lhic/security";
 
-import { testWebFlow } from "./test-web-flow.js";
+import { testWebFlow, type DurableWorkflowLookup } from "./test-web-flow.js";
 
 describe("testWebFlow", () => {
   const browsers: Awaited<ReturnType<typeof chromium.launch>>[] = [];
@@ -131,6 +131,85 @@ describe("testWebFlow", () => {
 
       expect(result.success).toBe(true);
       expect(await page.locator("#result").textContent()).toBe("Saved");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("restores progress from DurableWorkflowLookup and skips completed steps", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(`
+      <input id="step2-input"><p id="result"></p>
+      <script>document.querySelector('#step2-input').addEventListener('input', () => { document.querySelector('#result').textContent = 'Done'; });</script>
+    `);
+
+    const savedState = {
+      lastCompletedStep: 1,
+      url: page.url(),
+      cookiesJson: "[]",
+      localStorageJson: '{"key":"value"}',
+      sessionStorageJson: '{"sessionKey":"sessionValue"}',
+    };
+
+    let saveCalled = false;
+    let deleteCalled = false;
+
+    const mockStore: DurableWorkflowLookup = {
+      get: (taskId: string) => {
+        expect(taskId).toBe("durable-flow");
+        return savedState;
+      },
+      save: (state) => {
+        saveCalled = true;
+        expect(state.lastCompletedStep).toBe(2);
+      },
+      delete: (taskId: string) => {
+        deleteCalled = true;
+        expect(taskId).toBe("durable-flow");
+      },
+    };
+
+    const directory = await mkdtemp(join(tmpdir(), "lhic-durable-flow-"));
+    try {
+      const result = await testWebFlow(
+        {
+          page,
+          verifier: new VerifierEngine({ page }),
+          taskId: "durable-flow",
+          traceFilePath: join(directory, "events.jsonl"),
+        },
+        {
+          steps: [
+            {
+              type: "fill",
+              intent: "step 1 - should be skipped",
+              target: "#step1-nonexistent",
+              value: "Skipped",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "fill",
+              intent: "step 2 - should run",
+              target: "#step2-input",
+              value: "Hello Step 2",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+          ],
+          successConditions: [
+            { type: "dom", description: "done", params: { text: "Done" } },
+          ],
+          durableStore: mockStore,
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.evidence).toContain("Skipped step 1 (already completed and hydrated).");
+      expect(saveCalled).toBe(true);
+      expect(deleteCalled).toBe(true);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
