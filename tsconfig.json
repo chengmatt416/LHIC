@@ -1,0 +1,34 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/schema" },
+    { "path": "./packages/trace" },
+    { "path": "./packages/security" },
+    { "path": "./packages/browser" },
+    { "path": "./packages/verifier" },
+    { "path": "./packages/skills" },
+    { "path": "./packages/controller" },
+    { "path": "./packages/memory" },
+    { "path": "./apps/cli" }
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lhic/schema": ["packages/schema/src/index.ts"],
+      "@lhic/trace": ["packages/trace/src/index.ts"],
+      "@lhic/security": ["packages/security/src/index.ts"],
+      "@lhic/browser": ["packages/browser/src/index.ts"],
+      "@lhic/verifier": ["packages/verifier/src/index.ts"],
+      "@lhic/skills": ["packages/skills/src/index.ts"],
+      "@lhic/controller": ["packages/controller/src/index.ts"],
+      "@lhic/memory": ["packages/memory/src/index.ts"]
+    }
+  }
+}

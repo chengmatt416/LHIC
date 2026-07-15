@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [
+    { "path": "../../packages/browser" },
+    { "path": "../../packages/schema" },
+    { "path": "../../packages/security" },
+    { "path": "../../packages/skills" },
+    { "path": "../../packages/trace" },
+    { "path": "../../packages/verifier" }
+  ],
+  "include": ["src/**/*.ts"]
+}

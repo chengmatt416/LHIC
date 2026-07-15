@@ -1,0 +1,43 @@
+{
+  "name": "local-human-intent-controller",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "npm": ">=11.0.0"
+  },
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "pw:install": "playwright install chromium",
+    "bench:internal": "tsx apps/cli/src/main.ts bench internal",
+    "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
+    "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
+    "preflight": "tsx apps/cli/src/main.ts preflight",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^3.2.4"
+  }
+}
