@@ -23,19 +23,22 @@
             LHIC
         </a>
         <ul class="nav-links">
-            <li><a href="#features">功能總覽</a></li>
-            <li><a href="#architecture">架構與模組</a></li>
-            <li><a href="#tutorial">使用教學</a></li>
-            <li><a href="#benchmark">基準測試</a></li>
-            <li><a href="#comparison">方案對比</a></li>
-            <li><a href="https://github.com/chengmatt416/ComputerIntent" target="_blank">GitHub 專案</a></li>
+            <li><a href="#features" id="nav-features">功能總覽</a></li>
+            <li><a href="#architecture" id="nav-architecture">架構與模組</a></li>
+            <li><a href="#tutorial" id="nav-tutorial">使用教學</a></li>
+            <li><a href="#benchmark" id="nav-benchmark">基準測試</a></li>
+            <li><a href="#comparison" id="nav-comparison">方案對比</a></li>
+            <li><a href="https://github.com/chengmatt416/ComputerIntent" target="_blank" id="nav-github">GitHub 專案</a></li>
         </ul>
-        <a href="#tutorial" class="nav-cta">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 5v14M5 12h14"></path>
-            </svg>
-            快速開始
-        </a>
+        <div class="lang-switcher-container" style="display:flex; align-items:center; gap:12px;">
+            <button onclick="toggleLanguage()" class="lang-btn" id="lang-btn" style="background:transparent; border:1px solid var(--border-color); color:var(--text-main); font-weight:600; font-size:0.85rem; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); display:flex; align-items:center; justify-content:center;">EN</button>
+            <a href="#tutorial" class="nav-cta">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                <span id="nav-cta-text">快速開始</span>
+            </a>
+        </div>
         <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -52,9 +55,9 @@
                 <span></span> Local-First Browser Agent
             </div>
             <h1 class="hero-title">Local Human Intent Controller (LHIC)</h1>
-            <p class="hero-desc">基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行<strong>無須呼叫 LLM 也不依賴圖像畫面</strong>，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。</p>
+            <p class="hero-desc" id="hero-desc">基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫 LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。</p>
             <div class="hero-actions">
-                <a href="#tutorial" class="btn btn-primary">開始使用</a>
+                <a href="#tutorial" class="btn btn-primary" id="btn-start">開始使用</a>
                 <a href="https://github.com/chengmatt416/ComputerIntent" target="_blank" class="btn btn-secondary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
                         <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
@@ -764,7 +767,8 @@ lhic run action action.json approval.json</code></pre>
         renderLogLine();
 
         // Package tree node inspector description mapping
-        const packageData = {
+        // Package tree node inspector description mapping (Bilingual)
+        const packageDataZH = {
             schema: {
                 title: "@lhic/schema",
                 desc: "專案最基礎的核心型別與資料綱要定義。使用 Zod 做靜態型別與執行階段校驗，涵蓋 Intent、UIState、SemanticAction、VerifierConditions 與 TraceEvent 等核心實體型別。",
@@ -856,6 +860,157 @@ lhic run action action.json approval.json</code></pre>
                 ]
             }
         };
+
+        const packageDataEN = {
+            schema: {
+                title: "@lhic/schema",
+                desc: "The absolute foundation defining core types and data schemas. Utilizes Zod for static and runtime validation, covering Intent, UIState, SemanticAction, VerifierConditions, and TraceEvent.",
+                features: [
+                    "Ensures data schema consistency across all packages and apps in the monorepo.",
+                    "Defines explicit confidence thresholds and risk weights.",
+                    "Specifies structural formatting for verifier output tokens."
+                ]
+            },
+            browser: {
+                title: "@lhic/browser",
+                desc: "Wraps Playwright and Chrome DevTools Protocol (CDP). Features browser instance pooling and CDP screencast screen-sharing to prevent leakage and allow manual override.",
+                features: [
+                    "BrowserPool: Supports warm instances, isolated contexts, and cookie/session state cleanup.",
+                    "CDP Screencast: Emits real-time screen frames as JPEG stream for remote manual intervention.",
+                    "Stealth & Proxy Rotation: Bypasses anti-scrape browser fingerprinting and rotates proxies per context."
+                ]
+            },
+            verifier: {
+                title: "@lhic/verifier",
+                desc: "Objective validation engine. Audits final DOM changes, API statuses, and download streams after every action to ensure tasks are completed.",
+                features: [
+                    "Download verification: Tracks Playwright file downloads and validates size/type.",
+                    "Network verification: Confirms specific REST endpoints return expected 2xx response codes.",
+                    "DOM state verification: Supports XPath and element presence/attribute checks."
+                ]
+            },
+            trace: {
+                title: "@lhic/trace",
+                desc: "Event tracking and logging module. Records every semantic action details and redacted JSONL files. Features dynamic cleanup and OTel exporting.",
+                features: [
+                    "Log Pruning: Automatically purges historical traces and screenshots older than 30 days.",
+                    "OpenTelemetry Export: Maps local tracing events to OTLP JSON spans for Grafana/Elasticsearch.",
+                    "State Hash: Generates SHA-256 state hashes to prevent trace manipulation."
+                ]
+            },
+            memory: {
+                title: "@lhic/memory",
+                desc: "SQLite-based skill memory. Tracks successful selectors, workflow progress, and supports multi-tenant concurrency.",
+                features: [
+                    "Durable Workflows: Stores cookies, localStorage, and sessionStorage to restore states.",
+                    "Concurrent WAL mode: Minimizes database locks and deadlocks under heavy concurrent load.",
+                    "Local store: Operates entirely offline with zero latency."
+                ]
+            },
+            security: {
+                title: "@lhic/security",
+                desc: "Core sandbox and policy controller. Enforces domain whitelists, public/private network restrictions, and KMS verification.",
+                features: [
+                    "KmsKeyManager: Resolves AWS, GCP, and Vault public keys via direct REST APIs to verify signed approvals.",
+                    "CRL & Cache TTL: Supports certificate revocation checks and key expiration limits.",
+                    "AES-256-GCM Encryption: Secures user sessions, cookies, and local database storage at rest."
+                ]
+            },
+            skills: {
+                title: "@lhic/skills",
+                desc: "High-level re-usable web automation flows. Bundles standard skills like fill_form, download_file, and login.",
+                features: [
+                    "Login Skill: Built-in 2FA/CAPTCHA suspension flow.",
+                    "Form Filling: Identifies input tags semantically (never auto-submits forms).",
+                    "Provides pre-packaged regression smoke tests and benchmark scripts."
+                ]
+            },
+            controller: {
+                title: "@lhic/controller",
+                desc: "The router brain. Receives user intents and routes them to either the zero-cost Fast Path or Slow Path planner.",
+                features: [
+                    "Confidence check: Only executes Fast Path if predicted UI confidence >= 0.8.",
+                    "Slow Path fallbacks: Standard adapters for Claude 3.5 and other agent frameworks.",
+                    "Semantic Action compiler: Compiles natural language input into JSON actions."
+                ]
+            },
+            cli: {
+                title: "apps/cli",
+                desc: "LHIC Command Line Interface (CLI). Entrypoint for running tasks, preflights, and local benchmarks.",
+                features: [
+                    "CLI Preflight: Runs system readiness checks including non-root and DNS hijack checks.",
+                    "Harness configs: Render MCP setups for Antigravity, Cursor, and VS Code.",
+                    "Benchmark triggers: Simple runner for local simulation and regression suites."
+                ]
+            },
+            "mcp-server": {
+                title: "apps/mcp-server",
+                desc: "Model Context Protocol (MCP) server stdio entrypoint. Exposes LHIC capabilities as tools for external agents, featuring an HTTP Control Plane Gateway.",
+                features: [
+                    "Control Plane: Light-weight API Gateway with JWT authorization and IP-based rate limiting.",
+                    "Strict stdio: Complies with JSON-RPC over stdio.",
+                    "Data redaction: Scrubs sensitive forms from observations."
+                ]
+            }
+        };
+
+        const i18n = {
+            zh: {
+                "nav-features": "功能總覽",
+                "nav-architecture": "架構與模組",
+                "nav-tutorial": "使用教學",
+                "nav-benchmark": "基準測試",
+                "nav-comparison": "方案對比",
+                "nav-github": "GitHub 專案",
+                "nav-cta-text": "快速開始",
+                "hero-desc": "基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫 LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。",
+                "btn-start": "開始使用"
+            },
+            en: {
+                "nav-features": "Features",
+                "nav-architecture": "Architecture",
+                "nav-tutorial": "Tutorial",
+                "nav-benchmark": "Benchmarks",
+                "nav-comparison": "Comparison",
+                "nav-github": "GitHub Project",
+                "nav-cta-text": "Get Started",
+                "hero-desc": "A local-first and semantically controlled browser automation runtime. Standard workflows run with zero LLM API calls or visual screenshots, delivering sub-millisecond responses, verified proof, and rigorous sandboxing.",
+                "btn-start": "Get Started"
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            document.documentElement.setAttribute('lang', currentLang === 'zh' ? 'zh-TW' : 'en');
+            document.getElementById('lang-btn').innerText = currentLang === 'zh' ? 'EN' : '繁中';
+            
+            // Translate static elements
+            for (const [key, value] of Object.entries(i18n[currentLang])) {
+                const el = document.getElementById(key);
+                if (el) {
+                    el.innerText = value;
+                }
+            }
+
+            // Click the currently active tree item to refresh it with new language translations
+            const activeTreeItem = document.querySelector('.tree-item[style*="color: var(--primary-light)"]') || document.querySelector('.tree-item[style*="color: rgb(52, 211, 153)"]');
+            if (activeTreeItem) {
+                activeTreeItem.click();
+            } else {
+                const firstItem = document.querySelector('.tree-item');
+                if (firstItem) firstItem.click();
+            }
+        }
+
+        // Proxy packageData dynamically to resolve current language
+        const packageData = new Proxy({}, {
+            get(target, prop) {
+                const currentData = currentLang === 'zh' ? packageDataZH : packageDataEN;
+                return currentData[prop as keyof typeof packageDataZH];
+            }
+        });
 
         const treeItems = document.querySelectorAll('.tree-item');
         const displayDiv = document.getElementById('package-display');
