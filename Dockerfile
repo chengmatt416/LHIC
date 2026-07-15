@@ -1,3 +1,17 @@
+# Stage 1: Build
+FROM node:24-bookworm AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json .npmrc ./
+COPY packages/ packages/
+COPY apps/ apps/
+COPY tsconfig.json ./
+
+RUN npm ci --ignore-scripts \
+    && npm run build
+
+# Stage 2: Production image
 FROM node:24-bookworm-slim
 
 ENV NODE_ENV=production \
@@ -7,14 +21,17 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY . .
+# Copy only production artifacts from the builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
-RUN npm ci \
-    && npm run build \
-    && npx playwright install --with-deps chromium \
+# Install Playwright browser
+RUN npx playwright install --with-deps chromium \
     && npm prune --omit=dev \
     && npm cache clean --force
 
+# Create non-root user
 RUN groupadd --system lhic \
     && useradd --system --gid lhic --create-home lhic \
     && mkdir -p /var/lib/lhic/traces \

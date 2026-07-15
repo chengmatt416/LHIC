@@ -23,18 +23,24 @@ interface SkillRow {
   last_success_at: string | null;
 }
 
+const SCHEMA_SKILLS = `
+  CREATE TABLE IF NOT EXISTS skills (
+    name TEXT PRIMARY KEY,
+    definition_json TEXT NOT NULL,
+    lifecycle TEXT NOT NULL,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    last_success_at TEXT
+  ) STRICT;
+`;
+
+function createSkillsTable(database: DatabaseSync): void {
+  database.exec(SCHEMA_SKILLS);
+}
+
 export function createMemoryDatabase(filePath = ":memory:"): DatabaseSync {
   const database = new DatabaseSync(filePath);
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS skills (
-      name TEXT PRIMARY KEY,
-      definition_json TEXT NOT NULL,
-      lifecycle TEXT NOT NULL,
-      success_count INTEGER NOT NULL DEFAULT 0,
-      failure_count INTEGER NOT NULL DEFAULT 0,
-      last_success_at TEXT
-    ) STRICT;
-  `);
+  createSkillsTable(database);
   return database;
 }
 
@@ -52,6 +58,17 @@ function nextLifecycle(
     return "trusted";
   }
   return current;
+}
+
+function mapSkillRow(row: SkillRow): SkillRecord {
+  return {
+    name: row.name,
+    definition: JSON.parse(row.definition_json) as Record<string, unknown>,
+    lifecycle: row.lifecycle,
+    successCount: row.success_count,
+    failureCount: row.failure_count,
+    ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
+  };
 }
 
 export class SkillStore {
@@ -115,28 +132,4 @@ export class SkillStore {
       .run(name);
     return this.get(name);
   }
-}
-
-function createSkillsTable(database: DatabaseSync): void {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS skills (
-      name TEXT PRIMARY KEY,
-      definition_json TEXT NOT NULL,
-      lifecycle TEXT NOT NULL,
-      success_count INTEGER NOT NULL DEFAULT 0,
-      failure_count INTEGER NOT NULL DEFAULT 0,
-      last_success_at TEXT
-    ) STRICT;
-  `);
-}
-
-function mapSkillRow(row: SkillRow): SkillRecord {
-  return {
-    name: row.name,
-    definition: JSON.parse(row.definition_json) as Record<string, unknown>,
-    lifecycle: row.lifecycle,
-    successCount: row.success_count,
-    failureCount: row.failure_count,
-    ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
-  };
 }
