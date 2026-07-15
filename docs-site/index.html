@@ -36,6 +36,13 @@
             </svg>
             快速開始
         </a>
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
     </header>
 
     <!-- Hero Section -->
@@ -769,11 +776,11 @@ lhic run action action.json approval.json</code></pre>
             },
             browser: {
                 title: "@lhic/browser",
-                desc: "提供 Playwright SDK 與 Chrome DevTools Protocol (CDP) 的底層調用封裝。核心使命是將瀏覽器視窗中的 DOM 節點、ARIA 輔助標籤樹、網路連線狀態以及控制台日誌，正規化轉譯為可預測的 UI 狀態實體。",
+                desc: "提供 Playwright SDK 與 Chrome DevTools Protocol (CDP) 的底層調用封裝。內建高階瀏覽器實例池與 CDP 畫面影格串流機制，防個資洩漏且支援旁聽控制。",
                 features: [
-                    "完全不採用座標點擊 (Pixel Coordinates)，只使用語意與標籤進行可靠操作。",
-                    "監聽網路活動，精確判別 AJAX 請求是否加載完成。",
-                    "在執行動作前，對輸入標記進行元素重疊與可見度安全檢查。"
+                    "瀏覽器實例池 (BrowserPool)：支援預熱、狀態回收清理、以及防個資洩漏機制。",
+                    "影格即時旁聽 (Screencast)：基於 CDP startScreencast 實現即時 VNC 畫面廣播。",
+                    "隱身模式 (Stealth) 與代理輪替 (Proxy Rotation) 機制，防爬蟲特徵識別與防封鎖。"
                 ]
             },
             verifier: {
@@ -787,29 +794,29 @@ lhic run action action.json approval.json</code></pre>
             },
             trace: {
                 title: "@lhic/trace",
-                desc: "安全事件追踪與日誌持久化模組。所有任務執行的每一步操作細節與驗證數據均會寫入 Trace 檔案中。支援敏感 PII 全自動遮蔽，輸出可供日常稽核的 redacted JSONL 檔案。",
+                desc: "安全事件追踪與日誌持久化模組。所有任務執行的每一步操作細節與驗證數據均會寫入 Trace 檔案中。支援敏感 PII 全自動遮蔽，且包含 APM 及日誌自動清理功能。",
                 features: [
-                    "利用 CLI trace inspect 指令能即時生成系統可靠性與風險分佈報告。",
-                    "所有日誌在寫入硬碟前強制過濾機敏個資，保證隱私合規。",
+                    "自動日誌與截圖過期清理 (Log Pruning)，定期釋放磁碟空間防止硬碟爆滿。",
+                    "OpenTelemetry (OTLP) 整合：支援導出標準 Trace 格式 Spans 至集中 APM 監控大盤。",
                     "為每組 trace 生成獨立 SHA-256 狀態雜湊值，防止操作紀錄被篡改。"
                 ]
             },
             memory: {
                 title: "@lhic/memory",
-                desc: "基於 SQLite (`node:sqlite`) 的本地知識記憶庫。記錄每一個網頁上特定 UI 動作的成功選擇器、路徑修復歷史以及執行統計。是 LHIC 能實現自我優化與抗變性修復的核心。",
+                desc: "基於 SQLite (`node:sqlite`) 的本地知識記憶庫。支持耐久執行與步驟恢復，開啟 WAL 模式支持多租戶高併發讀寫。",
                 features: [
-                    "當網頁結構微調時，可從 SQLite 載入歷史備用選擇器進行自動模糊匹配。",
-                    "「技能升級」防護：只有在 Verifier 提交有效成果證明後，技能記憶才會被晉升 (Promoted)。",
+                    "耐久執行與狀態恢復 (Durable Workflows)：基於 SQLite 實現 Cookies/LocalStorage/SessionStorage 保存與步驟還原。",
+                    "併發 WAL 模式配置與 Busy Timeout 鎖控制，防止併發死鎖。",
                     "完全本地存儲，無需任何外部雲端資料庫調用，確保離線可用與極低延遲。"
                 ]
             },
             security: {
                 title: "@lhic/security",
-                desc: "安全邊界控管組件。負責在生產環境 (production) 下落實一系列強制限制，包含 SSL/HTTPS 白名單域名限制、防止請求私有網路 IP、以及最重要的 Ed25519 簽章核簽防護。",
+                desc: "安全邊界控管組件。負責在生產環境 (production) 下落實一系列強制限制，包含 SSL/HTTPS 白名單域名限制、KMS 公鑰簽章校驗與軟體靜態加密防護。",
                 features: [
-                    "防繞過設計：即使調用者繞過 CLI 直接使用 SDK，執行器仍會在 Click 前校驗安全狀態與白名單。",
-                    "Ed25519 人類審批驗簽：高風險指令執行時，必須提供由管理員金鑰簽署的過期憑證，否則拒絕啟動瀏覽器。",
-                    "PII 遮蔽器引擎：基於規則的機敏個資動態過濾演算法。"
+                    "KmsKeyManager：真正對接 AWS/GCP/Vault REST APIs 的公鑰拉取與 Ed25519 簽名校驗。",
+                    "金鑰吊銷機制 (CRL) 與快取 TTL 更新限制，防止過期金鑰繼續生效。",
+                    "原生零依賴的 AES-256-GCM 靜態資料加密層，防資料庫內容遭拷貝洩漏。"
                 ]
             },
             skills: {
@@ -835,17 +842,17 @@ lhic run action action.json approval.json</code></pre>
                 desc: "LHIC 的終端 Command Line 介面 (`lhic`)。為開發者與運維人員提供執行 Action 任務、預檢環境、檢查 Trace 安全性以及跑本地 Benchmark 的進入點。",
                 features: [
                     "安全預檢功能：`lhic run preflight` 確保主機環境變數與容器環境符合生產規格。",
-                    "提供快速的本地回歸基準測試觸發入口 `lhic bench`。",
-                    "支援將不信任的 JSON Action 檔進行輸入安全校驗，防止 CMD 注入風險。"
+                    "加固 Preflight：新增 Non-root 執行與網絡 DNS 完整性/劫持防護預檢。",
+                    "提供快速的本地回歸基準測試觸發入口 `lhic bench`。"
                 ]
             },
             "mcp-server": {
                 title: "apps/mcp-server",
-                desc: "標準 Model Context Protocol (MCP) 伺服器實現。將 LHIC 的本地安全瀏覽器執行能力，轉化為其他大型 Agent (例如 Antigravity) 的外掛工具，對外提供 Standard I/O 的 tool 呼叫接口。",
+                desc: "標準 Model Context Protocol (MCP) 伺服器實現。將 LHIC 的本地安全瀏覽器執行能力，轉化為外部 AI 代理 (例如 Antigravity) 的外掛工具，新增 HTTP 控制面閘道。",
                 features: [
+                    "控制面閘道 (Control Plane Server)：基於原生 http 的 JWT 認證與 IP 限流防護。",
                     "嚴格遵循 JSON-RPC stdio 協議，不污染標準輸出流。",
-                    "在輸出觀察回應時，自動移除所有 form input 中已鍵入的敏感內容，落實防洩防護。",
-                    "將所有外部輸入的工具調用，完美引流至 LHIC 現有的安全驗證、Ed25519 審核與 Trace 邊界中。"
+                    "在輸出觀察回應時，自動移除所有 form input 中已鍵入的敏感內容，落實防洩防護。"
                 ]
             }
         };
@@ -911,6 +918,20 @@ lhic run action action.json approval.json</code></pre>
                 }, 2000);
             }).catch(err => {
                 console.error("無法複製文字: ", err);
+            });
+        }
+
+        // Mobile Navigation Menu Toggle
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const navLinks = document.querySelector('.nav-links');
+        if (mobileMenuBtn && navLinks) {
+            mobileMenuBtn.addEventListener('click', () => {
+                navLinks.classList.toggle('active');
+            });
+            navLinks.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    navLinks.classList.remove('active');
+                });
             });
         }
     </script>
