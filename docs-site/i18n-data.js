@@ -176,3 +176,189 @@ const i18nPage = {
         footerLinks: ["Features", "Architecture", "Tutorial", "GitHub"]
     }
 };
+
+const packageDataZH = {
+    schema: {
+        title: "@lhic/schema",
+        desc: "專案最基礎的核心型別與資料綱要定義。使用 Zod 做靜態型別與執行階段校驗，涵蓋 Intent、UIState、SemanticAction、VerifierConditions 與 TraceEvent 等核心實體型別。",
+        features: [
+            "保證整個 Monorepo 中各套件與應用程式通訊資料格式的一致性。",
+            "定義明確的置信度閥值 (Confidence Level) 與風險權重 (Risk Weight)。",
+            "規範 Action 執行後的 Verifier 證明資料結構規格。"
+        ]
+    },
+    browser: {
+        title: "@lhic/browser",
+        desc: "提供 Playwright SDK 與 Chrome DevTools Protocol (CDP) 的底層調用封裝。內建高階瀏覽器實例池與 CDP 畫面影格串流機制，防個資洩漏且支援旁聽控制。",
+        features: [
+            "瀏覽器實例池 (BrowserPool)：支援預熱、狀態回收清理、以及防個資洩漏機制。",
+            "影格即時旁聽 (Screencast)：基於 CDP startScreencast 實現即時 VNC 畫面廣播。",
+            "隱身模式 (Stealth) 與代理輪替 (Proxy Rotation) 機制，防爬蟲特徵識別與防封鎖。"
+        ]
+    },
+    verifier: {
+        title: "@lhic/verifier",
+        desc: "客觀成功驗證模組。負責在動作執行後，對瀏覽器 DOM 狀態變更、網路響應碼、URL 變更或檔案下載串流進行實體校驗，確保步驟不是盲目執行而是確實生效。",
+        features: [
+            "文件下載驗證：追蹤 Playwright 的 Download 事件，核對下載內容與大小。",
+            "網路請求驗證：確認特定 API endpoint 的回傳狀態碼為 2xx。",
+            "DOM 狀態比對：支持 XPath、文字內容存在性與屬性值匹配校驗。"
+        ]
+    },
+    trace: {
+        title: "@lhic/trace",
+        desc: "安全事件追踪與日誌持久化模組。所有任務執行的每一步操作細節與驗證數據均會寫入 Trace 檔案中。支援敏感 PII 全自動遮蔽，且包含 APM 及日誌自動清理功能。",
+        features: [
+            "自動日誌與截圖過期清理 (Log Pruning)，定期釋放磁碟空間防止硬碟爆滿。",
+            "OpenTelemetry (OTLP) 整合：支援導出標準 Trace 格式 Spans 至集中 APM 監控大盤。",
+            "為每組 trace 生成獨立 SHA-256 狀態雜湊值，防止操作紀錄被篡改。"
+        ]
+    },
+    memory: {
+        title: "@lhic/memory",
+        desc: "基於 SQLite (`node:sqlite`) 的本地知識記憶庫。支持耐久執行與步驟恢復，開啟 WAL 模式支持多租戶高併發讀寫。",
+        features: [
+            "耐久執行與狀態恢復 (Durable Workflows)：基於 SQLite 實現 Cookies/LocalStorage/SessionStorage 保存與步驟還原。",
+            "併發 WAL 模式配置與 Busy Timeout 鎖控制，防止併發死鎖。",
+            "完全本地存儲，無需任何外部雲端資料庫調用，確保離線可用與極低延遲。"
+        ]
+    },
+    security: {
+        title: "@lhic/security",
+        desc: "安全邊界控管組件。負責在生產環境 (production) 下落實一系列強制限制，包含 SSL/HTTPS 白名單域名限制、KMS 公鑰簽章校驗與軟體靜態加密防護。",
+        features: [
+            "KmsKeyManager：真正對接 AWS/GCP/Vault REST APIs 的公鑰拉取與 Ed25519 簽名校驗。",
+            "金鑰吊銷機制 (CRL) 與快取 TTL 更新限制，防止過期金鑰繼續生效。",
+            "原生零依賴的 AES-256-GCM 靜態資料加密層，防資料庫內容遭拷貝洩漏。"
+        ]
+    },
+    skills: {
+        title: "@lhic/skills",
+        desc: "常用瀏覽器自動化高階複用技能模組。預置了多個具備故障恢復機制的常見網頁行為，如自動填表 (`fill_form`)、檔案下載 (`download_file`)、登入流程 (`login`) 以及網頁跳轉搜尋等。",
+        features: [
+            "登入技能：內建 CAPTCHA 與多重因素驗證 (2FA) 的 askUser 掛起機制。",
+            "表單填寫：支持隨機布局下的標籤尋找與鍵盤交互，絕不包含自動 Submit (送出必須為獨立經批准的動作)。",
+            "提供單元測試覆蓋與 benchmarks Fixtures 的預設技能實現。"
+        ]
+    },
+    controller: {
+        title: "@lhic/controller",
+        desc: "整個 LHIC 的大腦路由器。接收 Intent 並分類網頁 UI 狀態，決定是將任務派發給零成本的 Fast Path，抑或是將任務轉派給 Slow Path LLM Planner / 請求人類介入審查。",
+        features: [
+            "信賴閥值控管：唯有 UI 預測置信度高於 0.8 且低風險時，才走本地 Fast Path。",
+            "內建 Claude 等 Slow Path 代理介面封裝 (預設關閉，確保 Fast Path 零大模型連線)。",
+            "動態編譯語意 JSON 到本地執行代碼。"
+        ]
+    },
+    cli: {
+        title: "apps/cli",
+        desc: "LHIC 的終端 Command Line 介面 (`lhic`)。為開發者與運維人員提供執行 Action 任務、預檢環境、檢查 Trace 安全性以及跑本地 Benchmark 的進入點。",
+        features: [
+            "安全預檢功能：`lhic run preflight` 確保主機環境變數與容器環境符合生產規格。",
+            "加固 Preflight：新增 Non-root 執行與網絡 DNS 完整性/劫持防護預檢。",
+            "提供快速的本地回歸基準測試觸發入口 `lhic bench`。"
+        ]
+    },
+    "mcp-server": {
+        title: "apps/mcp-server",
+        desc: "標準 Model Context Protocol (MCP) 伺服器實現。將 LHIC 的本地安全瀏覽器執行能力，轉化為外部 AI 代理 (例如 Antigravity) 的外掛工具，新增 HTTP 控制面閘道。",
+        features: [
+            "控制面閘道 (Control Plane Server)：基於原生 http 的 JWT 認證與 IP 限流防護。",
+            "嚴格遵循 JSON-RPC stdio 協議，不污染標準輸出流。",
+            "在輸出觀察回應時，自動移除所有 form input 中已鍵入的敏感內容，落實防洩防護。"
+        ]
+    }
+};
+
+const packageDataEN = {
+    schema: {
+        title: "@lhic/schema",
+        desc: "The absolute foundation defining core types and data schemas. Utilizes Zod for static and runtime validation, covering Intent, UIState, SemanticAction, VerifierConditions, and TraceEvent.",
+        features: [
+            "Ensures data schema consistency across all packages and apps in the monorepo.",
+            "Defines explicit confidence thresholds and risk weights.",
+            "Specifies structural formatting for verifier output tokens."
+        ]
+    },
+    browser: {
+        title: "@lhic/browser",
+        desc: "Wraps Playwright and Chrome DevTools Protocol (CDP). Features browser instance pooling and CDP screencast screen-sharing to prevent leakage and allow manual override.",
+        features: [
+            "BrowserPool: Supports warm instances, isolated contexts, and cookie/session state cleanup.",
+            "CDP Screencast: Emits real-time screen frames as JPEG stream for remote manual intervention.",
+            "Stealth & Proxy Rotation: Bypasses anti-scrape browser fingerprinting and rotates proxies per context."
+        ]
+    },
+    verifier: {
+        title: "@lhic/verifier",
+        desc: "Objective validation engine. Audits final DOM changes, API statuses, and download streams after every action to ensure tasks are completed.",
+        features: [
+            "Download verification: Tracks Playwright file downloads and validates size/type.",
+            "Network verification: Confirms specific REST endpoints return expected 2xx response codes.",
+            "DOM state verification: Supports XPath and element presence/attribute checks."
+        ]
+    },
+    trace: {
+        title: "@lhic/trace",
+        desc: "Event tracking and logging module. Records every semantic action details and redacted JSONL files. Features dynamic cleanup and OTel exporting.",
+        features: [
+            "Log Pruning: Automatically purges historical traces and screenshots older than 30 days.",
+            "OpenTelemetry Export: Maps local tracing events to OTLP JSON spans for Grafana/Elasticsearch.",
+            "State Hash: Generates SHA-256 state hashes to prevent trace manipulation."
+        ]
+    },
+    memory: {
+        title: "@lhic/memory",
+        desc: "SQLite-based skill memory. Tracks successful selectors, workflow progress, and supports multi-tenant concurrency.",
+        features: [
+            "Durable Workflows: Stores cookies, localStorage, and sessionStorage to restore states.",
+            "Concurrent WAL mode: Minimizes database locks and deadlocks under heavy concurrent load.",
+            "Local store: Operates entirely offline with zero latency."
+        ]
+    },
+    security: {
+        title: "@lhic/security",
+        desc: "Core sandbox and policy controller. Enforces domain whitelists, public/private network restrictions, and KMS verification.",
+        features: [
+            "KmsKeyManager: Resolves AWS, GCP, and Vault public keys via direct REST APIs to verify signed approvals.",
+            "CRL & Cache TTL: Supports certificate revocation checks and key expiration limits.",
+            "AES-256-GCM Encryption: Secures user sessions, cookies, and local database storage at rest."
+        ]
+    },
+    skills: {
+        title: "@lhic/skills",
+        desc: "High-level re-usable web automation flows. Bundles standard skills like fill_form, download_file, and login.",
+        features: [
+            "Login Skill: Built-in 2FA/CAPTCHA suspension flow.",
+            "Form Filling: Identifies input tags semantically (never auto-submits forms).",
+            "Provides pre-packaged regression smoke tests and benchmark scripts."
+        ]
+    },
+    controller: {
+        title: "@lhic/controller",
+        desc: "The router brain. Receives user intents and routes them to either the zero-cost Fast Path or Slow Path planner.",
+        features: [
+            "Confidence check: Only executes Fast Path if predicted UI confidence >= 0.8.",
+            "Slow Path fallbacks: Standard adapters for Claude 3.5 and other agent frameworks.",
+            "Semantic Action compiler: Compiles natural language input into JSON actions."
+        ]
+    },
+    cli: {
+        title: "apps/cli",
+        desc: "LHIC Command Line Interface (CLI). Entrypoint for running tasks, preflights, and local benchmarks.",
+        features: [
+            "CLI Preflight: Runs system readiness checks including non-root and DNS hijack checks.",
+            "Harness configs: Render MCP setups for Antigravity, Cursor, and VS Code.",
+            "Benchmark triggers: Simple runner for local simulation and regression suites."
+        ]
+    },
+    "mcp-server": {
+        title: "apps/mcp-server",
+        desc: "Model Context Protocol (MCP) server stdio entrypoint. Exposes LHIC capabilities as tools for external agents, featuring an HTTP Control Plane Gateway.",
+        features: [
+            "Control Plane: Light-weight API Gateway with JWT authorization and IP-based rate limiting.",
+            "Strict stdio: Complies with JSON-RPC over stdio.",
+            "Data redaction: Scrubs sensitive forms from observations."
+        ]
+    }
+};

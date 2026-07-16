@@ -6,6 +6,7 @@
     <title>LHIC — Local Human Intent Controller | 本地優先安全瀏覽器操作框架</title>
     <meta name="description" content="LHIC 是一個本地優先的瀏覽器自動化運行時，採用 Zero-LLM Fast Path (零大模型快速路徑) 與語意化元素定位。提供嚴格的安全隔離、敏感資料遮蔽以及基於 Ed25519 簽章的高風險動作人類審查機制。">
     <link rel="stylesheet" href="style.css">
+    <script src="i18n-data.js"></script>
 </head>
 <body>
     <div class="bg-glow"></div>
@@ -770,6 +771,7 @@ lhic run action action.json approval.json</code></pre>
 
         function setLanguage(lang) {
             currentLang = lang;
+            window.currentLang = currentLang;
             document.documentElement.setAttribute('lang', currentLang === 'zh' ? 'zh-TW' : 'en');
             document.getElementById('lang-btn').innerText = currentLang === 'zh' ? 'EN' : '繁中';
 
@@ -943,7 +945,7 @@ lhic run action action.json approval.json</code></pre>
             });
 
             const conclusionDiv = document.querySelector('#benchmark .bench-card div[style*="background"]');
-            if (conclusionDiv) conclusionDiv.innerHTML = data.conclusion;
+            if (conclusionDiv) conclusionDiv.innerHTML = data.benchConclusion;
 
             // 7. Comparison
             const compTag = document.querySelector('#comparison .section-tag');
@@ -1017,7 +1019,7 @@ lhic run action action.json approval.json</code></pre>
         const packageData = new Proxy({}, {
             get(target, prop) {
                 const currentData = currentLang === 'zh' ? packageDataZH : packageDataEN;
-                return currentData[prop as keyof typeof packageDataZH];
+                return currentData[prop];
             }
         });
         const treeItems = document.querySelectorAll('.tree-item');
