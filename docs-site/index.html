@@ -979,18 +979,128 @@ lhic run action action.json approval.json</code></pre>
             }
         };
 
-        let currentLang = 'zh';
+        const textTranslations = {
+            "核心功能總覽": "Key Features Overview",
+            "LHIC 的核心設計理念是「確定性與安全性」，將瀏覽器操作轉變為客觀可驗證的自動化程序。": "LHIC is designed with 'Determinism and Security' in mind, transforming browser automation into objectively verified flows.",
+            "對於置信度高（&ge; 0.8）且為低風險的已知工作流，LHIC 直接呼叫本地預測與語意技能進行執行，徹底消除大模型的延遲與 Token 費用。": "For standard workflows with high confidence (>= 0.8) and low risk, LHIC executes them locally, completely eliminating LLM latency and token costs.",
+            "語意定位抗變性": "Semantic Locator Resilience",
+            "優先使用 DOM、ARIA 輔助角色、標籤 (label)、佔位符 (placeholder) 與包裹關係進行精準定位，大幅降低網頁排版異動帶來的腳本崩潰機率。": "Uses DOM, ARIA roles, labels, placeholders, and element hierarchies for precision targeting, significantly reducing script breakage under web layout changes.",
+            "客觀結果驗證器": "Objective Action Verifiers",
+            "每項操作的成功不靠模型猜測，而是由驗證器模組 (Verifier) 直接收集 DOM、URL、網路請求與檔案下載等客觀數據，作為執行通過的硬性指標。": "Action success is verified objectively by capturing DOM state, URLs, network responses, or file downloads, rather than relying on LLM guesses.",
+            "本地 SQLite 記憶庫": "Local SQLite Memory",
+            "執行成功後，選擇器與故障修復歷史將持久化至本地 SQLite。下次執行同類網頁時，系統能主動進行選擇器修補與策略優化。": "Successful selectors and healing histories are persisted locally in SQLite, enabling self-optimization and locator patching on subsequent runs.",
+            "極致隱私與遮蔽": "Security & Guardrails",
+            "自動在日誌中遮蔽敏感 PII (密碼、Cookie、Email、Token、手機)。高風險動作在生產環境中需經過由 Ed25519 數位簽章驗證的人類審批流。": "Built-in credential redaction and Ed25519 signature checks. High-risk actions require signed approval and connections are strictly limited to allowed origins.",
+            "多代理 MCP 整合": "Multi-Agent MCP Integration",
+            "提供標準 Model Context Protocol (MCP) 伺服器，對外曝露標準 API (Start, Observe, Act, Close)，完美對接外部 AI 代理 (例如 Antigravity)。": "Exposes standard Model Context Protocol (MCP) APIs (Start, Observe, Act, Close) to interface seamlessly with external AI agents like Antigravity.",
+            "架構與分支結構": "Architecture & Flow",
+            "LHIC 基於模組化 TypeScript 單一儲存庫 (Monorepo) 構建，透過雙路徑路由決策引擎實現安全高效的瀏覽器操作。": "LHIC is built on a modular TypeScript monorepo, resolving browser actions securely and efficiently via a dual-path routing engine.",
+            "雙路徑決策執行流程": "Dual-Path Execution Flow",
+            "使用者輸入的自然語言或 JSON 意圖": "Natural language or structured JSON input from users",
+            "進行 UI 階段分類、風險評估與置信度評分": "Performs UI state classification, risk assessment, and confidence scoring",
+            "無大模型呼叫，直接利用 Playwright 與 @lhic/skills 執行語意動作。": "No LLM calls. Executes semantic actions directly using Playwright and @lhic/skills.",
+            "抓取 DOM 變更、URL、網路請求或檔案，比對驗證。": "Audits DOM shifts, URL redirects, network requests, or downloads.",
+            "若驗證通過，將成功選擇器與策略沉澱為本地技能記憶。": "Saves successful selectors and strategies as local skill memories if verified.",
+            "暫停執行並向管理端申請 Ed25519 人類授權簽章。": "Suspends execution and requests an Ed25519 admin signature.",
+            "呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。": "Invokes LLM agent planner (e.g., Claude) for step decomposition and recovery.",
+            "脫敏遮蔽 PII 與機敏參數，輸出 redacted JSONL 日誌。": "Scrubs passwords/PII and exports redacted JSONL logs.",
+            "專案分支樹結構": "Project Branch Tree",
+            "點擊下方資料夾節點可查看該套件說明。": "Click on folder nodes below to inspect package descriptions.",
+            "點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。": "Click on folder nodes below to inspect package descriptions and responsibilities.",
+            "詳細使用教學": "Detailed User Guide",
+            "從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。": "From local setup to production deployments, learn how to leverage LHIC's secure automation capabilities.",
+            "安裝與初始化": "Installation & Init",
+            "CLI 開發使用": "CLI Development",
+            "MCP 代理整合": "MCP Agent Setup",
+            "生產安全配置": "Production Config",
+            "安裝專案依賴與建置": "1. Install Dependencies & Build",
+            "專案核心依賴 Node.js 24 (由於使用原生 <code>node:sqlite</code> 作為技能記憶資料庫)。": "Project requires Node.js 24 (due to native node:sqlite skill memory database).",
+            "複製專案後安裝依賴並進行 TypeScript 編譯": "Clone project, install dependencies and compile TS:",
+            "安裝 Playwright 瀏覽器核心": "2. Install Playwright Webdriver",
+            "安裝運行時所需的 Playwright Chromium 瀏覽器驅動。": "Install Playwright Chromium browser driver for the automation runtime.",
+            "執行基礎測試": "3. Run Regression Smoke Suite",
+            "確保本地核心測試及格式化全部通過。": "Run formatter, lints and unit tests to ensure stability:",
+            "執行語意自動化動作": "1. Run Semantic Action",
+            "透過編譯好的 CLI，傳入語意動作 JSON 檔案執行。": "Run compiled CLI passing semantic action JSON files:",
+            "安全日誌脫敏檢查": "2. Trace Sanitization Audit",
+            "檢視追蹤日誌並驗證敏感資訊 (密碼、Cookie) 是否已被完全遮蔽。": "Inspect traces and audit password/cookie redaction status:",
+            "抗變性消融模擬器": "3. Resilience Ablation Simulator",
+            "執行本地語意抗變性 (resilience) 的消融模擬評估。": "Evaluate resilient semantic locators using localized ablation simulation:",
+            "註冊與驗證外掛程式": "1. Validate Agent Integration",
+            "利用 Antigravity (<code>agy</code>) 的外掛機制註冊本地 MCP 伺服器組件。": "Validate MCP harness configuration using Antigravity (agy) tool CLI:",
+            "啟動本地 MCP 服務": "2. Start Local MCP Server",
+            "以 stdio 協議啟動 MCP 服務供外部 AI 代理連線。": "Expose standard JSON-RPC over stdio MCP endpoint:",
+            "與 AI 代理協作": "3. Pair Program with Agents",
+            "在 Cursor / Windsurf / Claude Desktop 中載入 LHIC 做為網頁自動化工具。": "Pair program using Cursor / Windsurf / Claude Desktop with LHIC tools.",
+            "生產 Docker 沙箱配置": "1. Hardened Dockerfile Setup",
+            "在正式環境中使用 Docker 進行物理硬隔離與權限限縮限制。": "Use multi-stage production Docker configurations for sandbox isolation.",
+            "容器低權限環境預檢": "2. Run Non-root Preflight",
+            "以低權限 (非 root 用戶 <code>lhic</code>) 打包 Chromium 與 CLI，並禁止掛載敏感的個人設定檔目錄。": "Enforce non-root execution and verify secure deployment checklist:",
+            "高風險指令人類簽章驗收": "3. Cryptographic Signature Sign-off",
+            "在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519 金鑰比對無誤後才允許在 Fast Path 執行。": "Enforce Ed25519 signature checks for high-risk actions in production:",
+            "基準測試與抗變性驗證": "Benchmarks & Validation",
+            "LHIC 通過嚴密的本地回歸指標套件，確保程式碼修改不影響系統的高可靠性與安全性。": "LHIC enforces localized regression metrics to ensure updates maintain SOTA stability.",
+            "與現有 Computer Use 解決方案的差異": "Comparison with Existing Solutions",
+            "LHIC 放棄了高成本、低安全性的「截圖-VLM-滑鼠座標」循環，改用精準的 DOM API 與安全邊界。": "LHIC shifts away from brittle pixel screenshots and moves to precision DOM/ARIA APIs.",
+            "架構屬性": "Architecture Specs",
+            "傳統 VLM/像素定位方案 (如 Anthropic Computer Use)": "Traditional Pixel/VLM (e.g. Anthropic Computer Use)",
+            "LHIC (Local Human Intent Controller)": "LHIC (Local-First Controller)",
+            "市場領先與策略定位": "Market Alignment & Positioning",
+            "LHIC 並非泛用的網頁「大模型探索代理」，而是鎖定在企業級高頻率、需要高可靠度與隱私保護的已知操作任務。 當前許多產品追求「完全自主探索」，往往導致昂貴的賬單與隨機性的任務失敗。LHIC 的雙軌路由策略 (Fast/Slow Path) 將企業自動化的邊際成本降至接近零。": "LHIC targets high-frequency, reliable enterprise automation. We shift away from unpredictable fully-autonomous discovery, dropping marginal run costs to zero.",
+            "防偽門檻與基準提交規則": "Anti-Falsification & Submission Policy",
+            "我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了 <code>lhic bench validate-evidence</code> 驗證指令。 唯有在 BrowserGym/AgentLab 整合套件下跑完 WorkArena 完整資料集、提交不加任何修改的映像檔 Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。": "We enforce rigorous validations. Submissions require unmodified hashes, full dataset audits, and independent verification prior to asserting SOTA status.",
+            "基本操作迴圈": "Execution Loop",
+            "定位精準度與抗變性": "Resilience & Targeting",
+            "安全性與 PII 防護": "Data Security & Privacy",
+            "高風險防堵機制": "Risk Prevention",
+            "執行成功驗證": "Validation Proof",
+            "運算資源與成本": "Resource Cost",
+            "本地回歸測試套件 (50 Fixtures)": "Regression Suite (50 Fixtures)",
+            "網頁變動抗變性消融模擬": "Ablation Simulation Study",
+            "任務成功率門檻": "Task Success Rate Limit",
+            "Fast Path 路由比例": "Fast Path Ratio",
+            "驗證器通過率": "Verifier Pass Rate",
+            "中位數 LLM 呼叫次數": "Median LLM Calls",
+            "消融結果結論：": "Ablation Conclusion:",
+            " 語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder 以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector 技術展現了顯著的": " Semantic positioning resolves Aria-Labels, element wrapping, placeholders, and dynamic IDs, demonstrating a robust ",
+            "超 50% 點受控優勢 (Controlled Advantage)": "50% controlled success advantage",
+            "由 ": "Composed of ",
+            " 各 10 組本地網頁所組成的回歸煙霧測試 (Smoke Suite)。下面為系統設定的硬性驗收門檻：": " local test runs (10 variants each). The following targets define core acceptance criteria:",
+            "模擬在 5種不同 UI 排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。": "Compares success rates across 5 UI layout ablate variants. This study isolates the value of semantic self-healing locator strategies."
+        };
 
-        function toggleLanguage() {
-            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        let currentLang = 'en'; // default English
+
+        function setLanguage(lang) {
+            currentLang = lang;
             document.documentElement.setAttribute('lang', currentLang === 'zh' ? 'zh-TW' : 'en');
             document.getElementById('lang-btn').innerText = currentLang === 'zh' ? 'EN' : '繁中';
             
-            // Translate static elements
+            // Translate static elements in i18n
             for (const [key, value] of Object.entries(i18n[currentLang])) {
                 const el = document.getElementById(key);
                 if (el) {
                     el.innerText = value;
+                }
+            }
+
+            // Traverse and translate entire DOM dynamically
+            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+            let node;
+            while (node = walk.nextNode()) {
+                const text = node.nodeValue.trim();
+                if (currentLang === 'en') {
+                    if (textTranslations[text]) {
+                        node.nodeValue = textTranslations[text];
+                    }
+                } else if (currentLang === 'zh') {
+                    // Reverse translate
+                    for (const [zhKey, enVal] of Object.entries(textTranslations)) {
+                        if (text === enVal) {
+                            node.nodeValue = zhKey;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -1003,6 +1113,19 @@ lhic run action action.json approval.json</code></pre>
                 if (firstItem) firstItem.click();
             }
         }
+
+        function toggleLanguage() {
+            setLanguage(currentLang === 'zh' ? 'en' : 'zh');
+        }
+
+        function detectAndSetLanguage() {
+            const userLang = navigator.language || navigator.languages?.[0] || 'en';
+            const isChinese = userLang.toLowerCase().startsWith('zh');
+            setLanguage(isChinese ? 'zh' : 'en');
+        }
+
+        // Run auto-detection immediately
+        detectAndSetLanguage();
 
         // Proxy packageData dynamically to resolve current language
         const packageData = new Proxy({}, {
@@ -1026,10 +1149,11 @@ lhic run action action.json approval.json</code></pre>
                         listHtml += `<li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${f}</li>`;
                     });
 
+                    const labelText = currentLang === 'zh' ? '核心特性與職責：' : 'Core Features & Responsibilities:';
                     displayDiv.innerHTML = `
                         <div class="package-detail-title">${data.title}</div>
                         <div class="package-detail-desc">${data.desc}</div>
-                        <h4 style="font-size: 0.95rem; font-weight:600; margin-bottom:12px; color:var(--text-main);">核心特性與職責：</h4>
+                        <h4 style="font-size: 0.95rem; font-weight:600; margin-bottom:12px; color:var(--text-main);">${labelText}</h4>
                         <ul class="package-detail-features">
                             ${listHtml}
                         </ul>
@@ -1063,7 +1187,7 @@ lhic run action action.json approval.json</code></pre>
             const code = pre.querySelector('code').innerText;
             navigator.clipboard.writeText(code).then(() => {
                 const originalText = button.innerText;
-                button.innerText = "已複製！";
+                button.innerText = currentLang === 'zh' ? "已複製！" : "Copied!";
                 button.style.background = "var(--primary)";
                 button.style.color = "#000";
                 setTimeout(() => {
