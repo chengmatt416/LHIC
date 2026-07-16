@@ -15,6 +15,10 @@ open-weight `Kokoro-82M` model, and edits the following 1080p MP4 files into
   workflows, verifier evidence, an approval gate, benchmark scope, and Codex
   collaboration. Render only this cut with `npm run demo:render:build-week`.
 
+Use the vetted [YouTube upload metadata](../docs/youtube-upload.md) for the
+Build Week cut. It deliberately excludes unverified runtime, npm, Devpost, and
+Codex `/feedback` claims.
+
 The renderer requires the project Chromium runtime, `ffmpeg`, and Python 3.11
 through 3.13. On first run it creates an isolated environment and downloads the
 Kokoro INT8 model and its voice pack to `demo-output/.kokoro/`; subsequent runs
