@@ -50,7 +50,17 @@ process.
 
 ## Evidence to record before submission
 
-For every environment, record the OS release, Node version, Playwright version,
-browser revision, exact commit SHA, command output, start/end time, and any
-failure. A clean-room three-platform matrix and a published-package smoke test
-are still required before claiming cross-platform `npx` success.
+The registry's `@pinyencheng/lhic@0.1.1` release predates the current demo and
+does not support `lhic demo`. After publishing the current version, run:
+
+```bash
+npm run package:published-smoke -- 0.1.2
+```
+
+This command uses an empty npm cache, a temporary non-repository directory, a
+dedicated Playwright browser cache, and `npx @pinyencheng/lhic@0.1.2 demo` with
+OpenAI credentials removed. For every environment, record the OS release, Node
+version, Playwright version, browser revision, exact commit SHA, command
+output, start/end time, and any failure. A clean-room three-platform matrix and
+a published-package smoke test are still required before claiming cross-platform
+`npx` success.

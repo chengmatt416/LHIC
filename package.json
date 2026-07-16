@@ -30,6 +30,7 @@
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
     "package:smoke": "node scripts/package-smoke.mjs",
+    "package:published-smoke": "node scripts/published-package-smoke.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",

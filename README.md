@@ -57,10 +57,11 @@ verifies the result, and shows that a destructive intent is approval-gated:
 npm run demo
 ```
 
-The npm package has not yet been published or verified through a real `npx`
-run. After publication, the equivalent command will be
-`npx @pinyencheng/lhic demo`. Until then, use this checkout's commands above or
-run `npm run package:smoke` to verify the release tarball. The planned package
+The npm registry contains `@pinyencheng/lhic@0.1.1`, but that release predates
+the current Judge Demo and its `npx @pinyencheng/lhic@0.1.1 demo` command does
+not exist. Do not use it as release evidence. Until the `0.1.2` release is
+published and passes the registry smoke test, use this checkout's commands
+above or run `npm run package:smoke` to verify the release tarball. The package
 requires Node.js 24 and a local Playwright Chromium installation; it declares
 support for macOS, Windows, and Linux. Native desktop control has additional
 platform permissions described in the [global control guide](docs/global-control.md).
@@ -77,9 +78,10 @@ See the [GPT-5.6 integration guide](docs/gpt-5.6-integration.md) for the
 schema, safety boundary, and failure behavior. Never put a key in an action
 file, trace, repository, screenshot, or demo recording.
 
-### Published CLI commands (after npm release)
+### Published CLI commands (after the current release is verified)
 
-After the npm release is verified, initialize the local-first runtime and its
+After the current npm release passes `npm run package:published-smoke -- 0.1.2`,
+initialize the local-first runtime and its
 persistent SQLite skill database. This preloads the shipped `download_file`,
 `fill_form`, `login`, `search`, and `test_web_flow` skills without overwriting
 learned skills:
