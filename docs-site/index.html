@@ -272,8 +272,8 @@
         <!-- Interactive Package structure -->
         <div class="package-diagram">
             <div>
-                <h3 class="feature-title">專案分支樹結構</h3>
-                <p class="section-subtitle" style="font-size: 0.9rem; margin-bottom: 24px;">點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。</p>
+                <h3 class="feature-title" id="package-tree-title">專案分支樹結構</h3>
+                <p class="section-subtitle" id="package-tree-desc" style="font-size: 0.9rem; margin-bottom: 24px;">點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。</p>
                 <div class="package-tree">
                     <div class="tree-folder">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
@@ -337,8 +337,8 @@
             </div>
             
             <div class="package-info-display" id="package-display">
-                <div class="package-detail-title">請選擇模組</div>
-                <div class="package-detail-desc">點擊左側目錄樹中的子套件 (package) 或應用程式 (app)，在此處即時檢視該模組的核心職責、安全屬性與設計原則。</div>
+                <div class="package-detail-title" id="package-placeholder-title">請選擇模組</div>
+                <div class="package-detail-desc" id="package-placeholder-desc">點擊左側目錄樹中的子套件 (package) 或應用程式 (app)，在此處即時檢視該模組的核心職責、安全屬性與設計原則。</div>
             </div>
         </div>
     </section>
@@ -835,9 +835,9 @@ lhic run action action.json approval.json</code></pre>
                 }
             });
 
-            const treeTitle = document.querySelector('.package-tree h3');
+            const treeTitle = document.getElementById('package-tree-title');
             if (treeTitle) treeTitle.innerText = data.treeTitle;
-            const treeSubtitle = document.querySelector('.package-tree p');
+            const treeSubtitle = document.getElementById('package-tree-desc');
             if (treeSubtitle) treeSubtitle.innerText = data.treeSubtitle;
 
             // Translate Tree folders and items
@@ -1016,8 +1016,10 @@ lhic run action action.json approval.json</code></pre>
             if (activeTreeItem) {
                 activeTreeItem.click();
             } else {
-                const firstItem = document.querySelector('.tree-item');
-                if (firstItem) firstItem.click();
+                const plTitle = document.getElementById('package-placeholder-title');
+                if (plTitle) plTitle.innerText = data.treePlaceholderTitle;
+                const plDesc = document.getElementById('package-placeholder-desc');
+                if (plDesc) plDesc.innerText = data.treePlaceholderDesc;
             }
         }
 
