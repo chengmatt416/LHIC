@@ -76,18 +76,23 @@ export class KmsKeyManager {
         }
       }
       if (keyId.includes("revoked")) {
-        throw new Error(`KMS Key ${keyId} is disabled/revoked in HashiCorp Vault.`);
+        throw new Error(
+          `KMS Key ${keyId} is disabled/revoked in HashiCorp Vault.`,
+        );
       }
       key = `-----BEGIN PUBLIC KEY-----\nMCOWBQBDMOCKVAULTKEY\n-----END PUBLIC KEY-----`;
     } else if (this.config.provider === "gcp") {
       // Real REST fetch from GCP Cloud KMS API if endpoint/token is configured
       if (this.config.endpoint && this.config.gcpAccessToken) {
         try {
-          const res = await fetch(`${this.config.endpoint}/v1/${keyId}/publicKey`, {
-            headers: {
-              Authorization: `Bearer ${this.config.gcpAccessToken}`,
+          const res = await fetch(
+            `${this.config.endpoint}/v1/${keyId}/publicKey`,
+            {
+              headers: {
+                Authorization: `Bearer ${this.config.gcpAccessToken}`,
+              },
             },
-          });
+          );
           if (res.ok) {
             const data = (await res.json()) as { pem?: string };
             if (data.pem) {

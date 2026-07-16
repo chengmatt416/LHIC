@@ -16,6 +16,10 @@ an `ask_user` result for a destructive intent, and GPT-5.6 as disabled unless
 the optional Slow Path environment variables were supplied. The fixture uses no
 network target, customer account, or real credential.
 
+The repository CI repeats the equivalent packaged tarball demo on Ubuntu,
+macOS, and Windows. It verifies a package build rather than a released npm
+version; check the release evidence before substituting the `npx` command.
+
 ## Extended verification
 
 ```bash

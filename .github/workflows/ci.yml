@@ -26,3 +26,37 @@ jobs:
       - run: npm run ci
       - run: PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests
       - run: python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
+
+  package-smoke:
+    name: Package smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Pack, install, and run the published-package equivalent
+        shell: bash
+        run: |
+          package_dir="$(mktemp -d)"
+          install_dir="$(mktemp -d)"
+          npm pack --workspace @pinyencheng/lhic --pack-destination "$package_dir"
+          archive="$(find "$package_dir" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$archive"
+          npm install --prefix "$install_dir" --no-package-lock "$archive"
+          "$install_dir/node_modules/.bin/playwright" install chromium
+          OPENAI_SLOW_PATH_ENABLED=false "$install_dir/node_modules/.bin/lhic" demo > "$install_dir/demo.json"
+          DEMO_OUTPUT="$install_dir/demo.json" node --input-type=module -e '
+            import { readFile } from "node:fs/promises";
+            const report = JSON.parse(await readFile(process.env.DEMO_OUTPUT, "utf8"));
+            if (!report.passed || report.gpt56.enabled) {
+              throw new Error("Packaged safe demo did not pass with the GPT Slow Path disabled.");
+            }
+          '

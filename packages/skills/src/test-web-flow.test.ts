@@ -207,7 +207,9 @@ describe("testWebFlow", () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.evidence).toContain("Skipped step 1 (already completed and hydrated).");
+      expect(result.evidence).toContain(
+        "Skipped step 1 (already completed and hydrated).",
+      );
       expect(saveCalled).toBe(true);
       expect(deleteCalled).toBe(true);
     } finally {

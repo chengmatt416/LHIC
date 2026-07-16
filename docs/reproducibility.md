@@ -24,6 +24,15 @@ The safe demo needs no API key. To test optional GPT-5.6 planning, set
 `OPENAI_SLOW_PATH_ENABLED=true` and `OPENAI_API_KEY` in the shell only. Never
 write the key to a file or include it in test fixtures.
 
+## Package smoke test
+
+GitHub Actions runs the tarball equivalent of the published package on Ubuntu,
+macOS, and Windows for every pull request and push to `main`. Each job packs
+the CLI, installs it in a new temporary directory, installs that package's
+Chromium, and requires `lhic demo` to report `passed: true` with the GPT Slow
+Path disabled. This is cross-platform package evidence, not evidence that a
+specific npm publication is available.
+
 ## Evidence to record before submission
 
 For every environment, record the OS release, Node version, Playwright version,

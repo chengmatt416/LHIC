@@ -10,9 +10,7 @@ export interface IntentPrediction {
   evidence: string[];
 }
 
-const skillForStage: Partial<
-  Record<ControllerStage, string>
-> = {
+const skillForStage: Partial<Record<ControllerStage, string>> = {
   login: "login",
   form_filling: "fill_form",
   search: "search",

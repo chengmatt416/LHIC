@@ -72,53 +72,57 @@ export class ControlPlaneServer {
 
   public start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.server = createServer((req: IncomingMessage, res: ServerResponse) => {
-        const ip = req.socket.remoteAddress || "unknown";
+      this.server = createServer(
+        (req: IncomingMessage, res: ServerResponse) => {
+          const ip = req.socket.remoteAddress || "unknown";
 
-        if (!this.checkRateLimit(ip)) {
-          res.writeHead(429, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              error: "Too many requests. Please try again later.",
-            }),
-          );
-          return;
-        }
+          if (!this.checkRateLimit(ip)) {
+            res.writeHead(429, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                error: "Too many requests. Please try again later.",
+              }),
+            );
+            return;
+          }
 
-        const authHeader = req.headers.authorization;
-        const token = authHeader?.startsWith("Bearer ")
-          ? authHeader.substring(7)
-          : undefined;
-        if (this.jwtPublicKey && (!token || !this.verifyJwt(token))) {
-          res.writeHead(401, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Unauthorized: Invalid JWT token." }));
-          return;
-        }
+          const authHeader = req.headers.authorization;
+          const token = authHeader?.startsWith("Bearer ")
+            ? authHeader.substring(7)
+            : undefined;
+          if (this.jwtPublicKey && (!token || !this.verifyJwt(token))) {
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({ error: "Unauthorized: Invalid JWT token." }),
+            );
+            return;
+          }
 
-        const url = new URL(req.url || "", `http://localhost:${this.port}`);
+          const url = new URL(req.url || "", `http://localhost:${this.port}`);
 
-        if (req.method === "POST" && url.pathname === "/v1/tasks") {
-          res.writeHead(202, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({ status: "Accepted", taskId: "new-task-uuid" }),
-          );
-          return;
-        }
+          if (req.method === "POST" && url.pathname === "/v1/tasks") {
+            res.writeHead(202, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({ status: "Accepted", taskId: "new-task-uuid" }),
+            );
+            return;
+          }
 
-        if (req.method === "GET" && url.pathname.startsWith("/v1/tasks/")) {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              taskId: url.pathname.split("/").pop(),
-              status: "completed",
-            }),
-          );
-          return;
-        }
+          if (req.method === "GET" && url.pathname.startsWith("/v1/tasks/")) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                taskId: url.pathname.split("/").pop(),
+                status: "completed",
+              }),
+            );
+            return;
+          }
 
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Not Found" }));
-      });
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Not Found" }));
+        },
+      );
 
       this.server.listen(this.port, () => {
         resolve();

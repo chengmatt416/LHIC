@@ -5,7 +5,8 @@ const jwtPattern = /\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 const apiTokenPattern = /\b(?:sk|pk|tok|api)[_-][A-Za-z0-9_-]{12,}\b/gi;
 const creditCardPattern = /\b(?:\d[ -]*?){13,16}\b/g;
 const ssnPattern = /\b\d{3}-\d{2}-\d{4}\b/g;
-const addressPattern = /\b\d{1,5}\s+(?:[A-Z0-9.-]+\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Highway|Hwy|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Circle|Cir|Way|Suite|Ste|Floor|Fl)\b/gi;
+const addressPattern =
+  /\b\d{1,5}\s+(?:[A-Z0-9.-]+\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Highway|Hwy|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Circle|Cir|Way|Suite|Ste|Floor|Fl)\b/gi;
 const sensitiveKeyPattern =
   /(password|passphrase|pwd|token|secret|api[_-]?key|authorization|cookie)/i;
 const sensitiveFieldHintPattern =

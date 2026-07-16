@@ -45,7 +45,9 @@ export class OTelExporter {
         await fetch(this.endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resourceSpans: [{ scopeSpans: [{ spans }] }] }),
+          body: JSON.stringify({
+            resourceSpans: [{ scopeSpans: [{ spans }] }],
+          }),
         });
       } catch {
         // Silent fail to ensure APM errors don't crash automation

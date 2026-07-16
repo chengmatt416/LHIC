@@ -112,7 +112,8 @@ export function validateActionApproval(
     if (!verificationKey && options.kmsKeyId) {
       // Dimension 4: Dynamic KMS / Key Vault Lookup Simulation
       const envVarName = `LHIC_KMS_KEY_${options.kmsKeyId.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
-      const fetchedKey = process.env[envVarName] || process.env.LHIC_KMS_DEFAULT_PUBLIC_KEY;
+      const fetchedKey =
+        process.env[envVarName] || process.env.LHIC_KMS_DEFAULT_PUBLIC_KEY;
       if (fetchedKey) {
         verificationKey = fetchedKey;
       }

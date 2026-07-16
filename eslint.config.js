@@ -7,12 +7,19 @@ export default tseslint.config(
       "**/dist/**",
       "**/node_modules/**",
       "coverage/**",
+      "demo-output/**",
       "playwright-report/**",
       "test-results/**",
     ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ["docs-site/i18n-data.js"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
   {
     languageOptions: {
       globals: {

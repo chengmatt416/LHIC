@@ -30,7 +30,8 @@ export class DurableWorkflowStore {
   public save(state: Omit<WorkflowState, "updatedAt">): void {
     const now = new Date().toISOString();
     this.database
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO workflow_states (task_id, workflow_name, last_completed_step, url, cookies_json, local_storage_json, session_storage_json, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(task_id) DO UPDATE SET
@@ -40,7 +41,8 @@ export class DurableWorkflowStore {
           local_storage_json = excluded.local_storage_json,
           session_storage_json = excluded.session_storage_json,
           updated_at = excluded.updated_at
-      `)
+      `,
+      )
       .run(
         state.taskId,
         state.workflowName,

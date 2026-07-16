@@ -1,495 +1,1083 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LHIC — Local Human Intent Controller | 本地優先安全瀏覽器操作框架</title>
-    <meta name="description" content="LHIC 是一個本地優先的瀏覽器自動化運行時，採用 Zero-LLM Fast Path (零大模型快速路徑) 與語意化元素定位。提供嚴格的安全隔離、敏感資料遮蔽以及基於 Ed25519 簽章的高風險動作人類審查機制。">
-    <link rel="stylesheet" href="style.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      LHIC — Local Human Intent Controller | 本地優先安全瀏覽器操作框架
+    </title>
+    <meta
+      name="description"
+      content="LHIC 是一個本地優先的瀏覽器自動化運行時，採用 Zero-LLM Fast Path (零大模型快速路徑) 與語意化元素定位。提供嚴格的安全隔離、敏感資料遮蔽以及基於 Ed25519 簽章的高風險動作人類審查機制。"
+    />
+    <link rel="stylesheet" href="style.css" />
     <script src="i18n-data.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="bg-glow"></div>
     <div class="bg-glow-2"></div>
 
     <!-- Header / Navigation -->
     <header id="header">
-        <a href="#" class="logo">
-            <!-- SVG Radar/Target Icon -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="6"></circle>
-                <circle cx="12" cy="12" r="2"></circle>
+      <a href="#" class="logo">
+        <!-- SVG Radar/Target Icon -->
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="6"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+        </svg>
+        LHIC
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features" id="nav-features">功能總覽</a></li>
+        <li><a href="#architecture" id="nav-architecture">架構與模組</a></li>
+        <li><a href="#tutorial" id="nav-tutorial">使用教學</a></li>
+        <li><a href="#benchmark" id="nav-benchmark">基準測試</a></li>
+        <li><a href="#comparison" id="nav-comparison">方案對比</a></li>
+        <li>
+          <a
+            href="https://github.com/chengmatt416/ComputerIntent"
+            target="_blank"
+            id="nav-github"
+            >GitHub 專案</a
+          >
+        </li>
+      </ul>
+      <div
+        class="nav-actions-wrapper"
+        style="display: flex; align-items: center; gap: 12px; flex-shrink: 0"
+      >
+        <div
+          class="lang-switcher-container"
+          style="display: flex; align-items: center; gap: 8px; flex-shrink: 0"
+        >
+          <button
+            onclick="toggleLanguage()"
+            class="lang-btn"
+            id="lang-btn"
+            style="
+              background: transparent;
+              border: 1px solid var(--border-color);
+              color: var(--text-main);
+              font-weight: 600;
+              font-size: 0.85rem;
+              padding: 8px 12px;
+              border-radius: var(--radius-sm);
+              cursor: pointer;
+              transition: var(--transition);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-shrink: 0;
+            "
+          >
+            EN
+          </button>
+          <a href="#tutorial" class="nav-cta">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 5v14M5 12h14"></path>
             </svg>
-            LHIC
-        </a>
-        <ul class="nav-links">
-            <li><a href="#features" id="nav-features">功能總覽</a></li>
-            <li><a href="#architecture" id="nav-architecture">架構與模組</a></li>
-            <li><a href="#tutorial" id="nav-tutorial">使用教學</a></li>
-            <li><a href="#benchmark" id="nav-benchmark">基準測試</a></li>
-            <li><a href="#comparison" id="nav-comparison">方案對比</a></li>
-            <li><a href="https://github.com/chengmatt416/ComputerIntent" target="_blank" id="nav-github">GitHub 專案</a></li>
-        </ul>
-        <div class="nav-actions-wrapper" style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
-            <div class="lang-switcher-container" style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                <button onclick="toggleLanguage()" class="lang-btn" id="lang-btn" style="background:transparent; border:1px solid var(--border-color); color:var(--text-main); font-weight:600; font-size:0.85rem; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); display:flex; align-items:center; justify-content:center; flex-shrink:0;">EN</button>
-                <a href="#tutorial" class="nav-cta">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M5 12h14"></path>
-                    </svg>
-                    <span id="nav-cta-text">快速開始</span>
-                </a>
-            </div>
-            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-            </button>
+            <span id="nav-cta-text">快速開始</span>
+          </a>
         </div>
+        <button
+          class="mobile-menu-btn"
+          id="mobile-menu-btn"
+          aria-label="Toggle menu"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Hero Section -->
     <section class="hero" id="home">
-        <div class="hero-content">
-            <div class="hero-badge">
-                <span></span> Local-First Browser Agent
-            </div>
-            <h1 class="hero-title">Local Human Intent Controller (LHIC)</h1>
-            <p class="hero-desc" id="hero-desc">基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫 LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。</p>
-            <div class="hero-actions">
-                <a href="#tutorial" class="btn btn-primary" id="btn-start">開始使用</a>
-                <a href="https://github.com/chengmatt416/ComputerIntent" target="_blank" class="btn btn-secondary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-                    </svg>
-                    <span>GitHub 專案</span>
-                </a>
-            </div>
+      <div class="hero-content">
+        <div class="hero-badge"><span></span> Local-First Browser Agent</div>
+        <h1 class="hero-title">Local Human Intent Controller (LHIC)</h1>
+        <p class="hero-desc" id="hero-desc">
+          基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫
+          LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。
+        </p>
+        <div class="hero-actions">
+          <a href="#tutorial" class="btn btn-primary" id="btn-start"
+            >開始使用</a
+          >
+          <a
+            href="https://github.com/chengmatt416/ComputerIntent"
+            target="_blank"
+            class="btn btn-secondary"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              style="margin-right: 8px"
+            >
+              <path
+                d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+              ></path>
+            </svg>
+            <span>GitHub 專案</span>
+          </a>
         </div>
-        <div class="terminal-container">
-            <div class="terminal">
-                <div class="terminal-header">
-                    <div class="terminal-dots">
-                        <span class="terminal-dot dot-red"></span>
-                        <span class="terminal-dot dot-yellow"></span>
-                        <span class="terminal-dot dot-green"></span>
-                    </div>
-                    <div class="terminal-title">lhic-cli --version 1.0.0</div>
-                </div>
-                <div class="terminal-body" id="terminal-body">
-                    <!-- Typing simulation will insert text here via JS -->
-                </div>
+      </div>
+      <div class="terminal-container">
+        <div class="terminal">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="terminal-dot dot-red"></span>
+              <span class="terminal-dot dot-yellow"></span>
+              <span class="terminal-dot dot-green"></span>
             </div>
+            <div class="terminal-title">lhic-cli --version 1.0.0</div>
+          </div>
+          <div class="terminal-body" id="terminal-body">
+            <!-- Typing simulation will insert text here via JS -->
+          </div>
         </div>
+      </div>
     </section>
 
     <!-- Feature Overview -->
     <section id="features">
-        <div class="section-tag">Feature Overview</div>
-        <h2 class="section-title">核心功能總覽</h2>
-        <p class="section-subtitle">LHIC 的核心設計理念是「確定性與安全性」，將瀏覽器操作轉變為客觀可驗證的自動化程序。</p>
-        
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M13 2L3 14h9l-1 8 10-10h-9l1-8z"></path>
-                    </svg>
-                </div>
-                <h3 class="feature-title">Zero-LLM Fast Path</h3>
-                <p class="feature-desc">對於置信度高（&ge; 0.8）且為低風險的已知工作流，LHIC 直接呼叫本地預測與語意技能進行執行，徹底消除大模型的延遲與 Token 費用。</p>
-            </div>
+      <div class="section-tag">Feature Overview</div>
+      <h2 class="section-title">核心功能總覽</h2>
+      <p class="section-subtitle">
+        LHIC
+        的核心設計理念是「確定性與安全性」，將瀏覽器操作轉變為客觀可驗證的自動化程序。
+      </p>
 
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M12 8v4l3 3"></path>
-                    </svg>
-                </div>
-                <h3 class="feature-title">語意定位抗變性</h3>
-                <p class="feature-desc">優先使用 DOM、ARIA 輔助角色、標籤 (label)、佔位符 (placeholder) 與包裹關係進行精準定位，大幅降低網頁排版異動帶來的腳本崩潰機率。</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                </div>
-                <h3 class="feature-title">客觀結果驗證器</h3>
-                <p class="feature-desc">每項操作的成功不靠模型猜測，而是由驗證器模組 (Verifier) 直接收集 DOM、URL、網路請求與檔案下載等客觀數據，作為執行通過的硬性指標。</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
-                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
-                    </svg>
-                </div>
-                <h3 class="feature-title">本地 SQLite 記憶庫</h3>
-                <p class="feature-desc">執行成功後，選擇器與故障修復歷史將持久化至本地 SQLite。下次執行同類網頁時，系統能主動進行選擇器修補與策略優化。</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                </div>
-                <h3 class="feature-title">極致隱私與遮蔽</h3>
-                <p class="feature-desc">自動在日誌中遮蔽敏感 PII (密碼、Cookie、Email、Token、手機)。高風險動作在生產環境中需經過由 Ed25519 數位簽章驗證的人類審批流。</p>
-            </div>
-
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                        <polyline points="2 17 12 22 22 17"></polyline>
-                        <polyline points="2 12 12 17 22 12"></polyline>
-                    </svg>
-                </div>
-                <h3 class="feature-title">多代理 MCP 整合</h3>
-                <p class="feature-desc">提供標準 Model Context Protocol (MCP) 伺服器，對外曝露標準 API (Start, Observe, Act, Close)，完美對接外部 AI 代理 (例如 Antigravity)。</p>
-            </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M13 2L3 14h9l-1 8 10-10h-9l1-8z"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">Zero-LLM Fast Path</h3>
+          <p class="feature-desc">
+            對於置信度高（&ge; 0.8）且為低風險的已知工作流，LHIC
+            直接呼叫本地預測與語意技能進行執行，徹底消除大模型的延遲與 Token
+            費用。
+          </p>
         </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 8v4l3 3"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">語意定位抗變性</h3>
+          <p class="feature-desc">
+            優先使用 DOM、ARIA 輔助角色、標籤 (label)、佔位符 (placeholder)
+            與包裹關係進行精準定位，大幅降低網頁排版異動帶來的腳本崩潰機率。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <h3 class="feature-title">客觀結果驗證器</h3>
+          <p class="feature-desc">
+            每項操作的成功不靠模型猜測，而是由驗證器模組 (Verifier) 直接收集
+            DOM、URL、網路請求與檔案下載等客觀數據，作為執行通過的硬性指標。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <h3 class="feature-title">本地 SQLite 記憶庫</h3>
+          <p class="feature-desc">
+            執行成功後，選擇器與故障修復歷史將持久化至本地
+            SQLite。下次執行同類網頁時，系統能主動進行選擇器修補與策略優化。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h3 class="feature-title">極致隱私與遮蔽</h3>
+          <p class="feature-desc">
+            自動在日誌中遮蔽敏感 PII
+            (密碼、Cookie、Email、Token、手機)。高風險動作在生產環境中需經過由
+            Ed25519 數位簽章驗證的人類審批流。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <h3 class="feature-title">多代理 MCP 整合</h3>
+          <p class="feature-desc">
+            提供標準 Model Context Protocol (MCP) 伺服器，對外曝露標準 API
+            (Start, Observe, Act, Close)，完美對接外部 AI 代理 (例如
+            Antigravity)。
+          </p>
+        </div>
+      </div>
     </section>
 
     <!-- Architecture & Packages -->
     <section id="architecture">
-        <div class="section-tag">Architecture & Packages</div>
-        <h2 class="section-title">架構與分支結構</h2>
-        <p class="section-subtitle">LHIC 基於模組化 TypeScript 單一儲存庫 (Monorepo) 構建，透過雙路徑路由決策引擎實現安全高效的瀏覽器操作。</p>
+      <div class="section-tag">Architecture & Packages</div>
+      <h2 class="section-title">架構與分支結構</h2>
+      <p class="section-subtitle">
+        LHIC 基於模組化 TypeScript 單一儲存庫 (Monorepo)
+        構建，透過雙路徑路由決策引擎實現安全高效的瀏覽器操作。
+      </p>
 
-        <!-- Dynamic Architecture Diagram -->
-        <div class="architecture-container">
-            <h3 class="feature-title" style="text-align: center; margin-bottom: 32px;">雙路徑決策執行流程</h3>
-            <div class="arch-flow">
-                <!-- Row 1: Intent -->
-                <div class="arch-row" style="justify-content: center;">
-                    <div class="arch-node">
-                        <div class="arch-node-title">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            User Intent
-                        </div>
-                        <div class="arch-node-desc">使用者輸入的自然語言或 JSON 意圖</div>
-                    </div>
-                </div>
-
-                <div class="arch-arrow-down">↓</div>
-
-                <!-- Row 2: Controller & Risk Router -->
-                <div class="arch-row" style="justify-content: center;">
-                    <div class="arch-node" style="border-color: var(--secondary);">
-                        <div class="arch-node-title" style="color: #818cf8;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
-                            @lhic/controller
-                        </div>
-                        <div class="arch-node-desc">進行 UI 階段分類、風險評估與置信度評分</div>
-                    </div>
-                </div>
-
-                <!-- Row 3: Split paths -->
-                <div class="arch-split">
-                    <!-- Left Branch: Fast Path -->
-                    <div class="arch-branch fast">
-                        <div class="arch-branch-label">置信度 &ge; 0.8 & 低風險</div>
-                        <div class="arch-node">
-                            <div class="arch-node-title">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                                Fast Path (本地執行)
-                            </div>
-                            <div class="arch-node-desc">無大模型呼叫，直接利用 Playwright 與 @lhic/skills 執行語意動作。</div>
-                        </div>
-                        
-                        <div class="arch-arrow-down">↓</div>
-
-                        <div class="arch-node">
-                            <div class="arch-node-title">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                @lhic/verifier
-                            </div>
-                            <div class="arch-node-desc">抓取 DOM 變更、URL、網路請求或檔案，比對驗證。</div>
-                        </div>
-
-                        <div class="arch-arrow-down">↓</div>
-
-                        <div class="arch-node">
-                            <div class="arch-node-title">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                                SQLite Skill Memory
-                            </div>
-                            <div class="arch-node-desc">若驗證通過，將成功選擇器與策略沉澱為本地技能記憶。</div>
-                        </div>
-                    </div>
-
-                    <!-- Right Branch: Slow Path -->
-                    <div class="arch-branch slow">
-                        <div class="arch-branch-label">置信度 &lt; 0.8 或 高風險 / 自訂動作</div>
-                        <div class="arch-node">
-                            <div class="arch-node-title" style="color: #818cf8;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                                Human Approval Flow
-                            </div>
-                            <div class="arch-node-desc">暫停執行並向管理端申請 Ed25519 人類授權簽章。</div>
-                        </div>
-
-                        <div class="arch-arrow-down">↓</div>
-
-                        <div class="arch-node">
-                            <div class="arch-node-title" style="color: #818cf8;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                                Slow Path Planner
-                            </div>
-                            <div class="arch-node-desc">呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer Log Row -->
-                <div class="arch-arrow-down" style="height: 30px;">↓</div>
-                
-                <div class="arch-row" style="justify-content: center;">
-                    <div class="arch-node" style="border-color: rgba(239, 68, 68, 0.4); max-width: 400px; width: 100%;">
-                        <div class="arch-node-title" style="color: #f87171;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                            @lhic/trace & @lhic/security
-                        </div>
-                        <div class="arch-node-desc">脫敏遮蔽 PII 與機敏參數，輸出 redacted JSONL 日誌。</div>
-                    </div>
-                </div>
+      <!-- Dynamic Architecture Diagram -->
+      <div class="architecture-container">
+        <h3
+          class="feature-title"
+          style="text-align: center; margin-bottom: 32px"
+        >
+          雙路徑決策執行流程
+        </h3>
+        <div class="arch-flow">
+          <!-- Row 1: Intent -->
+          <div class="arch-row" style="justify-content: center">
+            <div class="arch-node">
+              <div class="arch-node-title">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+                User Intent
+              </div>
+              <div class="arch-node-desc">使用者輸入的自然語言或 JSON 意圖</div>
             </div>
+          </div>
+
+          <div class="arch-arrow-down">↓</div>
+
+          <!-- Row 2: Controller & Risk Router -->
+          <div class="arch-row" style="justify-content: center">
+            <div class="arch-node" style="border-color: var(--secondary)">
+              <div class="arch-node-title" style="color: #818cf8">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                  <polyline points="2 17 12 22 22 17"></polyline>
+                  <polyline points="2 12 12 17 22 12"></polyline>
+                </svg>
+                @lhic/controller
+              </div>
+              <div class="arch-node-desc">
+                進行 UI 階段分類、風險評估與置信度評分
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: Split paths -->
+          <div class="arch-split">
+            <!-- Left Branch: Fast Path -->
+            <div class="arch-branch fast">
+              <div class="arch-branch-label">置信度 &ge; 0.8 & 低風險</div>
+              <div class="arch-node">
+                <div class="arch-node-title">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon
+                      points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                    ></polygon>
+                  </svg>
+                  Fast Path (本地執行)
+                </div>
+                <div class="arch-node-desc">
+                  無大模型呼叫，直接利用 Playwright 與 @lhic/skills
+                  執行語意動作。
+                </div>
+              </div>
+
+              <div class="arch-arrow-down">↓</div>
+
+              <div class="arch-node">
+                <div class="arch-node-title">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  @lhic/verifier
+                </div>
+                <div class="arch-node-desc">
+                  抓取 DOM 變更、URL、網路請求或檔案，比對驗證。
+                </div>
+              </div>
+
+              <div class="arch-arrow-down">↓</div>
+
+              <div class="arch-node">
+                <div class="arch-node-title">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                  </svg>
+                  SQLite Skill Memory
+                </div>
+                <div class="arch-node-desc">
+                  若驗證通過，將成功選擇器與策略沉澱為本地技能記憶。
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Branch: Slow Path -->
+            <div class="arch-branch slow">
+              <div class="arch-branch-label">
+                置信度 &lt; 0.8 或 高風險 / 自訂動作
+              </div>
+              <div class="arch-node">
+                <div class="arch-node-title" style="color: #818cf8">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                  Human Approval Flow
+                </div>
+                <div class="arch-node-desc">
+                  暫停執行並向管理端申請 Ed25519 人類授權簽章。
+                </div>
+              </div>
+
+              <div class="arch-arrow-down">↓</div>
+
+              <div class="arch-node">
+                <div class="arch-node-title" style="color: #818cf8">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+                    ></path>
+                  </svg>
+                  Slow Path Planner
+                </div>
+                <div class="arch-node-desc">
+                  呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Log Row -->
+          <div class="arch-arrow-down" style="height: 30px">↓</div>
+
+          <div class="arch-row" style="justify-content: center">
+            <div
+              class="arch-node"
+              style="
+                border-color: rgba(239, 68, 68, 0.4);
+                max-width: 400px;
+                width: 100%;
+              "
+            >
+              <div class="arch-node-title" style="color: #f87171">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                @lhic/trace & @lhic/security
+              </div>
+              <div class="arch-node-desc">
+                脫敏遮蔽 PII 與機敏參數，輸出 redacted JSONL 日誌。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Package structure -->
+      <div class="package-diagram">
+        <div>
+          <h3 class="feature-title" id="package-tree-title">專案分支樹結構</h3>
+          <p
+            class="section-subtitle"
+            id="package-tree-desc"
+            style="font-size: 0.9rem; margin-bottom: 24px"
+          >
+            點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。
+          </p>
+          <div class="package-tree">
+            <div class="tree-folder">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                ></path>
+              </svg>
+              <span class="tree-label">ComputerIntent (Root)</span>
+            </div>
+            <div class="tree-children">
+              <div class="tree-folder">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+                <span class="tree-label">packages/</span>
+              </div>
+              <div class="tree-children">
+                <div class="tree-item" data-package="schema">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">schema (核心型別定義)</span>
+                </div>
+                <div class="tree-item" data-package="browser">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">browser (瀏覽器 CDP 封裝)</span>
+                </div>
+                <div class="tree-item" data-package="verifier">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">verifier (結果比對器)</span>
+                </div>
+                <div class="tree-item" data-package="trace">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">trace (JSONL 脫敏日誌)</span>
+                </div>
+                <div class="tree-item" data-package="memory">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">memory (SQLite 記憶體)</span>
+                </div>
+                <div class="tree-item" data-package="security">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">security (安全與數位簽章)</span>
+                </div>
+                <div class="tree-item" data-package="skills">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">skills (複用表單/下載技能)</span>
+                </div>
+                <div class="tree-item" data-package="controller">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">controller (雙軌路由器)</span>
+                </div>
+              </div>
+              <div class="tree-folder">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+                <span class="tree-label">apps/</span>
+              </div>
+              <div class="tree-children">
+                <div class="tree-item" data-package="cli">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">cli (Command Line 工具)</span>
+                </div>
+                <div class="tree-item" data-package="mcp-server">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                    ></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span class="tree-label">mcp-server (MCP 伺服器端)</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Interactive Package structure -->
-        <div class="package-diagram">
-            <div>
-                <h3 class="feature-title" id="package-tree-title">專案分支樹結構</h3>
-                <p class="section-subtitle" id="package-tree-desc" style="font-size: 0.9rem; margin-bottom: 24px;">點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。</p>
-                <div class="package-tree">
-                    <div class="tree-folder">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                        <span class="tree-label">ComputerIntent (Root)</span>
-                    </div>
-                    <div class="tree-children">
-                        <div class="tree-folder">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                            <span class="tree-label">packages/</span>
-                        </div>
-                        <div class="tree-children">
-                            <div class="tree-item" data-package="schema">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">schema (核心型別定義)</span>
-                            </div>
-                            <div class="tree-item" data-package="browser">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">browser (瀏覽器 CDP 封裝)</span>
-                            </div>
-                            <div class="tree-item" data-package="verifier">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">verifier (結果比對器)</span>
-                            </div>
-                            <div class="tree-item" data-package="trace">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">trace (JSONL 脫敏日誌)</span>
-                            </div>
-                            <div class="tree-item" data-package="memory">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">memory (SQLite 記憶體)</span>
-                            </div>
-                            <div class="tree-item" data-package="security">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">security (安全與數位簽章)</span>
-                            </div>
-                            <div class="tree-item" data-package="skills">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">skills (複用表單/下載技能)</span>
-                            </div>
-                            <div class="tree-item" data-package="controller">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">controller (雙軌路由器)</span>
-                            </div>
-                        </div>
-                        <div class="tree-folder">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                            <span class="tree-label">apps/</span>
-                        </div>
-                        <div class="tree-children">
-                            <div class="tree-item" data-package="cli">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">cli (Command Line 工具)</span>
-                            </div>
-                            <div class="tree-item" data-package="mcp-server">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                <span class="tree-label">mcp-server (MCP 伺服器端)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="package-info-display" id="package-display">
-                <div class="package-detail-title" id="package-placeholder-title">請選擇模組</div>
-                <div class="package-detail-desc" id="package-placeholder-desc">點擊左側目錄樹中的子套件 (package) 或應用程式 (app)，在此處即時檢視該模組的核心職責、安全屬性與設計原則。</div>
-            </div>
+        <div class="package-info-display" id="package-display">
+          <div class="package-detail-title" id="package-placeholder-title">
+            請選擇模組
+          </div>
+          <div class="package-detail-desc" id="package-placeholder-desc">
+            點擊左側目錄樹中的子套件 (package) 或應用程式
+            (app)，在此處即時檢視該模組的核心職責、安全屬性與設計原則。
+          </div>
         </div>
+      </div>
     </section>
 
     <!-- User Guide / Interactive Tutorial -->
     <section id="tutorial">
-        <div class="section-tag">Detailed Guide</div>
-        <h2 class="section-title">詳細使用教學</h2>
-        <p class="section-subtitle">從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。</p>
+      <div class="section-tag">Detailed Guide</div>
+      <h2 class="section-title">詳細使用教學</h2>
+      <p class="section-subtitle">
+        從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。
+      </p>
 
-        <div class="tabs-container">
-            <div class="tabs-list">
-                <button class="tab-btn active" onclick="switchTab(event, 'tab-install')">安裝與初始化</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-cli')">CLI 開發使用</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-mcp')">AI Harness 整合</button>
-                <button class="tab-btn" onclick="switchTab(event, 'tab-prod')">生產安全配置</button>
-            </div>
+      <div class="tabs-container">
+        <div class="tabs-list">
+          <button
+            class="tab-btn active"
+            onclick="switchTab(event, 'tab-install')"
+          >
+            安裝與初始化
+          </button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-cli')">
+            CLI 開發使用
+          </button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-mcp')">
+            AI Harness 整合
+          </button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-prod')">
+            生產安全配置
+          </button>
+        </div>
 
-            <!-- Tab 1: Installation -->
-            <div id="tab-install" class="tab-pane active">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">1</span>使用 npx 啟動 LHIC
-                        </div>
-                        <p>需要 Node.js 24 以上版本；不必全域安裝 LHIC。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 不需全域安裝
+        <!-- Tab 1: Installation -->
+        <div id="tab-install" class="tab-pane active">
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">1</span>使用 npx 啟動 LHIC
+              </div>
+              <p>需要 Node.js 24 以上版本；不必全域安裝 LHIC。</p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 不需全域安裝
 npx @pinyencheng/lhic start</code></pre>
-                        </div>
-                    </div>
-                    
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">2</span>安裝 Playwright 瀏覽器核心
-                        </div>
-                        <p>安裝運行時所需的 Playwright Chromium 瀏覽器驅動。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>npx playwright@1.61.1 install chromium</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">3</span>驗證本機執行環境
-                        </div>
-                        <p>確認瀏覽器自動化與桌面控制的必要條件皆已就緒。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>npx @pinyencheng/lhic preflight
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">2</span>安裝 Playwright 瀏覽器核心
+              </div>
+              <p>安裝運行時所需的 Playwright Chromium 瀏覽器驅動。</p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>npx playwright@1.61.1 install chromium</code></pre>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">3</span>驗證本機執行環境
+              </div>
+              <p>確認瀏覽器自動化與桌面控制的必要條件皆已就緒。</p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>npx @pinyencheng/lhic preflight
 npx @pinyencheng/lhic global doctor</code></pre>
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Tab 2: CLI -->
-            <div id="tab-cli" class="tab-pane">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">1</span>執行語意自動化動作
-                        </div>
-                        <p>透過編譯好的 CLI，傳入語意動作 JSON 檔案執行。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 執行特定 semantic action 任務
+        <!-- Tab 2: CLI -->
+        <div id="tab-cli" class="tab-pane">
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">1</span>執行語意自動化動作
+              </div>
+              <p>透過編譯好的 CLI，傳入語意動作 JSON 檔案執行。</p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 執行特定 semantic action 任務
 npx @pinyencheng/lhic run action action.json</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">2</span>安全日誌脫敏檢查
-                        </div>
-                        <p>檢視追蹤日誌並驗證敏感資訊 (密碼、Cookie) 是否已被完全遮蔽。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 檢查指定追蹤日誌的健全度與風險遮蔽狀況
-npx @pinyencheng/lhic trace inspect path/to/trace.jsonl</code></pre>
-                        </div>
-                    </div>
-
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">3</span>抗變性消融模擬器
-                        </div>
-                        <p>執行本地語意抗變性 (resilience) 的消融模擬評估。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 執行 100 次以指定 Seed (20260715) 生成的表單填寫消融測試
-npx @pinyencheng/lhic bench simulate resilience 100 20260715</code></pre>
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
 
-            <!-- Tab 3: AI Harness / MCP -->
-            <div id="tab-mcp" class="tab-pane">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">1</span>建置並預檢本機執行環境
-                        </div>
-                        <p>AI harness 與 Chromium 必須在同一台電腦執行。MCP server 尚需由此 checkout 建置一次；後續的 CLI 使用與驗證則透過 npx 執行。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>npm ci
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">2</span>安全日誌脫敏檢查
+              </div>
+              <p>
+                檢視追蹤日誌並驗證敏感資訊 (密碼、Cookie) 是否已被完全遮蔽。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 檢查指定追蹤日誌的健全度與風險遮蔽狀況
+npx @pinyencheng/lhic trace inspect path/to/trace.jsonl</code></pre>
+              </div>
+            </div>
+
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">3</span>抗變性消融模擬器
+              </div>
+              <p>執行本地語意抗變性 (resilience) 的消融模擬評估。</p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 執行 100 次以指定 Seed (20260715) 生成的表單填寫消融測試
+npx @pinyencheng/lhic bench simulate resilience 100 20260715</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: AI Harness / MCP -->
+        <div id="tab-mcp" class="tab-pane">
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">1</span>建置並預檢本機執行環境
+              </div>
+              <p>
+                AI harness 與 Chromium 必須在同一台電腦執行。MCP server 尚需由此
+                checkout 建置一次；後續的 CLI 使用與驗證則透過 npx 執行。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>npm ci
 npm run build
 npx playwright@1.61.1 install chromium
 npx @pinyencheng/lhic preflight</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">2</span>使用已編譯的 stdio MCP 進入點
-                        </div>
-                        <p>每個 MCP server process 管理一個新的 Chromium 工作階段，並依到達順序序列化操作。請讓 harness 直接啟動 <code>node</code>；不要使用 <code>npm run</code>，避免 Lifecycle 輸出污染 MCP 的 JSON stdio 通訊協定。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># Every harness points at this local, compiled server.
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">2</span>使用已編譯的 stdio MCP 進入點
+              </div>
+              <p>
+                每個 MCP server process 管理一個新的 Chromium
+                工作階段，並依到達順序序列化操作。請讓 harness 直接啟動
+                <code>node</code>；不要使用 <code>npm run</code>，避免 Lifecycle
+                輸出污染 MCP 的 JSON stdio 通訊協定。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># Every harness points at this local, compiled server.
 command = "node"
 args = ["/absolute/path/to/ComputerIntent/apps/mcp-server/dist/index.js"]
 cwd = "/absolute/path/to/ComputerIntent"</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">3</span>在 OpenClaw 註冊並即時驗證
-                        </div>
-                        <p>在專案根目錄執行以下命令，將 LHIC 儲存為 OpenClaw 管理的本機 MCP server，然後以 live probe 確認它能啟動並列出工具。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>openclaw mcp add lhic-computer-use --command node --arg "$PWD/apps/mcp-server/dist/index.js" --cwd "$PWD"
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">3</span>在 OpenClaw 註冊並即時驗證
+              </div>
+              <p>
+                在專案根目錄執行以下命令，將 LHIC 儲存為 OpenClaw 管理的本機 MCP
+                server，然後以 live probe 確認它能啟動並列出工具。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>openclaw mcp add lhic-computer-use --command node --arg "$PWD/apps/mcp-server/dist/index.js" --cwd "$PWD"
 
 openclaw mcp doctor lhic-computer-use --probe</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">4</span>在 Hermes 設定 MCP server
-                        </div>
-                        <p>在 <code>~/.hermes/config.yaml</code> 的 <code>mcp_servers</code> 中新增 LHIC。保留單一序列化工作階段設定，並使用本機 SQLite 路徑保存經遮蔽的技能與選擇器記憶。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># ~/.hermes/config.yaml
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">4</span>在 Hermes 設定 MCP server
+              </div>
+              <p>
+                在 <code>~/.hermes/config.yaml</code> 的
+                <code>mcp_servers</code> 中新增
+                LHIC。保留單一序列化工作階段設定，並使用本機 SQLite
+                路徑保存經遮蔽的技能與選擇器記憶。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># ~/.hermes/config.yaml
 mcp_servers:
   lhic_computer_use:
     command: node
@@ -500,644 +1088,914 @@ mcp_servers:
     timeout: 45
     connect_timeout: 20
     supports_parallel_tool_calls: false</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">5</span>以 Antigravity 外掛方式使用（選用）
-                        </div>
-                        <p>此專案已包含 Antigravity 外掛。驗證外掛後，產生可供審閱的設定片段，貼入 harness 設定並在重啟後用 <code>/mcp</code> 確認連線。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>agy plugin validate .agents/plugins/lhic-computer-use
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">5</span>以 Antigravity
+                外掛方式使用（選用）
+              </div>
+              <p>
+                此專案已包含 Antigravity
+                外掛。驗證外掛後，產生可供審閱的設定片段，貼入 harness
+                設定並在重啟後用 <code>/mcp</code> 確認連線。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>agy plugin validate .agents/plugins/lhic-computer-use
 npx @pinyencheng/lhic mcp config antigravity "$PWD"
 
 # Review the printed JSON, add it to Antigravity, restart, then run /mcp.</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">6</span>執行第一個可驗證任務
-                        </div>
-                        <p>請 harness 依序使用以下工具。每個動作後都要檢查 <code>result.success</code>、驗證證據與回傳狀態；高風險或未知風險動作仍需要人類核准。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code>lhic_runtime_status
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">6</span>執行第一個可驗證任務
+              </div>
+              <p>
+                請 harness 依序使用以下工具。每個動作後都要檢查
+                <code>result.success</code
+                >、驗證證據與回傳狀態；高風險或未知風險動作仍需要人類核准。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code>lhic_runtime_status
 lhic_browser_start
 lhic_browser_observe
 lhic_browser_act  # exactly one: navigate, click, fill, select, press, or wait
 lhic_browser_observe
 lhic_browser_close</code></pre>
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
+          </div>
+        </div>
 
-            <!-- Tab 4: Production -->
-            <div id="tab-prod" class="tab-pane">
-                <div class="guide-steps">
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">1</span>環境安全沙箱稽核
-                        </div>
-                        <p>切換至生產模式，強制要求 HTTPS 域名白名單、非私有網路目標、以及無明文 Credential 的網址。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 驗證生產環境配置與預檢
+        <!-- Tab 4: Production -->
+        <div id="tab-prod" class="tab-pane">
+          <div class="guide-steps">
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">1</span>環境安全沙箱稽核
+              </div>
+              <p>
+                切換至生產模式，強制要求 HTTPS
+                域名白名單、非私有網路目標、以及無明文 Credential 的網址。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 驗證生產環境配置與預檢
 LHIC_ENV=production \
 LHIC_ALLOWED_ORIGINS=https://app.example.com \
 npx @pinyencheng/lhic preflight</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">2</span>容器化打包發布
-                        </div>
-                        <p>以低權限 (非 root 用戶 <code>lhic</code>) 打包 Chromium 與 CLI，並禁止掛載敏感的個人設定檔目錄。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 建立容器並以生產配置預檢
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">2</span>容器化打包發布
+              </div>
+              <p>
+                以低權限 (非 root 用戶 <code>lhic</code>) 打包 Chromium 與
+                CLI，並禁止掛載敏感的個人設定檔目錄。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 建立容器並以生產配置預檢
 docker build --tag lhic:local .
 docker run --rm \
   -e LHIC_ALLOWED_ORIGINS=https://app.example.com \
   -v lhic-traces:/var/lib/lhic/traces \
   lhic:local preflight</code></pre>
-                        </div>
-                    </div>
+              </div>
+            </div>
 
-                    <div class="guide-step">
-                        <div class="guide-step-title">
-                            <span class="step-num">3</span>高風險指令人類簽章驗收
-                        </div>
-                        <p>在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519 金鑰比對無誤後才允許在 Fast Path 執行。</p>
-                        <div class="code-container">
-                            <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 傳入動作檔與人類簽章檔案進行嚴格驗簽執行
+            <div class="guide-step">
+              <div class="guide-step-title">
+                <span class="step-num">3</span>高風險指令人類簽章驗收
+              </div>
+              <p>
+                在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519
+                金鑰比對無誤後才允許在 Fast Path 執行。
+              </p>
+              <div class="code-container">
+                <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                <pre><code># 傳入動作檔與人類簽章檔案進行嚴格驗簽執行
 LHIC_ENV=production \
 LHIC_ALLOWED_ORIGINS=https://app.example.com \
 LHIC_APPROVAL_PUBLIC_KEY="$(cat approval-authority-public.pem)" \
 npx @pinyencheng/lhic run action action.json approval.json</code></pre>
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
     </section>
 
     <!-- Benchmark details & Ablation -->
     <section id="benchmark">
-        <div class="section-tag">Performance & Testing</div>
-        <h2 class="section-title">基準測試與抗變性驗證</h2>
-        <p class="section-subtitle">LHIC 通過嚴密的本地回歸指標套件，確保程式碼修改不影響系統的高可靠性與安全性。</p>
+      <div class="section-tag">Performance & Testing</div>
+      <h2 class="section-title">基準測試與抗變性驗證</h2>
+      <p class="section-subtitle">
+        LHIC
+        通過嚴密的本地回歸指標套件，確保程式碼修改不影響系統的高可靠性與安全性。
+      </p>
 
-        <div class="benchmarks-section">
-            <!-- 50 Fixture suite info -->
-            <div class="bench-card">
-                <h3 class="bench-card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    本地回歸測試套件 (50 Fixtures)
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">由 <code>fill_form</code>, <code>download_file</code>, <code>login</code>, <code>search</code>, <code>test_web_flow</code> 各 10 組本地網頁所組成的回歸煙霧測試 (Smoke Suite)。下面為系統設定的硬性驗收門檻：</p>
-                
-                <div class="gauge-grid">
-                    <div class="gauge-item">
-                        <div class="gauge-visual" style="--percent: 85;">
-                            <span class="gauge-value">85%</span>
-                        </div>
-                        <div class="gauge-label">任務成功率門檻</div>
-                    </div>
-                    <div class="gauge-item">
-                        <div class="gauge-visual" style="--percent: 70;">
-                            <span class="gauge-value">70%</span>
-                        </div>
-                        <div class="gauge-label">Fast Path 路由比例</div>
-                    </div>
-                    <div class="gauge-item">
-                        <div class="gauge-visual" style="--percent: 90;">
-                            <span class="gauge-value">90%</span>
-                        </div>
-                        <div class="gauge-label">驗證器通過率</div>
-                    </div>
-                    <div class="gauge-item">
-                        <div class="gauge-visual" style="--percent: 100;">
-                            <span class="gauge-value">&le; 2</span>
-                        </div>
-                        <div class="gauge-label">中位數 LLM 呼叫次數</div>
-                    </div>
-                </div>
+      <div class="benchmarks-section">
+        <!-- 50 Fixture suite info -->
+        <div class="bench-card">
+          <h3 class="bench-card-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            本地回歸測試套件 (50 Fixtures)
+          </h3>
+          <p
+            style="
+              color: var(--text-muted);
+              font-size: 0.9rem;
+              margin-bottom: 24px;
+            "
+          >
+            由 <code>fill_form</code>, <code>download_file</code>,
+            <code>login</code>, <code>search</code>,
+            <code>test_web_flow</code> 各 10 組本地網頁所組成的回歸煙霧測試
+            (Smoke Suite)。下面為系統設定的硬性驗收門檻：
+          </p>
+
+          <div class="gauge-grid">
+            <div class="gauge-item">
+              <div class="gauge-visual" style="--percent: 85">
+                <span class="gauge-value">85%</span>
+              </div>
+              <div class="gauge-label">任務成功率門檻</div>
             </div>
-
-            <!-- Controlled resilience simulation -->
-            <div class="bench-card">
-                <h3 class="bench-card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 22 12 17 22 22 12 2"></polygon></svg>
-                    網頁變動抗變性消融模擬
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px;">模擬在 5 種不同 UI 排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。</p>
-                
-                <div class="ablation-grid">
-                    <div class="ablation-bar-item">
-                        <div class="ablation-bar-label">
-                            <span>LHIC Semantic 定位 (ARIA / Label 關聯)</span>
-                            <span class="ablation-stat">98% 成功率</span>
-                        </div>
-                        <div class="ablation-bar-bg">
-                            <div class="ablation-bar-fill semantic" style="width: 98%;"></div>
-                        </div>
-                    </div>
-
-                    <div class="ablation-bar-item">
-                        <div class="ablation-bar-label">
-                            <span>Brittle CSS Selector 定位 (固定 Selector 基準線)</span>
-                            <span class="ablation-stat">42% 成功率</span>
-                        </div>
-                        <div class="ablation-bar-bg">
-                            <div class="ablation-bar-fill baseline" style="width: 42%;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: var(--radius-sm); padding: 16px; margin-top: 24px; font-size: 0.85rem; color: var(--text-muted);">
-                    <strong style="color: var(--primary-light);">消融結果結論：</strong> 語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder 以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector 技術展現了顯著的<strong>超 50% 點受控優勢 (Controlled Advantage)</strong>。
-                </div>
+            <div class="gauge-item">
+              <div class="gauge-visual" style="--percent: 70">
+                <span class="gauge-value">70%</span>
+              </div>
+              <div class="gauge-label">Fast Path 路由比例</div>
             </div>
+            <div class="gauge-item">
+              <div class="gauge-visual" style="--percent: 90">
+                <span class="gauge-value">90%</span>
+              </div>
+              <div class="gauge-label">驗證器通過率</div>
+            </div>
+            <div class="gauge-item">
+              <div class="gauge-visual" style="--percent: 100">
+                <span class="gauge-value">&le; 2</span>
+              </div>
+              <div class="gauge-label">中位數 LLM 呼叫次數</div>
+            </div>
+          </div>
         </div>
+
+        <!-- Controlled resilience simulation -->
+        <div class="bench-card">
+          <h3 class="bench-card-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon points="12 2 2 22 12 17 22 22 12 2"></polygon>
+            </svg>
+            網頁變動抗變性消融模擬
+          </h3>
+          <p
+            style="
+              color: var(--text-muted);
+              font-size: 0.9rem;
+              margin-bottom: 24px;
+            "
+          >
+            模擬在 5 種不同 UI
+            排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。
+          </p>
+
+          <div class="ablation-grid">
+            <div class="ablation-bar-item">
+              <div class="ablation-bar-label">
+                <span>LHIC Semantic 定位 (ARIA / Label 關聯)</span>
+                <span class="ablation-stat">98% 成功率</span>
+              </div>
+              <div class="ablation-bar-bg">
+                <div
+                  class="ablation-bar-fill semantic"
+                  style="width: 98%"
+                ></div>
+              </div>
+            </div>
+
+            <div class="ablation-bar-item">
+              <div class="ablation-bar-label">
+                <span>Brittle CSS Selector 定位 (固定 Selector 基準線)</span>
+                <span class="ablation-stat">42% 成功率</span>
+              </div>
+              <div class="ablation-bar-bg">
+                <div
+                  class="ablation-bar-fill baseline"
+                  style="width: 42%"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style="
+              background: rgba(16, 185, 129, 0.05);
+              border: 1px solid rgba(16, 185, 129, 0.15);
+              border-radius: var(--radius-sm);
+              padding: 16px;
+              margin-top: 24px;
+              font-size: 0.85rem;
+              color: var(--text-muted);
+            "
+          >
+            <strong style="color: var(--primary-light)">消融結果結論：</strong>
+            語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder
+            以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector
+            技術展現了顯著的<strong
+              >超 50% 點受控優勢 (Controlled Advantage)</strong
+            >。
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- Differences from Current Solutions -->
     <section id="comparison">
-        <div class="section-tag">Comparison</div>
-        <h2 class="section-title">與現有 Computer Use 解決方案的差異</h2>
-        <p class="section-subtitle">LHIC 放棄了高成本、低安全性的「截圖-VLM-滑鼠座標」循環，改用精準的 DOM API 與安全邊界。</p>
+      <div class="section-tag">Comparison</div>
+      <h2 class="section-title">與現有 Computer Use 解決方案的差異</h2>
+      <p class="section-subtitle">
+        LHIC 放棄了高成本、低安全性的「截圖-VLM-滑鼠座標」循環，改用精準的 DOM
+        API 與安全邊界。
+      </p>
 
-        <div class="comparison-table-wrapper">
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th>架構屬性</th>
-                        <th>傳統 VLM/像素定位方案 (如 Anthropic Computer Use)</th>
-                        <th class="lhic-col">LHIC (Local Human Intent Controller)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>基本操作迴圈</strong></td>
-                        <td>VLM 模型解讀截圖 &rarr; 計算像素座標 &rarr; 模擬滑鼠點擊 (極慢，成本高)</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> 直接調用 CDP / Playwright DOM 與 ARIA 語意 API。優先走無模型 Fast Path</td>
-                    </tr>
-                    <tr>
-                        <td><strong>定位精準度與抗變性</strong></td>
-                        <td>依賴視覺判讀，受解析度、縮放、滾動影響，易點錯座標造成不可預測後果</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> 標籤 (label)、角色 (role) 與本地 SQLite 歷史反饋修補定位。排版微調完全不受影響</td>
-                    </tr>
-                    <tr>
-                        <td><strong>安全性與 PII 防護</strong></td>
-                        <td>日誌與 Token 中可能附帶敏感個資與截圖明文，無有效過濾機制</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> 原生 Regex 敏感資訊脫敏、HTTPS 白名單、本地 JSONL 不保留敏感輸入</td>
-                    </tr>
-                    <tr>
-                        <td><strong>高風險防堵機制</strong></td>
-                        <td>大模型一旦「幻覺」容易自行點擊危險按鈕 (如確認支付、刪除帳號)</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> 高風險與自訂操作強制阻斷，必須取得由第三方簽發的 Ed25519 簽章憑證才可放行</td>
-                    </tr>
-                    <tr>
-                        <td><strong>執行成功驗證</strong></td>
-                        <td>大模型自己預測「我好像完成了」 (無客觀依據，False-Positive 高)</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> Verifier 硬性取得 DOM 終端狀態、網路監聽封包或下載成功資訊</td>
-                    </tr>
-                    <tr>
-                        <td><strong>運算資源與成本</strong></td>
-                        <td>每一次滑動與動作均需多次呼叫 VLM API，每步驟數美分，延遲數秒</td>
-                        <td class="lhic-col"><span class="check-icon">✓</span> 本地預測 + Fast Path 毫秒級極速回應，0 大模型 API Token 開銷</td>
-                    </tr>
-                </tbody>
-            </table>
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>架構屬性</th>
+              <th>傳統 VLM/像素定位方案 (如 Anthropic Computer Use)</th>
+              <th class="lhic-col">LHIC (Local Human Intent Controller)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>基本操作迴圈</strong></td>
+              <td>
+                VLM 模型解讀截圖 &rarr; 計算像素座標 &rarr; 模擬滑鼠點擊
+                (極慢，成本高)
+              </td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span> 直接調用 CDP / Playwright DOM
+                與 ARIA 語意 API。優先走無模型 Fast Path
+              </td>
+            </tr>
+            <tr>
+              <td><strong>定位精準度與抗變性</strong></td>
+              <td>
+                依賴視覺判讀，受解析度、縮放、滾動影響，易點錯座標造成不可預測後果
+              </td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span> 標籤 (label)、角色 (role)
+                與本地 SQLite 歷史反饋修補定位。排版微調完全不受影響
+              </td>
+            </tr>
+            <tr>
+              <td><strong>安全性與 PII 防護</strong></td>
+              <td>日誌與 Token 中可能附帶敏感個資與截圖明文，無有效過濾機制</td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span> 原生 Regex 敏感資訊脫敏、HTTPS
+                白名單、本地 JSONL 不保留敏感輸入
+              </td>
+            </tr>
+            <tr>
+              <td><strong>高風險防堵機制</strong></td>
+              <td>
+                大模型一旦「幻覺」容易自行點擊危險按鈕 (如確認支付、刪除帳號)
+              </td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span>
+                高風險與自訂操作強制阻斷，必須取得由第三方簽發的 Ed25519
+                簽章憑證才可放行
+              </td>
+            </tr>
+            <tr>
+              <td><strong>執行成功驗證</strong></td>
+              <td>
+                大模型自己預測「我好像完成了」 (無客觀依據，False-Positive 高)
+              </td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span> Verifier 硬性取得 DOM
+                終端狀態、網路監聽封包或下載成功資訊
+              </td>
+            </tr>
+            <tr>
+              <td><strong>運算資源與成本</strong></td>
+              <td>
+                每一次滑動與動作均需多次呼叫 VLM API，每步驟數美分，延遲數秒
+              </td>
+              <td class="lhic-col">
+                <span class="check-icon">✓</span> 本地預測 + Fast Path
+                毫秒級極速回應，0 大模型 API Token 開銷
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="market-cards">
+        <div class="market-card">
+          <h4 class="market-card-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.25"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polygon
+                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+              ></polygon>
+            </svg>
+            市場領先與策略定位
+          </h4>
+          <p class="market-card-desc">
+            LHIC
+            並非泛用的網頁「大模型探索代理」，而是鎖定在<strong>企業級高頻率、需要高可靠度與隱私保護的已知操作任務</strong>。
+            當前許多產品追求「完全自主探索」，往往導致昂貴的賬單與隨機性的任務失敗。LHIC
+            的雙軌路由策略 (Fast/Slow Path) 將企業自動化的邊際成本降至接近零。
+          </p>
         </div>
 
-        <div class="market-cards">
-            <div class="market-card">
-                <h4 class="market-card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                    市場領先與策略定位
-                </h4>
-                <p class="market-card-desc">
-                    LHIC 並非泛用的網頁「大模型探索代理」，而是鎖定在<strong>企業級高頻率、需要高可靠度與隱私保護的已知操作任務</strong>。
-                    當前許多產品追求「完全自主探索」，往往導致昂貴的賬單與隨機性的任務失敗。LHIC 的雙軌路由策略 (Fast/Slow Path) 將企業自動化的邊際成本降至接近零。
-                </p>
-            </div>
-            
-            <div class="market-card">
-                <h4 class="market-card-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    防偽門檻與基準提交規則
-                </h4>
-                <p class="market-card-desc">
-                    我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了 <code>lhic bench validate-evidence</code> 驗證指令。
-                    唯有在 BrowserGym/AgentLab 整合套件下跑完 WorkArena 完整資料集、提交不加任何修改的映像檔 Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。
-                </p>
-            </div>
+        <div class="market-card">
+          <h4 class="market-card-title">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            防偽門檻與基準提交規則
+          </h4>
+          <p class="market-card-desc">
+            我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了
+            <code>lhic bench validate-evidence</code> 驗證指令。 唯有在
+            BrowserGym/AgentLab 整合套件下跑完 WorkArena
+            完整資料集、提交不加任何修改的映像檔
+            Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。
+          </p>
         </div>
+      </div>
     </section>
 
     <!-- Footer -->
     <footer>
-        <div class="footer-content">
-            <div class="footer-info">
-                <a href="#" class="logo" style="margin-bottom: 12px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <circle cx="12" cy="12" r="6"></circle>
-                        <circle cx="12" cy="12" r="2"></circle>
-                    </svg>
-                    LHIC
-                </a>
-                <p class="footer-desc">© 2026 LHIC Project. All rights reserved. Dual-licensed under the MIT and Apache 2.0 licenses.</p>
-            </div>
-            <ul class="footer-links">
-                <li><a href="#features">功能總覽</a></li>
-                <li><a href="#architecture">模組架構</a></li>
-                <li><a href="#tutorial">使用教學</a></li>
-                <li><a href="https://github.com/chengmatt416/ComputerIntent" target="_blank">GitHub</a></li>
-            </ul>
+      <div class="footer-content">
+        <div class="footer-info">
+          <a href="#" class="logo" style="margin-bottom: 12px">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="6"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+            </svg>
+            LHIC
+          </a>
+          <p class="footer-desc">
+            © 2026 LHIC Project. All rights reserved. Dual-licensed under the
+            MIT and Apache 2.0 licenses.
+          </p>
         </div>
+        <ul class="footer-links">
+          <li><a href="#features">功能總覽</a></li>
+          <li><a href="#architecture">模組架構</a></li>
+          <li><a href="#tutorial">使用教學</a></li>
+          <li>
+            <a
+              href="https://github.com/chengmatt416/ComputerIntent"
+              target="_blank"
+              >GitHub</a
+            >
+          </li>
+        </ul>
+      </div>
     </footer>
 
     <!-- Interactive Scripts -->
     <script>
-        // Shrink Header on scroll
-        window.addEventListener('scroll', () => {
-            const header = document.getElementById('header');
-            if (window.scrollY > 50) {
-                header.classList.add('scrolled');
-            } else {
-                header.classList.remove('scrolled');
-            }
+      // Shrink Header on scroll
+      window.addEventListener("scroll", () => {
+        const header = document.getElementById("header");
+        if (window.scrollY > 50) {
+          header.classList.add("scrolled");
+        } else {
+          header.classList.remove("scrolled");
+        }
+      });
+
+      // Terminal Typing Animation Simulation
+      const terminalLogs = [
+        { text: "lhic run action billing-download.json", type: "cmd" },
+        { text: "[INFO] Validating action file structure...", type: "info" },
+        {
+          text: "[INFO] Loading configuration: HTTPS allowlist enforced.",
+          type: "info",
+        },
+        {
+          text: "[INFO] Classifying UI state: Billing Settings Page (Confidence: 0.96)",
+          type: "highlight",
+        },
+        {
+          text: "[INFO] Risk Evaluation: LOW. Eligible for Fast Path.",
+          type: "info",
+        },
+        {
+          text: "[INFO] Routing execution to Fast Path (Zero-LLM Mode)",
+          type: "success",
+        },
+        {
+          text: "[INFO] Executing Semantic Skill: download_file { label: '收據 PDF' }",
+          type: "info",
+        },
+        {
+          text: "[INFO] Resolving target: Button[role='button'][name*='下載']",
+          type: "info",
+        },
+        {
+          text: "[INFO] Triggering Playwright click & watching for download stream...",
+          type: "info",
+        },
+        {
+          text: "[INFO] File captured: invoice_20260715.pdf (185 KB)",
+          type: "success",
+        },
+        {
+          text: "[INFO] Running Verifier: file size & MIME type validation...",
+          type: "info",
+        },
+        {
+          text: "[VERIFIED] Verification Success. Saving execution trace.",
+          type: "success",
+        },
+        {
+          text: "[INFO] Redacting credential fields from trace logs...",
+          type: "info",
+        },
+        {
+          text: "[TRACE] Redacted trace stored at ./traces/trace-8f7a.jsonl",
+          type: "success",
+        },
+        {
+          text: "[MEMORY] Skill 'download_file' updated in sqlite: success rate at 100%.",
+          type: "highlight",
+        },
+      ];
+
+      const termBody = document.getElementById("terminal-body");
+      let logIndex = 0;
+
+      function renderLogLine() {
+        if (logIndex < terminalLogs.length) {
+          const log = terminalLogs[logIndex];
+          const line = document.createElement("div");
+          line.className = `terminal-line ${log.type}`;
+          line.textContent = log.text;
+          termBody.appendChild(line);
+          termBody.scrollTop = termBody.scrollHeight;
+          logIndex++;
+          setTimeout(renderLogLine, logIndex === 1 ? 1200 : 400);
+        } else {
+          // Loop simulation after delay
+          setTimeout(() => {
+            termBody.innerHTML = "";
+            logIndex = 0;
+            renderLogLine();
+          }, 5000);
+        }
+      }
+
+      renderLogLine();
+
+      let currentLang = "en"; // default English
+
+      function setLanguage(lang) {
+        currentLang = lang;
+        window.currentLang = currentLang;
+        document.documentElement.setAttribute(
+          "lang",
+          currentLang === "zh" ? "zh-TW" : "en",
+        );
+        document.getElementById("lang-btn").innerText =
+          currentLang === "zh" ? "EN" : "繁中";
+
+        const data = i18nPage[currentLang];
+
+        // 1. Navigation
+        const navLinks = document.querySelectorAll(".nav-links a");
+        navLinks.forEach((link, idx) => {
+          if (data.nav[idx]) link.innerText = data.nav[idx];
+        });
+        const navCta = document.getElementById("nav-cta-text");
+        if (navCta) navCta.innerText = data.navCta;
+
+        // 2. Hero
+        const heroDesc = document.getElementById("hero-desc");
+        if (heroDesc) heroDesc.innerHTML = data.heroDesc;
+        const btnStart = document.getElementById("btn-start");
+        if (btnStart) btnStart.innerText = data.heroStart;
+        const heroGithub = document.querySelector(
+          ".hero-actions .btn-secondary span",
+        );
+        if (heroGithub) heroGithub.innerText = data.heroGithub;
+
+        // 3. Features Overview
+        const featTag = document.querySelector("#features .section-tag");
+        if (featTag) featTag.innerText = data.featuresTag;
+        const featTitle = document.querySelector("#features .section-title");
+        if (featTitle) featTitle.innerText = data.featuresTitle;
+        const featSubtitle = document.querySelector(
+          "#features .section-subtitle",
+        );
+        if (featSubtitle) featSubtitle.innerText = data.featuresSubtitle;
+
+        const cards = document.querySelectorAll("#features .feature-card");
+        cards.forEach((card, idx) => {
+          const item = data.features[idx];
+          if (item) {
+            card.querySelector(".feature-title").innerText = item.title;
+            card.querySelector(".feature-desc").innerHTML = item.desc;
+          }
         });
 
-        // Terminal Typing Animation Simulation
-        const terminalLogs = [
-            { text: "lhic run action billing-download.json", type: "cmd" },
-            { text: "[INFO] Validating action file structure...", type: "info" },
-            { text: "[INFO] Loading configuration: HTTPS allowlist enforced.", type: "info" },
-            { text: "[INFO] Classifying UI state: Billing Settings Page (Confidence: 0.96)", type: "highlight" },
-            { text: "[INFO] Risk Evaluation: LOW. Eligible for Fast Path.", type: "info" },
-            { text: "[INFO] Routing execution to Fast Path (Zero-LLM Mode)", type: "success" },
-            { text: "[INFO] Executing Semantic Skill: download_file { label: '收據 PDF' }", type: "info" },
-            { text: "[INFO] Resolving target: Button[role='button'][name*='下載']", type: "info" },
-            { text: "[INFO] Triggering Playwright click & watching for download stream...", type: "info" },
-            { text: "[INFO] File captured: invoice_20260715.pdf (185 KB)", type: "success" },
-            { text: "[INFO] Running Verifier: file size & MIME type validation...", type: "info" },
-            { text: "[VERIFIED] Verification Success. Saving execution trace.", type: "success" },
-            { text: "[INFO] Redacting credential fields from trace logs...", type: "info" },
-            { text: "[TRACE] Redacted trace stored at ./traces/trace-8f7a.jsonl", type: "success" },
-            { text: "[MEMORY] Skill 'download_file' updated in sqlite: success rate at 100%.", type: "highlight" }
-        ];
+        // 4. Architecture
+        const archTag = document.querySelector("#architecture .section-tag");
+        if (archTag) archTag.innerText = data.archTag;
+        const archTitle = document.querySelector(
+          "#architecture .section-title",
+        );
+        if (archTitle) archTitle.innerText = data.archTitle;
+        const archSubtitle = document.querySelector(
+          "#architecture .section-subtitle",
+        );
+        if (archSubtitle) archSubtitle.innerText = data.archSubtitle;
+        const flowTitle = document.querySelector(
+          "#architecture .architecture-container h3",
+        );
+        if (flowTitle) flowTitle.innerText = data.archFlowTitle;
 
-        const termBody = document.getElementById('terminal-body');
-        let logIndex = 0;
-
-        function renderLogLine() {
-            if (logIndex < terminalLogs.length) {
-                const log = terminalLogs[logIndex];
-                const line = document.createElement('div');
-                line.className = `terminal-line ${log.type}`;
-                line.textContent = log.text;
-                termBody.appendChild(line);
-                termBody.scrollTop = termBody.scrollHeight;
-                logIndex++;
-                setTimeout(renderLogLine, logIndex === 1 ? 1200 : 400);
-            } else {
-                // Loop simulation after delay
-                setTimeout(() => {
-                    termBody.innerHTML = '';
-                    logIndex = 0;
-                    renderLogLine();
-                }, 5000);
-            }
-        }
-
-        renderLogLine();
-
-        let currentLang = 'en'; // default English
-
-        function setLanguage(lang) {
-            currentLang = lang;
-            window.currentLang = currentLang;
-            document.documentElement.setAttribute('lang', currentLang === 'zh' ? 'zh-TW' : 'en');
-            document.getElementById('lang-btn').innerText = currentLang === 'zh' ? 'EN' : '繁中';
-
-            const data = i18nPage[currentLang];
-
-            // 1. Navigation
-            const navLinks = document.querySelectorAll('.nav-links a');
-            navLinks.forEach((link, idx) => {
-                if (data.nav[idx]) link.innerText = data.nav[idx];
-            });
-            const navCta = document.getElementById('nav-cta-text');
-            if (navCta) navCta.innerText = data.navCta;
-
-            // 2. Hero
-            const heroDesc = document.getElementById('hero-desc');
-            if (heroDesc) heroDesc.innerHTML = data.heroDesc;
-            const btnStart = document.getElementById('btn-start');
-            if (btnStart) btnStart.innerText = data.heroStart;
-            const heroGithub = document.querySelector('.hero-actions .btn-secondary span');
-            if (heroGithub) heroGithub.innerText = data.heroGithub;
-
-            // 3. Features Overview
-            const featTag = document.querySelector('#features .section-tag');
-            if (featTag) featTag.innerText = data.featuresTag;
-            const featTitle = document.querySelector('#features .section-title');
-            if (featTitle) featTitle.innerText = data.featuresTitle;
-            const featSubtitle = document.querySelector('#features .section-subtitle');
-            if (featSubtitle) featSubtitle.innerText = data.featuresSubtitle;
-
-            const cards = document.querySelectorAll('#features .feature-card');
-            cards.forEach((card, idx) => {
-                const item = data.features[idx];
-                if (item) {
-                    card.querySelector('.feature-title').innerText = item.title;
-                    card.querySelector('.feature-desc').innerHTML = item.desc;
-                }
-            });
-
-            // 4. Architecture
-            const archTag = document.querySelector('#architecture .section-tag');
-            if (archTag) archTag.innerText = data.archTag;
-            const archTitle = document.querySelector('#architecture .section-title');
-            if (archTitle) archTitle.innerText = data.archTitle;
-            const archSubtitle = document.querySelector('#architecture .section-subtitle');
-            if (archSubtitle) archSubtitle.innerText = data.archSubtitle;
-            const flowTitle = document.querySelector('#architecture .architecture-container h3');
-            if (flowTitle) flowTitle.innerText = data.archFlowTitle;
-
-            const nodes = document.querySelectorAll('#architecture .arch-node');
-            nodes.forEach((node, idx) => {
-                const item = data.archNodes[idx];
-                if (item) {
-                    const titleEl = node.querySelector('.arch-node-title');
-                    const svg = titleEl.querySelector('svg');
-                    titleEl.innerHTML = '';
-                    if (svg) titleEl.appendChild(svg);
-                    titleEl.appendChild(document.createTextNode(' ' + item.title));
-                    node.querySelector('.arch-node-desc').innerText = item.desc;
-                }
-            });
-
-            const treeTitle = document.getElementById('package-tree-title');
-            if (treeTitle) treeTitle.innerText = data.treeTitle;
-            const treeSubtitle = document.getElementById('package-tree-desc');
-            if (treeSubtitle) treeSubtitle.innerText = data.treeSubtitle;
-
-            // Translate Tree folders and items
-            const treeRootLabel = document.querySelector('.package-tree > .tree-folder .tree-label');
-            if (treeRootLabel) treeRootLabel.innerText = data.treeLabels.root;
-
-            const treeFolderLabels = document.querySelectorAll('.tree-children > .tree-folder .tree-label');
-            if (treeFolderLabels[0]) treeFolderLabels[0].innerText = data.treeLabels.packages;
-            if (treeFolderLabels[1]) treeFolderLabels[1].innerText = data.treeLabels.apps;
-
-            const treeItemEls = document.querySelectorAll('.tree-item');
-            treeItemEls.forEach(item => {
-                const pkg = item.getAttribute('data-package');
-                const labelEl = item.querySelector('.tree-label');
-                if (labelEl && data.treeLabels[pkg]) {
-                    labelEl.innerText = data.treeLabels[pkg];
-                }
-            });
-
-            // 5. User Guide
-            const tutoTag = document.querySelector('#tutorial .section-tag');
-            if (tutoTag) tutoTag.innerText = data.tutoTag;
-            const tutoTitle = document.querySelector('#tutorial .section-title');
-            if (tutoTitle) tutoTitle.innerText = data.tutoTitle;
-            const tutoSubtitle = document.querySelector('#tutorial .section-subtitle');
-            if (tutoSubtitle) tutoSubtitle.innerText = data.tutoSubtitle;
-
-            const tabBtns = document.querySelectorAll('#tutorial .tab-btn');
-            tabBtns.forEach((btn, idx) => {
-                if (data.tutoTabs[idx]) btn.innerText = data.tutoTabs[idx];
-            });
-
-            // Translate Tutorial Steps for each Tab
-            const installSteps = document.querySelectorAll('#tab-install .guide-step');
-            installSteps.forEach((step, idx) => {
-                const item = data.tutoStepsInstall[idx];
-                if (item) {
-                    const titleEl = step.querySelector('.guide-step-title');
-                    const numSpan = titleEl.querySelector('.step-num');
-                    titleEl.innerHTML = '';
-                    if (numSpan) titleEl.appendChild(numSpan);
-                    titleEl.appendChild(document.createTextNode(item.title));
-                    step.querySelector('p').innerHTML = item.desc;
-                }
-            });
-
-            const cliSteps = document.querySelectorAll('#tab-cli .guide-step');
-            cliSteps.forEach((step, idx) => {
-                const item = data.tutoStepsCli[idx];
-                if (item) {
-                    const titleEl = step.querySelector('.guide-step-title');
-                    const numSpan = titleEl.querySelector('.step-num');
-                    titleEl.innerHTML = '';
-                    if (numSpan) titleEl.appendChild(numSpan);
-                    titleEl.appendChild(document.createTextNode(item.title));
-                    step.querySelector('p').innerHTML = item.desc;
-                }
-            });
-
-            const mcpSteps = document.querySelectorAll('#tab-mcp .guide-step');
-            mcpSteps.forEach((step, idx) => {
-                const item = data.tutoStepsMcp[idx];
-                if (item) {
-                    const titleEl = step.querySelector('.guide-step-title');
-                    const numSpan = titleEl.querySelector('.step-num');
-                    titleEl.innerHTML = '';
-                    if (numSpan) titleEl.appendChild(numSpan);
-                    titleEl.appendChild(document.createTextNode(item.title));
-                    step.querySelector('p').innerHTML = item.desc;
-                }
-            });
-
-            const prodSteps = document.querySelectorAll('#tab-prod .guide-step');
-            prodSteps.forEach((step, idx) => {
-                const item = data.tutoStepsProd[idx];
-                if (item) {
-                    const titleEl = step.querySelector('.guide-step-title');
-                    const numSpan = titleEl.querySelector('.step-num');
-                    titleEl.innerHTML = '';
-                    if (numSpan) titleEl.appendChild(numSpan);
-                    titleEl.appendChild(document.createTextNode(item.title));
-                    step.querySelector('p').innerHTML = item.desc;
-                }
-            });
-
-            // Translate code blocks for each Tab
-            const installCodes = document.querySelectorAll('#tab-install .code-container pre code');
-            installCodes.forEach((codeEl, idx) => {
-                if (data.tutoCodesInstall[idx]) codeEl.innerText = data.tutoCodesInstall[idx];
-            });
-
-            const cliCodes = document.querySelectorAll('#tab-cli .code-container pre code');
-            cliCodes.forEach((codeEl, idx) => {
-                if (data.tutoCodesCli[idx]) codeEl.innerText = data.tutoCodesCli[idx];
-            });
-
-            const mcpCodes = document.querySelectorAll('#tab-mcp .code-container pre code');
-            mcpCodes.forEach((codeEl, idx) => {
-                if (data.tutoCodesMcp[idx]) codeEl.innerText = data.tutoCodesMcp[idx];
-            });
-
-            const prodCodes = document.querySelectorAll('#tab-prod .code-container pre code');
-            prodCodes.forEach((codeEl, idx) => {
-                if (data.tutoCodesProd[idx]) codeEl.innerText = data.tutoCodesProd[idx];
-            });
-
-            // Translate Copy Buttons
-            const copyBtns = document.querySelectorAll('.btn-copy');
-            copyBtns.forEach(btn => {
-                btn.innerText = data.copyBtn;
-            });
-
-            // 6. Benchmark
-            const benchTag = document.querySelector('#benchmark .section-tag');
-            if (benchTag) benchTag.innerText = data.benchTag;
-            const benchTitle = document.querySelector('#benchmark .section-title');
-            if (benchTitle) benchTitle.innerText = data.benchTitle;
-            const benchSubtitle = document.querySelector('#benchmark .section-subtitle');
-            if (benchSubtitle) benchSubtitle.innerText = data.benchSubtitle;
-
-            const benchCards = document.querySelectorAll('#benchmark .bench-card');
-            if (benchCards[0]) {
-                const titleEl = benchCards[0].querySelector('.bench-card-title');
-                const svg = titleEl.querySelector('svg');
-                titleEl.innerHTML = '';
-                if (svg) titleEl.appendChild(svg);
-                titleEl.appendChild(document.createTextNode(' ' + data.benchCard1Title));
-                benchCards[0].querySelector('p').innerHTML = data.benchCard1Desc;
-            }
-            if (benchCards[1]) {
-                const titleEl = benchCards[1].querySelector('.bench-card-title');
-                const svg = titleEl.querySelector('svg');
-                titleEl.innerHTML = '';
-                if (svg) titleEl.appendChild(svg);
-                titleEl.appendChild(document.createTextNode(' ' + data.benchCard2Title));
-                benchCards[1].querySelector('p').innerHTML = data.benchCard2Desc;
-            }
-
-            const gauges = document.querySelectorAll('#benchmark .gauge-label');
-            gauges.forEach((label, idx) => {
-                if (data.benchGauges[idx]) label.innerText = data.benchGauges[idx];
-            });
-
-            const ablations = document.querySelectorAll('#benchmark .ablation-bar-label span:first-child');
-            ablations.forEach((lbl, idx) => {
-                if (data.benchAblations[idx]) lbl.innerText = data.benchAblations[idx];
-            });
-            const ablationStats = document.querySelectorAll('#benchmark .ablation-stat');
-            ablationStats.forEach((stat, idx) => {
-                if (data.benchAblationStats[idx]) stat.innerText = data.benchAblationStats[idx];
-            });
-
-            const conclusionDiv = document.querySelector('#benchmark .bench-card div[style*="background"]');
-            if (conclusionDiv) conclusionDiv.innerHTML = data.benchConclusion;
-
-            // 7. Comparison
-            const compTag = document.querySelector('#comparison .section-tag');
-            if (compTag) compTag.innerText = data.compTag;
-            const compTitle = document.querySelector('#comparison .section-title');
-            if (compTitle) compTitle.innerText = data.compTitle;
-            const compSubtitle = document.querySelector('#comparison .section-subtitle');
-            if (compSubtitle) compSubtitle.innerText = data.compSubtitle;
-
-            const headers = document.querySelectorAll('#comparison table th');
-            headers.forEach((th, idx) => {
-                if (data.compHeaders[idx]) th.innerHTML = data.compHeaders[idx];
-            });
-
-            const tableRows = document.querySelectorAll('#comparison table tbody tr');
-            tableRows.forEach((row, rowIdx) => {
-                const cells = row.querySelectorAll('td');
-                const rowData = data.compRows[rowIdx];
-                if (rowData) {
-                    cells.forEach((cell, cellIdx) => {
-                        if (rowData[cellIdx]) cell.innerHTML = rowData[cellIdx];
-                    });
-                }
-            });
-
-            const marketCards = document.querySelectorAll('#comparison .market-card');
-            marketCards.forEach((card, idx) => {
-                const item = data.marketCards[idx];
-                if (item) {
-                    const titleEl = card.querySelector('.market-card-title');
-                    const svg = titleEl.querySelector('svg');
-                    titleEl.innerHTML = '';
-                    if (svg) titleEl.appendChild(svg);
-                    titleEl.appendChild(document.createTextNode(' ' + item.title));
-                    card.querySelector('.market-card-desc').innerHTML = item.desc;
-                }
-            });
-
-            // 8. Footer
-            const footerDesc = document.querySelector('footer .footer-desc');
-            if (footerDesc) footerDesc.innerText = data.footerDesc;
-            const footerLinks = document.querySelectorAll('footer .footer-links a');
-            footerLinks.forEach((link, idx) => {
-                if (data.footerLinks[idx]) link.innerText = data.footerLinks[idx];
-            });
-
-            // Click the currently active tree item to refresh it with new language translations
-            const activeTreeItem = document.querySelector('.tree-item.active');
-            if (activeTreeItem) {
-                activeTreeItem.click();
-            } else {
-                const plTitle = document.getElementById('package-placeholder-title');
-                if (plTitle) plTitle.innerText = data.treePlaceholderTitle;
-                const plDesc = document.getElementById('package-placeholder-desc');
-                if (plDesc) plDesc.innerText = data.treePlaceholderDesc;
-            }
-        }
-
-        function toggleLanguage() {
-            setLanguage(currentLang === 'zh' ? 'en' : 'zh');
-        }
-
-        function detectAndSetLanguage() {
-            const userLang = navigator.language || navigator.languages?.[0] || 'en';
-            const isChinese = userLang.toLowerCase().startsWith('zh');
-            setLanguage(isChinese ? 'zh' : 'en');
-        }
-
-        // Run auto-detection immediately
-        detectAndSetLanguage();
-
-        // Proxy packageData dynamically to resolve current language
-        const packageData = new Proxy({}, {
-            get(target, prop) {
-                const currentData = currentLang === 'zh' ? packageDataZH : packageDataEN;
-                return currentData[prop];
-            }
+        const nodes = document.querySelectorAll("#architecture .arch-node");
+        nodes.forEach((node, idx) => {
+          const item = data.archNodes[idx];
+          if (item) {
+            const titleEl = node.querySelector(".arch-node-title");
+            const svg = titleEl.querySelector("svg");
+            titleEl.innerHTML = "";
+            if (svg) titleEl.appendChild(svg);
+            titleEl.appendChild(document.createTextNode(" " + item.title));
+            node.querySelector(".arch-node-desc").innerText = item.desc;
+          }
         });
-        const treeItems = document.querySelectorAll('.tree-item');
-        const displayDiv = document.getElementById('package-display');
 
-        treeItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const pkg = item.getAttribute('data-package');
-                const data = packageData[pkg];
-                if (data) {
-                    // Update display card content dynamically
-                    let listHtml = '';
-                    data.features.forEach(f => {
-                        listHtml += `<li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${f}</li>`;
-                    });
+        const treeTitle = document.getElementById("package-tree-title");
+        if (treeTitle) treeTitle.innerText = data.treeTitle;
+        const treeSubtitle = document.getElementById("package-tree-desc");
+        if (treeSubtitle) treeSubtitle.innerText = data.treeSubtitle;
 
-                    const labelText = currentLang === 'zh' ? '核心特性與職責：' : 'Core Features & Responsibilities:';
-                    displayDiv.innerHTML = `
+        // Translate Tree folders and items
+        const treeRootLabel = document.querySelector(
+          ".package-tree > .tree-folder .tree-label",
+        );
+        if (treeRootLabel) treeRootLabel.innerText = data.treeLabels.root;
+
+        const treeFolderLabels = document.querySelectorAll(
+          ".tree-children > .tree-folder .tree-label",
+        );
+        if (treeFolderLabels[0])
+          treeFolderLabels[0].innerText = data.treeLabels.packages;
+        if (treeFolderLabels[1])
+          treeFolderLabels[1].innerText = data.treeLabels.apps;
+
+        const treeItemEls = document.querySelectorAll(".tree-item");
+        treeItemEls.forEach((item) => {
+          const pkg = item.getAttribute("data-package");
+          const labelEl = item.querySelector(".tree-label");
+          if (labelEl && data.treeLabels[pkg]) {
+            labelEl.innerText = data.treeLabels[pkg];
+          }
+        });
+
+        // 5. User Guide
+        const tutoTag = document.querySelector("#tutorial .section-tag");
+        if (tutoTag) tutoTag.innerText = data.tutoTag;
+        const tutoTitle = document.querySelector("#tutorial .section-title");
+        if (tutoTitle) tutoTitle.innerText = data.tutoTitle;
+        const tutoSubtitle = document.querySelector(
+          "#tutorial .section-subtitle",
+        );
+        if (tutoSubtitle) tutoSubtitle.innerText = data.tutoSubtitle;
+
+        const tabBtns = document.querySelectorAll("#tutorial .tab-btn");
+        tabBtns.forEach((btn, idx) => {
+          if (data.tutoTabs[idx]) btn.innerText = data.tutoTabs[idx];
+        });
+
+        // Translate Tutorial Steps for each Tab
+        const installSteps = document.querySelectorAll(
+          "#tab-install .guide-step",
+        );
+        installSteps.forEach((step, idx) => {
+          const item = data.tutoStepsInstall[idx];
+          if (item) {
+            const titleEl = step.querySelector(".guide-step-title");
+            const numSpan = titleEl.querySelector(".step-num");
+            titleEl.innerHTML = "";
+            if (numSpan) titleEl.appendChild(numSpan);
+            titleEl.appendChild(document.createTextNode(item.title));
+            step.querySelector("p").innerHTML = item.desc;
+          }
+        });
+
+        const cliSteps = document.querySelectorAll("#tab-cli .guide-step");
+        cliSteps.forEach((step, idx) => {
+          const item = data.tutoStepsCli[idx];
+          if (item) {
+            const titleEl = step.querySelector(".guide-step-title");
+            const numSpan = titleEl.querySelector(".step-num");
+            titleEl.innerHTML = "";
+            if (numSpan) titleEl.appendChild(numSpan);
+            titleEl.appendChild(document.createTextNode(item.title));
+            step.querySelector("p").innerHTML = item.desc;
+          }
+        });
+
+        const mcpSteps = document.querySelectorAll("#tab-mcp .guide-step");
+        mcpSteps.forEach((step, idx) => {
+          const item = data.tutoStepsMcp[idx];
+          if (item) {
+            const titleEl = step.querySelector(".guide-step-title");
+            const numSpan = titleEl.querySelector(".step-num");
+            titleEl.innerHTML = "";
+            if (numSpan) titleEl.appendChild(numSpan);
+            titleEl.appendChild(document.createTextNode(item.title));
+            step.querySelector("p").innerHTML = item.desc;
+          }
+        });
+
+        const prodSteps = document.querySelectorAll("#tab-prod .guide-step");
+        prodSteps.forEach((step, idx) => {
+          const item = data.tutoStepsProd[idx];
+          if (item) {
+            const titleEl = step.querySelector(".guide-step-title");
+            const numSpan = titleEl.querySelector(".step-num");
+            titleEl.innerHTML = "";
+            if (numSpan) titleEl.appendChild(numSpan);
+            titleEl.appendChild(document.createTextNode(item.title));
+            step.querySelector("p").innerHTML = item.desc;
+          }
+        });
+
+        // Translate code blocks for each Tab
+        const installCodes = document.querySelectorAll(
+          "#tab-install .code-container pre code",
+        );
+        installCodes.forEach((codeEl, idx) => {
+          if (data.tutoCodesInstall[idx])
+            codeEl.innerText = data.tutoCodesInstall[idx];
+        });
+
+        const cliCodes = document.querySelectorAll(
+          "#tab-cli .code-container pre code",
+        );
+        cliCodes.forEach((codeEl, idx) => {
+          if (data.tutoCodesCli[idx]) codeEl.innerText = data.tutoCodesCli[idx];
+        });
+
+        const mcpCodes = document.querySelectorAll(
+          "#tab-mcp .code-container pre code",
+        );
+        mcpCodes.forEach((codeEl, idx) => {
+          if (data.tutoCodesMcp[idx]) codeEl.innerText = data.tutoCodesMcp[idx];
+        });
+
+        const prodCodes = document.querySelectorAll(
+          "#tab-prod .code-container pre code",
+        );
+        prodCodes.forEach((codeEl, idx) => {
+          if (data.tutoCodesProd[idx])
+            codeEl.innerText = data.tutoCodesProd[idx];
+        });
+
+        // Translate Copy Buttons
+        const copyBtns = document.querySelectorAll(".btn-copy");
+        copyBtns.forEach((btn) => {
+          btn.innerText = data.copyBtn;
+        });
+
+        // 6. Benchmark
+        const benchTag = document.querySelector("#benchmark .section-tag");
+        if (benchTag) benchTag.innerText = data.benchTag;
+        const benchTitle = document.querySelector("#benchmark .section-title");
+        if (benchTitle) benchTitle.innerText = data.benchTitle;
+        const benchSubtitle = document.querySelector(
+          "#benchmark .section-subtitle",
+        );
+        if (benchSubtitle) benchSubtitle.innerText = data.benchSubtitle;
+
+        const benchCards = document.querySelectorAll("#benchmark .bench-card");
+        if (benchCards[0]) {
+          const titleEl = benchCards[0].querySelector(".bench-card-title");
+          const svg = titleEl.querySelector("svg");
+          titleEl.innerHTML = "";
+          if (svg) titleEl.appendChild(svg);
+          titleEl.appendChild(
+            document.createTextNode(" " + data.benchCard1Title),
+          );
+          benchCards[0].querySelector("p").innerHTML = data.benchCard1Desc;
+        }
+        if (benchCards[1]) {
+          const titleEl = benchCards[1].querySelector(".bench-card-title");
+          const svg = titleEl.querySelector("svg");
+          titleEl.innerHTML = "";
+          if (svg) titleEl.appendChild(svg);
+          titleEl.appendChild(
+            document.createTextNode(" " + data.benchCard2Title),
+          );
+          benchCards[1].querySelector("p").innerHTML = data.benchCard2Desc;
+        }
+
+        const gauges = document.querySelectorAll("#benchmark .gauge-label");
+        gauges.forEach((label, idx) => {
+          if (data.benchGauges[idx]) label.innerText = data.benchGauges[idx];
+        });
+
+        const ablations = document.querySelectorAll(
+          "#benchmark .ablation-bar-label span:first-child",
+        );
+        ablations.forEach((lbl, idx) => {
+          if (data.benchAblations[idx])
+            lbl.innerText = data.benchAblations[idx];
+        });
+        const ablationStats = document.querySelectorAll(
+          "#benchmark .ablation-stat",
+        );
+        ablationStats.forEach((stat, idx) => {
+          if (data.benchAblationStats[idx])
+            stat.innerText = data.benchAblationStats[idx];
+        });
+
+        const conclusionDiv = document.querySelector(
+          '#benchmark .bench-card div[style*="background"]',
+        );
+        if (conclusionDiv) conclusionDiv.innerHTML = data.benchConclusion;
+
+        // 7. Comparison
+        const compTag = document.querySelector("#comparison .section-tag");
+        if (compTag) compTag.innerText = data.compTag;
+        const compTitle = document.querySelector("#comparison .section-title");
+        if (compTitle) compTitle.innerText = data.compTitle;
+        const compSubtitle = document.querySelector(
+          "#comparison .section-subtitle",
+        );
+        if (compSubtitle) compSubtitle.innerText = data.compSubtitle;
+
+        const headers = document.querySelectorAll("#comparison table th");
+        headers.forEach((th, idx) => {
+          if (data.compHeaders[idx]) th.innerHTML = data.compHeaders[idx];
+        });
+
+        const tableRows = document.querySelectorAll(
+          "#comparison table tbody tr",
+        );
+        tableRows.forEach((row, rowIdx) => {
+          const cells = row.querySelectorAll("td");
+          const rowData = data.compRows[rowIdx];
+          if (rowData) {
+            cells.forEach((cell, cellIdx) => {
+              if (rowData[cellIdx]) cell.innerHTML = rowData[cellIdx];
+            });
+          }
+        });
+
+        const marketCards = document.querySelectorAll(
+          "#comparison .market-card",
+        );
+        marketCards.forEach((card, idx) => {
+          const item = data.marketCards[idx];
+          if (item) {
+            const titleEl = card.querySelector(".market-card-title");
+            const svg = titleEl.querySelector("svg");
+            titleEl.innerHTML = "";
+            if (svg) titleEl.appendChild(svg);
+            titleEl.appendChild(document.createTextNode(" " + item.title));
+            card.querySelector(".market-card-desc").innerHTML = item.desc;
+          }
+        });
+
+        // 8. Footer
+        const footerDesc = document.querySelector("footer .footer-desc");
+        if (footerDesc) footerDesc.innerText = data.footerDesc;
+        const footerLinks = document.querySelectorAll("footer .footer-links a");
+        footerLinks.forEach((link, idx) => {
+          if (data.footerLinks[idx]) link.innerText = data.footerLinks[idx];
+        });
+
+        // Click the currently active tree item to refresh it with new language translations
+        const activeTreeItem = document.querySelector(".tree-item.active");
+        if (activeTreeItem) {
+          activeTreeItem.click();
+        } else {
+          const plTitle = document.getElementById("package-placeholder-title");
+          if (plTitle) plTitle.innerText = data.treePlaceholderTitle;
+          const plDesc = document.getElementById("package-placeholder-desc");
+          if (plDesc) plDesc.innerText = data.treePlaceholderDesc;
+        }
+      }
+
+      function toggleLanguage() {
+        setLanguage(currentLang === "zh" ? "en" : "zh");
+      }
+
+      function detectAndSetLanguage() {
+        const userLang = navigator.language || navigator.languages?.[0] || "en";
+        const isChinese = userLang.toLowerCase().startsWith("zh");
+        setLanguage(isChinese ? "zh" : "en");
+      }
+
+      // Run auto-detection immediately
+      detectAndSetLanguage();
+
+      // Proxy packageData dynamically to resolve current language
+      const packageData = new Proxy(
+        {},
+        {
+          get(target, prop) {
+            const currentData =
+              currentLang === "zh" ? packageDataZH : packageDataEN;
+            return currentData[prop];
+          },
+        },
+      );
+      const treeItems = document.querySelectorAll(".tree-item");
+      const displayDiv = document.getElementById("package-display");
+
+      treeItems.forEach((item) => {
+        item.addEventListener("click", () => {
+          const pkg = item.getAttribute("data-package");
+          const data = packageData[pkg];
+          if (data) {
+            // Update display card content dynamically
+            let listHtml = "";
+            data.features.forEach((f) => {
+              listHtml += `<li><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${f}</li>`;
+            });
+
+            const labelText =
+              currentLang === "zh"
+                ? "核心特性與職責："
+                : "Core Features & Responsibilities:";
+            displayDiv.innerHTML = `
                         <div class="package-detail-title">${data.title}</div>
                         <div class="package-detail-desc">${data.desc}</div>
                         <h4 style="font-size: 0.95rem; font-weight:600; margin-bottom:12px; color:var(--text-main);">${labelText}</h4>
@@ -1146,60 +2004,63 @@ npx @pinyencheng/lhic run action action.json approval.json</code></pre>
                         </ul>
                     `;
 
-                    // Highlight selected tree node
-                    treeItems.forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                }
-            });
+            // Highlight selected tree node
+            treeItems.forEach((i) => i.classList.remove("active"));
+            item.classList.add("active");
+          }
         });
+      });
 
-        // Tab Switching logic
-        function switchTab(evt, tabId) {
-            // Hide all tab panes
-            const panes = document.querySelectorAll('.tab-pane');
-            panes.forEach(pane => pane.classList.remove('active'));
+      // Tab Switching logic
+      function switchTab(evt, tabId) {
+        // Hide all tab panes
+        const panes = document.querySelectorAll(".tab-pane");
+        panes.forEach((pane) => pane.classList.remove("active"));
 
-            // Remove active class from all tab buttons
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
+        // Remove active class from all tab buttons
+        const buttons = document.querySelectorAll(".tab-btn");
+        buttons.forEach((btn) => btn.classList.remove("active"));
 
-            // Show active pane and set active tab button
-            document.getElementById(tabId).classList.add('active');
-            evt.currentTarget.classList.add('active');
-        }
+        // Show active pane and set active tab button
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+      }
 
-        // Copy code to clipboard helper
-        function copyCode(button) {
-            const pre = button.nextElementSibling;
-            const code = pre.querySelector('code').innerText;
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = button.innerText;
-                button.innerText = currentLang === 'zh' ? "已複製！" : "Copied!";
-                button.style.background = "var(--primary)";
-                button.style.color = "#000";
-                setTimeout(() => {
-                    button.innerText = originalText;
-                    button.style.background = "";
-                    button.style.color = "";
-                }, 2000);
-            }).catch(err => {
-                console.error("無法複製文字: ", err);
-            });
-        }
+      // Copy code to clipboard helper
+      function copyCode(button) {
+        const pre = button.nextElementSibling;
+        const code = pre.querySelector("code").innerText;
+        navigator.clipboard
+          .writeText(code)
+          .then(() => {
+            const originalText = button.innerText;
+            button.innerText = currentLang === "zh" ? "已複製！" : "Copied!";
+            button.style.background = "var(--primary)";
+            button.style.color = "#000";
+            setTimeout(() => {
+              button.innerText = originalText;
+              button.style.background = "";
+              button.style.color = "";
+            }, 2000);
+          })
+          .catch((err) => {
+            console.error("無法複製文字: ", err);
+          });
+      }
 
-        // Mobile Navigation Menu Toggle
-        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-        const navLinks = document.querySelector('.nav-links');
-        if (mobileMenuBtn && navLinks) {
-            mobileMenuBtn.addEventListener('click', () => {
-                navLinks.classList.toggle('active');
-            });
-            navLinks.querySelectorAll('a').forEach(link => {
-                link.addEventListener('click', () => {
-                    navLinks.classList.remove('active');
-                });
-            });
-        }
+      // Mobile Navigation Menu Toggle
+      const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+      const navLinks = document.querySelector(".nav-links");
+      if (mobileMenuBtn && navLinks) {
+        mobileMenuBtn.addEventListener("click", () => {
+          navLinks.classList.toggle("active");
+        });
+        navLinks.querySelectorAll("a").forEach((link) => {
+          link.addEventListener("click", () => {
+            navLinks.classList.remove("active");
+          });
+        });
+      }
     </script>
-</body>
+  </body>
 </html>
