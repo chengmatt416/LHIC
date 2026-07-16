@@ -687,9 +687,17 @@ section {
 
 .tabs-list {
     display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
     border-bottom: 1px solid var(--border-color);
     gap: 8px;
     margin-bottom: 24px;
+    scrollbar-width: none; /* Firefox */
+}
+
+.tabs-list::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
 }
 
 .tab-btn {
@@ -704,6 +712,7 @@ section {
     transition: var(--transition);
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
+    flex-shrink: 0;
 }
 
 .tab-btn:hover {
@@ -735,6 +744,8 @@ section {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: 32px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .guide-step-title {
@@ -769,6 +780,8 @@ section {
     padding: 18px;
     margin-top: 16px;
     overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
 }
 
 .code-container pre {
