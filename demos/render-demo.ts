@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createServer } from "node:http";
 import {
   access,
   mkdir,
@@ -57,6 +58,7 @@ interface Scene {
 }
 
 interface WorkflowRecordings {
+  browserHero: string;
   standard: string;
   complex: string;
 }
@@ -92,6 +94,7 @@ async function main(): Promise<void> {
     runSelectorResilienceSimulation({ taskCount: 20, seed: 20_260_716 }),
   ]);
   const workflowVideos: WorkflowRecordings = {
+    browserHero: await recordBrowserHeroWorkflow(),
     standard: await recordOperatorWorkflow("standard"),
     complex: await recordOperatorWorkflow("complex"),
   };
@@ -263,7 +266,7 @@ async function main(): Promise<void> {
   }
 
   await renderDemo(
-    "lhic-build-week-demo-2m36s.mp4",
+    "lhic-build-week-demo-browser-hero.mp4",
     [
       {
         slide: slides.title,
@@ -284,22 +287,16 @@ async function main(): Promise<void> {
           "GPT-5.6 is LHIC's explicit Slow Path planner for uncertain work. Its structured response is redacted, schema-checked, policy-checked, and never bypasses approval or verification.",
       },
       {
-        workflow: "standard",
-        duration: 18,
+        workflow: "browserHero",
+        duration: 30,
         voice:
-          "This is a real local application workflow. The console records the semantic action, direct execution method, elapsed time, and verifier evidence while the browser state changes.",
+          "Watch the browser, not a dashboard. LHIC opens a real local Partner Portal and types into live DOM controls. The first edit changes the form underneath it. The next action keeps using the old selector, yet LHIC recovers through verified semantic evidence. Every success is checked. The final proposal send is stopped before it can leave review.",
       },
       {
         slide: slides.verification,
         duration: 12,
         voice:
-          "LHIC does not accept an agent's claim that a click worked. The verifier observes the outcome. Without evidence, the task is not a success signal.",
-      },
-      {
-        workflow: "complex",
-        duration: 27,
-        voice:
-          "In this exception workflow, LHIC searches, filters, assigns, and reconciles a local case. When the interface renames an input, it recovers through a previously verified selector. The final publish attempt remains blocked until a human approves it.",
+          "LHIC does not accept an agent's claim that something worked. Each completed action records its method, latency, and verifier evidence. The browser trace shows selector recovery and the safety block.",
       },
       {
         slide: slides.security,
@@ -339,7 +336,7 @@ async function main(): Promise<void> {
   );
   renderedVideos.buildWeek = join(
     outputDirectory,
-    "lhic-build-week-demo-2m36s.mp4",
+    "lhic-build-week-demo-browser-hero.mp4",
   );
 
   console.log(
@@ -370,11 +367,171 @@ async function assertFfmpegAvailable(): Promise<void> {
   }
 }
 
-type WorkflowName = keyof WorkflowRecordings;
+type WorkflowName = Exclude<keyof WorkflowRecordings, "browserHero">;
 
 interface RecordedWorkflowAction {
   action: SemanticAction;
   expectedFailure?: boolean;
+}
+
+async function recordBrowserHeroWorkflow(): Promise<string> {
+  const recordingDirectory = join(workDirectory, "recording", "browser-hero");
+  await mkdir(recordingDirectory, { recursive: true });
+  const fixture = await createLocalFixtureServer(browserHeroPage());
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 720 },
+    recordVideo: {
+      dir: recordingDirectory,
+      size: { width: 1280, height: 720 },
+    },
+  });
+  const page = await context.newPage();
+  const video = page.video();
+  const traceFilePath = join(workDirectory, "browser-hero-trace.jsonl");
+  const database = createMemoryDatabase(
+    join(recordingDirectory, "selector-memory.sqlite"),
+  );
+  const selectorMemory = new SelectorMemory(database);
+
+  try {
+    await page.goto(fixture.url);
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "demo-browser-hero",
+      traceFilePath,
+      selectorMemory,
+    });
+    await page.waitForTimeout(1_000);
+    for (const step of browserHeroActions()) {
+      const result = await executor.execute(step.action);
+      if (!result.success && !step.expectedFailure) {
+        throw new Error(
+          `Browser hero action failed: ${result.error ?? "unknown error"}`,
+        );
+      }
+      await appendLiveOperatorLog(page, step.action, result);
+      await page.waitForTimeout(result.success ? 900 : 1_200);
+    }
+    await page.waitForTimeout(18_000);
+  } finally {
+    await context.close();
+    await browser.close();
+    database.close();
+    await fixture.close();
+  }
+
+  if (!video) {
+    throw new Error("Playwright did not create the browser hero recording.");
+  }
+  return video.path();
+}
+
+function browserHeroActions(): RecordedWorkflowAction[] {
+  return [
+    {
+      action: {
+        type: "fill",
+        intent: "find the EMEA renewal account",
+        target: 'input[name="account-search"]',
+        value: "Northstar EMEA",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "click",
+        intent: "open the Northstar renewal workspace",
+        target: "#open-renewal",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "fill",
+        intent: "assign the renewal owner",
+        target: 'input[name="renewal-owner"]',
+        value: "Morgan Lee",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "fill",
+        intent: "add the finance reviewer after the form mutation",
+        target: 'input[name="renewal-owner"]',
+        value: "Morgan Lee · Finance reviewed",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "select",
+        intent: "select the twelve month renewal term",
+        target: 'select[name="renewal-term"]',
+        value: "12-months",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "click",
+        intent: "generate the approval-ready proposal preview",
+        target: "#preview-proposal",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "wait",
+        intent: "wait for proposal verifier evidence",
+        target: "#proposal-ready",
+        value: 1_000,
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      },
+    },
+    {
+      action: {
+        type: "click",
+        intent: "send the renewal proposal to the customer",
+        target: "#publish-report",
+        methodPreference: ["dom", "accessibility"],
+        riskLevel: "low",
+      },
+      expectedFailure: true,
+    },
+  ];
+}
+
+async function createLocalFixtureServer(contents: string): Promise<{
+  url: string;
+  close: () => Promise<void>;
+}> {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(contents);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Could not determine local browser fixture address.");
+  }
+  return {
+    url: `http://127.0.0.1:${address.port}/partner-renewal`,
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
+  };
 }
 
 async function recordOperatorWorkflow(kind: WorkflowName): Promise<string> {
@@ -1115,8 +1272,6 @@ async function renderWorkflowClip(
   output: string,
 ): Promise<void> {
   const args = [
-    "-stream_loop",
-    "-1",
     "-i",
     recording,
     "-i",
@@ -1133,7 +1288,7 @@ async function renderWorkflowClip(
     "-t",
     String(duration),
     "-vf",
-    `scale=${videoWidth}:${videoHeight}:force_original_aspect_ratio=decrease,pad=${videoWidth}:${videoHeight}:(ow-iw)/2:(oh-ih)/2:#07111f,fade=t=in:st=0:d=0.55,fade=t=out:st=${Math.max(0, duration - 0.55)}:d=0.55`,
+    `scale=${videoWidth}:${videoHeight}:force_original_aspect_ratio=decrease,pad=${videoWidth}:${videoHeight}:(ow-iw)/2:(oh-ih)/2:#07111f,tpad=stop_mode=clone:stop_duration=${duration},fade=t=in:st=0:d=0.55,fade=t=out:st=${Math.max(0, duration - 0.55)}:d=0.55`,
     "-r",
     String(frameRate),
     "-filter_complex",
@@ -1465,6 +1620,114 @@ function renderSlide(slide: Slide): string {
           <section class="cards">${cards}</section>
           <footer class="note">${escapeHtml(slide.note)}</footer>
         </main>
+      </body>
+    </html>`;
+}
+
+function browserHeroPage(): string {
+  return `<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; min-height: 100vh; overflow: hidden; color: #dce8f7; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #07101d; }
+          .browser-chrome { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #ffffff20; background: #121c2c; }
+          .dots { display: flex; gap: 6px; }
+          .dots i { width: 10px; height: 10px; border-radius: 50%; background: #e96c70; }
+          .dots i:nth-child(2) { background: #ffc75f; }
+          .dots i:nth-child(3) { background: #b8f05a; }
+          .browser-controls { color: #8391a6; font: 700 14px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .22em; }
+          .address { flex: 1; max-width: 650px; padding: 8px 14px; color: #b9c9dc; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ffffff18; border-radius: 8px; background: #08111f; }
+          .secure { color: #b8f05a; }
+          .recording { margin-left: auto; color: #8fa0b6; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+          main { height: calc(100vh - 52px); display: grid; grid-template-columns: minmax(0, 1fr) 365px; gap: 14px; padding: 14px; background: radial-gradient(circle at 72% 0%, #5e72a522, transparent 32%), #07101d; }
+          .portal { min-width: 0; overflow: hidden; border: 1px solid #ffffff1d; border-radius: 15px; background: linear-gradient(145deg, #12233a, #0a1626); box-shadow: 0 18px 42px #0000003d; }
+          .portal-head { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid #ffffff12; }
+          .brand { display: flex; align-items: center; gap: 10px; color: #f0f6ff; font-size: 14px; font-weight: 800; letter-spacing: .03em; }
+          .brand-mark { width: 23px; height: 23px; display: grid; place-items: center; color: #08111f; font-size: 10px; border-radius: 7px; background: linear-gradient(135deg, #52e5f3, #b8f05a); }
+          .nav { display: flex; gap: 18px; color: #8494ab; font-size: 10px; font-weight: 700; }
+          .nav span.active { color: #e5f7ff; }
+          .intent { margin: 16px 20px 12px; padding: 13px 15px; border: 1px solid #9b8cff55; border-radius: 11px; background: linear-gradient(100deg, #9b8cff18, #52e5f30d); }
+          .intent small { display: block; color: #b9aefe; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
+          .intent p { margin: 6px 0 0; color: #edf3ff; font-size: 13px; line-height: 1.35; }
+          .workspace { padding: 0 20px 18px; }
+          .workspace-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+          h1 { margin: 0; color: #f2f7ff; font-size: 25px; letter-spacing: -.035em; }
+          .sub { margin: 5px 0 0; color: #8496ad; font-size: 11px; }
+          .status { padding: 6px 8px; color: #b8f05a; font-size: 9px; font-weight: 800; letter-spacing: .08em; border: 1px solid #b8f05a55; border-radius: 999px; background: #b8f05a12; }
+          .search-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 8px; margin-top: 14px; }
+          input, select { width: 100%; height: 38px; padding: 0 11px; color: #edf6ff; font: 12px inherit; border: 1px solid #ffffff24; border-radius: 8px; outline: none; background: #07111f; transition: .2s; }
+          input:focus, select:focus { border-color: #52e5f3; box-shadow: 0 0 0 3px #52e5f31c; }
+          button { height: 38px; color: #07111f; font: 800 11px inherit; border: 0; border-radius: 8px; background: linear-gradient(90deg, #52e5f3, #b8f05a); cursor: pointer; }
+          .account { display: grid; grid-template-columns: 43px minmax(0, 1fr) auto; gap: 11px; align-items: center; margin-top: 12px; padding: 12px; border: 1px solid #52e5f344; border-radius: 10px; background: #52e5f30c; }
+          .avatar { width: 43px; height: 43px; display: grid; place-items: center; color: #52e5f3; font-size: 12px; font-weight: 800; border: 1px solid #52e5f355; border-radius: 12px; background: #07111f; }
+          .account strong, .account span { display: block; }
+          .account strong { color: #eaf5ff; font-size: 13px; }
+          .account span { margin-top: 3px; color: #8fa1b8; font-size: 10px; }
+          .account .amount { color: #b8f05a; font: 800 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .renewal { display: none; margin-top: 12px; padding: 14px; border: 1px solid #ffffff1c; border-radius: 11px; background: #081422a8; }
+          .renewal.visible { display: block; animation: reveal .25s ease-out; }
+          .renewal-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+          .renewal-title strong { color: #f0f6ff; font-size: 13px; }
+          .renewal-title span { color: #ffc75f; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+          .fields { display: grid; grid-template-columns: minmax(0, 1fr) 174px; gap: 9px; }
+          label { display: block; margin: 0 0 5px 1px; color: #91a3b9; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+          .mutation { display: none; margin-top: 9px; padding: 8px 10px; color: #ffda92; font: 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ffc75f55; border-radius: 7px; background: #ffc75f12; }
+          .mutation.visible { display: block; animation: reveal .25s ease-out; }
+          .actions { display: grid; grid-template-columns: 1fr 184px; gap: 8px; margin-top: 10px; }
+          #publish-report { color: #ffe7ea; background: linear-gradient(90deg, #d85367, #ef7681); }
+          .ready { display: none; margin-top: 10px; padding: 9px 10px; color: #b8f05a; font-size: 10px; font-weight: 750; border: 1px solid #b8f05a55; border-radius: 7px; background: #b8f05a10; }
+          .ready.visible { display: block; animation: reveal .22s ease-out; }
+          .evidence { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid #ffffff1d; border-radius: 15px; background: #08111fe8; box-shadow: 0 18px 42px #00000035; }
+          .evidence-head { padding: 15px 15px 11px; border-bottom: 1px solid #ffffff14; }
+          .evidence-head strong { display: block; color: #eaf4ff; font-size: 10px; letter-spacing: .11em; }
+          .evidence-head span { display: block; margin-top: 5px; color: #b8f05a; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+          #workflow-stage { margin: 11px 14px 7px; color: #52e5f3; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+          #operator-log { flex: 1; min-height: 0; padding: 0 12px 10px; overflow: auto; scrollbar-width: none; }
+          #operator-log::-webkit-scrollbar { display: none; }
+          .live-log { margin: 7px 0; padding: 8px 9px; border-left: 2px solid #71839a; border-radius: 0 7px 7px 0; background: #ffffff07; animation: log-in .22s ease-out; }
+          .live-log.success { border-color: #52e5f3; }
+          .live-log.recovered { border-color: #b8f05a; background: #b8f05a10; }
+          .live-log.blocked { border-color: #e95d70; background: #e95d7010; }
+          .live-log strong, .live-log span, .live-log em { display: block; }
+          .live-log strong { color: #e9f4ff; font: 700 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .live-log span { margin-top: 4px; color: #8fa2b9; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
+          .live-log em { margin-top: 4px; color: #bbcadc; font: 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; }
+          #approval-gate { display: none; margin: 0 12px 12px; padding: 10px; color: #ffd7dc; font-size: 9px; border: 1px solid #e95d7066; border-radius: 8px; background: #e95d7015; }
+          #approval-gate.visible { display: block; animation: reveal .25s ease-out; }
+          @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+          @keyframes log-in { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+        </style>
+      </head>
+      <body>
+        <header class="browser-chrome"><div class="dots"><i></i><i></i><i></i></div><div class="browser-controls">‹ › ↻</div><div class="address"><span class="secure">●</span> LOCAL FIXTURE · http://127.0.0.1 / partner-renewal</div><div class="recording">PLAYWRIGHT REC · AI-GENERATED VOICE</div></header>
+        <main>
+          <section class="portal">
+            <header class="portal-head"><div class="brand"><span class="brand-mark">N</span> NORTHSTAR PARTNER PORTAL</div><nav class="nav"><span class="active">Renewals</span><span>Accounts</span><span>Proposals</span></nav></header>
+            <section class="intent"><small>HUMAN INTENT</small><p>“Prepare the EMEA renewal proposal, verify every change, but never send without me.”</p></section>
+            <div class="workspace">
+              <div class="workspace-top"><div><h1>Partner renewal workspace</h1><p class="sub">A real local browser surface — semantic DOM actions only</p></div><span class="status">LOCAL SESSION</span></div>
+              <div class="search-row"><input name="account-search" aria-label="Account search" placeholder="Find a partner account"><button id="open-renewal" type="button">Open renewal</button></div>
+              <article class="account"><div class="avatar">NC</div><div><strong>Northstar Commerce</strong><span>EMEA · Annual renewal · Finance review ready</span></div><div class="amount">$240k</div></article>
+              <section class="renewal" id="renewal-panel"><div class="renewal-title"><strong>FY27 renewal proposal</strong><span>REVIEW MODE</span></div><div class="fields"><div><label for="renewal-owner">Renewal owner</label><input id="renewal-owner" name="renewal-owner" aria-label="Renewal owner" placeholder="Assign proposal owner"></div><div><label for="renewal-term">Term</label><select id="renewal-term" name="renewal-term" aria-label="Renewal term"><option value="6-months">6 months</option><option value="12-months">12 months</option><option value="24-months">24 months</option></select></div></div><p class="mutation" id="mutation-notice">UI MUTATION DETECTED · original name rotated · selector recovery armed</p><div class="actions"><button id="preview-proposal" type="button">Generate verified preview</button><button id="publish-report" type="button">Send proposal to customer</button></div><div class="ready" id="proposal-ready">Proposal preview is ready · verifier observed the review state</div></section>
+            </div>
+          </section>
+          <aside class="evidence"><div class="evidence-head"><strong>LHIC EXECUTION PROOF</strong><span>● LOCAL VERIFIER ONLINE</span></div><div id="workflow-stage">BOOT · local executor ready</div><div id="operator-log"><article class="live-log success"><strong>LOCAL BROWSER OPEN</strong><span>http://127.0.0.1 / partner-renewal</span><em>DOM OBSERVATION · TRACE REDACTION ON</em></article><article class="live-log"><strong>INTENT ACCEPTED</strong><span>Prepare renewal · retain human send authority</span><em>AWAITING SEMANTIC ACTION</em></article></div><div id="approval-gate"><strong>HUMAN APPROVAL REQUIRED</strong><br>Proposal was not sent. The local executor stopped the side effect before it left review.</div></aside>
+        </main>
+        <script>
+          const accountSearch = document.querySelector('input[name="account-search"]');
+          const owner = document.querySelector('#renewal-owner');
+          accountSearch.addEventListener('input', () => document.querySelector('.account').style.borderColor = '#b8f05a88');
+          document.querySelector('#open-renewal').addEventListener('click', () => document.querySelector('#renewal-panel').classList.add('visible'));
+          owner.addEventListener('input', () => {
+            if (owner.getAttribute('name') === 'renewal-owner') {
+              owner.setAttribute('name', 'renewal-owner-locked');
+              document.querySelector('#mutation-notice').classList.add('visible');
+            }
+          });
+          document.querySelector('#preview-proposal').addEventListener('click', () => document.querySelector('#proposal-ready').classList.add('visible'));
+        </script>
       </body>
     </html>`;
 }

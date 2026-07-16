@@ -3,12 +3,12 @@
 Use this only with the rendered file:
 
 ```text
-demo-output/lhic-build-week-demo-2m36s.mp4
+demo-output/lhic-build-week-demo-browser-hero.mp4
 ```
 
-The file is 156 seconds, 1920×1080, H.264 video with AAC narration. It uses a
-locally generated Kokoro voice; the video itself visibly discloses that the
-voiceover is AI-generated.
+The file is under three minutes, 1920×1080, H.264 video with AAC narration. It
+uses a locally generated Kokoro voice; the video itself visibly discloses that
+the voiceover is AI-generated.
 
 ## Title
 
@@ -21,7 +21,7 @@ LHIC — Local-First Human Intent Controller | OpenAI Build Week Demo
 ```text
 LHIC is a local-first execution runtime for computer-use agents. It separates probabilistic planning from deterministic, policy-controlled browser actions and records verifier evidence for every completed step.
 
-This 2:36 demo shows a real local Playwright workflow, direct semantic execution, verifier evidence, selector recovery after a UI change, and a high-risk publish operation that is blocked until a human approves it.
+This demo opens a real local HTTP Partner Portal in Playwright, then shows direct semantic execution against visible live DOM controls, verifier evidence, selector recovery after a UI mutation, and a proposal send that is blocked until a human approves it.
 
 GPT-5.6 is LHIC's explicit Slow Path planner for uncertain work. When enabled, its structured output is redacted, schema-checked, policy-checked, and cannot bypass approval or verification. The Fast Path makes no model or MCP calls.
 
