@@ -1,5 +1,10 @@
 # Security
 
+Before a release, run `npm run scan:secrets`. The command scans all reachable
+Git history for high-confidence credential formats and redacts every match from
+its output. It does not replace a hosted secret scanner, manual review, or key
+rotation after a confirmed leak.
+
 - Passwords, tokens, API keys, authorization values, cookie values, emails, and phone-like strings are redacted before trace or memory writes.
 - Login never traces raw credentials. CAPTCHA and 2FA are explicit `askUser` outcomes.
 - High-risk, unknown-risk, and unapproved custom actions are not eligible for Fast Path execution.

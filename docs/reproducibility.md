@@ -19,6 +19,8 @@ npm test
 npm run demo
 npm run bench:internal
 npm run package:smoke
+npm run check:docs
+npm run scan:secrets
 ```
 
 The safe demo needs no API key. To test optional GPT-5.6 planning, set
@@ -37,6 +39,14 @@ specific npm publication is available.
 Run the same check locally with `npm run package:smoke`. It removes OpenAI API
 key environment variables from the spawned demo process, so this check cannot
 make a model request or write a credential to its output.
+
+## Repository hygiene gates
+
+`npm run check:docs` checks tracked Markdown links that point to local files.
+`npm run scan:secrets` scans every reachable Git commit for high-confidence
+credential formats and never prints a matched value. It is a local guardrail,
+not a replacement for the code-host secret scanner or a credential rotation
+process.
 
 ## Evidence to record before submission
 
