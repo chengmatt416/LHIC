@@ -16,6 +16,7 @@ official Codex `/feedback` evidence are tracked separately at submission time.
 | 2026-07-16 | Reproducible package smoke command                                                             | `573ab1e` | `npm run package:smoke` with credential-free tarball demo       |
 | 2026-07-16 | Pre-release npm availability disclosure                                                        | `0a10ec6` | README, global-control guide, and site flag npx as post-release |
 | 2026-07-17 | Repository hygiene delivery gates                                                              | `9337e02` | Git-history secret scan and tracked local Markdown link check   |
+| 2026-07-17 | Canonical repository metadata                                                                  | `5bc7ad8` | Package metadata and site links use `chengmatt416/LHIC`         |
 
 ## Carry-over code
 
