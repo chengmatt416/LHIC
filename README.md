@@ -4,7 +4,7 @@ LHIC is a secure, high-performance, local-first browser automation runtime desig
 
 ## 🚀 Key Features
 
-*   **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Achieving **100% Fast Path success rate** and **< 35ms median latency** on standard tasks.
+*   **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Each Fast Path action has **zero LLM calls** and therefore incurs no LLM-token cost; latency and success claims are reported only from the included controlled benchmarks.
 *   **Self-Healing Semantic Locators**: Immune to typical website updates. Outperforms traditional static CSS/XPath selectors by **+80% success rate** under layout modifications.
 *   **State-of-the-Art Security & KMS**:
     *   **KmsKeyManager**: Integrates AWS KMS, GCP KMS, and HashiCorp Vault key verification for high-risk actions.
@@ -32,30 +32,63 @@ LHIC is a secure, high-performance, local-first browser automation runtime desig
 
 ## 🛠️ CLI Commands & Usage
 
-Install dependencies:
+### Quick start
+
+Install dependencies and the local Chromium runtime:
+
 ```bash
-npm install
+npm ci
+npm run pw:install
 npm run build
+```
+
+Initialize the local-first runtime and its persistent SQLite skill database.
+This preloads the shipped `download_file`, `fill_form`, `login`, `search`, and
+`test_web_flow` skills without overwriting learned skills:
+
+```bash
+npx lhic start
+npx lhic preflight
+```
+
+The database is created at `.lhic/skills.sqlite` in the current directory. Use
+`npx lhic start <memory-database>` to choose a different
+location. See [the quick-start guide](docs/quickstart.md) for the MCP setup and
+the first automation workflow.
+
+For Codex, print a reviewed MCP entry using the built-in command. It never
+modifies client configuration automatically:
+
+```bash
+npx lhic mcp config codex
 ```
 
 Run preflight environment verification:
 ```bash
-npm run preflight
+npx lhic preflight
 ```
 
 Run action with human approval:
 ```bash
-npx tsx apps/cli/src/main.ts run action <action-file> [approval-file]
+npx lhic run action <action-file> [approval-file]
 ```
+
+Slow Path integrations can use `FastPathRouter.executeSlowPath(...)` with a
+`SlowPathLearningCoordinator`. When every proposed action has a successful
+execution result and non-empty verifier evidence, LHIC compiles the plan into a
+redacted skill and persists it in SQLite automatically. Successful direct DOM
+actions also add local selector-memory candidates; the MCP server exposes
+redacted `lhic_runtime_status`, `lhic_skills_list`, and
+`lhic_selector_memory_list` views for inspection.
 
 Run internal regression benchmarks:
 ```bash
-npm run bench:internal
+npx lhic bench internal
 ```
 
 Run selector resilience simulation:
 ```bash
-npm run bench:simulate
+npx lhic bench simulate resilience
 ```
 
 ## 📄 License

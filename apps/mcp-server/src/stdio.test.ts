@@ -154,6 +154,9 @@ describe("LHIC computer-use MCP stdio entrypoint", () => {
         tools: expect.arrayContaining([
           expect.objectContaining({ name: "lhic_browser_start" }),
           expect.objectContaining({ name: "lhic_browser_act" }),
+          expect.objectContaining({ name: "lhic_runtime_status" }),
+          expect.objectContaining({ name: "lhic_skills_list" }),
+          expect.objectContaining({ name: "lhic_selector_memory_list" }),
         ]),
       });
 

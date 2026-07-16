@@ -43,6 +43,71 @@ describe("SQLite skill memory", () => {
     expect(skill).toMatchObject({ lifecycle: "trusted", successCount: 10 });
   });
 
+  it("preloads draft skills without replacing learned definitions", () => {
+    const database = createMemoryDatabase();
+    databases.push(database);
+    const store = new SkillStore(database);
+
+    expect(store.preload("search", { source: "builtin" })).toMatchObject({
+      lifecycle: "draft",
+      successCount: 0,
+      definition: { source: "builtin" },
+    });
+    store.recordVerifiedSuccess(
+      "search",
+      { source: "learned" },
+      { success: true, evidence: ["Search results visible"] },
+    );
+
+    expect(store.preload("search", { source: "replacement" })).toMatchObject({
+      lifecycle: "verified",
+      successCount: 1,
+      definition: { source: "learned" },
+    });
+  });
+
+  it("lists skills by lifecycle and verified success count without exposing SQL rows", () => {
+    const database = createMemoryDatabase();
+    databases.push(database);
+    const store = new SkillStore(database);
+    store.preload("draft-skill", { source: "builtin" });
+    store.recordVerifiedSuccess(
+      "verified-skill",
+      { source: "learned" },
+      { success: true, evidence: ["verified"] },
+    );
+    store.recordVerifiedSuccess(
+      "habit-skill",
+      { source: "learned" },
+      { success: true, evidence: ["verified"] },
+    );
+    store.recordVerifiedSuccess(
+      "habit-skill",
+      { source: "learned" },
+      { success: true, evidence: ["verified"] },
+    );
+    store.recordVerifiedSuccess(
+      "habit-skill",
+      { source: "learned" },
+      { success: true, evidence: ["verified"] },
+    );
+
+    expect(store.list()).toEqual([
+      expect.objectContaining({
+        name: "habit-skill",
+        lifecycle: "habit",
+        successCount: 3,
+      }),
+      expect.objectContaining({
+        name: "verified-skill",
+        lifecycle: "verified",
+        successCount: 1,
+      }),
+      expect.objectContaining({ name: "draft-skill", lifecycle: "draft" }),
+    ]);
+    expect(() => store.list(0)).toThrow("between 1 and 1000");
+  });
+
   it("stores verified selectors and turns repeated failures into recovery recommendations", () => {
     const database = createMemoryDatabase();
     databases.push(database);
@@ -68,6 +133,15 @@ describe("SQLite skill memory", () => {
       selector: "#search",
       successCount: 1,
     });
+    expect(selectors.list()).toEqual([
+      expect.objectContaining({
+        skillName: "search",
+        target: "search box",
+        selector: "#search",
+        successCount: 1,
+      }),
+    ]);
+    expect(() => selectors.list(0)).toThrow("between 1 and 1000");
 
     const failures = new FailureMemory(database);
     expect(failures.record("download_file", "download_timeout")).toMatchObject({

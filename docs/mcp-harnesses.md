@@ -1,8 +1,8 @@
 # MCP harness integrations
 
 LHIC exposes a standards-based local stdio MCP server. Any MCP-capable agent
-can use the same four browser tools; client configuration is the only
-integration-specific part.
+can use browser actions plus read-only runtime and learning inspection; client
+configuration is the only integration-specific part.
 
 ```text
 AI or harness → LHIC stdio MCP process → serialized browser session → Playwright
@@ -41,6 +41,10 @@ Use Node 24, run the client on the same machine that should own the browser,
 and replace `/absolute/path/to/ComputerIntent` in the examples below. The
 browser is visible by default. Set `LHIC_MCP_HEADLESS=true` only for unattended
 workloads such as a CI harness.
+
+Set `LHIC_MEMORY_DATABASE=/absolute/path/skills.sqlite` to choose where the
+server keeps local skill and selector memory. If unset, the server creates
+`.lhic/skills.sqlite` in its working directory and preloads built-in skills.
 
 For a production session, configure the existing runtime policy in the MCP
 server environment:
@@ -132,20 +136,27 @@ decision for local servers; do not enable it in an untrusted checkout.
 
 ## Tool-use contract for every harness
 
-1. Call `lhic_browser_start`, then `lhic_browser_observe` before selecting a
+1. Optionally call `lhic_runtime_status` to inspect the local runtime and
+   `lhic_skills_list` and `lhic_selector_memory_list` to inspect redacted
+   learning metadata.
+2. Call `lhic_browser_start`, then `lhic_browser_observe` before selecting a
    target.
-2. Send exactly one supported action (`navigate`, `click`, `fill`, `select`,
+3. Send exactly one supported action (`navigate`, `click`, `fill`, `select`,
    `press`, or `wait`) to `lhic_browser_act`.
-3. Check `result.success`, evidence, and returned state after every action.
-4. Never fabricate `ActionApproval`; acquire human confirmation for high- or
+4. Check `result.success`, evidence, and returned state after every action.
+5. Never fabricate `ActionApproval`; acquire human confirmation for high- or
    unknown-risk work.
-5. Call `lhic_browser_close` when the workflow ends.
+6. Call `lhic_browser_close` when the workflow ends.
 
 `lhic_browser_observe` is marked read-only and idempotent in MCP metadata;
 state-changing tools are conservatively marked for approval-aware clients.
 Input values are omitted from observations and all tool output is redacted. Each
 result is available both as universally compatible JSON text and as MCP
 `structuredContent` for harnesses that support structured tool results.
+`lhic_runtime_status`, `lhic_skills_list`, and `lhic_selector_memory_list` are
+read-only and idempotent. Skill listings include lifecycle counters only, and
+selector-memory listings omit saved selectors. Neither returns stored action
+definitions or input values.
 
 Configuration formats above are based on the current [Codex MCP
 documentation](https://developers.openai.com/codex/mcp/), [Claude Code MCP

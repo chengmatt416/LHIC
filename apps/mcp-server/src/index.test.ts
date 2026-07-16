@@ -1,5 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -12,6 +15,7 @@ import type { ActionApproval } from "@lhic/security";
 import {
   callComputerUseTool,
   createComputerUseServer,
+  createMcpRuntime,
   SerializedComputerUseSession,
   type ComputerUseActionResult,
   type ComputerUseSession,
@@ -103,6 +107,9 @@ describe("LHIC computer-use MCP server", () => {
         "lhic_browser_observe",
         "lhic_browser_act",
         "lhic_browser_close",
+        "lhic_runtime_status",
+        "lhic_skills_list",
+        "lhic_selector_memory_list",
       ]);
       expect(result.tools[1]).toMatchObject({
         annotations: { readOnlyHint: true, idempotentHint: true },
@@ -196,5 +203,85 @@ describe("LHIC computer-use MCP server", () => {
     await Promise.all([session.act(action), session.act(action)]);
 
     expect(maxInFlight).toBe(1);
+  });
+
+  it("reports local learning state and returns redacted skill summaries", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-mcp-runtime-"));
+    const databaseFile = join(directory, "memory", "skills.sqlite");
+    const runtime = await createMcpRuntime(databaseFile);
+    const session = new FakeComputerUseSession();
+
+    try {
+      const status = await callComputerUseTool(
+        session,
+        "lhic_runtime_status",
+        {},
+        runtime,
+      );
+      expect(status.structuredContent).toMatchObject({
+        browserSession: { active: false },
+        fastPath: { usesLLM: false, usesMcp: false },
+        learning: {
+          enabled: true,
+          databaseFile,
+          skillCount: 5,
+          selectorCandidateCount: 0,
+        },
+      });
+
+      const skills = await callComputerUseTool(
+        session,
+        "lhic_skills_list",
+        { limit: 2 },
+        runtime,
+      );
+      expect(skills.structuredContent).toMatchObject({
+        databaseFile,
+        returned: 2,
+      });
+      const listedSkills = skills.structuredContent?.skills as
+        unknown[] | undefined;
+      expect(listedSkills).toBeInstanceOf(Array);
+      expect(listedSkills?.[0]).toMatchObject({
+        name: expect.any(String),
+        lifecycle: "draft",
+        successCount: 0,
+      });
+      expect(JSON.stringify(skills.structuredContent)).not.toContain(
+        "definition",
+      );
+
+      runtime.selectorMemory.remember(
+        {
+          skillName: "fill",
+          target: "Search query",
+          selector: "#search-query",
+        },
+        { success: true, evidence: ["Field retained the value"] },
+      );
+      const selectors = await callComputerUseTool(
+        session,
+        "lhic_selector_memory_list",
+        {},
+        runtime,
+      );
+      expect(selectors.structuredContent).toMatchObject({
+        databaseFile,
+        returned: 1,
+        selectors: [
+          {
+            skillName: "fill",
+            target: "Search query",
+            successCount: 1,
+          },
+        ],
+      });
+      expect(JSON.stringify(selectors.structuredContent)).not.toContain(
+        "#search-query",
+      );
+    } finally {
+      runtime.close();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

@@ -34,8 +34,20 @@ export interface PlaywrightDirectExecutorOptions {
   maxWaitMs?: number;
   approvalValidation?: ActionApprovalValidationOptions;
   selectorMemory?: {
-    find(skillName: string, target: string): Array<{ selector: string }>;
-    remember?(entry: { skillName: string; target: string; selector: string; role?: string; label?: string }, verification: unknown): boolean;
+    find(
+      skillName: string,
+      target: string,
+    ): Array<{ selector: string; role?: string; label?: string }>;
+    remember?(
+      entry: {
+        skillName: string;
+        target: string;
+        selector: string;
+        role?: string;
+        label?: string;
+      },
+      verification: unknown,
+    ): boolean;
   };
 }
 
@@ -48,6 +60,7 @@ export interface NavigationPolicy {
 export interface ProductionExecutorOptions {
   taskId?: string;
   traceFilePath?: string;
+  selectorMemory?: PlaywrightDirectExecutorOptions["selectorMemory"];
 }
 
 const defaultActionTimeoutMs = 10_000;
@@ -89,9 +102,18 @@ export class PlaywrightDirectExecutor {
   private async waitForStability(): Promise<void> {
     // Dimension 2: Smart Adaptive Wait
     // 1. Wait for network idle with a short timeout to prevent hanging forever
-    await this.page.waitForLoadState("networkidle", { timeout: 1500 }).catch(() => {});
+    await this.page
+      .waitForLoadState("networkidle", { timeout: 1500 })
+      .catch(() => {});
     // 2. Wait for rendering frame stability
-    await this.page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))).catch(() => {});
+    await this.page
+      .evaluate(
+        () =>
+          new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          ),
+      )
+      .catch(() => {});
   }
 
   public async execute(
@@ -112,16 +134,15 @@ export class PlaywrightDirectExecutor {
 
       await this.waitForStability();
 
-      const resolvedActivationTarget =
-        await this.resolveActivationTarget(action);
+      const resolvedActionTarget = await this.resolveActionTarget(action);
       const approvalDecision = validateActionApproval(
         action,
         approval,
         new Date(),
         {
           ...this.approvalValidation,
-          ...(resolvedActivationTarget &&
-          isSideEffectActivationTarget(resolvedActivationTarget.safetyText)
+          ...(resolvedActionTarget &&
+          isSideEffectActivationTarget(resolvedActionTarget.safetyText)
             ? {
                 forceConfirmation: true,
                 confirmationReason:
@@ -134,22 +155,34 @@ export class PlaywrightDirectExecutor {
         throw new Error(approvalDecision.reason);
       }
 
-      const outcome = await this.perform(action, resolvedActivationTarget);
+      const outcome = await this.perform(action, resolvedActionTarget);
       if (!action.methodPreference.includes(outcome.method)) {
         throw new Error(
           `Resolved ${outcome.method} method is not permitted for this action.`,
         );
       }
 
-      // If execution was successful, optionally record selector memory if available
-      if (outcome.method === "dom" && action.target && resolvedActivationTarget && this.selectorMemory?.remember) {
+      // Store only the target strategy that produced a successful local action.
+      if (
+        action.target &&
+        resolvedActionTarget &&
+        this.selectorMemory?.remember
+      ) {
         try {
-          const selectorString = resolvedActivationTarget.locator.toString();
-          this.selectorMemory.remember({
-            skillName: action.type,
-            target: action.target,
-            selector: selectorString,
-          }, { success: true, evidence: outcome.evidence });
+          this.selectorMemory.remember(
+            {
+              skillName: action.type,
+              target: action.target,
+              selector: resolvedActionTarget.memory.selector,
+              ...(resolvedActionTarget.memory.role
+                ? { role: resolvedActionTarget.memory.role }
+                : {}),
+              ...(resolvedActionTarget.memory.label
+                ? { label: resolvedActionTarget.memory.label }
+                : {}),
+            },
+            { success: true, evidence: outcome.evidence },
+          );
         } catch {
           // ignore memory errors in runtime
         }
@@ -207,7 +240,8 @@ export class PlaywrightDirectExecutor {
         };
       }
       case "fill": {
-        const target = await this.requireTarget(action);
+        const target =
+          resolvedActivationTarget ?? (await this.requireTarget(action));
         if (typeof action.value !== "string") {
           throw new Error("Fill action requires a string value.");
         }
@@ -218,7 +252,8 @@ export class PlaywrightDirectExecutor {
         };
       }
       case "select": {
-        const target = await this.requireTarget(action);
+        const target =
+          resolvedActivationTarget ?? (await this.requireTarget(action));
         if (typeof action.value !== "string") {
           throw new Error("Select action requires a string value.");
         }
@@ -277,15 +312,20 @@ export class PlaywrightDirectExecutor {
     if (!action.target) {
       throw new Error(`${action.type} action requires a target.`);
     }
-    return resolveTarget(this.page, action.target, this.selectorMemory, action.type);
+    return resolveTarget(
+      this.page,
+      action.target,
+      this.selectorMemory,
+      action.type,
+    );
   }
 
-  private async resolveActivationTarget(
+  private async resolveActionTarget(
     action: SemanticAction,
   ): Promise<ResolvedTarget | undefined> {
     if (
-      (action.type !== "click" && action.type !== "press") ||
-      !action.target
+      !action.target ||
+      !["click", "fill", "select", "press"].includes(action.type)
     ) {
       return undefined;
     }
@@ -365,6 +405,9 @@ export function createProductionExecutor(
         : {}),
       allowPrivateNetwork: config.allowPrivateNetwork,
     },
+    ...(options.selectorMemory
+      ? { selectorMemory: options.selectorMemory }
+      : {}),
   });
 }
 

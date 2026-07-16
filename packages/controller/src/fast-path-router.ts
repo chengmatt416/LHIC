@@ -7,6 +7,11 @@ import type {
   SlowPathRequest,
   SlowPathResponse,
 } from "./slow-path.js";
+import type {
+  SlowPathActionExecutor,
+  SlowPathLearningCoordinator,
+  SlowPathLearningResult,
+} from "./slow-path-learning.js";
 
 export interface RouteDecision {
   path: "fast" | "slow" | "ask_user" | "blocked";
@@ -15,7 +20,10 @@ export interface RouteDecision {
 }
 
 export class FastPathRouter {
-  public constructor(private readonly slowPathProvider?: SlowPathProvider) {}
+  public constructor(
+    private readonly slowPathProvider?: SlowPathProvider,
+    private readonly slowPathLearningCoordinator?: SlowPathLearningCoordinator,
+  ) {}
 
   public decide(
     prediction: IntentPrediction,
@@ -86,5 +94,21 @@ export class FastPathRouter {
       return undefined;
     }
     return this.slowPathProvider.reason(request);
+  }
+
+  public async executeSlowPath(
+    decision: RouteDecision,
+    request: SlowPathRequest,
+    executor: SlowPathActionExecutor,
+  ): Promise<SlowPathLearningResult | undefined> {
+    const response = await this.invokeSlowPath(decision, request);
+    if (!response || !this.slowPathLearningCoordinator) {
+      return undefined;
+    }
+    return this.slowPathLearningCoordinator.execute(
+      request,
+      response,
+      executor,
+    );
   }
 }

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { readTraceEvents, summarizeTraceEvents } from "@lhic/trace";
 
 import { runInternalBenchmark } from "./internal-benchmark.js";
@@ -16,9 +18,15 @@ import {
 import { runPreflight } from "./preflight.js";
 import { runActionFile } from "./run-action.js";
 import { runSelectorResilienceSimulation } from "./selector-resilience-simulation.js";
+import { startLocalRuntime } from "./start.js";
 
 async function main(argumentsList: string[]): Promise<void> {
   const [command, subcommand, argument] = argumentsList;
+  if (command === "start") {
+    const result = await startLocalRuntime(subcommand);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
   if (command === "preflight") {
     const report = await runPreflight();
     console.log(JSON.stringify(report, null, 2));
@@ -103,7 +111,7 @@ async function main(argumentsList: string[]): Promise<void> {
     return;
   }
   console.error(
-    "Usage: lhic preflight | lhic run action <action-file> [approval-file] | lhic bench internal | lhic bench simulate resilience [task-count] [seed] | lhic bench readiness <workarena|webarena> | lhic bench validate-evidence <file> | lhic mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | lhic trace inspect <trace-file>",
+    "Usage: lhic start [memory-database] | lhic preflight | lhic run action <action-file> [approval-file] | lhic bench internal | lhic bench simulate resilience [task-count] [seed] | lhic bench readiness <workarena|webarena> | lhic bench validate-evidence <file> | lhic mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | lhic trace inspect <trace-file>",
   );
   process.exitCode = 1;
 }

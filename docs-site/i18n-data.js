@@ -70,9 +70,9 @@ const i18nPage = {
             { title: "抗變性消融模擬器", desc: "執行本地語意抗變性 (resilience) 的消融模擬評估。" }
         ],
         tutoCodesCli: [
-            "# 執行特定 semantic action 任務\nnpx tsx apps/cli/src/index.ts run --action action.json",
-            "# 檢查指定追蹤日誌的健全度與風險遮蔽狀況\nnpx tsx apps/cli/src/index.ts trace audit --log trace.jsonl",
-            "# 執行 100 次以指定 Seed (20260715) 生成的表單填寫消融測試\nnpx tsx apps/cli/src/index.ts bench ablate --task fill_form --runs 100 --seed 20260715"
+            "# 執行特定 semantic action 任務\nnpx lhic run action action.json",
+            "# 檢查指定追蹤日誌的健全度與規格狀況\nnpx lhic trace inspect trace.jsonl",
+            "# 執行 100 次以指定 Seed (20260715) 生成的抗變性消融測試\nnpx lhic bench simulate resilience 100 20260715"
         ],
         tutoStepsMcp: [
             { title: "註冊與驗證外掛程式", desc: "利用 Antigravity (<code>agy</code>) 的外掛機制註冊本地 MCP 伺服器組件。" },
@@ -81,8 +81,8 @@ const i18nPage = {
         ],
         tutoCodesMcp: [
             "# 驗證外掛設定是否符合 Antigravity 規格\nagy plugin validate .agents/plugins/lhic-computer-use",
-            "# 啟動並接管 Chromium 主程式\nnpx tsx apps/mcp-server/src/index.ts --stdio --stealth --port 9000",
-            "// 外部 AI 代理 (例如 Antigravity) 的設定檔配置\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"tsx\",\n        \"/absolute/path/to/apps/mcp-server/src/index.ts\",\n        \"--stdio\"\n      ]\n    }\n  }\n}"
+            "# 啟動本地 MCP 服務\nnpx lhic-mcp",
+            "// 外部 AI 代理 (例如 Antigravity) 的設定檔配置\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"lhic-mcp\"\n      ],\n      \"cwd\": \"/absolute/path/to/ComputerIntent\"\n    }\n  }\n}"
         ],
         tutoStepsProd: [
             { title: "生產 Docker 沙箱配置", desc: "在正式環境中使用 Docker 進行物理硬隔離與權限限縮限制。" },
@@ -90,9 +90,9 @@ const i18nPage = {
             { title: "高風險指令人類簽章驗收", desc: "在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519 金鑰比對無誤後才允許在 Fast Path 執行。" }
         ],
         tutoCodesProd: [
-            "# 驗證生產環境配置與預檢\nlhic run preflight --strict",
+            "# 驗證生產環境配置與預檢\nnpx lhic preflight",
             "# 建立容器並以生產配置預檢\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
-            "# 傳入動作檔與人類簽章檔案進行嚴格驗簽執行\nlhic run --action action.json --signature signature.sig --pubkey public.pem"
+            "# 傳入動作檔與人類簽章檔案進行嚴格驗簽執行\nnpx lhic run action action.json signature.sig"
         ],
         benchTag: "Performance & Testing",
         benchTitle: "基準測試與抗變性驗證",
@@ -195,9 +195,9 @@ const i18nPage = {
             { title: "Resilience Ablation Simulator", desc: "Evaluate resilient semantic locators using localized ablation simulation:" }
         ],
         tutoCodesCli: [
-            "# Execute specific semantic action task\nnpx tsx apps/cli/src/index.ts run --action action.json",
-            "# Audit trace logs for security and credential redaction\nnpx tsx apps/cli/src/index.ts trace audit --log trace.jsonl",
-            "# Run 100 ablation test iterations for form filling using seed 20260715\nnpx tsx apps/cli/src/index.ts bench ablate --task fill_form --runs 100 --seed 20260715"
+            "# Execute specific semantic action task\nnpx lhic run action action.json",
+            "# Audit trace logs for security and validation status\nnpx lhic trace inspect trace.jsonl",
+            "# Run 100 ablation test iterations for selector resilience using seed 20260715\nnpx lhic bench simulate resilience 100 20260715"
         ],
         tutoStepsMcp: [
             { title: "Validate Agent Integration", desc: "Validate MCP harness configuration using Antigravity (agy) tool CLI:" },
@@ -206,8 +206,8 @@ const i18nPage = {
         ],
         tutoCodesMcp: [
             "# Validate plugin configuration conforms to Antigravity spec\nagy plugin validate .agents/plugins/lhic-computer-use",
-            "# Launch and control stealth Chromium driver\nnpx tsx apps/mcp-server/src/index.ts --stdio --stealth --port 9000",
-            "// Configuration schema for external AI agents like Antigravity\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"tsx\",\n        \"/absolute/path/to/apps/mcp-server/src/index.ts\",\n        \"--stdio\"\n      ]\n    }\n  }\n}"
+            "# Start local MCP server\nnpx lhic-mcp",
+            "// Configuration schema for external AI agents like Antigravity\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"lhic-mcp\"\n      ],\n      \"cwd\": \"/absolute/path/to/ComputerIntent\"\n    }\n  }\n}"
         ],
         tutoStepsProd: [
             { title: "Hardened Dockerfile Setup", desc: "Use multi-stage production Docker configurations for sandbox isolation." },
@@ -215,9 +215,9 @@ const i18nPage = {
             { title: "Cryptographic Signature Sign-off", desc: "Enforce Ed25519 signature checks for high-risk actions in production:" }
         ],
         tutoCodesProd: [
-            "# Run production environment preflight checks\nlhic run preflight --strict",
+            "# Run production environment preflight checks\nnpx lhic preflight",
             "# Build container and run checks under production isolation\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
-            "# Execute with strict Ed25519 cryptographic signature verification\nlhic run --action action.json --signature signature.sig --pubkey public.pem"
+            "# Execute with strict Ed25519 cryptographic signature verification\nnpx lhic run action action.json signature.sig"
         ],
         benchTag: "Performance & Testing",
         benchTitle: "Benchmarks & Validation",

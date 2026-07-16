@@ -66,6 +66,54 @@ export class SkillStore {
     return row ? mapSkillRow(row) : undefined;
   }
 
+  public list(limit = 100): SkillRecord[] {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+      throw new Error(
+        "Skill list limit must be an integer between 1 and 1000.",
+      );
+    }
+    const rows = this.database
+      .prepare(
+        `
+        SELECT * FROM skills
+        ORDER BY
+          CASE lifecycle
+            WHEN 'trusted' THEN 0
+            WHEN 'habit' THEN 1
+            WHEN 'verified' THEN 2
+            ELSE 3
+          END,
+          success_count DESC,
+          name ASC
+        LIMIT ?
+      `,
+      )
+      .all(limit) as unknown as SkillRow[];
+    return rows.map(mapSkillRow);
+  }
+
+  public preload(
+    name: string,
+    definition: Record<string, unknown>,
+  ): SkillRecord {
+    if (!name.trim()) {
+      throw new Error("Preloaded skill names must not be empty.");
+    }
+    const existing = this.get(name);
+    if (existing) {
+      return existing;
+    }
+    this.database
+      .prepare(
+        `
+        INSERT INTO skills (name, definition_json, lifecycle, success_count, failure_count)
+        VALUES (?, ?, 'draft', 0, 0)
+      `,
+      )
+      .run(name, JSON.stringify(redactPII(definition)));
+    return this.get(name) as SkillRecord;
+  }
+
   public recordVerifiedSuccess(
     name: string,
     definition: Record<string, unknown>,

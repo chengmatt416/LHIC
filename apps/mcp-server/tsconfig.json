@@ -8,8 +8,10 @@
     "outDir": "./dist"
   },
   "references": [
+    { "path": "../../packages/memory" },
     { "path": "../../packages/schema" },
     { "path": "../../packages/security" },
+    { "path": "../../packages/skills" },
     { "path": "../../packages/trace" },
     { "path": "../../packages/browser" }
   ],

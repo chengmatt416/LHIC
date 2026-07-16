@@ -1,4 +1,7 @@
+#!/usr/bin/env node
 import { randomUUID } from "node:crypto";
+import { mkdir } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -15,6 +18,7 @@ import {
   createProductionExecutor,
   type PlaywrightDirectExecutor,
 } from "@lhic/browser";
+import { createMemoryDatabase, SelectorMemory, SkillStore } from "@lhic/memory";
 import {
   isSemanticAction,
   type ActionExecutionResult,
@@ -26,6 +30,7 @@ import {
   type ActionApproval,
   type ProductionRuntimeConfig,
 } from "@lhic/security";
+import { builtinSkillDefinitions } from "@lhic/skills";
 import { redactPII } from "@lhic/trace";
 
 const MCP_SERVER_VERSION = "0.1.0";
@@ -50,6 +55,11 @@ export interface ComputerUseActionResult extends ComputerUseSnapshot {
   result: ActionExecutionResult;
 }
 
+export interface ComputerUseSessionStatus {
+  active: boolean;
+  taskId?: string;
+}
+
 export interface ComputerUseSession {
   start(url?: string): Promise<ComputerUseStartResult>;
   observe(): Promise<ComputerUseSnapshot>;
@@ -58,6 +68,34 @@ export interface ComputerUseSession {
     approval?: ActionApproval,
   ): Promise<ComputerUseActionResult>;
   close(): Promise<void>;
+  getStatus?(): ComputerUseSessionStatus;
+}
+
+export interface McpRuntime {
+  databaseFile: string;
+  skillStore: SkillStore;
+  selectorMemory: SelectorMemory;
+  close(): void;
+}
+
+export async function createMcpRuntime(
+  databaseFile = process.env.LHIC_MEMORY_DATABASE ?? ".lhic/skills.sqlite",
+): Promise<McpRuntime> {
+  const resolvedDatabaseFile = resolve(databaseFile);
+  await mkdir(dirname(resolvedDatabaseFile), { recursive: true });
+  const database = createMemoryDatabase(resolvedDatabaseFile);
+  database.exec("PRAGMA journal_mode = WAL;");
+  const skillStore = new SkillStore(database);
+  for (const skill of builtinSkillDefinitions) {
+    skillStore.preload(skill.name, skill.definition);
+  }
+
+  return {
+    databaseFile: resolvedDatabaseFile,
+    skillStore,
+    selectorMemory: new SelectorMemory(database),
+    close: () => database.close(),
+  };
 }
 
 /**
@@ -88,6 +126,10 @@ export class SerializedComputerUseSession implements ComputerUseSession {
     return this.enqueue(() => this.session.close());
   }
 
+  public getStatus(): ComputerUseSessionStatus {
+    return this.session.getStatus?.() ?? { active: false };
+  }
+
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.operationTail.then(operation, operation);
     this.operationTail = next.then(
@@ -101,6 +143,7 @@ export class SerializedComputerUseSession implements ComputerUseSession {
 export interface PlaywrightComputerUseSessionOptions {
   headless?: boolean;
   runtimeConfig?: ProductionRuntimeConfig;
+  selectorMemory?: SelectorMemory;
 }
 
 /**
@@ -160,6 +203,13 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     this.taskId = this.createTaskId();
   }
 
+  public getStatus(): ComputerUseSessionStatus {
+    return {
+      active: this.browser !== null && this.page !== null,
+      ...(this.browser && this.page ? { taskId: this.taskId } : {}),
+    };
+  }
+
   private async ensureSession(): Promise<{
     page: Page;
     observer: BrowserStateObserver;
@@ -184,7 +234,12 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       const executor = createProductionExecutor(
         page,
         this.options.runtimeConfig ?? parseRuntimeConfig(process.env),
-        { taskId: this.taskId },
+        {
+          taskId: this.taskId,
+          ...(this.options.selectorMemory
+            ? { selectorMemory: this.options.selectorMemory }
+            : {}),
+        },
       );
 
       this.browser = browser;
@@ -381,10 +436,90 @@ export const COMPUTER_USE_TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "lhic_runtime_status",
+    description:
+      "Read LHIC runtime readiness, the active browser-session state, and local-learning storage metadata. This does not inspect page content or credentials.",
+    annotations: {
+      title: "Inspect LHIC runtime",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    outputSchema: {
+      type: "object",
+      additionalProperties: true,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lhic_skills_list",
+    description:
+      "List the local verified-skill catalogue and its promotion state. Returned records contain only redacted metadata, never action input values or credentials.",
+    annotations: {
+      title: "List learned LHIC skills",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    outputSchema: {
+      type: "object",
+      additionalProperties: true,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 1000,
+          description:
+            "Maximum number of skill summaries to return (default: 100).",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lhic_selector_memory_list",
+    description:
+      "List redacted metadata for locally verified selector-memory candidates. This exposes usage counters but never the saved selector or action input values.",
+    annotations: {
+      title: "List LHIC selector memory",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    outputSchema: {
+      type: "object",
+      additionalProperties: true,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 1000,
+          description:
+            "Maximum number of selector-memory summaries to return (default: 100).",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
 ] as const;
 
 export function createComputerUseServer(
   session: ComputerUseSession = new PlaywrightComputerUseSession(),
+  runtime?: McpRuntime,
 ): Server {
   const serializedSession = new SerializedComputerUseSession(session);
   const server = new Server(
@@ -404,6 +539,7 @@ export function createComputerUseServer(
       serializedSession,
       request.params.name,
       request.params.arguments,
+      runtime,
     ),
   );
 
@@ -414,6 +550,7 @@ export async function callComputerUseTool(
   session: ComputerUseSession,
   name: string,
   args: Record<string, unknown> | undefined,
+  runtime?: McpRuntime,
 ): Promise<CallToolResult> {
   try {
     switch (name) {
@@ -447,6 +584,16 @@ export async function callComputerUseTool(
       case "lhic_browser_close":
         await session.close();
         return toolResult({ closed: true });
+      case "lhic_runtime_status":
+        return toolResult(runtimeStatus(session, runtime));
+      case "lhic_skills_list":
+        return toolResult(
+          listSkills(runtime, optionalInteger(args?.limit, "limit")),
+        );
+      case "lhic_selector_memory_list":
+        return toolResult(
+          listSelectorMemory(runtime, optionalInteger(args?.limit, "limit")),
+        );
       default:
         return toolError(`Unknown LHIC computer-use tool: ${name}.`);
     }
@@ -455,12 +602,102 @@ export async function callComputerUseTool(
   }
 }
 
+function runtimeStatus(
+  session: ComputerUseSession,
+  runtime: McpRuntime | undefined,
+): Record<string, unknown> {
+  const browserSession = session.getStatus?.() ?? { active: false };
+  return {
+    serverVersion: MCP_SERVER_VERSION,
+    browserSession,
+    fastPath: {
+      usesLLM: false,
+      usesMcp: false,
+      note: "MCP is an external-agent and debugging boundary; LHIC Fast Path runs locally through Playwright.",
+    },
+    learning: runtime
+      ? {
+          enabled: true,
+          databaseFile: runtime.databaseFile,
+          skillCount: runtime.skillStore.list(1_000).length,
+          selectorCandidateCount: runtime.selectorMemory.list(1_000).length,
+          selectorMemory:
+            "Successful direct DOM actions are retained locally as selector-memory candidates.",
+        }
+      : {
+          enabled: false,
+          reason: "No local memory runtime was supplied.",
+        },
+  };
+}
+
+function listSelectorMemory(
+  runtime: McpRuntime | undefined,
+  limit: number | undefined,
+): Record<string, unknown> {
+  if (!runtime) {
+    throw new Error(
+      "Local selector memory is unavailable in this MCP runtime.",
+    );
+  }
+  const entries = runtime.selectorMemory.list(limit);
+  return {
+    databaseFile: runtime.databaseFile,
+    returned: entries.length,
+    selectors: entries.map((entry) => ({
+      skillName: entry.skillName,
+      target: entry.target,
+      successCount: entry.successCount,
+      failureCount: entry.failureCount,
+      ...(entry.lastSuccessAt ? { lastSuccessAt: entry.lastSuccessAt } : {}),
+    })),
+  };
+}
+
+function listSkills(
+  runtime: McpRuntime | undefined,
+  limit: number | undefined,
+): Record<string, unknown> {
+  if (!runtime) {
+    throw new Error("Local skill memory is unavailable in this MCP runtime.");
+  }
+  const skills = runtime.skillStore.list(limit);
+  return {
+    databaseFile: runtime.databaseFile,
+    returned: skills.length,
+    skills: skills.map((skill) => ({
+      name: skill.name,
+      lifecycle: skill.lifecycle,
+      successCount: skill.successCount,
+      failureCount: skill.failureCount,
+      ...(skill.lastSuccessAt ? { lastSuccessAt: skill.lastSuccessAt } : {}),
+    })),
+  };
+}
+
 function optionalString(value: unknown, name: string): string | undefined {
   if (value === undefined) {
     return undefined;
   }
   if (typeof value !== "string") {
     throw new Error(`${name} must be a string when provided.`);
+  }
+  return value;
+}
+
+function optionalInteger(value: unknown, name: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > 1_000
+  ) {
+    throw new Error(
+      `${name} must be an integer between 1 and 1000 when provided.`,
+    );
   }
   return value;
 }
@@ -529,11 +766,15 @@ function stripInputValues(value: unknown): unknown {
 }
 
 async function runStdioServer(): Promise<void> {
-  const session = new PlaywrightComputerUseSession();
-  const server = createComputerUseServer(session);
+  const runtime = await createMcpRuntime();
+  const session = new PlaywrightComputerUseSession({
+    selectorMemory: runtime.selectorMemory,
+  });
+  const server = createComputerUseServer(session, runtime);
   const shutdown = async (): Promise<void> => {
     await session.close();
     await server.close();
+    runtime.close();
   };
 
   process.once("SIGINT", () => void shutdown());

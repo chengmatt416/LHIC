@@ -91,4 +91,31 @@ export class SelectorMemory {
       ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
     }));
   }
+
+  public list(limit = 100): SelectorMemoryEntry[] {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+      throw new Error(
+        "Selector memory list limit must be an integer between 1 and 1000.",
+      );
+    }
+    const rows = this.database
+      .prepare(
+        `
+        SELECT * FROM selectors
+        ORDER BY success_count DESC, last_success_at DESC, skill_name ASC, target ASC
+        LIMIT ?
+      `,
+      )
+      .all(limit) as unknown as SelectorRow[];
+    return rows.map((row) => ({
+      skillName: row.skill_name,
+      target: row.target,
+      selector: row.selector,
+      ...(row.role ? { role: row.role } : {}),
+      ...(row.label ? { label: row.label } : {}),
+      successCount: row.success_count,
+      failureCount: row.failure_count,
+      ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
+    }));
+  }
 }

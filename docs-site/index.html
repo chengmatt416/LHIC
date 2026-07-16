@@ -463,8 +463,8 @@ agy plugin validate .agents/plugins/lhic-computer-use</code></pre>
                         <p>不要使用 <code>npm run</code> 啟動以防 Lifecycle 雜訊污染 JSON-RPC 通訊協定。</p>
                         <div class="code-container">
                             <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                            <pre><code># 啟動並接管 Chromium 主程式
-node apps/mcp-server/dist/index.js</code></pre>
+                            <pre><code># 啟動本地 MCP 服務
+npx lhic-mcp</code></pre>
                         </div>
                     </div>
 
@@ -496,7 +496,7 @@ node apps/mcp-server/dist/index.js</code></pre>
                             <pre><code># 驗證生產環境配置與預檢
 LHIC_ENV=production \
 LHIC_ALLOWED_ORIGINS=https://app.example.com \
-npm run preflight</code></pre>
+npx lhic preflight</code></pre>
                         </div>
                     </div>
 
@@ -527,7 +527,7 @@ docker run --rm \
 LHIC_ENV=production \
 LHIC_ALLOWED_ORIGINS=https://app.example.com \
 LHIC_APPROVAL_PUBLIC_KEY="$(cat approval-authority-public.pem)" \
-lhic run action action.json approval.json</code></pre>
+npx lhic run action action.json approval.json</code></pre>
                         </div>
                     </div>
                 </div>

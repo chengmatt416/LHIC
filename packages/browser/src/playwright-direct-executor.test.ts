@@ -128,6 +128,67 @@ describe("PlaywrightDirectExecutor", () => {
     expect(await page.locator("#status").textContent()).toBe("Ready");
   });
 
+  it("retains a stable selector and heals a renamed direct selector", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(
+      '<input id="query" name="search" aria-label="Query">',
+    );
+    const remembered: Array<{
+      skillName: string;
+      target: string;
+      selector: string;
+    }> = [];
+    const executor = createProductionExecutor(page, parseRuntimeConfig({}), {
+      taskId: "selector-memory",
+      traceFilePath: join(tmpdir(), `lhic-selector-memory-${Date.now()}.jsonl`),
+      selectorMemory: {
+        find: (skillName, target) =>
+          remembered.filter(
+            (entry) => entry.skillName === skillName && entry.target === target,
+          ),
+        remember: (entry) => {
+          remembered.push(entry);
+          return true;
+        },
+      },
+    });
+
+    expect(
+      await executor.execute({
+        type: "fill",
+        intent: "fill query",
+        target: 'input[name="search"]',
+        value: "local-only",
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      }),
+    ).toMatchObject({ success: true, method: "dom" });
+    expect(remembered).toEqual([
+      expect.objectContaining({
+        skillName: "fill",
+        target: 'input[name="search"]',
+        selector: "#query",
+      }),
+    ]);
+
+    await page.setContent(
+      '<input id="query" name="renamed" aria-label="Query">',
+    );
+    expect(
+      await executor.execute({
+        type: "fill",
+        intent: "fill query after markup change",
+        target: 'input[name="search"]',
+        value: "healed-local-only",
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      }),
+    ).toMatchObject({ success: true, method: "dom" });
+    expect(await page.locator("#query").inputValue()).toBe("healed-local-only");
+  });
+
   it("enforces approval and navigation policy at the executor boundary", async () => {
     const browser = await chromium.launch({ headless: true });
     browsers.push(browser);

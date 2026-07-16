@@ -5,7 +5,9 @@ coverage/
 .env.*
 !.env.example
 traces/
+.lhic/
 screenshots/
+demo-output/
 playwright-report/
 test-results/
 *.tsbuildinfo

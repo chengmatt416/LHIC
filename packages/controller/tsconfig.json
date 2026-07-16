@@ -8,6 +8,7 @@
     "outDir": "./dist"
   },
   "references": [
+    { "path": "../memory" },
     { "path": "../schema" },
     { "path": "../security" },
     { "path": "../trace" }

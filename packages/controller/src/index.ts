@@ -6,8 +6,7 @@ export * from "./fast-path-router.js";
 export * from "./intent-parser.js";
 export * from "./predictor.js";
 export * from "./slow-path.js";
+export * from "./slow-path-learning.js";
 export * from "./stage-classifier.js";
 export * from "./browsergym-adapter.js";
 export * from "./task-queue.js";
-
-
