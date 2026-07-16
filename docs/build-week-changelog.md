@@ -4,12 +4,13 @@ This file distinguishes pre-existing LHIC work from Build Week delivery work.
 It intentionally maps only verifiable Git history; public video, Devpost, and
 official Codex `/feedback` evidence are tracked separately at submission time.
 
-| Date       | Feature                                                                                        | Commit                           | Evidence                                             |
-| ---------- | ---------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------- |
-| 2026-07-16 | Typed intent compilation and execution tracing                                                 | `00e1f27`                        | Controller, executor, and trace tests                |
-| 2026-07-16 | Shared-skills registry and CLI/MCP integration                                                 | `b245341`                        | Shared-skill and MCP tests                           |
-| 2026-07-16 | Guided interactive CLI setup                                                                   | `6e957e3`                        | `apps/cli/src/interactive.test.ts`                   |
+| Date       | Feature                                                                                        | Commit    | Evidence                                             |
+| ---------- | ---------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------- |
+| 2026-07-16 | Typed intent compilation and execution tracing                                                 | `00e1f27` | Controller, executor, and trace tests                |
+| 2026-07-16 | Shared-skills registry and CLI/MCP integration                                                 | `b245341` | Shared-skill and MCP tests                           |
+| 2026-07-16 | Guided interactive CLI setup                                                                   | `6e957e3` | `apps/cli/src/interactive.test.ts`                   |
 | 2026-07-16 | GPT-5.6 structured Slow Path, safe demo, raw benchmark artifact support, and Judge-facing docs | `bafa253` | `npm run demo`, provider tests, and benchmark output |
+| 2026-07-16 | Package tarball dependency correction for clean-install CLI demo                               | `6d7e213` | Clean temporary install runs `lhic demo`             |
 
 ## Carry-over code
 
