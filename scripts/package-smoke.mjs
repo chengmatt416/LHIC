@@ -86,6 +86,7 @@ async function runNpm(argumentsList, cwd, env = process.env) {
     cwd,
     env,
     maxBuffer: 10 * 1024 * 1024,
+    shell: process.platform === "win32",
   });
 }
 

@@ -7,6 +7,8 @@ const source = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 export default defineConfig({
   test: {
     testTimeout: 15_000,
+    hookTimeout: 15_000,
+    fileParallelism: false,
   },
   resolve: {
     alias: {
