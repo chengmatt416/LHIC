@@ -34,11 +34,9 @@ html {
     font-family: var(--font-sans);
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
 }
 
 body {
-    overflow-x: hidden;
     line-height: 1.6;
 }
 
@@ -1176,7 +1174,7 @@ footer {
     }
     
     header, header.scrolled {
-        position: fixed;
+        position: sticky;
         top: 0;
         left: 0;
         right: 0;
@@ -1188,6 +1186,7 @@ footer {
         border-left: none;
         border-right: none;
         padding: 12px 16px;
+        z-index: 1000;
     }
 
     .logo {

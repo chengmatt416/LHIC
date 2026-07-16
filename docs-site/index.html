@@ -923,6 +923,33 @@ lhic run action action.json approval.json</code></pre>
                 }
             });
 
+            // Translate code blocks for each Tab
+            const installCodes = document.querySelectorAll('#tab-install .code-container pre code');
+            installCodes.forEach((codeEl, idx) => {
+                if (data.tutoCodesInstall[idx]) codeEl.innerText = data.tutoCodesInstall[idx];
+            });
+
+            const cliCodes = document.querySelectorAll('#tab-cli .code-container pre code');
+            cliCodes.forEach((codeEl, idx) => {
+                if (data.tutoCodesCli[idx]) codeEl.innerText = data.tutoCodesCli[idx];
+            });
+
+            const mcpCodes = document.querySelectorAll('#tab-mcp .code-container pre code');
+            mcpCodes.forEach((codeEl, idx) => {
+                if (data.tutoCodesMcp[idx]) codeEl.innerText = data.tutoCodesMcp[idx];
+            });
+
+            const prodCodes = document.querySelectorAll('#tab-prod .code-container pre code');
+            prodCodes.forEach((codeEl, idx) => {
+                if (data.tutoCodesProd[idx]) codeEl.innerText = data.tutoCodesProd[idx];
+            });
+
+            // Translate Copy Buttons
+            const copyBtns = document.querySelectorAll('.btn-copy');
+            copyBtns.forEach(btn => {
+                btn.innerText = data.copyBtn;
+            });
+
             // 6. Benchmark
             const benchTag = document.querySelector('#benchmark .section-tag');
             if (benchTag) benchTag.innerText = data.benchTag;

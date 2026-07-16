@@ -5,6 +5,7 @@ const i18nPage = {
         heroDesc: "基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫 LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。",
         heroStart: "開始使用",
         heroGithub: "GitHub 專案",
+        copyBtn: "複製",
         featuresTag: "Feature Overview",
         featuresTitle: "核心功能總覽",
         featuresSubtitle: "LHIC 的核心設計理念是「確定性與安全性」，將瀏覽器操作轉變為客觀可驗證的自動化程序。",
@@ -58,20 +59,40 @@ const i18nPage = {
             { title: "安裝 Playwright 瀏覽器核心", desc: "安裝運行時所需的 Playwright Chromium 瀏覽器驅動。" },
             { title: "執行基礎測試", desc: "確保本地核心測試及格式化全部通過。" }
         ],
+        tutoCodesInstall: [
+            "# 複製專案後安裝依賴並進行 TypeScript 編譯\ngit clone https://github.com/chengmatt416/ComputerIntent.git\ncd ComputerIntent\nnpm install\nnpm run build",
+            "npm run pw:install",
+            "# 執行格式化、語法檢查與單元測試\nnpm run format\nnpm run lint\nnpm test"
+        ],
         tutoStepsCli: [
             { title: "執行語意自動化動作", desc: "透過編譯好的 CLI，傳入語意動作 JSON 檔案執行。" },
             { title: "安全日誌脫敏檢查", desc: "檢視追蹤日誌並驗證敏感資訊 (密碼、Cookie) 是否已被完全遮蔽。" },
             { title: "抗變性消融模擬器", desc: "執行本地語意抗變性 (resilience) 的消融模擬評估。" }
+        ],
+        tutoCodesCli: [
+            "# 執行特定 semantic action 任務\nnpx tsx apps/cli/src/index.ts run --action action.json",
+            "# 檢查指定追蹤日誌的健全度與風險遮蔽狀況\nnpx tsx apps/cli/src/index.ts trace audit --log trace.jsonl",
+            "# 執行 100 次以指定 Seed (20260715) 生成的表單填寫消融測試\nnpx tsx apps/cli/src/index.ts bench ablate --task fill_form --runs 100 --seed 20260715"
         ],
         tutoStepsMcp: [
             { title: "註冊與驗證外掛程式", desc: "利用 Antigravity (<code>agy</code>) 的外掛機制註冊本地 MCP 伺服器組件。" },
             { title: "啟動本地 MCP 服務", desc: "以 stdio 協議啟動 MCP 服務供外部 AI 代理連線。" },
             { title: "與 AI 代理協作", desc: "在 Cursor / Windsurf / Claude Desktop 中載入 LHIC 做為網頁自動化工具。" }
         ],
+        tutoCodesMcp: [
+            "# 驗證外掛設定是否符合 Antigravity 規格\nagy plugin validate .agents/plugins/lhic-computer-use",
+            "# 啟動並接管 Chromium 主程式\nnpx tsx apps/mcp-server/src/index.ts --stdio --stealth --port 9000",
+            "// 外部 AI 代理 (例如 Antigravity) 的設定檔配置\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"tsx\",\n        \"/absolute/path/to/apps/mcp-server/src/index.ts\",\n        \"--stdio\"\n      ]\n    }\n  }\n}"
+        ],
         tutoStepsProd: [
             { title: "生產 Docker 沙箱配置", desc: "在正式環境中使用 Docker 進行物理硬隔離與權限限縮限制。" },
-            { title: "容器低權限環境預檢", desc: "以低權限 (非 root 用戶 <code>lhic</code>) 打包 Chromium 與 CLI，並禁止掛載敏感的個人設定檔目錄。" },
+            { title: "容器低權限環境預檢", desc: "以 low-privilege (非 root 用戶 <code>lhic</code>) 打包 Chromium 與 CLI，並禁止掛載敏感的個人設定檔目錄。" },
             { title: "高風險指令人類簽章驗收", desc: "在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519 金鑰比對無誤後才允許在 Fast Path 執行。" }
+        ],
+        tutoCodesProd: [
+            "# 驗證生產環境配置與預檢\nlhic run preflight --strict",
+            "# 建立容器並以生產配置預檢\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
+            "# 傳入動作檔與人類簽章檔案進行嚴格驗簽執行\nlhic run --action action.json --signature signature.sig --pubkey public.pem"
         ],
         benchTag: "Performance & Testing",
         benchTitle: "基準測試與抗變性驗證",
@@ -81,13 +102,13 @@ const i18nPage = {
         benchGauges: ["任務成功率門檻", "Fast Path 路由比例", "驗證器通過率", "中位數 LLM 呼叫次數"],
         benchCard2Title: "網頁變動抗變性消融模擬",
         benchCard2Desc: "模擬在 5 種不同 UI 排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。",
-        benchAblations: ["LHIC Semantic 定位 (ARIA / Label 關聯)", "Brittle CSS Selector 定位 (固定 Selector 基準線)"],
+        benchAblations: ["LHIC Semantic 定量 (ARIA / Label 關聯)", "Brittle CSS Selector 定位 (固定 Selector 基準線)"],
         benchAblationStats: ["98% 成功率", "42% 成功率"],
         benchConclusion: "<strong>消融結果結論：</strong> 語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder 以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector 技術展現了顯著的<strong>超 50% 點受控優勢 (Controlled Advantage)</strong>。",
         compTag: "Comparison",
         compTitle: "與現有 Computer Use 解決方案的差異",
         compSubtitle: "LHIC 放棄了高成本、低安全性的「截圖-VLM-滑鼠座標」循環，改用精準的 DOM API 與安全邊界。",
-        compHeaders: ["架構屬性", "傳統 VLM/像素定位方案 (如 Anthropic Computer Use)", "LHIC (Local Human Intent Controller)"],
+        compHeaders: ["架構屬性", "傳統 VLM/像素定位方案 (如 Anthropic Computer Use)", "LHIC (Local-First Controller)"],
         compRows: [
             ["基本操作迴圈", "VLM 模型解讀截圖 &rarr; 計算像素座標 &rarr; 模擬滑鼠點擊 (極慢，成本高)", "<span class='check-icon'>✓</span> 直接調用 CDP / Playwright DOM 與 ARIA 語意 API。優先走無模型 Fast Path"],
             ["定位精準度與抗變性", "依賴視覺判讀，受解析度、縮放、滾動影響，易點錯座標造成不可預測後果", "<span class='check-icon'>✓</span> 標籤 (label)、角色 (role) 與本地 SQLite 歷史反饋修補定位。排版微調完全不受影響"],
@@ -109,6 +130,7 @@ const i18nPage = {
         heroDesc: "A local-first, semantically controlled browser automation runtime. Standard workflows run with zero LLM calls or visual screenshots, delivering sub-millisecond responses, verified proof, and rigorous sandboxing.",
         heroStart: "Get Started",
         heroGithub: "GitHub Project",
+        copyBtn: "Copy",
         featuresTag: "Feature Overview",
         featuresTitle: "Key Features Overview",
         featuresSubtitle: "LHIC is designed with 'Determinism and Security' in mind, transforming browser automation into objectively verified flows.",
@@ -162,20 +184,40 @@ const i18nPage = {
             { title: "Install Playwright Webdriver", desc: "Install Playwright Chromium browser driver for the automation runtime." },
             { title: "Run Regression Smoke Suite", desc: "Run formatter, lints and unit tests to ensure stability." }
         ],
+        tutoCodesInstall: [
+            "# Clone repo, install dependencies, and build TypeScript\ngit clone https://github.com/chengmatt416/ComputerIntent.git\ncd ComputerIntent\nnpm install\nnpm run build",
+            "npm run pw:install",
+            "# Run formatter, lints, and unit tests\nnpm run format\nnpm run lint\nnpm test"
+        ],
         tutoStepsCli: [
             { title: "Run Semantic Action", desc: "Run compiled CLI passing semantic action JSON files:" },
             { title: "Trace Sanitization Audit", desc: "Inspect traces and audit password/cookie redaction status:" },
             { title: "Resilience Ablation Simulator", desc: "Evaluate resilient semantic locators using localized ablation simulation:" }
+        ],
+        tutoCodesCli: [
+            "# Execute specific semantic action task\nnpx tsx apps/cli/src/index.ts run --action action.json",
+            "# Audit trace logs for security and credential redaction\nnpx tsx apps/cli/src/index.ts trace audit --log trace.jsonl",
+            "# Run 100 ablation test iterations for form filling using seed 20260715\nnpx tsx apps/cli/src/index.ts bench ablate --task fill_form --runs 100 --seed 20260715"
         ],
         tutoStepsMcp: [
             { title: "Validate Agent Integration", desc: "Validate MCP harness configuration using Antigravity (agy) tool CLI:" },
             { title: "Start Local MCP Server", desc: "Expose standard JSON-RPC over stdio MCP endpoint:" },
             { title: "Pair Program with Agents", desc: "Pair program using Cursor / Windsurf / Claude Desktop with LHIC tools." }
         ],
+        tutoCodesMcp: [
+            "# Validate plugin configuration conforms to Antigravity spec\nagy plugin validate .agents/plugins/lhic-computer-use",
+            "# Launch and control stealth Chromium driver\nnpx tsx apps/mcp-server/src/index.ts --stdio --stealth --port 9000",
+            "// Configuration schema for external AI agents like Antigravity\n{\n  \"mcpServers\": {\n    \"lhic-computer-use\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"tsx\",\n        \"/absolute/path/to/apps/mcp-server/src/index.ts\",\n        \"--stdio\"\n      ]\n    }\n  }\n}"
+        ],
         tutoStepsProd: [
             { title: "Hardened Dockerfile Setup", desc: "Use multi-stage production Docker configurations for sandbox isolation." },
             { title: "Run Non-root Preflight", desc: "Enforce non-root execution and verify secure deployment checklist:" },
             { title: "Cryptographic Signature Sign-off", desc: "Enforce Ed25519 signature checks for high-risk actions in production:" }
+        ],
+        tutoCodesProd: [
+            "# Run production environment preflight checks\nlhic run preflight --strict",
+            "# Build container and run checks under production isolation\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
+            "# Execute with strict Ed25519 cryptographic signature verification\nlhic run --action action.json --signature signature.sig --pubkey public.pem"
         ],
         benchTag: "Performance & Testing",
         benchTitle: "Benchmarks & Validation",
