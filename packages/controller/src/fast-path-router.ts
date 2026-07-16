@@ -1,11 +1,16 @@
 import {
   isGlobalComputerAction,
   type SemanticAction,
+  type NormalizedUIState,
   type UserIntent,
 } from "@lhic/schema";
 import { evaluateRisk } from "@lhic/security";
 
 import type { IntentPrediction } from "./predictor.js";
+import {
+  resolveFastPathPlan,
+  type ResolvedFastPathPlan,
+} from "./fast-path-plan.js";
 import type {
   SlowPathProvider,
   SlowPathRequest,
@@ -16,6 +21,7 @@ import type {
   SlowPathLearningCoordinator,
   SlowPathLearningResult,
 } from "./slow-path-learning.js";
+import type { SharedSkillResolver } from "./shared-skills.js";
 
 export interface RouteDecision {
   path: "fast" | "slow" | "ask_user" | "blocked";
@@ -23,11 +29,47 @@ export interface RouteDecision {
   confidence: number;
 }
 
+export interface ResolvedRoute {
+  decision: RouteDecision;
+  plan: ResolvedFastPathPlan;
+}
+
 export class FastPathRouter {
   public constructor(
     private readonly slowPathProvider?: SlowPathProvider,
     private readonly slowPathLearningCoordinator?: SlowPathLearningCoordinator,
+    private readonly sharedSkillResolver?: SharedSkillResolver,
   ) {}
+
+  /**
+   * Resolves the local shared-skill cache before using built-in compilation.
+   * The result is self-contained and does not perform network I/O.
+   */
+  public route(
+    prediction: IntentPrediction,
+    intent: UserIntent,
+    uiState: NormalizedUIState,
+  ): ResolvedRoute {
+    const plan = resolveFastPathPlan(
+      prediction,
+      intent,
+      uiState,
+      this.sharedSkillResolver,
+    );
+    const routePrediction =
+      plan.source === "shared" && plan.skillName
+        ? {
+            ...prediction,
+            skillName: plan.skillName,
+            confidence: 0.9,
+            evidence: [...prediction.evidence, ...plan.sharedSkill!.evidence],
+          }
+        : prediction;
+    return {
+      decision: this.decide(routePrediction, intent, plan.actions),
+      plan,
+    };
+  }
 
   public decide(
     prediction: IntentPrediction,

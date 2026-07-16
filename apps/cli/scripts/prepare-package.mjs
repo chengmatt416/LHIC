@@ -6,9 +6,11 @@ const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceDirectory = resolve(packageDirectory, "..", "..");
 const bundledPackages = [
   "browser",
+  "controller",
   "memory",
   "schema",
   "security",
+  "shared-skills",
   "skills",
   "trace",
   "verifier",

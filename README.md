@@ -93,6 +93,28 @@ actions also add local selector-memory candidates; the MCP server exposes
 redacted `lhic_runtime_status`, `lhic_skills_list`, and
 `lhic_selector_memory_list` views for inspection.
 
+### Optional public shared skills
+
+Deploy the reviewed Appwrite Function template in
+[`services/appwrite-shared-skills`](services/appwrite-shared-skills), then
+enable the registry for a workspace:
+
+```bash
+npx @pinyencheng/lhic shared enable \
+  --endpoint https://<region>.cloud.appwrite.io/v1 \
+  --project <project-id> \
+  --function-url https://<function-domain> \
+  --email you@example.com
+```
+
+The CLI stores only non-secret registry configuration in `.lhic`; the Appwrite
+session stays in the OS credential store. The local cache is refreshed on the
+next runtime start after 24 hours, and failed syncs retain the last verified
+cache. Use `lhic shared status`, `lhic shared sync --force`, and
+`lhic shared list` to inspect it. Only approved low-risk browser skills with a
+unique local operation/UI-fingerprint match can enter Fast Path; no Fast Path
+request accesses the network.
+
 Run internal regression benchmarks:
 
 ```bash

@@ -18,6 +18,7 @@ export default defineConfig({
       "@lhic/skills": source("./packages/skills/src/index.ts"),
       "@lhic/controller": source("./packages/controller/src/index.ts"),
       "@lhic/memory": source("./packages/memory/src/index.ts"),
+      "@lhic/shared-skills": source("./packages/shared-skills/src/index.ts"),
     },
   },
 });

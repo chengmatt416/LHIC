@@ -9,6 +9,7 @@
     { "path": "./packages/skills" },
     { "path": "./packages/controller" },
     { "path": "./packages/memory" },
+    { "path": "./packages/shared-skills" },
     { "path": "./apps/cli" },
     { "path": "./apps/mcp-server" }
   ],
@@ -30,6 +31,7 @@
       "@lhic/skills": ["packages/skills/src/index.ts"],
       "@lhic/controller": ["packages/controller/src/index.ts"],
       "@lhic/memory": ["packages/memory/src/index.ts"],
+      "@lhic/shared-skills": ["packages/shared-skills/src/index.ts"],
       "@lhic/mcp-server": ["apps/mcp-server/src/index.ts"]
     }
   }

@@ -5,14 +5,13 @@ import { classifyStage, type ControllerStage } from "./stage-classifier.js";
 
 export interface IntentPrediction {
   predictedIntent: ControllerStage;
-  skillName?:
-    "login" | "fill_form" | "search" | "download_file" | "test_web_flow";
+  skillName?: string;
   confidence: number;
   evidence: string[];
 }
 
 const skillForStage: Partial<
-  Record<ControllerStage, NonNullable<IntentPrediction["skillName"]>>
+  Record<ControllerStage, string>
 > = {
   login: "login",
   form_filling: "fill_form",

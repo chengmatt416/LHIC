@@ -109,6 +109,7 @@ describe("LHIC computer-use MCP server", () => {
         "lhic_browser_close",
         "lhic_runtime_status",
         "lhic_skills_list",
+        "lhic_shared_skills_list",
         "lhic_selector_memory_list",
       ]);
       expect(result.tools[1]).toMatchObject({
@@ -250,6 +251,14 @@ describe("LHIC computer-use MCP server", () => {
       expect(JSON.stringify(skills.structuredContent)).not.toContain(
         "definition",
       );
+
+      const sharedSkills = await callComputerUseTool(
+        session,
+        "lhic_shared_skills_list",
+        {},
+        runtime,
+      );
+      expect(sharedSkills.isError).toBe(true);
 
       runtime.selectorMemory.remember(
         {

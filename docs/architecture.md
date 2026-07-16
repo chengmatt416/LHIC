@@ -26,3 +26,10 @@ does not make Antigravity a Slow Path provider.
 The executor repeats this check at its own boundary and binds an approval to a hash of the exact action with a short expiry. In production, `createProductionExecutor` consumes the validated runtime configuration so navigation targets, timeouts, and trace location cannot be silently omitted by a caller.
 
 `@lhic/verifier` records DOM, URL, network, and file evidence. `@lhic/trace` persists that evidence as redacted JSONL. `@lhic/memory` promotes a skill only after successful verifier evidence.
+
+When enabled, `@lhic/shared-skills` mirrors approved Appwrite registry records
+into separate SQLite tables and keeps an authenticated submission outbox. The
+sync happens before a runtime begins and never during Fast Path execution. The
+controller can resolve one cached, low-risk browser skill only when its
+operation key and privacy-preserving UI fingerprint match uniquely; all other
+requests continue through the existing builtin or Slow Path policy.

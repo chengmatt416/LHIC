@@ -8,6 +8,10 @@ import type {
 } from "@lhic/schema";
 
 import type { SlowPathRequest, SlowPathResponse } from "./slow-path.js";
+import {
+  createSharedSkillPublication,
+  type SharedSkillPublisher,
+} from "./shared-skills.js";
 
 export interface SlowPathActionOutcome {
   execution: ActionExecutionResult;
@@ -38,7 +42,10 @@ export interface CompiledSlowPathSkill extends Record<string, unknown> {
 }
 
 export class SlowPathLearningCoordinator {
-  public constructor(private readonly skillStore: SkillStore) {}
+  public constructor(
+    private readonly skillStore: SkillStore,
+    private readonly sharedSkillPublisher?: SharedSkillPublisher,
+  ) {}
 
   public async execute(
     request: SlowPathRequest,
@@ -72,6 +79,14 @@ export class SlowPathLearningCoordinator {
         evidence: outcomes.flatMap((outcome) => outcome.verification.evidence),
       },
     );
+    const publication = createSharedSkillPublication(request, learnedSkill);
+    if (publication && this.sharedSkillPublisher) {
+      try {
+        await this.sharedSkillPublisher.publish(publication);
+      } catch {
+        // Remote sharing must never turn a verified local result into a failure.
+      }
+    }
     return { response, outcomes, learnedSkill };
   }
 }

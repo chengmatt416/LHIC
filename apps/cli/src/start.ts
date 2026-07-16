@@ -2,6 +2,7 @@ import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { createMemoryDatabase, SkillStore } from "@lhic/memory";
+import { createConfiguredSharedSkillsRuntime } from "@lhic/shared-skills";
 import { builtinSkillDefinitions } from "@lhic/skills";
 
 const defaultMemoryDatabasePath = ".lhic/skills.sqlite";
@@ -9,6 +10,13 @@ const defaultMemoryDatabasePath = ".lhic/skills.sqlite";
 export interface StartRuntimeResult {
   databaseFile: string;
   preloadedSkills: string[];
+  sharedSkills?: {
+    enabled: boolean;
+    cachedSkillCount: number;
+    pendingSubmissionCount: number;
+    lastSuccessAt?: string;
+    lastError?: string;
+  };
 }
 
 export async function startLocalRuntime(
@@ -23,9 +31,14 @@ export async function startLocalRuntime(
     for (const skill of builtinSkillDefinitions) {
       store.preload(skill.name, skill.definition);
     }
+    const sharedSkills = await createConfiguredSharedSkillsRuntime(
+      database,
+      resolvedDatabaseFile,
+    );
     return {
       databaseFile: resolvedDatabaseFile,
       preloadedSkills: builtinSkillDefinitions.map((skill) => skill.name),
+      ...(sharedSkills ? { sharedSkills: sharedSkills.service.status() } : {}),
     };
   } finally {
     database.close();

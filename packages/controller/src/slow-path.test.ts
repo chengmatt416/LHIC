@@ -151,6 +151,54 @@ describe("Slow Path interfaces", () => {
     }
   });
 
+  it("queues a sanitized shared publication only after local verified learning", async () => {
+    const database = createMemoryDatabase();
+    try {
+      const publications: unknown[] = [];
+      const coordinator = new SlowPathLearningCoordinator(
+        new SkillStore(database),
+        {
+          publish: async (publication) => {
+            publications.push(publication);
+          },
+        },
+      );
+      await coordinator.execute(
+        request,
+        {
+          decision: "propose_plan",
+          message: "Search.",
+          proposedActions: [
+            {
+              type: "fill",
+              intent: "search",
+              target: "Search",
+              value: "notebooks",
+              methodPreference: ["accessibility"],
+              riskLevel: "low",
+            },
+          ],
+        },
+        {
+          execute: async () => ({
+            execution: {
+              success: true,
+              method: "accessibility",
+              latencyMs: 1,
+              evidence: ["filled"],
+            },
+            verification: { success: true, evidence: ["retained"] },
+          }),
+        },
+      );
+
+      expect(publications).toHaveLength(1);
+      expect(JSON.stringify(publications)).not.toContain("notebooks");
+    } finally {
+      database.close();
+    }
+  });
+
   it("refuses to compile plans with incomplete verifier evidence", () => {
     expect(() =>
       compileSlowPathSkill(

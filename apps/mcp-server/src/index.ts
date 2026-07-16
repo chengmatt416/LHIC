@@ -20,6 +20,10 @@ import {
 } from "@lhic/browser";
 import { createMemoryDatabase, SelectorMemory, SkillStore } from "@lhic/memory";
 import {
+  createConfiguredSharedSkillsRuntime,
+  type ConfiguredSharedSkillsRuntime,
+} from "@lhic/shared-skills";
+import {
   isBrowserSemanticAction,
   type ActionExecutionResult,
   type BrowserSemanticAction,
@@ -75,6 +79,7 @@ export interface McpRuntime {
   databaseFile: string;
   skillStore: SkillStore;
   selectorMemory: SelectorMemory;
+  sharedSkills?: ConfiguredSharedSkillsRuntime;
   close(): void;
 }
 
@@ -89,11 +94,16 @@ export async function createMcpRuntime(
   for (const skill of builtinSkillDefinitions) {
     skillStore.preload(skill.name, skill.definition);
   }
+  const sharedSkills = await createConfiguredSharedSkillsRuntime(
+    database,
+    resolvedDatabaseFile,
+  );
 
   return {
     databaseFile: resolvedDatabaseFile,
     skillStore,
     selectorMemory: new SelectorMemory(database),
+    ...(sharedSkills ? { sharedSkills } : {}),
     close: () => database.close(),
   };
 }
@@ -487,6 +497,35 @@ export const COMPUTER_USE_TOOLS = [
     },
   },
   {
+    name: "lhic_shared_skills_list",
+    description:
+      "List approved shared skills cached locally. Returned records contain redacted metadata only and never action input values or credentials.",
+    annotations: {
+      title: "List cached LHIC shared skills",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    outputSchema: {
+      type: "object",
+      additionalProperties: true,
+    },
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 1000,
+          description:
+            "Maximum number of cached shared skill summaries to return (default: 100).",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "lhic_selector_memory_list",
     description:
       "List redacted metadata for locally verified selector-memory candidates. This exposes usage counters but never the saved selector or action input values.",
@@ -590,6 +629,10 @@ export async function callComputerUseTool(
         return toolResult(
           listSkills(runtime, optionalInteger(args?.limit, "limit")),
         );
+      case "lhic_shared_skills_list":
+        return toolResult(
+          listSharedSkills(runtime, optionalInteger(args?.limit, "limit")),
+        );
       case "lhic_selector_memory_list":
         return toolResult(
           listSelectorMemory(runtime, optionalInteger(args?.limit, "limit")),
@@ -623,11 +666,38 @@ function runtimeStatus(
           selectorCandidateCount: runtime.selectorMemory.list(1_000).length,
           selectorMemory:
             "Successful direct DOM actions are retained locally as selector-memory candidates.",
+          sharedSkills: runtime.sharedSkills
+            ? runtime.sharedSkills.service.status()
+            : { enabled: false },
         }
       : {
           enabled: false,
           reason: "No local memory runtime was supplied.",
         },
+  };
+}
+
+function listSharedSkills(
+  runtime: McpRuntime | undefined,
+  limit: number | undefined,
+): Record<string, unknown> {
+  if (!runtime?.sharedSkills) {
+    throw new Error("Shared skills are not enabled in this MCP runtime.");
+  }
+  const skills = runtime.sharedSkills.store.listApproved(
+    runtime.sharedSkills.config.registryId,
+    limit,
+  );
+  return {
+    returned: skills.length,
+    skills: skills.map((skill) => ({
+      skillId: skill.skillId,
+      name: skill.name,
+      version: skill.version,
+      operationKey: skill.operationKey,
+      fastPathEligible: skill.fastPathEligible,
+      updatedAt: skill.updatedAt,
+    })),
   };
 }
 

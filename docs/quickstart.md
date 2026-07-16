@@ -55,6 +55,26 @@ itself. A skill advances only after verified execution evidence; MCP callers
 cannot mark a skill learned by assertion alone. High- and unknown-risk actions
 still require a matching human approval.
 
+## 4. Enable public shared skills (optional)
+
+Deploy the Appwrite Function and create the TablesDB tables described in
+[`services/appwrite-shared-skills`](../services/appwrite-shared-skills). Then
+run:
+
+```bash
+lhic shared enable \
+  --endpoint https://<region>.cloud.appwrite.io/v1 \
+  --project <project-id> \
+  --function-url https://<function-domain> \
+  --email you@example.com
+```
+
+After completing the Magic URL sign-in, LHIC caches approved public skills
+locally, submits newly verified Slow Path skills for review, and refreshes its
+cache at most once per 24 hours during runtime startup. The session is stored
+in the operating-system credential store, not in `.lhic`. Use
+`lhic_shared_skills_list` to inspect redacted cached summaries through MCP.
+
 ## What “speed”, “cost”, and “learning” mean
 
 - **Speed:** known low-risk Fast Path workflows run locally through Playwright;
@@ -65,6 +85,8 @@ still require a matching human approval.
 - **Learning:** successful direct DOM actions retain selector candidates in
   local SQLite. Slow Path plans become skills only when every action has
   successful verifier evidence. Inputs are redacted before persistence.
+  Shared skill submissions are also redacted, remain pending until approved in
+  Appwrite, and never require a Fast Path network request.
 
 Run `npm run bench:internal` and `npm run bench:simulate` to produce the local,
 controlled measurements used in product demonstrations. They are not external

@@ -1,0 +1,19 @@
+{
+  "name": "@lhic/shared-skills",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@lhic/controller": "^0.1.0",
+    "@lhic/memory": "^0.1.0",
+    "@napi-rs/keyring": "^1.3.0"
+  }
+}

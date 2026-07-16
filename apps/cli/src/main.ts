@@ -19,6 +19,7 @@ import {
 import { runPreflight } from "./preflight.js";
 import { runActionFile } from "./run-action.js";
 import { runSelectorResilienceSimulation } from "./selector-resilience-simulation.js";
+import { runSharedCommand } from "./shared-skills.js";
 import { startLocalRuntime } from "./start.js";
 
 async function main(argumentsList: string[]): Promise<void> {
@@ -26,6 +27,14 @@ async function main(argumentsList: string[]): Promise<void> {
   if (command === "start") {
     const result = await startLocalRuntime(subcommand);
     console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (command === "shared") {
+    const result = await runSharedCommand(subcommand, argumentsList.slice(2));
+    console.log(JSON.stringify(result, null, 2));
+    if (result.lastError) {
+      process.exitCode = 1;
+    }
     return;
   }
   if (command === "preflight") {
@@ -120,7 +129,7 @@ async function main(argumentsList: string[]): Promise<void> {
     return;
   }
   console.error(
-    "Usage: lhic start [memory-database] | lhic preflight | lhic global doctor | lhic run action <action-file> [approval-file] | lhic bench internal | lhic bench simulate resilience [task-count] [seed] | lhic bench readiness <workarena|webarena> | lhic bench validate-evidence <file> | lhic mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | lhic trace inspect <trace-file>",
+    "Usage: lhic start [memory-database] | lhic shared <enable|login|disable|status|sync|list> [options] | lhic preflight | lhic global doctor | lhic run action <action-file> [approval-file] | lhic bench internal | lhic bench simulate resilience [task-count] [seed] | lhic bench readiness <workarena|webarena> | lhic bench validate-evidence <file> | lhic mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | lhic trace inspect <trace-file>",
   );
   process.exitCode = 1;
 }

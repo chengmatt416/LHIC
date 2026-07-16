@@ -1,0 +1,208 @@
+{
+    "organizationId": "6a1787e5cfdd39755fd3",
+    "projectId": "lhic-shared-skills",
+    "projectName": "LHIC Shared Skills",
+    "functions": [
+        {
+            "$id": "lhic-shared-registry",
+            "name": "LHIC Shared Skill Registry",
+            "runtime": "node-22",
+            "path": "services/appwrite-shared-skills",
+            "entrypoint": "src/main.js",
+            "execute": [
+                "any"
+            ],
+            "enabled": true,
+            "logging": false,
+            "events": [],
+            "schedule": "",
+            "timeout": 30,
+            "commands": "npm ci --omit=dev",
+            "scopes": [
+                "rows.read",
+                "rows.write"
+            ],
+            "buildSpecification": "s-2vcpu-2gb",
+            "runtimeSpecification": "s-0.5vcpu-512mb",
+            "deploymentRetention": 0
+        }
+    ],
+    "tablesDB": [
+        {
+            "$id": "lhic-shared-registry",
+            "name": "LHIC Shared Skill Registry",
+            "enabled": true
+        }
+    ],
+    "tables": [
+        {
+            "$id": "shared-skills",
+            "$permissions": [],
+            "databaseId": "lhic-shared-registry",
+            "name": "Shared Skills",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "name",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "contentHash",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "operationKey",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 256,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "fingerprint",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 128,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "payload",
+                    "type": "text",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "fastPathEligible",
+                    "type": "boolean",
+                    "required": true,
+                    "array": false,
+                    "default": null
+                },
+                {
+                    "key": "status",
+                    "type": "string",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": "enum",
+                    "elements": [
+                        "pending",
+                        "approved",
+                        "rejected",
+                        "revoked"
+                    ]
+                },
+                {
+                    "key": "authorId",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "version",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "content-hash-unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "contentHash"
+                    ],
+                    "orders": []
+                },
+                {
+                    "key": "status-index",
+                    "type": "key",
+                    "status": "available",
+                    "columns": [
+                        "status"
+                    ],
+                    "orders": []
+                }
+            ]
+        },
+        {
+            "$id": "device-pairs",
+            "$permissions": [],
+            "databaseId": "lhic-shared-registry",
+            "name": "Magic URL Device Pairs",
+            "enabled": true,
+            "rowSecurity": true,
+            "columns": [
+                {
+                    "key": "codeHash",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 64,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "userId",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 36,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "secret",
+                    "type": "varchar",
+                    "required": true,
+                    "array": false,
+                    "size": 1024,
+                    "default": null,
+                    "encrypt": false
+                },
+                {
+                    "key": "expiresAt",
+                    "type": "datetime",
+                    "required": true,
+                    "array": false,
+                    "default": null,
+                    "format": ""
+                }
+            ],
+            "indexes": [
+                {
+                    "key": "code-hash-unique",
+                    "type": "unique",
+                    "status": "available",
+                    "columns": [
+                        "codeHash"
+                    ],
+                    "orders": []
+                }
+            ]
+        }
+    ]
+}

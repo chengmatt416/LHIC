@@ -32,19 +32,25 @@
     "access": "public"
   },
   "bundleDependencies": [
+    "@napi-rs/keyring",
     "@lhic/browser",
+    "@lhic/controller",
     "@lhic/memory",
     "@lhic/schema",
     "@lhic/security",
+    "@lhic/shared-skills",
     "@lhic/skills",
     "@lhic/trace",
     "@lhic/verifier"
   ],
   "dependencies": {
+    "@napi-rs/keyring": "^1.3.0",
     "@lhic/browser": "^0.1.0",
+    "@lhic/controller": "^0.1.0",
     "@lhic/memory": "^0.1.0",
     "@lhic/schema": "^0.1.0",
     "@lhic/security": "^0.1.0",
+    "@lhic/shared-skills": "^0.1.0",
     "@lhic/skills": "^0.1.0",
     "@lhic/trace": "^0.1.0",
     "@lhic/verifier": "^0.1.0",
