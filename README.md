@@ -57,11 +57,13 @@ verifies the result, and shows that a destructive intent is approval-gated:
 npm run demo
 ```
 
-The published CLI provides the equivalent `npx @pinyencheng/lhic demo`
-command. It requires Node.js 24 and a local Playwright Chromium installation.
-The package declares support for macOS, Windows, and Linux; native desktop
-control has additional platform permissions described in the
-[global control guide](docs/global-control.md).
+The npm package has not yet been published or verified through a real `npx`
+run. After publication, the equivalent command will be
+`npx @pinyencheng/lhic demo`. Until then, use this checkout's commands above or
+run `npm run package:smoke` to verify the release tarball. The planned package
+requires Node.js 24 and a local Playwright Chromium installation; it declares
+support for macOS, Windows, and Linux. Native desktop control has additional
+platform permissions described in the [global control guide](docs/global-control.md).
 
 To include a real GPT-5.6 Slow Path planning request in the demo, set an API
 key only in the process environment. The provider sends a redacted request,
@@ -75,9 +77,12 @@ See the [GPT-5.6 integration guide](docs/gpt-5.6-integration.md) for the
 schema, safety boundary, and failure behavior. Never put a key in an action
 file, trace, repository, screenshot, or demo recording.
 
-Initialize the local-first runtime and its persistent SQLite skill database.
-This preloads the shipped `download_file`, `fill_form`, `login`, `search`, and
-`test_web_flow` skills without overwriting learned skills:
+### Published CLI commands (after npm release)
+
+After the npm release is verified, initialize the local-first runtime and its
+persistent SQLite skill database. This preloads the shipped `download_file`,
+`fill_form`, `login`, `search`, and `test_web_flow` skills without overwriting
+learned skills:
 
 ```bash
 npx @pinyencheng/lhic start

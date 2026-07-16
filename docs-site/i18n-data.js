@@ -103,7 +103,7 @@ const i18nPage = {
     tutoTag: "Detailed Guide",
     tutoTitle: "詳細使用教學",
     tutoSubtitle:
-      "從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。",
+      "從環境建置到生產部署，逐步引導您掌握 LHIC 的安全自動化能力。注意：下方 npx 指令需在 npm package 發布後使用；發布前請依 README 以 checkout 的 npm run 指令操作。",
     tutoTabs: [
       "安裝與初始化",
       "CLI 開發使用",
@@ -112,8 +112,8 @@ const i18nPage = {
     ],
     tutoStepsInstall: [
       {
-        title: "使用 npx 啟動 LHIC",
-        desc: "需要 Node.js 24 以上版本；不必全域安裝 LHIC。",
+        title: "發布後使用 npx 啟動 LHIC",
+        desc: "需先發布 npm package，並使用 Node.js 24 以上版本；不必全域安裝 LHIC。",
       },
       {
         title: "安裝 Playwright 瀏覽器核心",
@@ -125,7 +125,7 @@ const i18nPage = {
       },
     ],
     tutoCodesInstall: [
-      "# 不需全域安裝\nnpx @pinyencheng/lhic start",
+      "# 僅限 npm package 發布後\nnpx @pinyencheng/lhic start",
       "npx playwright@1.61.1 install chromium",
       "npx @pinyencheng/lhic preflight\nnpx @pinyencheng/lhic global doctor",
     ],
@@ -387,7 +387,7 @@ const i18nPage = {
     tutoTag: "Detailed Guide",
     tutoTitle: "Detailed User Guide",
     tutoSubtitle:
-      "From local setup to production deployments, learn how to leverage LHIC's secure automation capabilities.",
+      "From local setup to production deployments, learn LHIC's secure automation capabilities. The npx commands below require a published npm package; before publication, use the checkout npm run commands in the README.",
     tutoTabs: [
       "Installation & Init",
       "CLI Development",
@@ -396,8 +396,8 @@ const i18nPage = {
     ],
     tutoStepsInstall: [
       {
-        title: "Start LHIC with npx",
-        desc: "Use Node.js 24 or later; no global LHIC installation is required.",
+        title: "Start LHIC with npx after publication",
+        desc: "Publish the npm package first, then use Node.js 24 or later; no global installation is required.",
       },
       {
         title: "Install Playwright Webdriver",
@@ -409,7 +409,7 @@ const i18nPage = {
       },
     ],
     tutoCodesInstall: [
-      "# No global installation required\nnpx @pinyencheng/lhic start",
+      "# Available after npm publication\nnpx @pinyencheng/lhic start",
       "npx playwright@1.61.1 install chromium",
       "npx @pinyencheng/lhic preflight\nnpx @pinyencheng/lhic global doctor",
     ],
@@ -435,7 +435,7 @@ const i18nPage = {
     tutoStepsMcp: [
       {
         title: "Build and preflight the local runtime",
-        desc: "Run the AI harness and Chromium on the same machine. Build the MCP server from this checkout once; all subsequent CLI use and verification run through npx.",
+        desc: "Run the AI harness and Chromium on the same machine. Build the MCP server from this checkout once; use npx for CLI verification only after npm publication.",
       },
       {
         title: "Use the compiled stdio MCP entrypoint",

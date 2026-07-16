@@ -4,6 +4,10 @@ LHIC can control the foreground desktop outside the browser on macOS, Windows,
 and Linux. It uses native APIs directly and does not route desktop actions
 through an LLM, MCP, OCR, or a screenshot model.
 
+> The `npx @pinyencheng/lhic` commands below apply after the package is
+> published. Before that release evidence exists, use the checkout setup in the
+> [README](../README.md) and its `npm run` commands instead.
+
 Run the capability check on the target computer before executing an action:
 
 ```bash

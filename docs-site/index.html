@@ -905,7 +905,9 @@
       <div class="section-tag">Detailed Guide</div>
       <h2 class="section-title">詳細使用教學</h2>
       <p class="section-subtitle">
-        從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。
+        從環境建置到生產部署，逐步引導您掌握 LHIC 的安全自動化能力。注意：下方
+        npx 指令需在 npm package 發布後使用；發布前請依 README 以 checkout 的
+        npm run 指令操作。
       </p>
 
       <div class="tabs-container">
@@ -932,12 +934,15 @@
           <div class="guide-steps">
             <div class="guide-step">
               <div class="guide-step-title">
-                <span class="step-num">1</span>使用 npx 啟動 LHIC
+                <span class="step-num">1</span>發布後使用 npx 啟動 LHIC
               </div>
-              <p>需要 Node.js 24 以上版本；不必全域安裝 LHIC。</p>
+              <p>
+                需先發布 npm package，並使用 Node.js 24 以上版本；不必全域安裝
+                LHIC。
+              </p>
               <div class="code-container">
                 <button class="btn-copy" onclick="copyCode(this)">複製</button>
-                <pre><code># 不需全域安裝
+                <pre><code># 僅限 npm package 發布後
 npx @pinyencheng/lhic start</code></pre>
               </div>
             </div>
