@@ -3,12 +3,12 @@
 Use this only with the rendered file:
 
 ```text
-demo-output/lhic-build-week-demo-browser-hero.mp4
+demo-output/lhic-build-week-demo-commerce-learning.mp4
 ```
 
-The file is under three minutes, 1920×1080, H.264 video with AAC narration. It
-uses a locally generated Kokoro voice; the video itself visibly discloses that
-the voiceover is AI-generated.
+The file is 171 seconds, 1920×1080, H.264 video with AAC narration. It uses a
+locally generated Kokoro voice; the video itself visibly discloses that the
+voiceover is AI-generated.
 
 ## Title
 
@@ -21,9 +21,13 @@ LHIC — Local-First Human Intent Controller | OpenAI Build Week Demo
 ```text
 LHIC is a local-first execution runtime for computer-use agents. It separates probabilistic planning from deterministic, policy-controlled browser actions and records verifier evidence for every completed step.
 
-This demo opens a real local HTTP Partner Portal in Playwright, then shows direct semantic execution against visible live DOM controls, verifier evidence, selector recovery after a UI mutation, and a proposal send that is blocked until a human approves it.
+This 2:51 demo opens a real local HTTP shopping site in Playwright. A complex Slow Path cart plan searches, configures a keyboard, opens checkout, survives a checkout UI mutation, redeems a promotion, selects delivery, and verifies the cart preview. Every action must have verifier evidence before LHIC saves a redacted local verified skill.
+
+The video then opens a fresh cart and routes the same learned skill through the Fast Path: zero model calls and zero MCP calls. The learned Fast Path still refuses to place an order until a human provides approval.
 
 GPT-5.6 is LHIC's explicit Slow Path planner for uncertain work. When enabled, its structured output is redacted, schema-checked, policy-checked, and cannot bypass approval or verification. The Fast Path makes no model or MCP calls.
+
+For a credential-free, reproducible recording, the shopping-plan input is a deterministic fixture at the Slow Path boundary; it exercises the real SlowPathLearningCoordinator, SkillStore, FastPathRouter, direct executor, and verifier path without claiming a live GPT request in the video.
 
 The 50-fixture figures shown here are controlled local regression measurements, not public-web, market, or SOTA claims. Run the safe local demo without an account or credential using the repository instructions.
 
@@ -35,11 +39,14 @@ Release-candidate evidence: https://github.com/chengmatt416/LHIC/actions/runs/29
 Chapters
 0:00 The production computer-use gap
 0:19 GPT-5.6 Slow Path safety boundary
-0:33 Real local workflow and verifier evidence
-1:03 UI change recovery and human approval gate
-1:30 Fast Path benchmark scope
-1:44 Codex collaboration and reproducibility
-2:09 Closing
+0:33 Slow Path shopping cart and verifier evidence
+0:47 Verified skill saved locally
+0:51 Learned Fast Path and approval gate
+1:31 Verification-to-learning rule
+1:45 Security boundary
+2:00 Fast Path benchmark scope
+2:14 Codex collaboration and reproducibility
+2:39 Closing
 ```
 
 ## Tags

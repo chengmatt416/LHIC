@@ -15,8 +15,23 @@ import { promisify } from "node:util";
 import { chromium, type Page } from "playwright";
 
 import { PlaywrightDirectExecutor } from "@lhic/browser";
-import { createMemoryDatabase, SelectorMemory } from "@lhic/memory";
-import type { ActionExecutionResult, SemanticAction } from "@lhic/schema";
+import {
+  FastPathRouter,
+  SlowPathLearningCoordinator,
+  type SlowPathRequest,
+  type SlowPathResponse,
+} from "@lhic/controller";
+import {
+  createMemoryDatabase,
+  SelectorMemory,
+  SkillStore,
+  type SkillRecord,
+} from "@lhic/memory";
+import type {
+  ActionExecutionResult,
+  SemanticAction,
+  VerificationResult,
+} from "@lhic/schema";
 
 import { runInternalBenchmark } from "../apps/cli/src/internal-benchmark.ts";
 import { runSelectorResilienceSimulation } from "../apps/cli/src/selector-resilience-simulation.ts";
@@ -266,7 +281,7 @@ async function main(): Promise<void> {
   }
 
   await renderDemo(
-    "lhic-build-week-demo-browser-hero.mp4",
+    "lhic-build-week-demo-commerce-learning.mp4",
     [
       {
         slide: slides.title,
@@ -288,15 +303,15 @@ async function main(): Promise<void> {
       },
       {
         workflow: "browserHero",
-        duration: 30,
+        duration: 58,
         voice:
-          "Watch the browser, not a dashboard. LHIC opens a real local Partner Portal and types into live DOM controls. The first edit changes the form underneath it. The next action keeps using the old selector, yet LHIC recovers through verified semantic evidence. Every success is checked. The final proposal send is stopped before it can leave review.",
+          "This is a real local shopping site, not a dashboard. The first cart is a complex Slow Path: search, configure a keyboard, add it, open checkout, redeem a promotion after the checkout mutates, choose delivery, and verify the order preview. This credential-free recording uses a deterministic redacted plan fixture at the Slow Path boundary. Only when every action has verifier evidence does LHIC save a local verified skill. Watch the second fresh cart: the Fast Path reuses that learned plan directly. No model call. No MCP. It still refuses to place the order without human approval.",
       },
       {
         slide: slides.verification,
-        duration: 12,
+        duration: 14,
         voice:
-          "LHIC does not accept an agent's claim that something worked. Each completed action records its method, latency, and verifier evidence. The browser trace shows selector recovery and the safety block.",
+          "The learning rule is strict. A Slow Path plan becomes local skill memory only after every step returns verifier evidence. The next matched intent can then route through the Fast Path while keeping its risk boundary intact.",
       },
       {
         slide: slides.security,
@@ -336,7 +351,7 @@ async function main(): Promise<void> {
   );
   renderedVideos.buildWeek = join(
     outputDirectory,
-    "lhic-build-week-demo-browser-hero.mp4",
+    "lhic-build-week-demo-commerce-learning.mp4",
   );
 
   console.log(
@@ -377,7 +392,7 @@ interface RecordedWorkflowAction {
 async function recordBrowserHeroWorkflow(): Promise<string> {
   const recordingDirectory = join(workDirectory, "recording", "browser-hero");
   await mkdir(recordingDirectory, { recursive: true });
-  const fixture = await createLocalFixtureServer(browserHeroPage());
+  const fixture = await createLocalFixtureServer(commerceLearningPage());
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 720 },
@@ -393,26 +408,102 @@ async function recordBrowserHeroWorkflow(): Promise<string> {
     join(recordingDirectory, "selector-memory.sqlite"),
   );
   const selectorMemory = new SelectorMemory(database);
+  const skillStore = new SkillStore(database);
 
   try {
     await page.goto(fixture.url);
-    const executor = new PlaywrightDirectExecutor(page, {
-      taskId: "demo-browser-hero",
+    await setCommerceRoute(page, {
+      detail: "0 local matches · a redacted plan is being verified",
+      label: "SLOW PATH · COMPLEX CART",
+    });
+    const slowExecutor = new PlaywrightDirectExecutor(page, {
+      taskId: "demo-commerce-slow-path",
       traceFilePath,
       selectorMemory,
     });
     await page.waitForTimeout(1_000);
-    for (const step of browserHeroActions()) {
-      const result = await executor.execute(step.action);
-      if (!result.success && !step.expectedFailure) {
+    const learned = await new SlowPathLearningCoordinator(skillStore).execute(
+      commerceSlowPathRequest(),
+      commerceSlowPathPlan(),
+      {
+        execute: async (action) => {
+          const execution = await slowExecutor.execute(action);
+          const verification = await verifyCommerceAction(
+            page,
+            action,
+            execution,
+          );
+          await appendLiveOperatorLog(
+            page,
+            action,
+            execution,
+            verification.evidence[0],
+          );
+          await page.waitForTimeout(execution.success ? 900 : 1_200);
+          return { execution, verification };
+        },
+      },
+    );
+    if (!learned.learnedSkill) {
+      throw new Error(
+        "Slow Path commerce plan did not earn verified local skill memory.",
+      );
+    }
+    await showLearnedCommerceSkill(page, learned.learnedSkill);
+    await page.waitForTimeout(4_000);
+
+    await page.goto(`${fixture.url}?mode=fast`);
+    const actions = commerceActions();
+    const fastDecision = new FastPathRouter().decide(
+      {
+        predictedIntent: "form_filling",
+        skillName: learned.learnedSkill.name,
+        confidence: 0.96,
+        evidence: ["Verified local commerce skill matched."],
+      },
+      commerceIntent(),
+      actions,
+    );
+    if (fastDecision.path !== "fast") {
+      throw new Error(
+        `Learned commerce skill did not route fast: ${fastDecision.reason}`,
+      );
+    }
+    await setCommerceRoute(page, {
+      detail: `${learned.learnedSkill.lifecycle.toUpperCase()} skill matched · 0 model calls · 0 MCP calls`,
+      label: "FAST PATH · LEARNED SKILL",
+    });
+    await showFastPathSkill(page, learned.learnedSkill);
+    const fastExecutor = new PlaywrightDirectExecutor(page, {
+      taskId: "demo-commerce-fast-path",
+      traceFilePath,
+      selectorMemory,
+    });
+    await page.waitForTimeout(1_100);
+    for (const action of actions) {
+      const execution = await fastExecutor.execute(action);
+      const verification = await verifyCommerceAction(page, action, execution);
+      if (!execution.success || !verification.success) {
         throw new Error(
-          `Browser hero action failed: ${result.error ?? "unknown error"}`,
+          `Fast Path action failed verification: ${execution.error ?? action.intent}`,
         );
       }
-      await appendLiveOperatorLog(page, step.action, result);
-      await page.waitForTimeout(result.success ? 900 : 1_200);
+      await appendLiveOperatorLog(
+        page,
+        action,
+        execution,
+        verification.evidence[0],
+      );
+      await page.waitForTimeout(620);
     }
-    await page.waitForTimeout(18_000);
+    const blockedOrder = await fastExecutor.execute(commerceOrderAction());
+    if (blockedOrder.success) {
+      throw new Error(
+        "Commerce order unexpectedly bypassed the approval boundary.",
+      );
+    }
+    await appendLiveOperatorLog(page, commerceOrderAction(), blockedOrder);
+    await page.waitForTimeout(21_000);
   } finally {
     await context.close();
     await browser.close();
@@ -426,87 +517,275 @@ async function recordBrowserHeroWorkflow(): Promise<string> {
   return video.path();
 }
 
-function browserHeroActions(): RecordedWorkflowAction[] {
+function commerceIntent() {
+  return {
+    goal: "Configure a silent keyboard cart, verify checkout, and never place the order automatically.",
+    domain: "local-commerce-fixture",
+    constraints: {
+      requireVerifiedPreview: true,
+      retainHumanOrderAuthority: true,
+    },
+    riskLevel: "low" as const,
+    requiresConfirmation: false,
+    missingInformation: [],
+  };
+}
+
+function commerceSlowPathRequest(): SlowPathRequest {
+  return {
+    taskId: "demo-commerce-slow-path",
+    userIntent: commerceIntent(),
+    uiState: {
+      surface: "browser",
+      objects: ["catalog", "cart", "checkout"],
+      signals: { localFixture: true, skillMatches: 0 },
+      capturedAt: "2026-07-17T00:00:00.000Z",
+    },
+    recentTrace: [],
+    reason: "complex_planning",
+  };
+}
+
+function commerceSlowPathPlan(): SlowPathResponse {
+  return {
+    decision: "propose_plan",
+    message:
+      "Credential-free fixture plan: configure a cart and stop at a verified checkout preview.",
+    proposedActions: commerceActions(),
+  };
+}
+
+function commerceActions(): SemanticAction[] {
   return [
     {
-      action: {
-        type: "fill",
-        intent: "find the EMEA renewal account",
-        target: 'input[name="account-search"]',
-        value: "Northstar EMEA",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "fill",
+      intent: "find the quiet mechanical keyboard",
+      target: 'input[name="catalog-search"]',
+      value: "silent keyboard",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "click",
-        intent: "open the Northstar renewal workspace",
-        target: "#open-renewal",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "click",
+      intent: "open the Aurora keyboard configuration",
+      target: "#open-aurora-keyboard",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "fill",
-        intent: "assign the renewal owner",
-        target: 'input[name="renewal-owner"]',
-        value: "Morgan Lee",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "select",
+      intent: "choose the midnight finish",
+      target: 'select[name="finish"]',
+      value: "midnight",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "fill",
-        intent: "add the finance reviewer after the form mutation",
-        target: 'input[name="renewal-owner"]',
-        value: "Morgan Lee · Finance reviewed",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "select",
+      intent: "choose silent linear switches",
+      target: 'select[name="switch-type"]',
+      value: "silent-linear",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "select",
-        intent: "select the twelve month renewal term",
-        target: 'select[name="renewal-term"]',
-        value: "12-months",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "click",
+      intent: "add the configured keyboard to cart",
+      target: "#add-to-cart",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "click",
-        intent: "generate the approval-ready proposal preview",
-        target: "#preview-proposal",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
+      type: "click",
+      intent: "open the cart checkout surface",
+      target: "#open-cart",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "wait",
-        intent: "wait for proposal verifier evidence",
-        target: "#proposal-ready",
-        value: 1_000,
-        methodPreference: ["dom"],
-        riskLevel: "low",
-      },
+      type: "fill",
+      intent: "enter the local bundle promotion",
+      target: 'input[name="promo-code"]',
+      value: "BUNDLE10",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
     },
     {
-      action: {
-        type: "click",
-        intent: "send the renewal proposal to the customer",
-        target: "#publish-report",
-        methodPreference: ["dom", "accessibility"],
-        riskLevel: "low",
-      },
-      expectedFailure: true,
+      type: "fill",
+      intent: "reuse the promotion after checkout markup changes",
+      target: 'input[name="promo-code"]',
+      value: "BUNDLE10",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
+    },
+    {
+      type: "click",
+      intent: "redeem the local bundle promotion",
+      target: "#redeem-promo",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
+    },
+    {
+      type: "select",
+      intent: "choose express delivery",
+      target: 'select[name="delivery"]',
+      value: "express",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
+    },
+    {
+      type: "click",
+      intent: "generate the verified cart preview",
+      target: "#preview-cart",
+      methodPreference: ["dom", "accessibility"],
+      riskLevel: "low",
+    },
+    {
+      type: "wait",
+      intent: "wait for checkout verifier evidence",
+      target: "#checkout-ready",
+      value: 1_000,
+      methodPreference: ["dom"],
+      riskLevel: "low",
     },
   ];
+}
+
+function commerceOrderAction(): SemanticAction {
+  return {
+    type: "click",
+    intent: "place the order with the shopper",
+    target: "#place-order",
+    methodPreference: ["dom", "accessibility"],
+    riskLevel: "low",
+  };
+}
+
+async function verifyCommerceAction(
+  page: Page,
+  action: SemanticAction,
+  execution: ActionExecutionResult,
+): Promise<VerificationResult> {
+  if (!execution.success) {
+    return {
+      success: false,
+      evidence: [execution.error ?? "The local executor did not complete."],
+    };
+  }
+
+  const target = action.target;
+  const visible = async (selector: string) =>
+    page
+      .locator(selector)
+      .isVisible()
+      .catch(() => false);
+  const selected = async (selector: string, value: string) =>
+    page
+      .locator(selector)
+      .evaluate((element, expected) => {
+        return (element as HTMLSelectElement).value === expected;
+      }, value)
+      .catch(() => false);
+
+  const checks: Record<string, () => Promise<[boolean, string]>> = {
+    'input[name="catalog-search"]': async () => [
+      await visible("#aurora-product"),
+      "Verifier observed the matching catalog product.",
+    ],
+    "#open-aurora-keyboard": async () => [
+      await visible("#product-config"),
+      "Verifier observed the product configuration surface.",
+    ],
+    'select[name="finish"]': async () => [
+      await selected('select[name="finish"]', "midnight"),
+      "Verifier observed the midnight finish selection.",
+    ],
+    'select[name="switch-type"]': async () => [
+      await selected('select[name="switch-type"]', "silent-linear"),
+      "Verifier observed the silent-linear switch selection.",
+    ],
+    "#add-to-cart": async () => [
+      (await page.locator("#cart-count").textContent())?.trim() === "1",
+      "Verifier observed one configured item in the cart.",
+    ],
+    "#open-cart": async () => [
+      await visible("#checkout-panel"),
+      "Verifier observed the checkout surface.",
+    ],
+    'input[name="promo-code"]': async () => [
+      await visible("#promo-code"),
+      "Verifier observed the promotion field after the markup change.",
+    ],
+    "#redeem-promo": async () => [
+      await visible("#promo-applied"),
+      "Verifier observed the local promotion discount.",
+    ],
+    'select[name="delivery"]': async () => [
+      await selected('select[name="delivery"]', "express"),
+      "Verifier observed the express delivery selection.",
+    ],
+    "#preview-cart": async () => [
+      await visible("#checkout-ready"),
+      "Verifier observed the reviewable checkout preview.",
+    ],
+    "#checkout-ready": async () => [
+      await visible("#checkout-ready"),
+      "Verifier observed the checkout-ready state.",
+    ],
+  };
+  const check = target ? checks[target] : undefined;
+  if (!check) {
+    return {
+      success: execution.evidence.length > 0,
+      evidence: execution.evidence,
+    };
+  }
+  const [success, evidence] = await check();
+  return { success, evidence: success ? [evidence] : [] };
+}
+
+async function setCommerceRoute(
+  page: Page,
+  route: { detail: string; label: string },
+): Promise<void> {
+  await page.evaluate((nextRoute) => {
+    document.querySelector("#route-badge")!.textContent = nextRoute.label;
+    document.querySelector("#route-detail")!.textContent = nextRoute.detail;
+  }, route);
+}
+
+async function showLearnedCommerceSkill(
+  page: Page,
+  skill: SkillRecord,
+): Promise<void> {
+  await page.evaluate((learned) => {
+    const card = document.querySelector("#learning-promotion");
+    if (!card) {
+      return;
+    }
+    card.classList.add("visible");
+    card.querySelector("strong")!.textContent = "VERIFIED SKILL SAVED LOCALLY";
+    card.querySelector("span")!.textContent =
+      `${learned.name} · ${learned.successCount} verified run · inputs redacted`;
+    document.querySelector("#route-detail")!.textContent =
+      "Every planned action carried verifier evidence → Fast Path eligible";
+  }, skill);
+}
+
+async function showFastPathSkill(
+  page: Page,
+  skill: SkillRecord,
+): Promise<void> {
+  await page.evaluate((learned) => {
+    const card = document.querySelector("#learning-promotion");
+    if (!card) {
+      return;
+    }
+    card.classList.add("visible", "fast");
+    card.querySelector("strong")!.textContent = "LEARNED SKILL REUSED LOCALLY";
+    card.querySelector("span")!.textContent =
+      `${learned.name} · Fast Path route accepted · zero model calls`;
+  }, skill);
 }
 
 async function createLocalFixtureServer(contents: string): Promise<{
@@ -526,7 +805,7 @@ async function createLocalFixtureServer(contents: string): Promise<{
     throw new Error("Could not determine local browser fixture address.");
   }
   return {
-    url: `http://127.0.0.1:${address.port}/partner-renewal`,
+    url: `http://127.0.0.1:${address.port}/store`,
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
@@ -749,6 +1028,7 @@ async function appendLiveOperatorLog(
   page: Page,
   action: SemanticAction,
   result: ActionExecutionResult,
+  verifierEvidence?: string,
 ): Promise<void> {
   await page.evaluate(
     (event) => {
@@ -770,7 +1050,7 @@ async function appendLiveOperatorLog(
       const proof = document.createElement("em");
       proof.textContent = recovered
         ? `SELECTOR RECOVERY · ${evidence}`
-        : evidence;
+        : (event.verifierEvidence ?? evidence);
       line.append(heading, detail, proof);
       root.append(line);
       root.scrollTop = root.scrollHeight;
@@ -792,6 +1072,7 @@ async function appendLiveOperatorLog(
       latencyMs: result.latencyMs,
       evidence: result.evidence,
       error: result.error,
+      verifierEvidence,
     },
   );
 }
@@ -1624,109 +1905,58 @@ function renderSlide(slide: Slide): string {
     </html>`;
 }
 
-function browserHeroPage(): string {
+function commerceLearningPage(): string {
   return `<!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8">
         <style>
           * { box-sizing: border-box; }
-          body { margin: 0; min-height: 100vh; overflow: hidden; color: #dce8f7; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #07101d; }
-          .browser-chrome { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #ffffff20; background: #121c2c; }
-          .dots { display: flex; gap: 6px; }
-          .dots i { width: 10px; height: 10px; border-radius: 50%; background: #e96c70; }
-          .dots i:nth-child(2) { background: #ffc75f; }
-          .dots i:nth-child(3) { background: #b8f05a; }
-          .browser-controls { color: #8391a6; font: 700 14px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .22em; }
-          .address { flex: 1; max-width: 650px; padding: 8px 14px; color: #b9c9dc; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ffffff18; border-radius: 8px; background: #08111f; }
-          .secure { color: #b8f05a; }
-          .recording { margin-left: auto; color: #8fa0b6; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
-          main { height: calc(100vh - 52px); display: grid; grid-template-columns: minmax(0, 1fr) 365px; gap: 14px; padding: 14px; background: radial-gradient(circle at 72% 0%, #5e72a522, transparent 32%), #07101d; }
-          .portal { min-width: 0; overflow: hidden; border: 1px solid #ffffff1d; border-radius: 15px; background: linear-gradient(145deg, #12233a, #0a1626); box-shadow: 0 18px 42px #0000003d; }
-          .portal-head { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid #ffffff12; }
-          .brand { display: flex; align-items: center; gap: 10px; color: #f0f6ff; font-size: 14px; font-weight: 800; letter-spacing: .03em; }
-          .brand-mark { width: 23px; height: 23px; display: grid; place-items: center; color: #08111f; font-size: 10px; border-radius: 7px; background: linear-gradient(135deg, #52e5f3, #b8f05a); }
-          .nav { display: flex; gap: 18px; color: #8494ab; font-size: 10px; font-weight: 700; }
-          .nav span.active { color: #e5f7ff; }
-          .intent { margin: 16px 20px 12px; padding: 13px 15px; border: 1px solid #9b8cff55; border-radius: 11px; background: linear-gradient(100deg, #9b8cff18, #52e5f30d); }
-          .intent small { display: block; color: #b9aefe; font-size: 9px; font-weight: 800; letter-spacing: .12em; }
-          .intent p { margin: 6px 0 0; color: #edf3ff; font-size: 13px; line-height: 1.35; }
-          .workspace { padding: 0 20px 18px; }
-          .workspace-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
-          h1 { margin: 0; color: #f2f7ff; font-size: 25px; letter-spacing: -.035em; }
-          .sub { margin: 5px 0 0; color: #8496ad; font-size: 11px; }
-          .status { padding: 6px 8px; color: #b8f05a; font-size: 9px; font-weight: 800; letter-spacing: .08em; border: 1px solid #b8f05a55; border-radius: 999px; background: #b8f05a12; }
-          .search-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 8px; margin-top: 14px; }
-          input, select { width: 100%; height: 38px; padding: 0 11px; color: #edf6ff; font: 12px inherit; border: 1px solid #ffffff24; border-radius: 8px; outline: none; background: #07111f; transition: .2s; }
-          input:focus, select:focus { border-color: #52e5f3; box-shadow: 0 0 0 3px #52e5f31c; }
-          button { height: 38px; color: #07111f; font: 800 11px inherit; border: 0; border-radius: 8px; background: linear-gradient(90deg, #52e5f3, #b8f05a); cursor: pointer; }
-          .account { display: grid; grid-template-columns: 43px minmax(0, 1fr) auto; gap: 11px; align-items: center; margin-top: 12px; padding: 12px; border: 1px solid #52e5f344; border-radius: 10px; background: #52e5f30c; }
-          .avatar { width: 43px; height: 43px; display: grid; place-items: center; color: #52e5f3; font-size: 12px; font-weight: 800; border: 1px solid #52e5f355; border-radius: 12px; background: #07111f; }
-          .account strong, .account span { display: block; }
-          .account strong { color: #eaf5ff; font-size: 13px; }
-          .account span { margin-top: 3px; color: #8fa1b8; font-size: 10px; }
-          .account .amount { color: #b8f05a; font: 800 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
-          .renewal { display: none; margin-top: 12px; padding: 14px; border: 1px solid #ffffff1c; border-radius: 11px; background: #081422a8; }
-          .renewal.visible { display: block; animation: reveal .25s ease-out; }
-          .renewal-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-          .renewal-title strong { color: #f0f6ff; font-size: 13px; }
-          .renewal-title span { color: #ffc75f; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
-          .fields { display: grid; grid-template-columns: minmax(0, 1fr) 174px; gap: 9px; }
-          label { display: block; margin: 0 0 5px 1px; color: #91a3b9; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-          .mutation { display: none; margin-top: 9px; padding: 8px 10px; color: #ffda92; font: 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ffc75f55; border-radius: 7px; background: #ffc75f12; }
-          .mutation.visible { display: block; animation: reveal .25s ease-out; }
-          .actions { display: grid; grid-template-columns: 1fr 184px; gap: 8px; margin-top: 10px; }
-          #publish-report { color: #ffe7ea; background: linear-gradient(90deg, #d85367, #ef7681); }
-          .ready { display: none; margin-top: 10px; padding: 9px 10px; color: #b8f05a; font-size: 10px; font-weight: 750; border: 1px solid #b8f05a55; border-radius: 7px; background: #b8f05a10; }
-          .ready.visible { display: block; animation: reveal .22s ease-out; }
-          .evidence { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid #ffffff1d; border-radius: 15px; background: #08111fe8; box-shadow: 0 18px 42px #00000035; }
-          .evidence-head { padding: 15px 15px 11px; border-bottom: 1px solid #ffffff14; }
-          .evidence-head strong { display: block; color: #eaf4ff; font-size: 10px; letter-spacing: .11em; }
-          .evidence-head span { display: block; margin-top: 5px; color: #b8f05a; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
-          #workflow-stage { margin: 11px 14px 7px; color: #52e5f3; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
-          #operator-log { flex: 1; min-height: 0; padding: 0 12px 10px; overflow: auto; scrollbar-width: none; }
-          #operator-log::-webkit-scrollbar { display: none; }
-          .live-log { margin: 7px 0; padding: 8px 9px; border-left: 2px solid #71839a; border-radius: 0 7px 7px 0; background: #ffffff07; animation: log-in .22s ease-out; }
-          .live-log.success { border-color: #52e5f3; }
-          .live-log.recovered { border-color: #b8f05a; background: #b8f05a10; }
-          .live-log.blocked { border-color: #e95d70; background: #e95d7010; }
-          .live-log strong, .live-log span, .live-log em { display: block; }
-          .live-log strong { color: #e9f4ff; font: 700 8px ui-monospace, SFMono-Regular, Menlo, monospace; }
-          .live-log span { margin-top: 4px; color: #8fa2b9; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; }
-          .live-log em { margin-top: 4px; color: #bbcadc; font: 9px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; }
-          #approval-gate { display: none; margin: 0 12px 12px; padding: 10px; color: #ffd7dc; font-size: 9px; border: 1px solid #e95d7066; border-radius: 8px; background: #e95d7015; }
-          #approval-gate.visible { display: block; animation: reveal .25s ease-out; }
-          @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-          @keyframes log-in { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+          body { margin: 0; min-height: 100vh; overflow: hidden; color: #eff4ff; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #08101d; }
+          .browser-chrome { height: 48px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid #ffffff1d; background: #121b2a; }
+          .dots { display: flex; gap: 6px; }.dots i { width: 10px; height: 10px; border-radius: 50%; background: #ee7479; }.dots i:nth-child(2) { background: #ffc86a; }.dots i:nth-child(3) { background: #a8e96a; }
+          .browser-controls { color: #8292a8; font: 700 14px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .2em; }.address { flex: 1; max-width: 650px; padding: 8px 13px; color: #c8d4e5; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #ffffff18; border-radius: 8px; background: #09111f; }.secure { color: #a8e96a; }.recording { margin-left: auto; color: #95a6bb; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+          main { height: calc(100vh - 48px); display: grid; grid-template-columns: minmax(0, 1fr) 355px; gap: 14px; padding: 14px; background: radial-gradient(circle at 66% 0%, #8d5eff28, transparent 34%), #08101d; }
+          .store, .evidence { min-width: 0; overflow: hidden; border: 1px solid #ffffff1c; border-radius: 15px; box-shadow: 0 18px 45px #0000003d; }.store { background: linear-gradient(145deg, #192442, #0b1426); }.store-head { height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #ffffff14; }.brand { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 820; letter-spacing: .04em; }.brand-mark { width: 24px; height: 24px; display: grid; place-items: center; color: #07101d; font-size: 11px; border-radius: 8px; background: linear-gradient(135deg, #f3c76c, #e875b7); }.nav { display: flex; gap: 17px; color: #8998ae; font-size: 10px; font-weight: 700; }.nav .active { color: #fff3d9; }
+          .intent { margin: 13px 18px 10px; padding: 10px 13px; border: 1px solid #9d8cff55; border-radius: 10px; background: #9d8cff13; }.intent small { display: block; color: #baafff; font-size: 9px; font-weight: 800; letter-spacing: .12em; }.intent p { margin: 4px 0 0; color: #f0f3ff; font-size: 12px; line-height: 1.35; }
+          .route { display: flex; align-items: center; gap: 9px; margin: 0 18px 10px; padding: 8px 10px; border: 1px solid #ffffff1b; border-radius: 9px; background: #ffffff08; }.route strong { padding: 5px 7px; color: #c5b9ff; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; border: 1px solid #9d8cff55; border-radius: 99px; }.route span { color: #9bacbf; font-size: 10px; }
+          .workspace { padding: 0 18px 14px; }.catalog.hidden { display: none; }.search-row { display: grid; grid-template-columns: minmax(0, 1fr) 138px; gap: 8px; }input, select { width: 100%; height: 36px; padding: 0 10px; color: #edf4ff; font: 12px inherit; border: 1px solid #ffffff24; border-radius: 8px; outline: none; background: #08111e; }input:focus, select:focus { border-color: #e875b7; box-shadow: 0 0 0 3px #e875b720; }button { height: 36px; color: #151020; font: 800 11px inherit; border: 0; border-radius: 8px; background: linear-gradient(90deg, #f3c76c, #f088c0); cursor: pointer; }
+          .product-card { display: grid; grid-template-columns: 175px minmax(0, 1fr); gap: 14px; align-items: center; margin-top: 11px; padding: 13px; border: 1px solid #f3c76c44; border-radius: 12px; background: linear-gradient(120deg, #f3c76c12, #e875b70d); }.keyboard { position: relative; height: 91px; overflow: hidden; border: 1px solid #ffffff20; border-radius: 10px; background: linear-gradient(135deg, #4a365f, #171d35 58%, #172b40); }.keyboard::before { content: ""; position: absolute; inset: 15px 12px; border-radius: 6px; background: repeating-linear-gradient(90deg, #e7d9ff 0 13px, transparent 13px 17px), repeating-linear-gradient(0deg, #e7d9ff 0 13px, transparent 13px 17px); opacity: .8; transform: perspective(100px) rotateX(18deg); }.keyboard::after { content: "AURORA TKL"; position: absolute; right: 10px; bottom: 8px; color: #f3c76c; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }.product-card strong, .product-card span { display: block; }.product-card strong { font-size: 16px; }.product-card span { margin-top: 4px; color: #9eadc0; font-size: 10px; }.product-card .price { margin-top: 9px; color: #f3c76c; font: 800 14px ui-monospace, SFMono-Regular, Menlo, monospace; }.product-card button { margin-top: 10px; width: 154px; }
+          .product-config { display: none; margin-top: 11px; padding: 12px; border: 1px solid #ffffff1d; border-radius: 11px; background: #08111dbd; }.product-config.visible { display: block; animation: reveal .25s ease-out; }.config-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }.config-title strong { font-size: 12px; }.config-title span { color: #f3c76c; font-size: 9px; font-weight: 800; letter-spacing: .1em; }.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }label { display: block; margin: 0 0 4px 1px; color: #91a0b7; font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }.cart-actions { display: grid; grid-template-columns: 1fr 145px; gap: 8px; margin-top: 10px; }#open-cart { display: none; color: #daf8ff; background: #1e3f5d; }#open-cart.visible { display: block; }
+          .checkout { display: none; animation: reveal .25s ease-out; }.checkout.visible { display: block; }.checkout-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }.checkout-head h1 { margin: 0; font-size: 21px; letter-spacing: -.03em; }.cart-pill { padding: 6px 8px; color: #f3c76c; font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid #f3c76c55; border-radius: 99px; }.checkout-product { display: flex; gap: 10px; align-items: center; padding: 11px; border: 1px solid #ffffff1b; border-radius: 10px; background: #ffffff07; }.mini-keyboard { width: 54px; height: 40px; border-radius: 7px; background: linear-gradient(135deg, #4a365f, #172b40); }.checkout-product strong, .checkout-product span { display: block; }.checkout-product strong { font-size: 12px; }.checkout-product span { margin-top: 3px; color: #99a9bd; font-size: 9px; }.checkout-product b { margin-left: auto; color: #f3c76c; font: 800 12px ui-monospace, SFMono-Regular, Menlo, monospace; }.checkout-controls { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; margin-top: 10px; }.promo-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 8px; margin-top: 10px; }.promo-row button { background: linear-gradient(90deg, #a8e96a, #5bd6bb); }.mutation, .applied, .ready { display: none; margin-top: 8px; padding: 8px 9px; font: 9px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; border-radius: 7px; }.mutation { color: #ffdc96; border: 1px solid #f3c76c55; background: #f3c76c12; }.applied, .ready { color: #c6f6c2; border: 1px solid #a8e96a55; background: #a8e96a11; }.mutation.visible, .applied.visible, .ready.visible { display: block; }.checkout-actions { display: grid; grid-template-columns: 1fr 168px; gap: 8px; margin-top: 10px; }#place-order { color: #ffe9eb; background: linear-gradient(90deg, #df5c70, #f58a92); }
+          .evidence { display: flex; flex-direction: column; background: #08111fe8; }.evidence-head { padding: 15px 15px 11px; border-bottom: 1px solid #ffffff13; }.evidence-head strong { display: block; font-size: 10px; letter-spacing: .12em; }.evidence-head span { display: block; margin-top: 5px; color: #a8e96a; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; }.learning { display: none; margin: 10px 12px 4px; padding: 9px; border: 1px solid #9d8cff55; border-radius: 8px; background: #9d8cff12; }.learning.visible { display: block; animation: reveal .25s ease-out; }.learning.fast { border-color: #a8e96a66; background: #a8e96a10; }.learning strong, .learning span { display: block; }.learning strong { color: #c9bdff; font-size: 9px; letter-spacing: .07em; }.learning.fast strong { color: #c6f6c2; }.learning span { margin-top: 5px; color: #a7b5c8; font: 8px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }#workflow-stage { margin: 10px 14px 6px; color: #56dded; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; }#operator-log { flex: 1; min-height: 0; padding: 0 12px 10px; overflow: auto; scrollbar-width: none; }#operator-log::-webkit-scrollbar { display: none; }.live-log { margin: 6px 0; padding: 7px 8px; border-left: 2px solid #71839a; border-radius: 0 7px 7px 0; background: #ffffff07; animation: log-in .2s ease-out; }.live-log.success { border-color: #56dded; }.live-log.recovered { border-color: #a8e96a; background: #a8e96a10; }.live-log.blocked { border-color: #f06c7a; background: #f06c7a10; }.live-log strong, .live-log span, .live-log em { display: block; }.live-log strong { color: #eef5ff; font: 700 8px ui-monospace, SFMono-Regular, Menlo, monospace; }.live-log span { margin-top: 3px; color: #93a4ba; font: 8px ui-monospace, SFMono-Regular, Menlo, monospace; }.live-log em { margin-top: 3px; color: #c2d0e1; font: 8px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal; }#approval-gate { display: none; margin: 0 12px 12px; padding: 9px; color: #ffd9de; font-size: 9px; border: 1px solid #f06c7a66; border-radius: 8px; background: #f06c7a15; }#approval-gate.visible { display: block; animation: reveal .25s ease-out; }
+          @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } } @keyframes log-in { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
         </style>
       </head>
       <body>
-        <header class="browser-chrome"><div class="dots"><i></i><i></i><i></i></div><div class="browser-controls">‹ › ↻</div><div class="address"><span class="secure">●</span> LOCAL FIXTURE · http://127.0.0.1 / partner-renewal</div><div class="recording">PLAYWRIGHT REC · AI-GENERATED VOICE</div></header>
+        <header class="browser-chrome"><div class="dots"><i></i><i></i><i></i></div><div class="browser-controls">‹ › ↻</div><div class="address"><span class="secure">●</span> LOCAL FIXTURE · http://127.0.0.1 / store</div><div class="recording">PLAYWRIGHT REC · AI-GENERATED VOICE</div></header>
         <main>
-          <section class="portal">
-            <header class="portal-head"><div class="brand"><span class="brand-mark">N</span> NORTHSTAR PARTNER PORTAL</div><nav class="nav"><span class="active">Renewals</span><span>Accounts</span><span>Proposals</span></nav></header>
-            <section class="intent"><small>HUMAN INTENT</small><p>“Prepare the EMEA renewal proposal, verify every change, but never send without me.”</p></section>
+          <section class="store">
+            <header class="store-head"><div class="brand"><span class="brand-mark">A</span> ASTER &amp; FINCH</div><nav class="nav"><span class="active">Keyboards</span><span>Switches</span><span>Builds</span><span>Support</span></nav></header>
+            <section class="intent"><small>HUMAN INTENT</small><p>“Build a quiet keyboard cart, verify every change, and never place the order without me.”</p></section>
+            <section class="route"><strong id="route-badge">SLOW PATH · COMPLEX CART</strong><span id="route-detail">0 local matches · a redacted plan is being verified</span></section>
             <div class="workspace">
-              <div class="workspace-top"><div><h1>Partner renewal workspace</h1><p class="sub">A real local browser surface — semantic DOM actions only</p></div><span class="status">LOCAL SESSION</span></div>
-              <div class="search-row"><input name="account-search" aria-label="Account search" placeholder="Find a partner account"><button id="open-renewal" type="button">Open renewal</button></div>
-              <article class="account"><div class="avatar">NC</div><div><strong>Northstar Commerce</strong><span>EMEA · Annual renewal · Finance review ready</span></div><div class="amount">$240k</div></article>
-              <section class="renewal" id="renewal-panel"><div class="renewal-title"><strong>FY27 renewal proposal</strong><span>REVIEW MODE</span></div><div class="fields"><div><label for="renewal-owner">Renewal owner</label><input id="renewal-owner" name="renewal-owner" aria-label="Renewal owner" placeholder="Assign proposal owner"></div><div><label for="renewal-term">Term</label><select id="renewal-term" name="renewal-term" aria-label="Renewal term"><option value="6-months">6 months</option><option value="12-months">12 months</option><option value="24-months">24 months</option></select></div></div><p class="mutation" id="mutation-notice">UI MUTATION DETECTED · original name rotated · selector recovery armed</p><div class="actions"><button id="preview-proposal" type="button">Generate verified preview</button><button id="publish-report" type="button">Send proposal to customer</button></div><div class="ready" id="proposal-ready">Proposal preview is ready · verifier observed the review state</div></section>
+              <section class="catalog" id="catalog-workspace"><div class="search-row"><input name="catalog-search" aria-label="Catalog search" placeholder="Search keyboards, switches, kits"><button id="catalog-search-button" type="button">Search catalog</button></div><article class="product-card" id="aurora-product"><div class="keyboard"></div><div><strong>Aurora TKL — hot-swap wireless</strong><span>Gasket mount · tri-mode · configurable switches</span><div class="price">$159.00</div><button id="open-aurora-keyboard" type="button">Configure Aurora TKL</button></div></article><section class="product-config" id="product-config"><div class="config-title"><strong>Customize Aurora TKL</strong><span>CONFIGURATION</span></div><div class="fields"><div><label for="finish">Finish</label><select id="finish" name="finish"><option value="cloud">Cloud white</option><option value="midnight">Midnight blue</option><option value="rose">Rose smoke</option></select></div><div><label for="switch-type">Switches</label><select id="switch-type" name="switch-type"><option value="tactile">Tactile brown</option><option value="silent-linear">Silent linear</option><option value="clicky">Clicky blue</option></select></div></div><div class="cart-actions"><button id="add-to-cart" type="button">Add configured keyboard</button><button id="open-cart" type="button">Open cart · <span id="cart-count">0</span></button></div></section></section>
+              <section class="checkout" id="checkout-panel"><div class="checkout-head"><div><h1>Checkout review</h1><p class="sub">Local cart · no order will be placed automatically</p></div><span class="cart-pill">1 ITEM</span></div><article class="checkout-product"><div class="mini-keyboard"></div><div><strong>Aurora TKL · midnight</strong><span>Silent linear · hot-swap configuration</span></div><b>$159</b></article><div class="promo-row"><input id="promo-code" name="promo-code" aria-label="Promotion code" placeholder="Promotion code"><button id="redeem-promo" type="button">Redeem code</button></div><p class="mutation" id="mutation-notice">CHECKOUT UI MUTATION · original promo field name rotated · selector recovery armed</p><p class="applied" id="promo-applied">BUNDLE DISCOUNT VERIFIED · −$16.00 · new total $143.00</p><div class="checkout-controls"><div><label for="delivery">Delivery</label><select id="delivery" name="delivery"><option value="standard">Standard · 4–6 days</option><option value="express">Express · 1–2 days</option></select></div><div><label>Review total</label><input value="$151.00" aria-label="Review total" readonly></div></div><div class="checkout-actions"><button id="preview-cart" type="button">Generate verified cart preview</button><button id="place-order" type="button">Place order</button></div><p class="ready" id="checkout-ready">CHECKOUT PREVIEW VERIFIED · price, delivery, and cart state observed</p></section>
             </div>
           </section>
-          <aside class="evidence"><div class="evidence-head"><strong>LHIC EXECUTION PROOF</strong><span>● LOCAL VERIFIER ONLINE</span></div><div id="workflow-stage">BOOT · local executor ready</div><div id="operator-log"><article class="live-log success"><strong>LOCAL BROWSER OPEN</strong><span>http://127.0.0.1 / partner-renewal</span><em>DOM OBSERVATION · TRACE REDACTION ON</em></article><article class="live-log"><strong>INTENT ACCEPTED</strong><span>Prepare renewal · retain human send authority</span><em>AWAITING SEMANTIC ACTION</em></article></div><div id="approval-gate"><strong>HUMAN APPROVAL REQUIRED</strong><br>Proposal was not sent. The local executor stopped the side effect before it left review.</div></aside>
+          <aside class="evidence"><div class="evidence-head"><strong>LHIC EXECUTION PROOF</strong><span>● LOCAL VERIFIER ONLINE</span></div><div class="learning" id="learning-promotion"><strong>AWAITING VERIFIED SKILL</strong><span>Slow Path memory remains empty until every action is evidenced.</span></div><div id="workflow-stage">BOOT · local executor ready</div><div id="operator-log"><article class="live-log success"><strong>LOCAL STORE OPEN</strong><span>http://127.0.0.1 / store</span><em>DOM OBSERVATION · TRACE REDACTION ON</em></article><article class="live-log"><strong>INTENT ACCEPTED</strong><span>Complex cart · retain human order authority</span><em>AWAITING SEMANTIC ACTION</em></article></div><div id="approval-gate"><strong>HUMAN APPROVAL REQUIRED</strong><br>Order was not placed. The local executor stopped the side effect before it left review.</div></aside>
         </main>
         <script>
-          const accountSearch = document.querySelector('input[name="account-search"]');
-          const owner = document.querySelector('#renewal-owner');
-          accountSearch.addEventListener('input', () => document.querySelector('.account').style.borderColor = '#b8f05a88');
-          document.querySelector('#open-renewal').addEventListener('click', () => document.querySelector('#renewal-panel').classList.add('visible'));
-          owner.addEventListener('input', () => {
-            if (owner.getAttribute('name') === 'renewal-owner') {
-              owner.setAttribute('name', 'renewal-owner-locked');
-              document.querySelector('#mutation-notice').classList.add('visible');
-            }
-          });
-          document.querySelector('#preview-proposal').addEventListener('click', () => document.querySelector('#proposal-ready').classList.add('visible'));
+          const isFast = new URLSearchParams(location.search).get('mode') === 'fast';
+          if (isFast) document.body.classList.add('fast-run');
+          const catalog = document.querySelector('#catalog-workspace');
+          const config = document.querySelector('#product-config');
+          const checkout = document.querySelector('#checkout-panel');
+          const cartCount = document.querySelector('#cart-count');
+          document.querySelector('input[name="catalog-search"]').addEventListener('input', () => document.querySelector('#aurora-product').style.borderColor = '#a8e96a99');
+          document.querySelector('#open-aurora-keyboard').addEventListener('click', () => config.classList.add('visible'));
+          document.querySelector('#add-to-cart').addEventListener('click', () => { cartCount.textContent = '1'; document.querySelector('#open-cart').classList.add('visible'); });
+          document.querySelector('#open-cart').addEventListener('click', () => { catalog.classList.add('hidden'); checkout.classList.add('visible'); });
+          const promo = document.querySelector('#promo-code');
+          promo.addEventListener('input', () => { if (promo.getAttribute('name') === 'promo-code') { promo.setAttribute('name', 'promo-code-locked'); document.querySelector('#mutation-notice').classList.add('visible'); } });
+          document.querySelector('#redeem-promo').addEventListener('click', () => document.querySelector('#promo-applied').classList.add('visible'));
+          document.querySelector('#preview-cart').addEventListener('click', () => document.querySelector('#checkout-ready').classList.add('visible'));
         </script>
       </body>
     </html>`;

@@ -10,12 +10,15 @@ open-weight `Kokoro-82M` model, and edits the following 1080p MP4 files into
 - `lhic-demo-5m.mp4` — a five-minute walkthrough with dynamic UI mutation,
   selector-memory recovery, reconciliation evidence, and a policy-blocked
   publish action that visibly requires human approval.
-- `lhic-build-week-demo-browser-hero.mp4` — a Build Week submission cut under
-  three minutes. Its centerpiece is a real local HTTP Partner Portal opened in
-  Playwright: visible DOM form actions, selector recovery after a UI mutation,
-  verifier evidence, and a proposal send stopped by the approval gate. It also
-  covers GPT-5.6's validated Slow Path role, benchmark scope, and Codex
-  collaboration. Render only this cut with `npm run demo:render:build-week`.
+- `lhic-build-week-demo-browser-hero.mp4` — an earlier Build Week cut retained
+  only as a local comparison artifact; do not upload this superseded version.
+- `lhic-build-week-demo-commerce-learning.mp4` — the current Build Week cut
+  under three minutes. Its centerpiece is a real local HTTP shopping site:
+  a complex Slow Path cart plan is fully verified and saved as a local skill,
+  then a fresh cart is routed through the learned Fast Path with zero model and
+  MCP calls. It also visibly demonstrates checkout UI mutation, selector
+  recovery, and the approval block before an order could be placed. Render it
+  with `npm run demo:render:build-week`.
 
 Use the vetted [YouTube upload metadata](../docs/youtube-upload.md) for the
 Build Week cut. It deliberately excludes unverified runtime, npm, Devpost, and
