@@ -34,6 +34,7 @@ html {
     font-family: var(--font-sans);
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
 }
 
 body {
@@ -1174,11 +1175,12 @@ footer {
         display: none;
     }
     
-    header {
+    header, header.scrolled {
         top: 0;
         left: 0;
+        right: 0;
         transform: none;
-        width: 100%;
+        width: auto;
         border-radius: 0;
         border-top: none;
         border-left: none;

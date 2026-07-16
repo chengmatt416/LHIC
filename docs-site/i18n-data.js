@@ -32,7 +32,23 @@ const i18nPage = {
         ],
         treeTitle: "專案分支樹結構",
         treeSubtitle: "點擊下方資料夾節點可查看該套件說明。",
-        treePlaceholder: "點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。",
+        treePlaceholderTitle: "請選擇模組",
+        treePlaceholderDesc: "點擊左側目錄樹中的子套件 (package) 或應用程式 (app)，在此處即時檢視該模組的核心職責、安全屬性與設計原則。",
+        treeLabels: {
+            root: "ComputerIntent (根目錄)",
+            packages: "packages/ (套件庫目錄)",
+            apps: "apps/ (應用程式目錄)",
+            schema: "schema (核心型別定義)",
+            browser: "browser (瀏覽器 CDP 封裝)",
+            verifier: "verifier (結果比對器)",
+            trace: "trace (JSONL 脫敏日誌)",
+            memory: "memory (SQLite 記憶體)",
+            security: "security (安全與數位簽章)",
+            skills: "skills (複用表單/下載技能)",
+            controller: "controller (雙軌路由器)",
+            cli: "cli (Command Line 工具)",
+            "mcp-server": "mcp-server (MCP 伺服器端)"
+        },
         tutoTag: "Detailed Guide",
         tutoTitle: "詳細使用教學",
         tutoSubtitle: "從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。",
@@ -82,7 +98,7 @@ const i18nPage = {
         ],
         marketCards: [
             { title: "市場領先與策略定位", desc: "LHIC 並非泛用的網頁「大模型探索代理」，而是鎖定在<strong>企業級高頻率、需要高可靠度與隱私保護的已知操作任務</strong>。當前許多產品追求「完全自主探索」，往往導致昂貴的賬單與隨機性的任務失敗。LHIC 的雙軌路由策略 (Fast/Slow Path) 將企業自動化的邊際成本降至接近零。" },
-            { title: "防偽門檻與基準提交規則", desc: "我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了 <code>lhic bench validate-evidence</code> 驗證指令。唯有在 BrowserGym/AgentLab 整合套件下跑完 WorkArena 完整資料集、提交不加任何修改的映像檔 Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。" }
+            { title: "防偽門檻與基準提交規則", desc: "我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了 <code>lhic bench validate-evidence</code> 驗證指令。唯有在 BrowserGym/AgentLab 整合套件下跑完 WorkArena 完整資料集、提交不加 any 修改的映像檔 Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。" }
         ],
         footerDesc: "© 2026 LHIC Project. All rights reserved. 本專案採用 Business Source License 1.1 (BSL) 授權，保障企業核心安全防護與隱私。",
         footerLinks: ["功能總覽", "模組架構", "使用教學", "GitHub"]
@@ -120,7 +136,23 @@ const i18nPage = {
         ],
         treeTitle: "Project Monorepo Structure",
         treeSubtitle: "Click on folder nodes below to inspect package descriptions.",
-        treePlaceholder: "Click on folder nodes below to inspect package descriptions and responsibilities.",
+        treePlaceholderTitle: "Select a Module",
+        treePlaceholderDesc: "Click a package or app in the directory tree to inspect its core responsibilities, security details, and architecture design.",
+        treeLabels: {
+            root: "ComputerIntent (Root)",
+            packages: "packages/ (Libraries)",
+            apps: "apps/ (Applications)",
+            schema: "schema (Core Type Definitions)",
+            browser: "browser (CDP Browser Wrapper)",
+            verifier: "verifier (Objective Action Verifiers)",
+            trace: "trace (Sanitized JSONL Logs)",
+            memory: "memory (SQLite Skill Memory)",
+            security: "security (Sandbox & Policies)",
+            skills: "skills (Reusable Automation Skills)",
+            controller: "controller (Brain Routing Brain)",
+            cli: "cli (Command Line Tool)",
+            "mcp-server": "mcp-server (Model Context Protocol)"
+        },
         tutoTag: "Detailed Guide",
         tutoTitle: "Detailed User Guide",
         tutoSubtitle: "From local setup to production deployments, learn how to leverage LHIC's secure automation capabilities.",
