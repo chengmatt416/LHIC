@@ -42,21 +42,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Pack, install, and run the published-package equivalent
-        shell: bash
-        run: |
-          package_dir="$(mktemp -d)"
-          install_dir="$(mktemp -d)"
-          npm pack --workspace @pinyencheng/lhic --pack-destination "$package_dir"
-          archive="$(find "$package_dir" -maxdepth 1 -name '*.tgz' -print -quit)"
-          test -n "$archive"
-          npm install --prefix "$install_dir" --no-package-lock "$archive"
-          "$install_dir/node_modules/.bin/playwright" install chromium
-          OPENAI_SLOW_PATH_ENABLED=false "$install_dir/node_modules/.bin/lhic" demo > "$install_dir/demo.json"
-          DEMO_OUTPUT="$install_dir/demo.json" node --input-type=module -e '
-            import { readFile } from "node:fs/promises";
-            const report = JSON.parse(await readFile(process.env.DEMO_OUTPUT, "utf8"));
-            if (!report.passed || report.gpt56.enabled) {
-              throw new Error("Packaged safe demo did not pass with the GPT Slow Path disabled.");
-            }
-          '
+      - run: npm run package:smoke

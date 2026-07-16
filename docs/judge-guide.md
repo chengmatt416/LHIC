@@ -28,6 +28,7 @@ npm test
 npm run bench:internal
 npm run bench:simulate
 npm run preflight
+npm run package:smoke
 ```
 
 The internal benchmark and selector-resilience simulation are controlled local

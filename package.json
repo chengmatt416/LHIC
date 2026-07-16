@@ -28,6 +28,7 @@
     "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
+    "package:smoke": "node scripts/package-smoke.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod"
   },

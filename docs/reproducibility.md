@@ -18,6 +18,7 @@ npm run typecheck
 npm test
 npm run demo
 npm run bench:internal
+npm run package:smoke
 ```
 
 The safe demo needs no API key. To test optional GPT-5.6 planning, set
@@ -32,6 +33,10 @@ the CLI, installs it in a new temporary directory, installs that package's
 Chromium, and requires `lhic demo` to report `passed: true` with the GPT Slow
 Path disabled. This is cross-platform package evidence, not evidence that a
 specific npm publication is available.
+
+Run the same check locally with `npm run package:smoke`. It removes OpenAI API
+key environment variables from the spawned demo process, so this check cannot
+make a model request or write a credential to its output.
 
 ## Evidence to record before submission
 
