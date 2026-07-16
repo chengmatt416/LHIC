@@ -626,7 +626,7 @@ section {
     transition: var(--transition);
 }
 
-.tree-item:hover {
+.tree-item:hover, .tree-item.active {
     color: var(--primary-light);
     transform: translateX(3px);
 }
@@ -1103,6 +1103,16 @@ footer {
     border-radius: var(--radius-sm);
     transition: var(--transition);
     z-index: 1001;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+}
+
+.mobile-menu-btn svg {
+    display: block;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
 }
 
 .mobile-menu-btn:hover {

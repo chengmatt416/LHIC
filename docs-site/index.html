@@ -31,9 +31,9 @@
             <li><a href="#comparison" id="nav-comparison">方案對比</a></li>
             <li><a href="https://github.com/chengmatt416/ComputerIntent" target="_blank" id="nav-github">GitHub 專案</a></li>
         </ul>
-        <div class="nav-actions-wrapper" style="display:flex; align-items:center; gap:16px;">
-            <div class="lang-switcher-container" style="display:flex; align-items:center; gap:12px;">
-                <button onclick="toggleLanguage()" class="lang-btn" id="lang-btn" style="background:transparent; border:1px solid var(--border-color); color:var(--text-main); font-weight:600; font-size:0.85rem; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); display:flex; align-items:center; justify-content:center;">EN</button>
+        <div class="nav-actions-wrapper" style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+            <div class="lang-switcher-container" style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <button onclick="toggleLanguage()" class="lang-btn" id="lang-btn" style="background:transparent; border:1px solid var(--border-color); color:var(--text-main); font-weight:600; font-size:0.85rem; padding:8px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); display:flex; align-items:center; justify-content:center; flex-shrink:0;">EN</button>
                 <a href="#tutorial" class="nav-cta">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M5 12h14"></path>
@@ -1039,7 +1039,7 @@ lhic run action action.json approval.json</code></pre>
             });
 
             // Click the currently active tree item to refresh it with new language translations
-            const activeTreeItem = document.querySelector('.tree-item[style*="color: var(--primary-light)"]') || document.querySelector('.tree-item[style*="color: rgb(52, 211, 153)"]');
+            const activeTreeItem = document.querySelector('.tree-item.active');
             if (activeTreeItem) {
                 activeTreeItem.click();
             } else {
@@ -1095,8 +1095,8 @@ lhic run action action.json approval.json</code></pre>
                     `;
 
                     // Highlight selected tree node
-                    treeItems.forEach(i => i.style.color = '');
-                    item.style.color = 'var(--primary-light)';
+                    treeItems.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
                 }
             });
         });
