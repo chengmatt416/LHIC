@@ -13,6 +13,7 @@ official Codex `/feedback` evidence are tracked separately at submission time.
 | 2026-07-16 | Package tarball dependency correction for clean-install CLI demo                               | `6d7e213` | Clean temporary install runs `lhic demo`                      |
 | 2026-07-16 | Full CI repair and cross-platform packaged-demo smoke configuration                            | `477e1ed` | Local `npm run ci`; Ubuntu/macOS/Windows CI matrix configured |
 | 2026-07-16 | Submission draft and benchmark-claim hardening                                                 | `720ba64` | Devpost draft; fixed-seed controlled-ablation wording         |
+| 2026-07-16 | Reproducible package smoke command                                                             | `573ab1e` | `npm run package:smoke` with credential-free tarball demo     |
 
 ## Carry-over code
 
