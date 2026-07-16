@@ -766,343 +766,229 @@ lhic run action action.json approval.json</code></pre>
 
         renderLogLine();
 
-        // Package tree node inspector description mapping
-        // Package tree node inspector description mapping (Bilingual)
-        const packageDataZH = {
-            schema: {
-                title: "@lhic/schema",
-                desc: "專案最基礎的核心型別與資料綱要定義。使用 Zod 做靜態型別與執行階段校驗，涵蓋 Intent、UIState、SemanticAction、VerifierConditions 與 TraceEvent 等核心實體型別。",
-                features: [
-                    "保證整個 Monorepo 中各套件與應用程式通訊資料格式的一致性。",
-                    "定義明確的置信度閥值 (Confidence Level) 與風險權重 (Risk Weight)。",
-                    "規範 Action 執行後的 Verifier 證明資料結構規格。"
-                ]
-            },
-            browser: {
-                title: "@lhic/browser",
-                desc: "提供 Playwright SDK 與 Chrome DevTools Protocol (CDP) 的底層調用封裝。內建高階瀏覽器實例池與 CDP 畫面影格串流機制，防個資洩漏且支援旁聽控制。",
-                features: [
-                    "瀏覽器實例池 (BrowserPool)：支援預熱、狀態回收清理、以及防個資洩漏機制。",
-                    "影格即時旁聽 (Screencast)：基於 CDP startScreencast 實現即時 VNC 畫面廣播。",
-                    "隱身模式 (Stealth) 與代理輪替 (Proxy Rotation) 機制，防爬蟲特徵識別與防封鎖。"
-                ]
-            },
-            verifier: {
-                title: "@lhic/verifier",
-                desc: "客觀成功驗證模組。負責在動作執行後，對瀏覽器 DOM 狀態變更、網路響應碼、URL 變更或檔案下載串流進行實體校驗，確保步驟不是盲目執行而是確實生效。",
-                features: [
-                    "文件下載驗證：追蹤 Playwright 的 Download 事件，核對下載內容與大小。",
-                    "網路請求驗證：確認特定 API endpoint 的回傳狀態碼為 2xx。",
-                    "DOM 狀態比對：支持 XPath、文字內容存在性與屬性值匹配校驗。"
-                ]
-            },
-            trace: {
-                title: "@lhic/trace",
-                desc: "安全事件追踪與日誌持久化模組。所有任務執行的每一步操作細節與驗證數據均會寫入 Trace 檔案中。支援敏感 PII 全自動遮蔽，且包含 APM 及日誌自動清理功能。",
-                features: [
-                    "自動日誌與截圖過期清理 (Log Pruning)，定期釋放磁碟空間防止硬碟爆滿。",
-                    "OpenTelemetry (OTLP) 整合：支援導出標準 Trace 格式 Spans 至集中 APM 監控大盤。",
-                    "為每組 trace 生成獨立 SHA-256 狀態雜湊值，防止操作紀錄被篡改。"
-                ]
-            },
-            memory: {
-                title: "@lhic/memory",
-                desc: "基於 SQLite (`node:sqlite`) 的本地知識記憶庫。支持耐久執行與步驟恢復，開啟 WAL 模式支持多租戶高併發讀寫。",
-                features: [
-                    "耐久執行與狀態恢復 (Durable Workflows)：基於 SQLite 實現 Cookies/LocalStorage/SessionStorage 保存與步驟還原。",
-                    "併發 WAL 模式配置與 Busy Timeout 鎖控制，防止併發死鎖。",
-                    "完全本地存儲，無需任何外部雲端資料庫調用，確保離線可用與極低延遲。"
-                ]
-            },
-            security: {
-                title: "@lhic/security",
-                desc: "安全邊界控管組件。負責在生產環境 (production) 下落實一系列強制限制，包含 SSL/HTTPS 白名單域名限制、KMS 公鑰簽章校驗與軟體靜態加密防護。",
-                features: [
-                    "KmsKeyManager：真正對接 AWS/GCP/Vault REST APIs 的公鑰拉取與 Ed25519 簽名校驗。",
-                    "金鑰吊銷機制 (CRL) 與快取 TTL 更新限制，防止過期金鑰繼續生效。",
-                    "原生零依賴的 AES-256-GCM 靜態資料加密層，防資料庫內容遭拷貝洩漏。"
-                ]
-            },
-            skills: {
-                title: "@lhic/skills",
-                desc: "常用瀏覽器自動化高階複用技能模組。預置了多個具備故障恢復機制的常見網頁行為，如自動填表 (`fill_form`)、檔案下載 (`download_file`)、登入流程 (`login`) 以及網頁跳轉搜尋等。",
-                features: [
-                    "登入技能：內建 CAPTCHA 與多重因素驗證 (2FA) 的 askUser 掛起機制。",
-                    "表單填寫：支持隨機布局下的標籤尋找與鍵盤交互，絕不包含自動 Submit (送出必須為獨立經批准的動作)。",
-                    "提供單元測試覆蓋與 benchmarks Fixtures 的預設技能實現。"
-                ]
-            },
-            controller: {
-                title: "@lhic/controller",
-                desc: "整個 LHIC 的大腦路由器。接收 Intent 並分類網頁 UI 狀態，決定是將任務派發給零成本的 Fast Path，抑或是將任務轉派給 Slow Path LLM Planner / 請求人類介入審查。",
-                features: [
-                    "信賴閥值控管：唯有 UI 預測置信度高於 0.8 且低風險時，才走本地 Fast Path。",
-                    "內建 Claude 等 Slow Path 代理介面封裝 (預設關閉，確保 Fast Path 零大模型連線)。",
-                    "動態編譯語意 JSON 到本地執行代碼。"
-                ]
-            },
-            cli: {
-                title: "apps/cli",
-                desc: "LHIC 的終端 Command Line 介面 (`lhic`)。為開發者與運維人員提供執行 Action 任務、預檢環境、檢查 Trace 安全性以及跑本地 Benchmark 的進入點。",
-                features: [
-                    "安全預檢功能：`lhic run preflight` 確保主機環境變數與容器環境符合生產規格。",
-                    "加固 Preflight：新增 Non-root 執行與網絡 DNS 完整性/劫持防護預檢。",
-                    "提供快速的本地回歸基準測試觸發入口 `lhic bench`。"
-                ]
-            },
-            "mcp-server": {
-                title: "apps/mcp-server",
-                desc: "標準 Model Context Protocol (MCP) 伺服器實現。將 LHIC 的本地安全瀏覽器執行能力，轉化為外部 AI 代理 (例如 Antigravity) 的外掛工具，新增 HTTP 控制面閘道。",
-                features: [
-                    "控制面閘道 (Control Plane Server)：基於原生 http 的 JWT 認證與 IP 限流防護。",
-                    "嚴格遵循 JSON-RPC stdio 協議，不污染標準輸出流。",
-                    "在輸出觀察回應時，自動移除所有 form input 中已鍵入的敏感內容，落實防洩防護。"
-                ]
-            }
-        };
-
-        const packageDataEN = {
-            schema: {
-                title: "@lhic/schema",
-                desc: "The absolute foundation defining core types and data schemas. Utilizes Zod for static and runtime validation, covering Intent, UIState, SemanticAction, VerifierConditions, and TraceEvent.",
-                features: [
-                    "Ensures data schema consistency across all packages and apps in the monorepo.",
-                    "Defines explicit confidence thresholds and risk weights.",
-                    "Specifies structural formatting for verifier output tokens."
-                ]
-            },
-            browser: {
-                title: "@lhic/browser",
-                desc: "Wraps Playwright and Chrome DevTools Protocol (CDP). Features browser instance pooling and CDP screencast screen-sharing to prevent leakage and allow manual override.",
-                features: [
-                    "BrowserPool: Supports warm instances, isolated contexts, and cookie/session state cleanup.",
-                    "CDP Screencast: Emits real-time screen frames as JPEG stream for remote manual intervention.",
-                    "Stealth & Proxy Rotation: Bypasses anti-scrape browser fingerprinting and rotates proxies per context."
-                ]
-            },
-            verifier: {
-                title: "@lhic/verifier",
-                desc: "Objective validation engine. Audits final DOM changes, API statuses, and download streams after every action to ensure tasks are completed.",
-                features: [
-                    "Download verification: Tracks Playwright file downloads and validates size/type.",
-                    "Network verification: Confirms specific REST endpoints return expected 2xx response codes.",
-                    "DOM state verification: Supports XPath and element presence/attribute checks."
-                ]
-            },
-            trace: {
-                title: "@lhic/trace",
-                desc: "Event tracking and logging module. Records every semantic action details and redacted JSONL files. Features dynamic cleanup and OTel exporting.",
-                features: [
-                    "Log Pruning: Automatically purges historical traces and screenshots older than 30 days.",
-                    "OpenTelemetry Export: Maps local tracing events to OTLP JSON spans for Grafana/Elasticsearch.",
-                    "State Hash: Generates SHA-256 state hashes to prevent trace manipulation."
-                ]
-            },
-            memory: {
-                title: "@lhic/memory",
-                desc: "SQLite-based skill memory. Tracks successful selectors, workflow progress, and supports multi-tenant concurrency.",
-                features: [
-                    "Durable Workflows: Stores cookies, localStorage, and sessionStorage to restore states.",
-                    "Concurrent WAL mode: Minimizes database locks and deadlocks under heavy concurrent load.",
-                    "Local store: Operates entirely offline with zero latency."
-                ]
-            },
-            security: {
-                title: "@lhic/security",
-                desc: "Core sandbox and policy controller. Enforces domain whitelists, public/private network restrictions, and KMS verification.",
-                features: [
-                    "KmsKeyManager: Resolves AWS, GCP, and Vault public keys via direct REST APIs to verify signed approvals.",
-                    "CRL & Cache TTL: Supports certificate revocation checks and key expiration limits.",
-                    "AES-256-GCM Encryption: Secures user sessions, cookies, and local database storage at rest."
-                ]
-            },
-            skills: {
-                title: "@lhic/skills",
-                desc: "High-level re-usable web automation flows. Bundles standard skills like fill_form, download_file, and login.",
-                features: [
-                    "Login Skill: Built-in 2FA/CAPTCHA suspension flow.",
-                    "Form Filling: Identifies input tags semantically (never auto-submits forms).",
-                    "Provides pre-packaged regression smoke tests and benchmark scripts."
-                ]
-            },
-            controller: {
-                title: "@lhic/controller",
-                desc: "The router brain. Receives user intents and routes them to either the zero-cost Fast Path or Slow Path planner.",
-                features: [
-                    "Confidence check: Only executes Fast Path if predicted UI confidence >= 0.8.",
-                    "Slow Path fallbacks: Standard adapters for Claude 3.5 and other agent frameworks.",
-                    "Semantic Action compiler: Compiles natural language input into JSON actions."
-                ]
-            },
-            cli: {
-                title: "apps/cli",
-                desc: "LHIC Command Line Interface (CLI). Entrypoint for running tasks, preflights, and local benchmarks.",
-                features: [
-                    "CLI Preflight: Runs system readiness checks including non-root and DNS hijack checks.",
-                    "Harness configs: Render MCP setups for Antigravity, Cursor, and VS Code.",
-                    "Benchmark triggers: Simple runner for local simulation and regression suites."
-                ]
-            },
-            "mcp-server": {
-                title: "apps/mcp-server",
-                desc: "Model Context Protocol (MCP) server stdio entrypoint. Exposes LHIC capabilities as tools for external agents, featuring an HTTP Control Plane Gateway.",
-                features: [
-                    "Control Plane: Light-weight API Gateway with JWT authorization and IP-based rate limiting.",
-                    "Strict stdio: Complies with JSON-RPC over stdio.",
-                    "Data redaction: Scrubs sensitive forms from observations."
-                ]
-            }
-        };
-
-        const i18n = {
-            zh: {
-                "nav-features": "功能總覽",
-                "nav-architecture": "架構與模組",
-                "nav-tutorial": "使用教學",
-                "nav-benchmark": "基準測試",
-                "nav-comparison": "方案對比",
-                "nav-github": "GitHub 專案",
-                "nav-cta-text": "快速開始",
-                "hero-desc": "基於本地優先與語意控制的瀏覽器操作運行時。日常已知的工作流自動化執行無須呼叫 LLM 也不依賴圖像畫面，提供毫秒級響應、客觀驗證證據與嚴格的安全防護。",
-                "btn-start": "開始使用"
-            },
-            en: {
-                "nav-features": "Features",
-                "nav-architecture": "Architecture",
-                "nav-tutorial": "Tutorial",
-                "nav-benchmark": "Benchmarks",
-                "nav-comparison": "Comparison",
-                "nav-github": "GitHub Project",
-                "nav-cta-text": "Get Started",
-                "hero-desc": "A local-first and semantically controlled browser automation runtime. Standard workflows run with zero LLM API calls or visual screenshots, delivering sub-millisecond responses, verified proof, and rigorous sandboxing.",
-                "btn-start": "Get Started"
-            }
-        };
-
-        const textTranslations = {
-            "核心功能總覽": "Key Features Overview",
-            "LHIC 的核心設計理念是「確定性與安全性」，將瀏覽器操作轉變為客觀可驗證的自動化程序。": "LHIC is designed with 'Determinism and Security' in mind, transforming browser automation into objectively verified flows.",
-            "對於置信度高（&ge; 0.8）且為低風險的已知工作流，LHIC 直接呼叫本地預測與語意技能進行執行，徹底消除大模型的延遲與 Token 費用。": "For standard workflows with high confidence (>= 0.8) and low risk, LHIC executes them locally, completely eliminating LLM latency and token costs.",
-            "語意定位抗變性": "Semantic Locator Resilience",
-            "優先使用 DOM、ARIA 輔助角色、標籤 (label)、佔位符 (placeholder) 與包裹關係進行精準定位，大幅降低網頁排版異動帶來的腳本崩潰機率。": "Uses DOM, ARIA roles, labels, placeholders, and element hierarchies for precision targeting, significantly reducing script breakage under web layout changes.",
-            "客觀結果驗證器": "Objective Action Verifiers",
-            "每項操作的成功不靠模型猜測，而是由驗證器模組 (Verifier) 直接收集 DOM、URL、網路請求與檔案下載等客觀數據，作為執行通過的硬性指標。": "Action success is verified objectively by capturing DOM state, URLs, network responses, or file downloads, rather than relying on LLM guesses.",
-            "本地 SQLite 記憶庫": "Local SQLite Memory",
-            "執行成功後，選擇器與故障修復歷史將持久化至本地 SQLite。下次執行同類網頁時，系統能主動進行選擇器修補與策略優化。": "Successful selectors and healing histories are persisted locally in SQLite, enabling self-optimization and locator patching on subsequent runs.",
-            "極致隱私與遮蔽": "Security & Guardrails",
-            "自動在日誌中遮蔽敏感 PII (密碼、Cookie、Email、Token、手機)。高風險動作在生產環境中需經過由 Ed25519 數位簽章驗證的人類審批流。": "Built-in credential redaction and Ed25519 signature checks. High-risk actions require signed approval and connections are strictly limited to allowed origins.",
-            "多代理 MCP 整合": "Multi-Agent MCP Integration",
-            "提供標準 Model Context Protocol (MCP) 伺服器，對外曝露標準 API (Start, Observe, Act, Close)，完美對接外部 AI 代理 (例如 Antigravity)。": "Exposes standard Model Context Protocol (MCP) APIs (Start, Observe, Act, Close) to interface seamlessly with external AI agents like Antigravity.",
-            "架構與分支結構": "Architecture & Flow",
-            "LHIC 基於模組化 TypeScript 單一儲存庫 (Monorepo) 構建，透過雙路徑路由決策引擎實現安全高效的瀏覽器操作。": "LHIC is built on a modular TypeScript monorepo, resolving browser actions securely and efficiently via a dual-path routing engine.",
-            "雙路徑決策執行流程": "Dual-Path Execution Flow",
-            "使用者輸入的自然語言或 JSON 意圖": "Natural language or structured JSON input from users",
-            "進行 UI 階段分類、風險評估與置信度評分": "Performs UI state classification, risk assessment, and confidence scoring",
-            "無大模型呼叫，直接利用 Playwright 與 @lhic/skills 執行語意動作。": "No LLM calls. Executes semantic actions directly using Playwright and @lhic/skills.",
-            "抓取 DOM 變更、URL、網路請求或檔案，比對驗證。": "Audits DOM shifts, URL redirects, network requests, or downloads.",
-            "若驗證通過，將成功選擇器與策略沉澱為本地技能記憶。": "Saves successful selectors and strategies as local skill memories if verified.",
-            "暫停執行並向管理端申請 Ed25519 人類授權簽章。": "Suspends execution and requests an Ed25519 admin signature.",
-            "呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。": "Invokes LLM agent planner (e.g., Claude) for step decomposition and recovery.",
-            "脫敏遮蔽 PII 與機敏參數，輸出 redacted JSONL 日誌。": "Scrubs passwords/PII and exports redacted JSONL logs.",
-            "專案分支樹結構": "Project Branch Tree",
-            "點擊下方資料夾節點可查看該套件說明。": "Click on folder nodes below to inspect package descriptions.",
-            "點擊下方資料夾節點可查看該套件/應用程式的功能說明與職責。": "Click on folder nodes below to inspect package descriptions and responsibilities.",
-            "詳細使用教學": "Detailed User Guide",
-            "從環境建置到生產部署，逐步引導您掌握 LHIC 的強大安全自動化能力。": "From local setup to production deployments, learn how to leverage LHIC's secure automation capabilities.",
-            "安裝與初始化": "Installation & Init",
-            "CLI 開發使用": "CLI Development",
-            "MCP 代理整合": "MCP Agent Setup",
-            "生產安全配置": "Production Config",
-            "安裝專案依賴與建置": "1. Install Dependencies & Build",
-            "專案核心依賴 Node.js 24 (由於使用原生 <code>node:sqlite</code> 作為技能記憶資料庫)。": "Project requires Node.js 24 (due to native node:sqlite skill memory database).",
-            "複製專案後安裝依賴並進行 TypeScript 編譯": "Clone project, install dependencies and compile TS:",
-            "安裝 Playwright 瀏覽器核心": "2. Install Playwright Webdriver",
-            "安裝運行時所需的 Playwright Chromium 瀏覽器驅動。": "Install Playwright Chromium browser driver for the automation runtime.",
-            "執行基礎測試": "3. Run Regression Smoke Suite",
-            "確保本地核心測試及格式化全部通過。": "Run formatter, lints and unit tests to ensure stability:",
-            "執行語意自動化動作": "1. Run Semantic Action",
-            "透過編譯好的 CLI，傳入語意動作 JSON 檔案執行。": "Run compiled CLI passing semantic action JSON files:",
-            "安全日誌脫敏檢查": "2. Trace Sanitization Audit",
-            "檢視追蹤日誌並驗證敏感資訊 (密碼、Cookie) 是否已被完全遮蔽。": "Inspect traces and audit password/cookie redaction status:",
-            "抗變性消融模擬器": "3. Resilience Ablation Simulator",
-            "執行本地語意抗變性 (resilience) 的消融模擬評估。": "Evaluate resilient semantic locators using localized ablation simulation:",
-            "註冊與驗證外掛程式": "1. Validate Agent Integration",
-            "利用 Antigravity (<code>agy</code>) 的外掛機制註冊本地 MCP 伺服器組件。": "Validate MCP harness configuration using Antigravity (agy) tool CLI:",
-            "啟動本地 MCP 服務": "2. Start Local MCP Server",
-            "以 stdio 協議啟動 MCP 服務供外部 AI 代理連線。": "Expose standard JSON-RPC over stdio MCP endpoint:",
-            "與 AI 代理協作": "3. Pair Program with Agents",
-            "在 Cursor / Windsurf / Claude Desktop 中載入 LHIC 做為網頁自動化工具。": "Pair program using Cursor / Windsurf / Claude Desktop with LHIC tools.",
-            "生產 Docker 沙箱配置": "1. Hardened Dockerfile Setup",
-            "在正式環境中使用 Docker 進行物理硬隔離與權限限縮限制。": "Use multi-stage production Docker configurations for sandbox isolation.",
-            "容器低權限環境預檢": "2. Run Non-root Preflight",
-            "以低權限 (非 root 用戶 <code>lhic</code>) 打包 Chromium 與 CLI，並禁止掛載敏感的個人設定檔目錄。": "Enforce non-root execution and verify secure deployment checklist:",
-            "高風險指令人類簽章驗收": "3. Cryptographic Signature Sign-off",
-            "在生產模式下，任何高風險動作必須帶有第三方簽章授權，經 Ed25519 金鑰比對無誤後才允許在 Fast Path 執行。": "Enforce Ed25519 signature checks for high-risk actions in production:",
-            "基準測試與抗變性驗證": "Benchmarks & Validation",
-            "LHIC 通過嚴密的本地回歸指標套件，確保程式碼修改不影響系統的高可靠性與安全性。": "LHIC enforces localized regression metrics to ensure updates maintain SOTA stability.",
-            "與現有 Computer Use 解決方案的差異": "Comparison with Existing Solutions",
-            "LHIC 放棄了高成本、低安全性的「截圖-VLM-滑鼠座標」循環，改用精準的 DOM API 與安全邊界。": "LHIC shifts away from brittle pixel screenshots and moves to precision DOM/ARIA APIs.",
-            "架構屬性": "Architecture Specs",
-            "傳統 VLM/像素定位方案 (如 Anthropic Computer Use)": "Traditional Pixel/VLM (e.g. Anthropic Computer Use)",
-            "LHIC (Local Human Intent Controller)": "LHIC (Local-First Controller)",
-            "市場領先與策略定位": "Market Alignment & Positioning",
-            "LHIC 並非泛用的網頁「大模型探索代理」，而是鎖定在企業級高頻率、需要高可靠度與隱私保護的已知操作任務。 當前許多產品追求「完全自主探索」，往往導致昂貴的賬單與隨機性的任務失敗。LHIC 的雙軌路由策略 (Fast/Slow Path) 將企業自動化的邊際成本降至接近零。": "LHIC targets high-frequency, reliable enterprise automation. We shift away from unpredictable fully-autonomous discovery, dropping marginal run costs to zero.",
-            "防偽門檻與基準提交規則": "Anti-Falsification & Submission Policy",
-            "我們絕不宣稱無客觀證據的 SOTA 指標。為保障指標真實性，專案配置了 <code>lhic bench validate-evidence</code> 驗證指令。 唯有在 BrowserGym/AgentLab 整合套件下跑完 WorkArena 完整資料集、提交不加任何修改的映像檔 Hash，並取得獨立第三方的再現，才被允許發布市場基準領先宣稱。": "We enforce rigorous validations. Submissions require unmodified hashes, full dataset audits, and independent verification prior to asserting SOTA status.",
-            "基本操作迴圈": "Execution Loop",
-            "定位精準度與抗變性": "Resilience & Targeting",
-            "安全性與 PII 防護": "Data Security & Privacy",
-            "高風險防堵機制": "Risk Prevention",
-            "執行成功驗證": "Validation Proof",
-            "運算資源與成本": "Resource Cost",
-            "本地回歸測試套件 (50 Fixtures)": "Regression Suite (50 Fixtures)",
-            "網頁變動抗變性消融模擬": "Ablation Simulation Study",
-            "任務成功率門檻": "Task Success Rate Limit",
-            "Fast Path 路由比例": "Fast Path Ratio",
-            "驗證器通過率": "Verifier Pass Rate",
-            "中位數 LLM 呼叫次數": "Median LLM Calls",
-            "消融結果結論：": "Ablation Conclusion:",
-            " 語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder 以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector 技術展現了顯著的": " Semantic positioning resolves Aria-Labels, element wrapping, placeholders, and dynamic IDs, demonstrating a robust ",
-            "超 50% 點受控優勢 (Controlled Advantage)": "50% controlled success advantage",
-            "由 ": "Composed of ",
-            " 各 10 組本地網頁所組成的回歸煙霧測試 (Smoke Suite)。下面為系統設定的硬性驗收門檻：": " local test runs (10 variants each). The following targets define core acceptance criteria:",
-            "模擬在 5種不同 UI 排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。": "Compares success rates across 5 UI layout ablate variants. This study isolates the value of semantic self-healing locator strategies."
-        };
-
         let currentLang = 'en'; // default English
 
         function setLanguage(lang) {
             currentLang = lang;
             document.documentElement.setAttribute('lang', currentLang === 'zh' ? 'zh-TW' : 'en');
             document.getElementById('lang-btn').innerText = currentLang === 'zh' ? 'EN' : '繁中';
-            
-            // Translate static elements in i18n
-            for (const [key, value] of Object.entries(i18n[currentLang])) {
-                const el = document.getElementById(key);
-                if (el) {
-                    el.innerText = value;
+
+            const data = i18nPage[currentLang];
+
+            // 1. Navigation
+            const navLinks = document.querySelectorAll('.nav-links a');
+            navLinks.forEach((link, idx) => {
+                if (data.nav[idx]) link.innerText = data.nav[idx];
+            });
+            const navCta = document.getElementById('nav-cta-text');
+            if (navCta) navCta.innerText = data.navCta;
+
+            // 2. Hero
+            const heroDesc = document.getElementById('hero-desc');
+            if (heroDesc) heroDesc.innerHTML = data.heroDesc;
+            const btnStart = document.getElementById('btn-start');
+            if (btnStart) btnStart.innerText = data.heroStart;
+            const heroGithub = document.querySelector('.hero-actions .btn-secondary span');
+            if (heroGithub) heroGithub.innerText = data.heroGithub;
+
+            // 3. Features Overview
+            const featTag = document.querySelector('#features .section-tag');
+            if (featTag) featTag.innerText = data.featuresTag;
+            const featTitle = document.querySelector('#features .section-title');
+            if (featTitle) featTitle.innerText = data.featuresTitle;
+            const featSubtitle = document.querySelector('#features .section-subtitle');
+            if (featSubtitle) featSubtitle.innerText = data.featuresSubtitle;
+
+            const cards = document.querySelectorAll('#features .feature-card');
+            cards.forEach((card, idx) => {
+                const item = data.features[idx];
+                if (item) {
+                    card.querySelector('.feature-title').innerText = item.title;
+                    card.querySelector('.feature-desc').innerHTML = item.desc;
                 }
+            });
+
+            // 4. Architecture
+            const archTag = document.querySelector('#architecture .section-tag');
+            if (archTag) archTag.innerText = data.archTag;
+            const archTitle = document.querySelector('#architecture .section-title');
+            if (archTitle) archTitle.innerText = data.archTitle;
+            const archSubtitle = document.querySelector('#architecture .section-subtitle');
+            if (archSubtitle) archSubtitle.innerText = data.archSubtitle;
+            const flowTitle = document.querySelector('#architecture .architecture-container h3');
+            if (flowTitle) flowTitle.innerText = data.archFlowTitle;
+
+            const nodes = document.querySelectorAll('#architecture .arch-node');
+            nodes.forEach((node, idx) => {
+                const item = data.archNodes[idx];
+                if (item) {
+                    const titleEl = node.querySelector('.arch-node-title');
+                    const svg = titleEl.querySelector('svg');
+                    titleEl.innerHTML = '';
+                    if (svg) titleEl.appendChild(svg);
+                    titleEl.appendChild(document.createTextNode(' ' + item.title));
+                    node.querySelector('.arch-node-desc').innerText = item.desc;
+                }
+            });
+
+            const treeTitle = document.querySelector('.package-tree h3');
+            if (treeTitle) treeTitle.innerText = data.treeTitle;
+            const treeSubtitle = document.querySelector('.package-tree p');
+            if (treeSubtitle) treeSubtitle.innerText = data.treeSubtitle;
+
+            // 5. User Guide
+            const tutoTag = document.querySelector('#tutorial .section-tag');
+            if (tutoTag) tutoTag.innerText = data.tutoTag;
+            const tutoTitle = document.querySelector('#tutorial .section-title');
+            if (tutoTitle) tutoTitle.innerText = data.tutoTitle;
+            const tutoSubtitle = document.querySelector('#tutorial .section-subtitle');
+            if (tutoSubtitle) tutoSubtitle.innerText = data.tutoSubtitle;
+
+            const tabBtns = document.querySelectorAll('#tutorial .tab-btn');
+            tabBtns.forEach((btn, idx) => {
+                if (data.tutoTabs[idx]) btn.innerText = data.tutoTabs[idx];
+            });
+
+            // Translate Tutorial Steps for each Tab
+            const installSteps = document.querySelectorAll('#tab-install .guide-step');
+            installSteps.forEach((step, idx) => {
+                const item = data.tutoStepsInstall[idx];
+                if (item) {
+                    const titleEl = step.querySelector('.guide-step-title');
+                    const numSpan = titleEl.querySelector('.step-num');
+                    titleEl.innerHTML = '';
+                    if (numSpan) titleEl.appendChild(numSpan);
+                    titleEl.appendChild(document.createTextNode(item.title));
+                    step.querySelector('p').innerHTML = item.desc;
+                }
+            });
+
+            const cliSteps = document.querySelectorAll('#tab-cli .guide-step');
+            cliSteps.forEach((step, idx) => {
+                const item = data.tutoStepsCli[idx];
+                if (item) {
+                    const titleEl = step.querySelector('.guide-step-title');
+                    const numSpan = titleEl.querySelector('.step-num');
+                    titleEl.innerHTML = '';
+                    if (numSpan) titleEl.appendChild(numSpan);
+                    titleEl.appendChild(document.createTextNode(item.title));
+                    step.querySelector('p').innerHTML = item.desc;
+                }
+            });
+
+            const mcpSteps = document.querySelectorAll('#tab-mcp .guide-step');
+            mcpSteps.forEach((step, idx) => {
+                const item = data.tutoStepsMcp[idx];
+                if (item) {
+                    const titleEl = step.querySelector('.guide-step-title');
+                    const numSpan = titleEl.querySelector('.step-num');
+                    titleEl.innerHTML = '';
+                    if (numSpan) titleEl.appendChild(numSpan);
+                    titleEl.appendChild(document.createTextNode(item.title));
+                    step.querySelector('p').innerHTML = item.desc;
+                }
+            });
+
+            const prodSteps = document.querySelectorAll('#tab-prod .guide-step');
+            prodSteps.forEach((step, idx) => {
+                const item = data.tutoStepsProd[idx];
+                if (item) {
+                    const titleEl = step.querySelector('.guide-step-title');
+                    const numSpan = titleEl.querySelector('.step-num');
+                    titleEl.innerHTML = '';
+                    if (numSpan) titleEl.appendChild(numSpan);
+                    titleEl.appendChild(document.createTextNode(item.title));
+                    step.querySelector('p').innerHTML = item.desc;
+                }
+            });
+
+            // 6. Benchmark
+            const benchTag = document.querySelector('#benchmark .section-tag');
+            if (benchTag) benchTag.innerText = data.benchTag;
+            const benchTitle = document.querySelector('#benchmark .section-title');
+            if (benchTitle) benchTitle.innerText = data.benchTitle;
+            const benchSubtitle = document.querySelector('#benchmark .section-subtitle');
+            if (benchSubtitle) benchSubtitle.innerText = data.benchSubtitle;
+
+            const benchCards = document.querySelectorAll('#benchmark .bench-card');
+            if (benchCards[0]) {
+                const titleEl = benchCards[0].querySelector('.bench-card-title');
+                const svg = titleEl.querySelector('svg');
+                titleEl.innerHTML = '';
+                if (svg) titleEl.appendChild(svg);
+                titleEl.appendChild(document.createTextNode(' ' + data.benchCard1Title));
+                benchCards[0].querySelector('p').innerHTML = data.benchCard1Desc;
+            }
+            if (benchCards[1]) {
+                const titleEl = benchCards[1].querySelector('.bench-card-title');
+                const svg = titleEl.querySelector('svg');
+                titleEl.innerHTML = '';
+                if (svg) titleEl.appendChild(svg);
+                titleEl.appendChild(document.createTextNode(' ' + data.benchCard2Title));
+                benchCards[1].querySelector('p').innerHTML = data.benchCard2Desc;
             }
 
-            // Traverse and translate entire DOM dynamically
-            const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-            let node;
-            while (node = walk.nextNode()) {
-                const text = node.nodeValue.trim();
-                if (currentLang === 'en') {
-                    if (textTranslations[text]) {
-                        node.nodeValue = textTranslations[text];
-                    }
-                } else if (currentLang === 'zh') {
-                    // Reverse translate
-                    for (const [zhKey, enVal] of Object.entries(textTranslations)) {
-                        if (text === enVal) {
-                            node.nodeValue = zhKey;
-                            break;
-                        }
-                    }
+            const gauges = document.querySelectorAll('#benchmark .gauge-label');
+            gauges.forEach((label, idx) => {
+                if (data.benchGauges[idx]) label.innerText = data.benchGauges[idx];
+            });
+
+            const ablations = document.querySelectorAll('#benchmark .ablation-bar-label span:first-child');
+            ablations.forEach((lbl, idx) => {
+                if (data.benchAblations[idx]) lbl.innerText = data.benchAblations[idx];
+            });
+            const ablationStats = document.querySelectorAll('#benchmark .ablation-stat');
+            ablationStats.forEach((stat, idx) => {
+                if (data.benchAblationStats[idx]) stat.innerText = data.benchAblationStats[idx];
+            });
+
+            const conclusionDiv = document.querySelector('#benchmark .bench-card div[style*="background"]');
+            if (conclusionDiv) conclusionDiv.innerHTML = data.conclusion;
+
+            // 7. Comparison
+            const compTag = document.querySelector('#comparison .section-tag');
+            if (compTag) compTag.innerText = data.compTag;
+            const compTitle = document.querySelector('#comparison .section-title');
+            if (compTitle) compTitle.innerText = data.compTitle;
+            const compSubtitle = document.querySelector('#comparison .section-subtitle');
+            if (compSubtitle) compSubtitle.innerText = data.compSubtitle;
+
+            const headers = document.querySelectorAll('#comparison table th');
+            headers.forEach((th, idx) => {
+                if (data.compHeaders[idx]) th.innerHTML = data.compHeaders[idx];
+            });
+
+            const tableRows = document.querySelectorAll('#comparison table tbody tr');
+            tableRows.forEach((row, rowIdx) => {
+                const cells = row.querySelectorAll('td');
+                const rowData = data.compRows[rowIdx];
+                if (rowData) {
+                    cells.forEach((cell, cellIdx) => {
+                        if (rowData[cellIdx]) cell.innerHTML = rowData[cellIdx];
+                    });
                 }
-            }
+            });
+
+            const marketCards = document.querySelectorAll('#comparison .market-card');
+            marketCards.forEach((card, idx) => {
+                const item = data.marketCards[idx];
+                if (item) {
+                    const titleEl = card.querySelector('.market-card-title');
+                    const svg = titleEl.querySelector('svg');
+                    titleEl.innerHTML = '';
+                    if (svg) titleEl.appendChild(svg);
+                    titleEl.appendChild(document.createTextNode(' ' + item.title));
+                    card.querySelector('.market-card-desc').innerHTML = item.desc;
+                }
+            });
+
+            // 8. Footer
+            const footerDesc = document.querySelector('footer .footer-desc');
+            if (footerDesc) footerDesc.innerText = data.footerDesc;
+            const footerLinks = document.querySelectorAll('footer .footer-links a');
+            footerLinks.forEach((link, idx) => {
+                if (data.footerLinks[idx]) link.innerText = data.footerLinks[idx];
+            });
 
             // Click the currently active tree item to refresh it with new language translations
             const activeTreeItem = document.querySelector('.tree-item[style*="color: var(--primary-light)"]') || document.querySelector('.tree-item[style*="color: rgb(52, 211, 153)"]');
@@ -1134,7 +1020,6 @@ lhic run action action.json approval.json</code></pre>
                 return currentData[prop as keyof typeof packageDataZH];
             }
         });
-
         const treeItems = document.querySelectorAll('.tree-item');
         const displayDiv = document.getElementById('package-display');
 
