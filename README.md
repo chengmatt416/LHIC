@@ -13,8 +13,8 @@ model or MCP server.
 
 - **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Each Fast Path action has **zero LLM calls** and therefore incurs no LLM-token cost; latency and success claims are reported only from the included controlled benchmarks.
 - **Global Desktop Control**: Executes approved native actions across macOS, Windows, and Linux: focus or launch apps, type, press hotkeys, and click. Every desktop action requires a matching human approval and a post-action window or process verifier.
-- **Self-Healing Semantic Locators**: Immune to typical website updates. Outperforms traditional static CSS/XPath selectors by **+80% success rate** under layout modifications.
-- **State-of-the-Art Security & KMS**:
+- **Semantic Locator Resilience**: In the included 100-task, five-layout local ablation, verified semantic targeting succeeds on all fixtures while the intentionally limited static-selector baseline succeeds on 20%; this is an 80-percentage-point controlled result, not a general web benchmark.
+- **Security & KMS Controls**:
   - **KmsKeyManager**: Integrates AWS KMS, GCP KMS, and HashiCorp Vault key verification for high-risk actions.
   - **AES-256-GCM Encryption**: Secure software-based database-level static encryption for sensitive user cookies and sessions.
   - **PII & Credential Guard**: Automatically redacts credentials, passwords, and personally identifiable information from all system traces.
@@ -184,6 +184,7 @@ Judge-facing material is collected in the following documents:
 - [Benchmark methodology](docs/benchmark-methodology.md): controlled-fixture scope and limitations.
 - [Reproducibility](docs/reproducibility.md), [troubleshooting](docs/troubleshooting.md), and [known limitations](docs/known-limitations.md).
 - [Codex collaboration](docs/codex-usage.md) and the [recording script](docs/demo-script.md).
+- [Devpost submission draft](docs/devpost-submission.md), with owner-only evidence fields clearly separated from verified repository facts.
 
 The remaining submission-only evidence—public video URL, Devpost entry,
 official `/feedback` session ID, clean-room platform matrix, and release

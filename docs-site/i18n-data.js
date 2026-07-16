@@ -216,14 +216,14 @@ const i18nPage = {
     ],
     benchCard2Title: "網頁變動抗變性消融模擬",
     benchCard2Desc:
-      "模擬在 5 種不同 UI 排版與命名變體下，表單填寫動作的成功率對比。此實驗是客觀反映語意定位器抗變性價值的核心指標。",
+      "以固定 seed 的 100 個本機任務，模擬 5 種 UI 排版與命名變體下的表單填寫。這是受控工程消融，不是公開網站或市場 benchmark。",
     benchAblations: [
       "LHIC Semantic 定量 (ARIA / Label 關聯)",
       "Brittle CSS Selector 定位 (固定 Selector 基準線)",
     ],
-    benchAblationStats: ["98% 成功率", "42% 成功率"],
+    benchAblationStats: ["100% 成功率", "20% 成功率"],
     benchConclusion:
-      "<strong>消融結果結論：</strong> 語意定位成功處理了 Aria-Label、包裹關聯 (wrapping)、Placeholder 以及動態 ID 的隨機變異，相較於固定靜態 CSS Selector 技術展現了顯著的<strong>超 50% 點受控優勢 (Controlled Advantage)</strong>。",
+      "<strong>消融結果結論：</strong> 在這個固定的 100-task 本機 fixture 中，語意定位處理了 ARIA label、包裹 label 與 placeholder 變體；相對於刻意侷限的固定 selector baseline，觀察到<strong>80 個百分點的受控優勢</strong>。不可用於 SOTA 或一般化主張。",
     compTag: "Comparison",
     compTitle: "與現有 Computer Use 解決方案的差異",
     compSubtitle:
@@ -488,7 +488,7 @@ const i18nPage = {
     benchTag: "Performance & Testing",
     benchTitle: "Benchmarks & Validation",
     benchSubtitle:
-      "LHIC enforces localized regression metrics to ensure updates maintain SOTA stability.",
+      "LHIC uses local regression metrics to catch changes in supported workflows; they are not market or SOTA measurements.",
     benchCard1Title: "Regression Suite (50 Fixtures)",
     benchCard1Desc:
       "Composed of local test runs (10 variants each). The following targets define core acceptance criteria:",
@@ -500,14 +500,14 @@ const i18nPage = {
     ],
     benchCard2Title: "Ablation Simulation Study",
     benchCard2Desc:
-      "Compares success rates across 5 UI layout ablate variants. This study isolates the value of semantic self-healing locator strategies.",
+      "Runs 100 fixed-seed local tasks across five UI layout and naming variants. This is a controlled engineering ablation, not a public-web or market benchmark.",
     benchAblations: [
       "LHIC Semantic Targeting (ARIA/Label)",
       "Brittle CSS Targeting (Baseline)",
     ],
-    benchAblationStats: ["98% Success", "42% Success"],
+    benchAblationStats: ["100% Success", "20% Success"],
     benchConclusion:
-      "<strong>Ablation Conclusion:</strong> Semantic positioning resolves Aria-Labels, element wrapping, placeholders, and dynamic IDs, demonstrating a robust <strong>50% controlled success advantage</strong>.",
+      "<strong>Ablation Conclusion:</strong> On this fixed 100-task local fixture, semantic targeting handles ARIA labels, wrapped labels, and placeholders. Against the intentionally limited static-selector baseline it shows an <strong>80-percentage-point controlled advantage</strong>; it does not support SOTA or general-web claims.",
     compTag: "Comparison",
     compTitle: "Comparison with Existing Solutions",
     compSubtitle:
