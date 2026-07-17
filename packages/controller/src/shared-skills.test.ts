@@ -183,6 +183,25 @@ describe("shared skill publication and resolver", () => {
     }
   });
 
+  it("ignores changing non-control page content in the UI fingerprint", () => {
+    const withChangingLinks = {
+      ...request.uiState,
+      objects: [
+        ...request.uiState.objects,
+        {
+          id: "news-link",
+          role: "link",
+          label: "Breaking news headline",
+          enabled: true,
+          source: "dom" as const,
+        },
+      ],
+    };
+    expect(createSharedSkillFingerprint(withChangingLinks)).toBe(
+      createSharedSkillFingerprint(request.uiState),
+    );
+  });
+
   it("fails closed when an approved record contains an unbound redacted value", () => {
     const database = createMemoryDatabase();
     try {

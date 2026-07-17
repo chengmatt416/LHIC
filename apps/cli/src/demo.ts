@@ -31,13 +31,20 @@ export interface JudgeDemoReport {
   notes: string[];
 }
 
+export interface JudgeDemoOptions {
+  viewable?: boolean;
+  waitForClose?: () => Promise<void>;
+}
+
 /**
  * Runs a credential-free local browser fixture, demonstrates the approval
  * boundary, and optionally exercises GPT-5.6 when its Slow Path is enabled.
  */
-export async function runJudgeDemo(): Promise<JudgeDemoReport> {
+export async function runJudgeDemo(
+  options: JudgeDemoOptions = {},
+): Promise<JudgeDemoReport> {
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "lhic-demo-"));
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: !options.viewable });
   try {
     const page = await browser.newPage();
     await page.setContent(
@@ -81,7 +88,7 @@ export async function runJudgeDemo(): Promise<JudgeDemoReport> {
     );
     const approvalPassed = approvalDecision.path === "ask_user";
 
-    return {
+    const report = {
       passed: localResult.success && approvalPassed,
       localExecution: {
         passed: localResult.success,
@@ -102,6 +109,8 @@ export async function runJudgeDemo(): Promise<JudgeDemoReport> {
         "Set OPENAI_SLOW_PATH_ENABLED=true and OPENAI_API_KEY to include a live GPT-5.6 planning request; Fast Path remains model-free.",
       ],
     };
+    if (options.viewable) await options.waitForClose?.();
+    return report;
   } finally {
     await browser.close();
     await rm(temporaryDirectory, { recursive: true, force: true });

@@ -1,4 +1,5 @@
 export * from "./action.js";
+export * from "./browser-plan.js";
 export * from "./intent.js";
 export * from "./risk.js";
 export * from "./trace.js";

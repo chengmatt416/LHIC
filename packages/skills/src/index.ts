@@ -6,3 +6,4 @@ export * from "./search.js";
 export * from "./skill-types.js";
 export * from "./test-web-flow.js";
 export * from "./os-bridge.js";
+export * from "./public-web-training.js";

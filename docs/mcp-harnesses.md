@@ -134,7 +134,7 @@ Create `.vscode/mcp.json` with the workspace-scoped configuration:
 Use **MCP: List Servers** to start and inspect it. VS Code presents a trust
 decision for local servers; do not enable it in an untrusted checkout.
 
-## Tool-use contract for every harness
+## Slow Path tool-use contract
 
 1. Optionally call `lhic_runtime_status` to inspect the local runtime and
    `lhic_skills_list` and `lhic_selector_memory_list` to inspect redacted
@@ -147,6 +147,20 @@ decision for local servers; do not enable it in an untrusted checkout.
 5. Never fabricate `ActionApproval`; acquire human confirmation for high- or
    unknown-risk work.
 6. Call `lhic_browser_close` when the workflow ends.
+
+## Fast Path batch contract
+
+For a similar learned task, the harness may make one model call to compile a
+complete `browser-plan-v1` (ordered semantic actions, a required verifier per
+action, and any explicit variables). Submit it once with
+`lhic_browser_execute_plan`. LHIC validates and executes the plan through
+local Playwright without invoking a model or MCP again during execution.
+
+The batch stops before click, key-press, download, high-risk, or unknown-risk
+steps and returns `awaiting_approval` plus the pending step metadata. Acquire
+a real human `ActionApproval`, then call `lhic_browser_resume_plan`; do not
+re-plan with the model. A failed verifier stops the batch and should start a
+new Slow Path instead.
 
 `lhic_browser_observe` is marked read-only and idempotent in MCP metadata;
 state-changing tools are conservatively marked for approval-aware clients.

@@ -21,6 +21,13 @@ It exposes a small browser computer-use MCP surface that feeds validated
 semantic actions into the same local executor; it is outside the Fast Path and
 does not make Antigravity a Slow Path provider.
 
+An external harness may also compile one `browser-plan-v1` with its LLM and
+send it to the MCP batch executor. That single planning request happens before
+LHIC Fast execution: the local batch runner then executes direct Playwright
+actions, verifier checks, and human approval pauses without model calls. Slow
+Path remains the one-action/one-observation tool loop, so the model can
+intervene after every action result.
+
 `@lhic/controller` routes only low-risk predictions with confidence at least 0.8 to the Fast Path. Ambiguity goes to a provider-agnostic Slow Path interface, while high or unknown risk asks the user for confirmation.
 
 The executor repeats this check at its own boundary and binds an approval to a hash of the exact action with a short expiry. In production, `createProductionExecutor` consumes the validated runtime configuration so navigation targets, timeouts, and trace location cannot be silently omitted by a caller.

@@ -199,6 +199,7 @@ export function createSharedSkillFingerprint(
 ): string {
   const origin = uiState.url ? safeOrigin(uiState.url) : "";
   const structure = uiState.objects
+    .filter((object) => isStableInteractiveControl(object.role))
     .map((object) => ({
       role: object.role ?? "",
       enabled: object.enabled !== false,
@@ -208,6 +209,18 @@ export function createSharedSkillFingerprint(
       JSON.stringify(left).localeCompare(JSON.stringify(right)),
     );
   return hashCanonical({ surface: uiState.surface, origin, structure });
+}
+
+function isStableInteractiveControl(role: string | undefined): boolean {
+  return [
+    "button",
+    "textbox",
+    "searchbox",
+    "combobox",
+    "checkbox",
+    "radio",
+    "switch",
+  ].includes(role ?? "");
 }
 
 function resolveCandidate(

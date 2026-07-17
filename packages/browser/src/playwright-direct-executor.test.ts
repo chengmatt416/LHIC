@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -126,6 +126,150 @@ describe("PlaywrightDirectExecutor", () => {
     ).toMatchObject({ success: true, method: "dom" });
     expect(await page.locator("#kind").inputValue()).toBe("books");
     expect(await page.locator("#status").textContent()).toBe("Ready");
+  });
+
+  it("fills a searchbox before a same-named button", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div role="searchbox" aria-label="Search" contenteditable="true"></div>
+      <button>Search</button>
+    `);
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "searchbox-target",
+      traceFilePath: join(tmpdir(), `lhic-searchbox-${Date.now()}.jsonl`),
+    });
+
+    await expect(
+      executor.execute({
+        type: "fill",
+        intent: "fill documentation search",
+        target: "Search",
+        value: "grid layout",
+        methodPreference: ["accessibility"],
+        riskLevel: "low",
+      }),
+    ).resolves.toMatchObject({ success: true, method: "accessibility" });
+    expect(await page.getByRole("searchbox").textContent()).toBe("grid layout");
+  });
+
+  it("clicks a visible button before a hidden same-named searchbox", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(`
+      <input type="search" aria-label="Search" hidden>
+      <button>Search</button>
+      <p id="result"></p>
+      <script>document.querySelector('button').addEventListener('click', () => { document.querySelector('#result').textContent = 'opened'; });</script>
+    `);
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "search-trigger-target",
+      traceFilePath: join(tmpdir(), `lhic-search-trigger-${Date.now()}.jsonl`),
+    });
+
+    await expect(
+      executor.execute({
+        type: "click",
+        intent: "open documentation search",
+        target: "Search",
+        methodPreference: ["accessibility"],
+        riskLevel: "low",
+      }),
+    ).resolves.toMatchObject({ success: true, method: "accessibility" });
+    expect(await page.locator("#result").textContent()).toBe("opened");
+  });
+
+  it("downloads through Playwright and redacts non-PII form values from demo traces", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(
+      '<input id="query"><a id="download" href="data:text/plain,report" download="report.txt">Download report</a>',
+    );
+    const directory = await mkdtemp(join(tmpdir(), "lhic-download-"));
+    try {
+      const executor = new PlaywrightDirectExecutor(page, {
+        taskId: "download-task",
+        traceFilePath: join(directory, "events.jsonl"),
+        downloadDirectory: join(directory, "downloads"),
+        redactActionValues: true,
+      });
+      await expect(
+        executor.execute({
+          type: "fill",
+          intent: "fill search query",
+          target: "#query",
+          value: "non-sensitive-private-query",
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        }),
+      ).resolves.toMatchObject({ success: true });
+      await expect(
+        executor.execute(
+          {
+            type: "download",
+            intent: "download report",
+            target: "#download",
+            methodPreference: ["dom"],
+            riskLevel: "low",
+          },
+          createActionApproval(
+            {
+              type: "download",
+              intent: "download report",
+              target: "#download",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            "operator@example.test",
+          ),
+        ),
+      ).resolves.toMatchObject({
+        success: true,
+        evidence: [expect.stringContaining("Downloaded one file")],
+      });
+      expect(await readdir(join(directory, "downloads"))).toEqual([
+        "report.txt",
+      ]);
+      const trace = await readFile(join(directory, "events.jsonl"), "utf8");
+      expect(trace).not.toContain("non-sensitive-private-query");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("redacts a failed action value from Playwright error trace data", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<input id="hidden-query" hidden>');
+    const directory = await mkdtemp(join(tmpdir(), "lhic-redacted-failure-"));
+    const query = "trace-private-query";
+
+    try {
+      const result = await new PlaywrightDirectExecutor(page, {
+        taskId: "redacted-failure",
+        traceFilePath: join(directory, "events.jsonl"),
+        actionTimeoutMs: 100,
+        redactActionValues: true,
+      }).execute({
+        type: "fill",
+        intent: "fill hidden query",
+        target: "#hidden-query",
+        value: query,
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      });
+
+      expect(result.success).toBe(false);
+      const trace = await readFile(join(directory, "events.jsonl"), "utf8");
+      expect(trace).not.toContain(query);
+      expect(trace).toContain("[REDACTED]");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("retains a stable selector and heals a renamed direct selector", async () => {

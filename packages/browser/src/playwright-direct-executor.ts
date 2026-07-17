@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { mkdir, stat } from "node:fs/promises";
+import { basename, join } from "node:path";
 
 import type {
   ActionExecutionResult,
@@ -49,6 +50,10 @@ export interface PlaywrightDirectExecutorOptions {
       verification: unknown,
     ): boolean;
   };
+  /** Do not persist action values to the trace file. */
+  redactActionValues?: boolean;
+  /** Directory used by supported semantic download actions. */
+  downloadDirectory?: string;
 }
 
 export interface NavigationPolicy {
@@ -75,6 +80,8 @@ export class PlaywrightDirectExecutor {
   private readonly maxWaitMs: number;
   private readonly approvalValidation: ActionApprovalValidationOptions;
   private readonly selectorMemory?: PlaywrightDirectExecutorOptions["selectorMemory"];
+  private readonly redactActionValues: boolean;
+  private readonly downloadDirectory: string;
 
   public constructor(
     private readonly page: Page,
@@ -96,6 +103,8 @@ export class PlaywrightDirectExecutor {
     );
     this.approvalValidation = options.approvalValidation ?? {};
     this.selectorMemory = options.selectorMemory;
+    this.redactActionValues = options.redactActionValues ?? false;
+    this.downloadDirectory = options.downloadDirectory ?? "downloads";
     this.page.setDefaultTimeout(this.actionTimeoutMs);
   }
 
@@ -135,6 +144,11 @@ export class PlaywrightDirectExecutor {
       await this.waitForStability();
 
       const resolvedActionTarget = await this.resolveActionTarget(action);
+      if (action.type === "click" && resolvedActionTarget?.href) {
+        this.validateNavigationTarget(
+          new URL(resolvedActionTarget.href, this.page.url()).toString(),
+        );
+      }
       const approvalDecision = validateActionApproval(
         action,
         approval,
@@ -161,6 +175,7 @@ export class PlaywrightDirectExecutor {
           `Resolved ${outcome.method} method is not permitted for this action.`,
         );
       }
+      this.validateCurrentPageOrigin();
 
       // Store only the target strategy that produced a successful local action.
       if (
@@ -301,10 +316,11 @@ export class PlaywrightDirectExecutor {
         return { method: "dom", evidence: [`Waited ${timeout} ms.`] };
       }
       case "download":
-      case "custom":
-        throw new Error(
-          `${action.type} is not a direct executor action; use its dedicated skill or human confirmation.`,
+        return this.download(
+          resolvedActivationTarget ?? (await this.requireTarget(action)),
         );
+      case "custom":
+        throw new Error("custom is not a direct executor action.");
     }
   }
 
@@ -325,11 +341,30 @@ export class PlaywrightDirectExecutor {
   ): Promise<ResolvedTarget | undefined> {
     if (
       !action.target ||
-      !["click", "fill", "select", "press"].includes(action.type)
+      !["click", "fill", "select", "press", "download"].includes(action.type)
     ) {
       return undefined;
     }
     return this.requireTarget(action);
+  }
+
+  private async download(
+    target: ResolvedTarget,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const downloadPromise = this.page.waitForEvent("download", {
+      timeout: this.actionTimeoutMs,
+    });
+    await target.locator.click();
+    const download = await downloadPromise;
+    const fileName = basename(download.suggestedFilename());
+    await mkdir(this.downloadDirectory, { recursive: true });
+    const filePath = join(this.downloadDirectory, fileName);
+    await download.saveAs(filePath);
+    const fileStats = await stat(filePath);
+    return {
+      method: target.method,
+      evidence: [`Downloaded one file (${fileStats.size} bytes).`],
+    };
   }
 
   private validateNavigationTarget(target: string): void {
@@ -365,20 +400,79 @@ export class PlaywrightDirectExecutor {
     }
   }
 
+  private validateCurrentPageOrigin(): void {
+    const currentUrl = this.page.url();
+    if (
+      this.navigationPolicy.allowedOrigins?.length &&
+      currentUrl !== "about:blank"
+    ) {
+      this.validateNavigationTarget(currentUrl);
+    }
+  }
+
   private async trace(
     type: string,
     payload: Record<string, unknown>,
     riskLevel?: TraceEvent["riskLevel"],
   ): Promise<void> {
+    const safePayload = this.redactActionValues
+      ? redactActionInputs(payload)
+      : payload;
     await appendTraceEvent(this.traceFilePath, {
       eventId: randomUUID(),
       taskId: this.taskId,
       timestamp: new Date().toISOString(),
       type,
-      payload,
+      payload: safePayload,
       ...(riskLevel ? { riskLevel } : {}),
     });
   }
+}
+
+function redactActionInputs(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const action = payload.action;
+  if (!action || typeof action !== "object") return payload;
+  const safeAction = { ...(action as Record<string, unknown>) };
+  const actionValue = safeAction.value;
+  if ("value" in safeAction) safeAction.value = "[REDACTED]";
+  const result = payload.result;
+  if (
+    typeof actionValue !== "string" ||
+    !result ||
+    typeof result !== "object" ||
+    typeof (result as { error?: unknown }).error !== "string"
+  ) {
+    return { ...payload, action: safeAction };
+  }
+  return {
+    ...payload,
+    action: safeAction,
+    result: {
+      ...(result as Record<string, unknown>),
+      error: redactActionValueFromError(
+        (result as { error: string }).error,
+        actionValue,
+      ),
+    },
+  };
+}
+
+function redactActionValueFromError(error: string, value: string): string {
+  const encodedValue = encodeURIComponent(value);
+  const variants = new Set([
+    value,
+    encodedValue,
+    encodedValue.replaceAll("%20", "+"),
+  ]);
+  return [...variants]
+    .filter((variant) => variant.length > 0)
+    .sort((left, right) => right.length - left.length)
+    .reduce(
+      (safeError, variant) => safeError.replaceAll(variant, "[REDACTED]"),
+      error,
+    );
 }
 
 export function createProductionExecutor(

@@ -44,6 +44,13 @@ describe("VerifierEngine", () => {
     ).resolves.toMatchObject({ success: true });
     await expect(
       engine.verify({
+        type: "dom",
+        description: "named searchbox",
+        params: { role: "searchbox", name: "Search", state: "visible" },
+      }),
+    ).resolves.toMatchObject({ success: false });
+    await expect(
+      engine.verify({
         type: "url",
         description: "blank url",
         params: { contains: "about:blank" },
@@ -51,11 +58,35 @@ describe("VerifierEngine", () => {
     ).resolves.toMatchObject({ success: true });
     await expect(
       engine.verify({
+        type: "url",
+        description: "different URL",
+        params: { notEquals: "about:blank" },
+      }),
+    ).resolves.toMatchObject({ success: false });
+    await expect(
+      engine.verify({
         type: "custom",
         description: "not implemented",
         params: {},
       }),
     ).resolves.toMatchObject({ success: false });
+  });
+
+  it("verifies a semantic role without relying on page text", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(
+      '<div role="searchbox" aria-label="Search" contenteditable="true"></div>',
+    );
+
+    await expect(
+      new VerifierEngine({ page }).verify({
+        type: "dom",
+        description: "search panel is ready",
+        params: { role: "searchbox", name: "Search", state: "visible" },
+      }),
+    ).resolves.toMatchObject({ success: true });
   });
 
   it("verifies files and network observations", async () => {

@@ -8,6 +8,7 @@
     "outDir": "./dist"
   },
   "references": [
+    { "path": "../../packages/controller" },
     { "path": "../../packages/memory" },
     { "path": "../../packages/schema" },
     { "path": "../../packages/security" },

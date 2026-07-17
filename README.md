@@ -107,6 +107,17 @@ modifies client configuration automatically:
 npx @pinyencheng/lhic mcp config codex
 ```
 
+For a local graphical companion, run the visible learning Demo or generate a
+reviewable MCP client configuration in a browser tab:
+
+```bash
+npx @pinyencheng/lhic gui
+npx @pinyencheng/lhic gui mcp
+```
+
+The companion binds only to loopback, requires a per-launch capability token,
+and does not modify MCP client configuration automatically.
+
 Run preflight environment verification:
 
 ```bash

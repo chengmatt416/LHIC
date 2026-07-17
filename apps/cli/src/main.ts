@@ -10,6 +10,10 @@ import { inspectGlobalControlCapability } from "@lhic/skills";
 
 import { runInternalBenchmark } from "./internal-benchmark.js";
 import { runJudgeDemo } from "./demo.js";
+import { parseDemoCommandOptions } from "./demo-command-options.js";
+import { startGuiCompanion } from "./gui-companion.js";
+import { parseGuiCommandOptions } from "./gui-command-options.js";
+import { runInteractiveDemo } from "./interactive-demo.js";
 import {
   readExternalBenchmarkEvidence,
   validateExternalBenchmarkEvidence,
@@ -27,6 +31,11 @@ import { runActionFile } from "./run-action.js";
 import { runSelectorResilienceSimulation } from "./selector-resilience-simulation.js";
 import { runSharedCommand } from "./shared-skills.js";
 import { startLocalRuntime } from "./start.js";
+import {
+  parsePublicWebTrainingOptions,
+  runPublicWebTraining,
+} from "./public-web-training.js";
+import { runGameTrainingCommand } from "./game-training.js";
 import {
   cliUsage,
   createTerminalPrompter,
@@ -54,10 +63,13 @@ async function runGuidedCli(
   prompter: ReturnType<typeof createTerminalPrompter>,
 ): Promise<void> {
   const guidedArguments = await guideCliArguments(argumentsList, prompter);
-  await runCommand(guidedArguments);
+  await runCommand(guidedArguments, prompter);
 }
 
-async function runCommand(argumentsList: string[]): Promise<void> {
+async function runCommand(
+  argumentsList: string[],
+  prompter: ReturnType<typeof createTerminalPrompter>,
+): Promise<void> {
   const [command, subcommand, argument] = argumentsList;
   if (command === "start") {
     const result = await startLocalRuntime(subcommand);
@@ -65,17 +77,70 @@ async function runCommand(argumentsList: string[]): Promise<void> {
     return;
   }
   if (command === "demo") {
-    const report = await runJudgeDemo();
+    const demoOptions = parseDemoCommandOptions(argumentsList.slice(1));
+    if (!demoOptions.safe) {
+      await runInteractiveDemo(prompter, {
+        ...(demoOptions.endpoint === undefined
+          ? {}
+          : { endpoint: demoOptions.endpoint }),
+      });
+      return;
+    }
+    if (demoOptions.viewable && !prompter.interactive) {
+      throw new Error(
+        "demo --safe --viewable requires an interactive terminal.",
+      );
+    }
+    const report = await runJudgeDemo({
+      viewable: demoOptions.viewable,
+      ...(demoOptions.viewable
+        ? {
+            waitForClose: async () => {
+              await prompter.prompt(
+                "Safe demo is visible. Press Enter to close the browser",
+              );
+            },
+          }
+        : {}),
+    });
     console.log(JSON.stringify(report, null, 2));
     if (!report.passed) {
       process.exitCode = 1;
     }
     return;
   }
+  if (command === "gui") {
+    const guiOptions = parseGuiCommandOptions(argumentsList.slice(1));
+    const companion = await startGuiCompanion({
+      initialTab: guiOptions.initialTab,
+      ...(guiOptions.openBrowser ? {} : { openBrowser: async () => undefined }),
+    });
+    console.log(`LHIC GUI Companion: ${companion.url}`);
+    console.log("Keep this terminal open while using the local companion.");
+    return;
+  }
   if (command === "shared") {
     const result = await runSharedCommand(subcommand, argumentsList.slice(2));
     console.log(JSON.stringify(result, null, 2));
     if (result.lastError) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (command === "train" && subcommand === "public-web") {
+    const result = await runPublicWebTraining(
+      parsePublicWebTrainingOptions(argumentsList.slice(2)),
+    );
+    console.log(JSON.stringify(result, null, 2));
+    if (result.sharedSkills.enabled && result.sharedSkills.lastError) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (command === "train" && subcommand === "game") {
+    const result = await runGameTrainingCommand(argumentsList.slice(2));
+    console.log(JSON.stringify(result, null, 2));
+    if (result.passed === false) {
       process.exitCode = 1;
     }
     return;

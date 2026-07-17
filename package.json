@@ -13,7 +13,7 @@
     "services/*"
   ],
   "scripts": {
-    "build": "tsc -b --pretty false",
+    "build": "tsc -b --pretty false && node apps/cli/scripts/prepare-package.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",

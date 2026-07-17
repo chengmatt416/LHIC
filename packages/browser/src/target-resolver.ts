@@ -6,6 +6,7 @@ export interface ResolvedTarget {
   method: Extract<ActionMethod, "dom" | "accessibility">;
   description: string;
   safetyText: string;
+  href?: string;
   memory: SelectorMemoryCandidate;
 }
 
@@ -20,7 +21,7 @@ interface SelectorMemoryLookup extends SelectorMemoryCandidate {
 }
 
 type AccessibilityKind =
-  "label" | "button" | "link" | "textbox" | "combobox" | "text";
+  "label" | "button" | "link" | "textbox" | "searchbox" | "combobox" | "text";
 
 async function matchCount(locator: Locator): Promise<number> {
   try {
@@ -49,14 +50,11 @@ export async function resolveTarget(
     );
   }
 
-  const accessibleCandidates: Array<[AccessibilityKind, Locator]> = [
-    ["label", page.getByLabel(target, { exact: true })],
-    ["button", page.getByRole("button", { name: target, exact: true })],
-    ["link", page.getByRole("link", { name: target, exact: true })],
-    ["textbox", page.getByRole("textbox", { name: target, exact: true })],
-    ["combobox", page.getByRole("combobox", { name: target, exact: true })],
-    ["text", page.getByText(target, { exact: true })],
-  ];
+  const accessibleCandidates = accessibilityCandidatesFor(
+    page,
+    target,
+    skillName,
+  );
 
   for (const [kind, locator] of accessibleCandidates) {
     const count = await matchCount(locator);
@@ -128,6 +126,7 @@ async function resolvedTarget(
         .filter(Boolean)
         .join(" "),
       selector,
+      href: element.getAttribute("href") ?? undefined,
     };
   });
   return {
@@ -135,6 +134,7 @@ async function resolvedTarget(
     method,
     description,
     safetyText: inspected.safetyText,
+    ...(inspected.href ? { href: inspected.href } : {}),
     memory: memory ?? { selector: inspected.selector ?? fallbackSelector },
   };
 }
@@ -197,6 +197,8 @@ function historicalAccessibleLocator(
       return page.getByRole("link", { name: label, exact: true });
     case "textbox":
       return page.getByRole("textbox", { name: label, exact: true });
+    case "searchbox":
+      return page.getByRole("searchbox", { name: label, exact: true });
     case "combobox":
       return page.getByRole("combobox", { name: label, exact: true });
     case "text":
@@ -204,4 +206,48 @@ function historicalAccessibleLocator(
     default:
       return undefined;
   }
+}
+
+function accessibilityCandidatesFor(
+  page: Page,
+  target: string,
+  actionType: string | undefined,
+): Array<[AccessibilityKind, Locator]> {
+  const candidates: Record<AccessibilityKind, Locator> = {
+    label: page.getByLabel(target, { exact: true }),
+    button: page.getByRole("button", { name: target, exact: true }),
+    link: page.getByRole("link", { name: target, exact: true }),
+    textbox: page.getByRole("textbox", { name: target, exact: true }),
+    searchbox: page.getByRole("searchbox", { name: target, exact: true }),
+    combobox: page.getByRole("combobox", { name: target, exact: true }),
+    text: page.getByText(target, { exact: true }),
+  };
+  const kinds: readonly AccessibilityKind[] =
+    actionType === "fill"
+      ? ["label", "textbox", "searchbox", "combobox"]
+      : actionType === "select"
+        ? ["label", "combobox"]
+        : actionType === "press"
+          ? [
+              "label",
+              "textbox",
+              "searchbox",
+              "combobox",
+              "button",
+              "link",
+              "text",
+            ]
+          : [
+              "button",
+              "link",
+              "label",
+              "textbox",
+              "searchbox",
+              "combobox",
+              "text",
+            ];
+  return kinds.map((kind): [AccessibilityKind, Locator] => [
+    kind,
+    candidates[kind],
+  ]);
 }

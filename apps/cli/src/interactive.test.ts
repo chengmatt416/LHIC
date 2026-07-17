@@ -103,6 +103,35 @@ describe("interactive CLI guidance", () => {
     ).resolves.toEqual(["global", "doctor"]);
   });
 
+  it("guides every demo suffix option from the root menu", async () => {
+    await expect(
+      guideCliArguments(
+        [],
+        createPrompter(["demo", "safe fixture", "viewable"]),
+      ),
+    ).resolves.toEqual(["demo", "--safe", "--viewable"]);
+    await expect(
+      guideCliArguments(
+        [],
+        createPrompter([
+          "demo",
+          "interactive learning",
+          "https://models.example.test/v1/responses",
+        ]),
+      ),
+    ).resolves.toEqual([
+      "demo",
+      "--endpoint",
+      "https://models.example.test/v1/responses",
+    ]);
+  });
+
+  it("guides the local GUI companion from the root menu", async () => {
+    await expect(
+      guideCliArguments([], createPrompter(["gui", "mcp", "no"])),
+    ).resolves.toEqual(["gui", "mcp", "--no-open"]);
+  });
+
   it("re-prompts after an invalid guided choice", async () => {
     await expect(
       guideCliArguments(["mcp", "config"], createPrompter(["other", "codex"])),

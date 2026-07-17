@@ -15,9 +15,14 @@ import { chromium, type Browser, type Page } from "playwright";
 
 import {
   BrowserStateObserver,
+  ConsoleNetworkObserver,
   createProductionExecutor,
   type PlaywrightDirectExecutor,
 } from "@lhic/browser";
+import {
+  executeBrowserPlan,
+  type BrowserPlanRunResult,
+} from "@lhic/controller";
 import { createMemoryDatabase, SelectorMemory, SkillStore } from "@lhic/memory";
 import {
   createConfiguredSharedSkillsRuntime,
@@ -25,8 +30,10 @@ import {
 } from "@lhic/shared-skills";
 import {
   isBrowserSemanticAction,
+  isBrowserExecutionPlan,
   type ActionExecutionResult,
   type BrowserSemanticAction,
+  type BrowserExecutionPlan,
   type NormalizedUIState,
 } from "@lhic/schema";
 import {
@@ -36,6 +43,7 @@ import {
 } from "@lhic/security";
 import { builtinSkillDefinitions } from "@lhic/skills";
 import { redactPII } from "@lhic/trace";
+import { VerifierEngine } from "@lhic/verifier";
 
 const MCP_SERVER_VERSION = "0.1.0";
 const directComputerActionTypes = new Set<BrowserSemanticAction["type"]>([
@@ -59,6 +67,10 @@ export interface ComputerUseActionResult extends ComputerUseSnapshot {
   result: ActionExecutionResult;
 }
 
+export interface ComputerUsePlanResult extends ComputerUseSnapshot {
+  result: BrowserPlanRunResult;
+}
+
 export interface ComputerUseSessionStatus {
   active: boolean;
   taskId?: string;
@@ -72,6 +84,8 @@ export interface ComputerUseSession {
     approval?: ActionApproval,
   ): Promise<ComputerUseActionResult>;
   close(): Promise<void>;
+  executePlan?(plan: BrowserExecutionPlan): Promise<ComputerUsePlanResult>;
+  resumePlan?(approval: ActionApproval): Promise<ComputerUsePlanResult>;
   getStatus?(): ComputerUseSessionStatus;
 }
 
@@ -136,6 +150,26 @@ export class SerializedComputerUseSession implements ComputerUseSession {
     return this.enqueue(() => this.session.close());
   }
 
+  public executePlan(
+    plan: BrowserExecutionPlan,
+  ): Promise<ComputerUsePlanResult> {
+    if (!this.session.executePlan) {
+      return Promise.reject(
+        new Error("This browser session does not support batch plans."),
+      );
+    }
+    return this.enqueue(() => this.session.executePlan!(plan));
+  }
+
+  public resumePlan(approval: ActionApproval): Promise<ComputerUsePlanResult> {
+    if (!this.session.resumePlan) {
+      return Promise.reject(
+        new Error("This browser session does not support batch-plan resume."),
+      );
+    }
+    return this.enqueue(() => this.session.resumePlan!(approval));
+  }
+
   public getStatus(): ComputerUseSessionStatus {
     return this.session.getStatus?.() ?? { active: false };
   }
@@ -164,7 +198,11 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
   private browser: Browser | null = null;
   private page: Page | null = null;
   private observer: BrowserStateObserver | null = null;
+  private networkObserver: ConsoleNetworkObserver | null = null;
   private executor: PlaywrightDirectExecutor | null = null;
+  private verifier: VerifierEngine | null = null;
+  private pendingPlan:
+    { plan: BrowserExecutionPlan; nextStepIndex: number } | undefined;
   private taskId = this.createTaskId();
 
   public constructor(
@@ -213,6 +251,46 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     this.taskId = this.createTaskId();
   }
 
+  public async executePlan(
+    plan: BrowserExecutionPlan,
+  ): Promise<ComputerUsePlanResult> {
+    if (this.pendingPlan) {
+      throw new Error(
+        "A browser plan is waiting for approval. Call lhic_browser_resume_plan.",
+      );
+    }
+    if (!isBrowserExecutionPlan(plan)) {
+      throw new Error(
+        "plan must be a valid browser-plan-v1 BrowserExecutionPlan.",
+      );
+    }
+    const { executor, verifier } = await this.ensureStartedSession();
+    const result = await executeBrowserPlan(plan, executor, verifier, {
+      requireActivationApproval: true,
+    });
+    return this.completePlanResult(plan, result);
+  }
+
+  public async resumePlan(
+    approval: ActionApproval,
+  ): Promise<ComputerUsePlanResult> {
+    if (!this.pendingPlan) {
+      throw new Error("No browser plan is waiting for approval.");
+    }
+    const { plan, nextStepIndex } = this.pendingPlan;
+    const step = plan.steps[nextStepIndex];
+    if (!step) {
+      throw new Error("The pending browser plan has no next step.");
+    }
+    const { executor, verifier } = await this.ensureStartedSession();
+    const result = await executeBrowserPlan(plan, executor, verifier, {
+      startAt: nextStepIndex,
+      approvals: { [step.id]: approval },
+      requireActivationApproval: true,
+    });
+    return this.completePlanResult(plan, result);
+  }
+
   public getStatus(): ComputerUseSessionStatus {
     return {
       active: this.browser !== null && this.page !== null,
@@ -224,12 +302,14 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     page: Page;
     observer: BrowserStateObserver;
     executor: PlaywrightDirectExecutor;
+    verifier: VerifierEngine;
   }> {
-    if (this.page && this.observer && this.executor) {
+    if (this.page && this.observer && this.executor && this.verifier) {
       return {
         page: this.page,
         observer: this.observer,
         executor: this.executor,
+        verifier: this.verifier,
       };
     }
 
@@ -240,7 +320,8 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
 
     try {
       const page = await browser.newPage();
-      const observer = new BrowserStateObserver(page);
+      const networkObserver = new ConsoleNetworkObserver(page);
+      const observer = new BrowserStateObserver(page, networkObserver);
       const executor = createProductionExecutor(
         page,
         this.options.runtimeConfig ?? parseRuntimeConfig(process.env),
@@ -255,12 +336,14 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       this.browser = browser;
       this.page = page;
       this.observer = observer;
+      this.networkObserver = networkObserver;
       this.executor = executor;
+      this.verifier = new VerifierEngine({ page, networkObserver });
 
       browser.once("disconnected", () => this.resetSession());
       page.once("close", () => this.resetSession());
 
-      return { page, observer, executor };
+      return { page, observer, executor, verifier: this.verifier };
     } catch (error) {
       await browser.close().catch(() => undefined);
       throw error;
@@ -271,8 +354,15 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     page: Page;
     observer: BrowserStateObserver;
     executor: PlaywrightDirectExecutor;
+    verifier: VerifierEngine;
   }> {
-    if (!this.browser || !this.page || !this.observer || !this.executor) {
+    if (
+      !this.browser ||
+      !this.page ||
+      !this.observer ||
+      !this.executor ||
+      !this.verifier
+    ) {
       throw new Error(
         "No browser session is active. Call lhic_browser_start before observing or acting.",
       );
@@ -282,6 +372,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       page: this.page,
       observer: this.observer,
       executor: this.executor,
+      verifier: this.verifier,
     };
   }
 
@@ -290,11 +381,26 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     this.browser = null;
     this.page = null;
     this.observer = null;
+    this.networkObserver = null;
     this.executor = null;
+    this.verifier = null;
+    this.pendingPlan = undefined;
   }
 
   private createTaskId(): string {
     return `antigravity-${randomUUID().slice(0, 8)}`;
+  }
+
+  private async completePlanResult(
+    plan: BrowserExecutionPlan,
+    result: BrowserPlanRunResult,
+  ): Promise<ComputerUsePlanResult> {
+    this.pendingPlan =
+      result.status === "awaiting_approval"
+        ? { plan, nextStepIndex: result.nextStepIndex }
+        : undefined;
+    const { state } = await this.observe();
+    return { state, result };
   }
 }
 
@@ -423,6 +529,58 @@ export const COMPUTER_USE_TOOLS = [
         },
       },
       required: ["action"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lhic_browser_execute_plan",
+    description:
+      "Fast Path execution boundary. Execute one complete browser-plan-v1 emitted by an external harness model. LHIC does not call a model while running the plan; it pauses only for human approval or verifier failure.",
+    annotations: {
+      title: "Execute LHIC browser plan",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    outputSchema: { type: "object", additionalProperties: true },
+    inputSchema: {
+      type: "object",
+      properties: {
+        plan: {
+          type: "object",
+          description:
+            "BrowserExecutionPlan: schemaVersion browser-plan-v1, goal, requiredVariables, and unique steps with action plus verification.",
+          additionalProperties: true,
+        },
+      },
+      required: ["plan"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "lhic_browser_resume_plan",
+    description:
+      "Resume the pending Fast Path browser plan with a human ActionApproval bound to the exact displayed step. No model call is made.",
+    annotations: {
+      title: "Resume LHIC browser plan",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    outputSchema: { type: "object", additionalProperties: true },
+    inputSchema: {
+      type: "object",
+      properties: {
+        approval: {
+          type: "object",
+          description:
+            "A user-created ActionApproval for the pending plan step.",
+          additionalProperties: true,
+        },
+      },
+      required: ["approval"],
       additionalProperties: false,
     },
   },
@@ -620,6 +778,34 @@ export async function callComputerUseTool(
         const result = await session.act(action, approval);
         return toolResult(result, !result.result.success);
       }
+      case "lhic_browser_execute_plan": {
+        const plan = args?.plan;
+        if (!isBrowserExecutionPlan(plan)) {
+          return toolError(
+            "plan must be a valid browser-plan-v1 BrowserExecutionPlan.",
+          );
+        }
+        if (!session.executePlan) {
+          return toolError(
+            "This browser session does not support batch plans.",
+          );
+        }
+        const result = await session.executePlan(plan);
+        return toolResult(result, result.result.status === "failed");
+      }
+      case "lhic_browser_resume_plan": {
+        const approval = args?.approval;
+        if (!isActionApproval(approval)) {
+          return toolError("approval must be a valid ActionApproval.");
+        }
+        if (!session.resumePlan) {
+          return toolError(
+            "This browser session does not support batch-plan resume.",
+          );
+        }
+        const result = await session.resumePlan(approval);
+        return toolResult(result, result.result.status === "failed");
+      }
       case "lhic_browser_close":
         await session.close();
         return toolResult({ closed: true });
@@ -656,7 +842,7 @@ function runtimeStatus(
     fastPath: {
       usesLLM: false,
       usesMcp: false,
-      note: "MCP is an external-agent and debugging boundary; LHIC Fast Path runs locally through Playwright.",
+      note: "A harness may make one planning-model call before lhic_browser_execute_plan. LHIC then runs the verified batch locally through Playwright without LLM or MCP calls.",
     },
     learning: runtime
       ? {

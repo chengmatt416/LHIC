@@ -43,7 +43,7 @@ try {
     installDirectory,
   );
   const { stdout } = await runNpm(
-    ["exec", "--prefix", installDirectory, "--", "lhic", "demo"],
+    ["exec", "--prefix", installDirectory, "--", "lhic", "demo", "--safe"],
     installDirectory,
     demoEnvironment(),
   );
@@ -70,6 +70,13 @@ try {
     rm(packageDirectory, { recursive: true, force: true }),
     rm(installDirectory, { recursive: true, force: true }),
   ]);
+  await execFileAsync(
+    process.execPath,
+    ["apps/cli/scripts/prepare-package.mjs"],
+    {
+      cwd: workspaceDirectory,
+    },
+  );
 }
 
 async function findArchive(directory) {

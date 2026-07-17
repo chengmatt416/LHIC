@@ -55,7 +55,28 @@ itself. A skill advances only after verified execution evidence; MCP callers
 cannot mark a skill learned by assertion alone. High- and unknown-risk actions
 still require a matching human approval.
 
-## 4. Enable public shared skills (optional)
+## 4. Train a public website Fast Path
+
+The first reproducible live-training scenarios cover public Wikipedia and MDN
+search, GitHub issue filtering, and OpenStreetMap place lookup. They use a
+fresh Playwright context, do not sign in, and submit only the non-sensitive
+query supplied on the command line. Every action has a post-action verifier;
+the learned action values and trace inputs are redacted.
+
+```bash
+lhic train public-web wikipedia-search --query "human computer interaction"
+lhic train public-web mdn-search --query "CSS grid"
+lhic train public-web github-issue-filter --query "is:issue state:open label:bug"
+lhic train public-web openstreetmap-place-search --query "Taipei Main Station"
+```
+
+Use `--viewable` to watch the isolated browser and `--database <path>` to keep
+the resulting local skill memory outside `.lhic/skills.sqlite`. If shared
+skills are enabled first, a fully verified scenario is immediately queued for
+Appwrite review; it remains unavailable to other clients until an approver
+changes its status to `approved`.
+
+## 5. Enable public shared skills (optional)
 
 Deploy the Appwrite Function and create the TablesDB tables described in
 [`services/appwrite-shared-skills`](../services/appwrite-shared-skills). Then

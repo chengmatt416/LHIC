@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   ActionExecutionResult,
+  BrowserExecutionPlan,
   NormalizedUIState,
   SemanticAction,
 } from "@lhic/schema";
@@ -47,6 +48,8 @@ class FakeComputerUseSession implements ComputerUseSession {
   public action: SemanticAction | undefined;
   public approval: ActionApproval | undefined;
   public closed = false;
+  public plan: BrowserExecutionPlan | undefined;
+  public resumedApproval: ActionApproval | undefined;
 
   public async start(url?: string): Promise<ComputerUseStartResult> {
     return {
@@ -74,6 +77,38 @@ class FakeComputerUseSession implements ComputerUseSession {
 
   public async close(): Promise<void> {
     this.closed = true;
+  }
+
+  public async executePlan(plan: BrowserExecutionPlan) {
+    this.plan = plan;
+    return {
+      state: this.state,
+      result: {
+        status: "awaiting_approval" as const,
+        completedSteps: [],
+        nextStepIndex: 0,
+        stepId: plan.steps[0]!.id,
+        approval: {
+          approvalId: "pending",
+          actionHash: "pending",
+          approvedBy: "pending-human-approval",
+          approvedAt: "2026-07-17T00:00:00.000Z",
+          expiresAt: "2026-07-17T00:05:00.000Z",
+        },
+      },
+    };
+  }
+
+  public async resumePlan(approval: ActionApproval) {
+    this.resumedApproval = approval;
+    return {
+      state: this.state,
+      result: {
+        status: "completed" as const,
+        completedSteps: [],
+        nextStepIndex: 1,
+      },
+    };
   }
 
   private successResult(method: "api" | "dom"): ActionExecutionResult {
@@ -106,6 +141,8 @@ describe("LHIC computer-use MCP server", () => {
         "lhic_browser_start",
         "lhic_browser_observe",
         "lhic_browser_act",
+        "lhic_browser_execute_plan",
+        "lhic_browser_resume_plan",
         "lhic_browser_close",
         "lhic_runtime_status",
         "lhic_skills_list",
@@ -175,6 +212,58 @@ describe("LHIC computer-use MCP server", () => {
 
     expect(response.isError).toBe(true);
     expect(session.action).toBeUndefined();
+  });
+
+  it("passes a complete Fast Path plan to the batch boundary and resumes only with approval", async () => {
+    const session = new FakeComputerUseSession();
+    const plan: BrowserExecutionPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Search",
+      requiredVariables: [],
+      steps: [
+        {
+          id: "submit",
+          action: {
+            type: "press",
+            intent: "submit search",
+            value: "Enter",
+            methodPreference: ["keyboard"],
+            riskLevel: "low",
+          },
+          verification: {
+            type: "url",
+            description: "search result URL",
+            params: { contains: "q=" },
+          },
+        },
+      ],
+    };
+    const execution = await callComputerUseTool(
+      session,
+      "lhic_browser_execute_plan",
+      { plan },
+    );
+    expect(execution.structuredContent).toMatchObject({
+      result: { status: "awaiting_approval", stepId: "submit" },
+    });
+    expect(session.plan).toEqual(plan);
+
+    const approval: ActionApproval = {
+      approvalId: "approved",
+      actionHash: "hash",
+      approvedBy: "demo-user",
+      approvedAt: "2026-07-17T00:00:00.000Z",
+      expiresAt: "2026-07-17T00:05:00.000Z",
+    };
+    const resumed = await callComputerUseTool(
+      session,
+      "lhic_browser_resume_plan",
+      { approval },
+    );
+    expect(resumed.structuredContent).toMatchObject({
+      result: { status: "completed" },
+    });
+    expect(session.resumedApproval).toEqual(approval);
   });
 
   it("serializes concurrent actions against one browser session", async () => {
