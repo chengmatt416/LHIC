@@ -16,6 +16,7 @@ import type {
 } from "../shared/contracts.js";
 import { validateCustomGameProfile } from "../shared/policy.js";
 import { DesktopController } from "./controller.js";
+import { resolveDesktopWorkspaceRoot } from "./workspace-root.js";
 
 let controller: DesktopController;
 let isQuitting = false;
@@ -63,6 +64,9 @@ function registerIpc(): void {
   ipcMain.handle("lhic:dashboard", async () => controller.dashboard());
   ipcMain.handle("lhic:task:configure", (_event, source: TaskSourceConfig) =>
     controller.configureTaskSource(requiredTaskSource(source)),
+  );
+  ipcMain.handle("lhic:task:auto-configure", () =>
+    controller.autoConfigureTaskSources(),
   );
   ipcMain.handle(
     "lhic:task:start",
@@ -178,6 +182,11 @@ function registerIpc(): void {
     controller.pollJudgeGithubLogin(),
   );
   ipcMain.handle("lhic:judge:session", () => controller.judgeSession());
+  ipcMain.handle("lhic:judge:authorize-token", (_event, token: string) =>
+    controller.authorizeJudgeToken(
+      requiredString(token, "judge authorization token"),
+    ),
+  );
   ipcMain.handle("lhic:judge:catalog", () => controller.judgeCatalog());
   ipcMain.handle("lhic:judge:policy-packages", () =>
     controller.judgePolicyPackages(),
@@ -191,8 +200,15 @@ function registerIpc(): void {
   ipcMain.handle("lhic:admin:snapshot", () => controller.adminSnapshot());
   ipcMain.handle("lhic:admin:create-judge", (_event, input: unknown) => {
     const value = requiredRecord(input, "judge grant");
+    const kind = value.kind;
+    if (kind !== "github-user-id" && kind !== "github-email") {
+      throw new Error("Judge grant type is invalid.");
+    }
     return controller.createAdminJudge({
-      githubUserId: requiredString(value.githubUserId, "GitHub user ID"),
+      kind,
+      ...(kind === "github-user-id"
+        ? { githubUserId: requiredString(value.githubUserId, "GitHub user ID") }
+        : { githubEmail: requiredString(value.githubEmail, "GitHub email") }),
       label: requiredString(value.label, "judge label"),
       ...(value.expiresAt === undefined || value.expiresAt === ""
         ? {}
@@ -201,6 +217,31 @@ function registerIpc(): void {
   });
   ipcMain.handle("lhic:admin:revoke-judge", (_event, id: string) =>
     controller.revokeAdminJudge(requiredString(id, "judge grant ID")),
+  );
+  ipcMain.handle("lhic:admin:create-judge-token", (_event, input: unknown) => {
+    const value = requiredRecord(input, "judge authorization token");
+    return controller.createAdminJudgeToken({
+      label: requiredString(value.label, "judge token label"),
+      ...(value.expiresAt === undefined || value.expiresAt === ""
+        ? {}
+        : {
+            expiresAt: requiredIsoDate(
+              value.expiresAt,
+              "judge token expiration",
+            ),
+          }),
+      ...(value.maxUses === undefined || value.maxUses === ""
+        ? {}
+        : {
+            maxUses: requiredPositiveInteger(
+              value.maxUses,
+              "judge token max uses",
+            ),
+          }),
+    });
+  });
+  ipcMain.handle("lhic:admin:revoke-judge-token", (_event, id: string) =>
+    controller.revokeAdminJudgeToken(requiredString(id, "judge token ID")),
   );
   ipcMain.handle(
     "lhic:admin:set-skill-status",
@@ -274,7 +315,12 @@ function registerIpc(): void {
 
 app.whenReady().then(async () => {
   controller = new DesktopController(
-    process.env.LHIC_WORKSPACE_ROOT ?? process.cwd(),
+    resolveDesktopWorkspaceRoot({
+      cwd: process.cwd(),
+      environmentWorkspaceRoot: process.env.LHIC_WORKSPACE_ROOT,
+      isPackaged: app.isPackaged,
+      userData: app.getPath("userData"),
+    }),
     { openExternal: openExternalUrl },
   );
   registerIpc();

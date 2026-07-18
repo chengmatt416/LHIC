@@ -19,6 +19,7 @@ import {
   createMcpRuntime,
   SerializedComputerUseSession,
   type ComputerUseActionResult,
+  type ComputerUsePlanResult,
   type ComputerUseSession,
   type ComputerUseSnapshot,
   type ComputerUseStartResult,
@@ -79,7 +80,9 @@ class FakeComputerUseSession implements ComputerUseSession {
     this.closed = true;
   }
 
-  public async executePlan(plan: BrowserExecutionPlan) {
+  public async executePlan(
+    plan: BrowserExecutionPlan,
+  ): Promise<ComputerUsePlanResult> {
     this.plan = plan;
     return {
       state: this.state,
@@ -99,7 +102,9 @@ class FakeComputerUseSession implements ComputerUseSession {
     };
   }
 
-  public async resumePlan(approval: ActionApproval) {
+  public async resumePlan(
+    approval: ActionApproval,
+  ): Promise<ComputerUsePlanResult> {
     this.resumedApproval = approval;
     return {
       state: this.state,
@@ -117,6 +122,72 @@ class FakeComputerUseSession implements ComputerUseSession {
       method,
       latencyMs: 1,
       evidence: ["Fixture action completed."],
+    };
+  }
+}
+
+class CompletedPlanComputerUseSession extends FakeComputerUseSession {
+  public async executePlan(
+    plan: BrowserExecutionPlan,
+  ): Promise<ComputerUsePlanResult> {
+    this.plan = plan;
+    return {
+      state: this.state,
+      result: {
+        status: "completed" as const,
+        completedSteps: plan.steps.map((step) => ({
+          stepId: step.id,
+          execution: {
+            success: true,
+            method: "accessibility" as const,
+            latencyMs: 1,
+            evidence: ["Action completed."],
+          },
+          verification: {
+            success: true,
+            evidence: ["Verifier observed the expected state."],
+          },
+        })),
+        nextStepIndex: plan.steps.length,
+      },
+    };
+  }
+
+  public getStatus() {
+    return { active: true, taskId: "mcp-verified-plan-1" };
+  }
+}
+
+class ResumedPlanComputerUseSession extends FakeComputerUseSession {
+  public getStatus() {
+    return { active: true, taskId: "mcp-resumed-plan-1" };
+  }
+
+  public async resumePlan(
+    approval: ActionApproval,
+  ): Promise<ComputerUsePlanResult> {
+    this.resumedApproval = approval;
+    const plan = this.plan;
+    if (!plan) throw new Error("No pending plan.");
+    return {
+      state: this.state,
+      result: {
+        status: "completed",
+        completedSteps: plan.steps.map((step) => ({
+          stepId: step.id,
+          execution: {
+            success: true,
+            method: "keyboard",
+            latencyMs: 1,
+            evidence: ["Action completed."],
+          },
+          verification: {
+            success: true,
+            evidence: ["Verifier observed the expected state."],
+          },
+        })),
+        nextStepIndex: plan.steps.length,
+      },
     };
   }
 }
@@ -264,6 +335,151 @@ describe("LHIC computer-use MCP server", () => {
       result: { status: "completed" },
     });
     expect(session.resumedApproval).toEqual(approval);
+  });
+
+  it("records a fully verified MCP plan as a local parameterized candidate Skill", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-mcp-learning-"));
+    const databaseFile = join(directory, "memory", "skills.sqlite");
+    const runtime = await createMcpRuntime(databaseFile, {
+      embeddingEngine: { embed: async () => [1, 0, 0] },
+    });
+    const session = new CompletedPlanComputerUseSession();
+    const plan: BrowserExecutionPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Search the catalogue",
+      requiredVariables: [],
+      steps: [
+        {
+          id: "fill-search",
+          action: {
+            type: "fill",
+            intent: "fill search",
+            target: "Search",
+            value: "notebooks",
+            methodPreference: ["accessibility"],
+            riskLevel: "low",
+          },
+          verification: {
+            type: "dom",
+            description: "Search field is available",
+            params: { selector: "#search" },
+          },
+        },
+      ],
+    };
+
+    try {
+      const response = await callComputerUseTool(
+        session,
+        "lhic_browser_execute_plan",
+        { plan },
+        runtime,
+      );
+      const learning = response.structuredContent?.learning as
+        | {
+            status: string;
+            candidateName?: string;
+            verifiedRunCount?: number;
+            promotion?: string;
+          }
+        | undefined;
+      expect(learning).toMatchObject({
+        status: "recorded",
+        verifiedRunCount: 1,
+        promotion: "requires_three_independent_runs_and_holdout",
+      });
+      expect(learning?.candidateName).toEqual(expect.any(String));
+
+      const candidate = runtime.skillStore.getCandidate(
+        learning?.candidateName ?? "",
+      );
+      expect(candidate).toMatchObject({
+        verifiedRunCount: 1,
+        promoted: false,
+      });
+      expect(JSON.stringify(candidate?.definition)).not.toContain("notebooks");
+      expect(JSON.stringify(candidate?.definition)).not.toContain(
+        "person@example.com",
+      );
+      expect(
+        (
+          candidate?.definition as {
+            plan: BrowserExecutionPlan;
+          }
+        ).plan.requiredVariables,
+      ).toEqual([
+        {
+          name: "input-1",
+          prompt: "Provide the value for fill search.",
+        },
+      ]);
+    } finally {
+      runtime.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("trains only after an approval-resumed MCP plan completes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-mcp-resume-"));
+    const runtime = await createMcpRuntime(join(directory, "skills.sqlite"), {
+      embeddingEngine: { embed: async () => [1, 0, 0] },
+    });
+    const session = new ResumedPlanComputerUseSession();
+    const plan: BrowserExecutionPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Submit search",
+      requiredVariables: [],
+      steps: [
+        {
+          id: "submit",
+          action: {
+            type: "press",
+            intent: "submit search",
+            value: "Enter",
+            methodPreference: ["keyboard"],
+            riskLevel: "low",
+          },
+          verification: {
+            type: "url",
+            description: "Search result URL",
+            params: { contains: "q=" },
+          },
+        },
+      ],
+    };
+    const approval: ActionApproval = {
+      approvalId: "approved",
+      actionHash: "hash",
+      approvedBy: "demo-user",
+      approvedAt: "2026-07-17T00:00:00.000Z",
+      expiresAt: "2026-07-17T00:05:00.000Z",
+    };
+
+    try {
+      const waiting = await callComputerUseTool(
+        session,
+        "lhic_browser_execute_plan",
+        { plan },
+        runtime,
+      );
+      expect(waiting.structuredContent?.learning).toMatchObject({
+        status: "skipped",
+      });
+
+      const completed = await callComputerUseTool(
+        session,
+        "lhic_browser_resume_plan",
+        { approval },
+        runtime,
+      );
+      expect(completed.structuredContent?.learning).toMatchObject({
+        status: "recorded",
+        verifiedRunCount: 1,
+      });
+    } finally {
+      runtime.close();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("serializes concurrent actions against one browser session", async () => {

@@ -181,9 +181,13 @@ export function toModelSafeUiState(
 
 function templatePlan(plan: BrowserExecutionPlan): BrowserExecutionPlan {
   let variableIndex = 0;
+  const requiredVariables = [...plan.requiredVariables];
+  const variableNames = new Set(
+    requiredVariables.map((variable) => variable.name),
+  );
   return {
     ...plan,
-    requiredVariables: [],
+    requiredVariables,
     steps: plan.steps.map((step) => {
       const value = step.action.value;
       const shouldTemplate =
@@ -193,8 +197,16 @@ function templatePlan(plan: BrowserExecutionPlan): BrowserExecutionPlan {
       if (!shouldTemplate) {
         return { ...step, action: { ...step.action } };
       }
-      variableIndex += 1;
-      const name = `input-${variableIndex}`;
+      let name: string;
+      do {
+        variableIndex += 1;
+        name = `input-${variableIndex}`;
+      } while (variableNames.has(name));
+      variableNames.add(name);
+      requiredVariables.push({
+        name,
+        prompt: `Provide the value for ${redactPII(step.action.intent)}.`,
+      });
       return {
         ...step,
         action: { ...step.action, value: `{{variables.${name}}}` },

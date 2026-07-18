@@ -19,13 +19,20 @@ export class TaskSourceStore {
       const raw = await readFile(this.path, "utf8");
       const value = JSON.parse(raw) as unknown;
       if (!Array.isArray(value)) {
-        throw new Error("Task source configuration must be an array.");
+        return [];
       }
-      return value.map((source) =>
-        validateTaskSourceConfig(source as TaskSourceConfig),
-      );
+      return value.flatMap((source) => {
+        try {
+          return [validateTaskSourceConfig(source as TaskSourceConfig)];
+        } catch {
+          // A stale source must never prevent the local control surface from
+          // loading. It remains on disk for the user to inspect or replace.
+          return [];
+        }
+      });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      if (error instanceof SyntaxError) return [];
       throw error;
     }
   }

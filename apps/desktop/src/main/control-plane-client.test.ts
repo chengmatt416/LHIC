@@ -23,7 +23,12 @@ describe("ControlPlaneClient", () => {
             return json({ jwt: "short-lived-jwt" });
           }
           if (String(input).endsWith("/control/judge/session")) {
-            return json({ githubUserId: "123456", allowed: true });
+            return json({
+              githubUserId: "123456",
+              subject: "GitHub numeric-ID allowlist",
+              authentication: "github",
+              allowed: true,
+            });
           }
           if (String(input).endsWith("/control/judge/catalog")) {
             return json({ assets: [judgeAsset] });
@@ -34,6 +39,8 @@ describe("ControlPlaneClient", () => {
 
       await expect(client.judgeSession()).resolves.toEqual({
         githubUserId: "123456",
+        subject: "GitHub numeric-ID allowlist",
+        authentication: "github",
         allowed: true,
       });
       await expect(client.judgeCatalog()).resolves.toEqual([judgeAsset]);
@@ -76,6 +83,49 @@ describe("ControlPlaneClient", () => {
     }
   });
 
+  it("stores an issued judge token in Keychain and uses it instead of a shared-library cookie", async () => {
+    const directory = await configuredWorkspace();
+    const stored: string[] = [];
+    const calls: Array<{ url: string; headers?: HeadersInit }> = [];
+    try {
+      const client = new ControlPlaneClient(directory, {
+        credentialStore: sessionCredentialStore,
+        judgeTokenStore: {
+          get: async () => undefined,
+          set: async (_id, value) => stored.push(value),
+        },
+        fetchImplementation: async (input, init) => {
+          calls.push({ url: String(input), headers: init?.headers });
+          if (String(input).endsWith("/control/judge/session")) {
+            return json({
+              subject: "Issued token: Hackathon judge",
+              authentication: "token",
+              allowed: true,
+            });
+          }
+          throw new Error(`Unexpected request ${String(input)}`);
+        },
+      });
+
+      const token = `lhic_judge_${"a".repeat(43)}`;
+      await expect(client.authorizeJudgeToken(token)).resolves.toMatchObject({
+        authentication: "token",
+        allowed: true,
+      });
+
+      expect(stored).toEqual([token]);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.headers).toMatchObject({
+        "X-LHIC-Judge-Token": token,
+      });
+      expect(calls[0]?.headers).not.toMatchObject({
+        "X-Appwrite-User-JWT": expect.anything(),
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it("returns administrator metadata without credential plaintext", async () => {
     const directory = await configuredWorkspace();
     try {
@@ -92,12 +142,16 @@ describe("ControlPlaneClient", () => {
               judges: [
                 {
                   id: "judge-1",
+                  kind: "github-user-id",
                   githubUserId: "123456",
                   label: "Primary judge",
                   active: true,
                 },
               ],
             });
+          }
+          if (url.endsWith("/control/judge-tokens")) {
+            return json({ tokens: [] });
           }
           if (url.endsWith("/control/skills")) {
             return json({

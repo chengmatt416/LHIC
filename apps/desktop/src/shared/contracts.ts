@@ -51,7 +51,18 @@ export interface TaskProposalSummary {
   steps: Array<{
     id: string;
     action:
-      "navigate" | "click" | "fill" | "select" | "press" | "wait" | "download";
+      | "navigate"
+      | "click"
+      | "fill"
+      | "select"
+      | "press"
+      | "wait"
+      | "download"
+      | "os_click"
+      | "os_type"
+      | "os_press"
+      | "os_launch"
+      | "os_focus";
     intent: string;
     riskLevel: "low" | "medium" | "high" | "unknown";
     verifier: string;
@@ -224,11 +235,24 @@ export interface PolicyPackageRequest {
   evaluationReportPath?: string;
 }
 
+export type JudgeGrantKind = "github-user-id" | "github-email";
+
 export interface JudgeGrant {
-  githubUserId: string;
+  kind: JudgeGrantKind;
+  githubUserId?: string;
+  githubEmail?: string;
   label: string;
   active: boolean;
   expiresAt?: string;
+}
+
+export interface JudgeAuthTokenMetadata {
+  id: string;
+  label: string;
+  expiresAt?: string;
+  maxUses?: number;
+  revokedAt?: string;
+  createdAt: string;
 }
 
 export interface DemoApiKeyMetadata {
@@ -286,7 +310,9 @@ export interface SharedLibraryConnection {
 }
 
 export interface JudgeSession {
-  githubUserId: string;
+  subject: string;
+  authentication: "github" | "token";
+  githubUserId?: string;
   allowed: true;
 }
 
@@ -330,6 +356,7 @@ export interface AdminSkillReview {
 export interface AdminControlSnapshot {
   session: AdminSession;
   judges: AdminJudgeGrant[];
+  judgeTokens: JudgeAuthTokenMetadata[];
   skills: AdminSkillReview[];
   demoKeys: DemoApiKeyMetadata[];
   secrets: AdminSecretMetadata[];
@@ -363,6 +390,7 @@ export interface DesktopApi {
   dashboard(): Promise<DashboardSnapshot>;
   tasks: {
     configure(source: TaskSourceConfig): Promise<TaskSourceConfig>;
+    autoConfigure(): Promise<TaskSourceConfig[]>;
     start(input: {
       goal: string;
       startUrl?: string;
@@ -413,6 +441,7 @@ export interface DesktopApi {
     beginGithubLogin(): Promise<JudgeLoginState>;
     pollGithubLogin(): Promise<JudgeLoginState>;
     session(): Promise<JudgeSession>;
+    authorizeToken(token: string): Promise<JudgeSession>;
     catalog(): Promise<JudgeDemoAsset[]>;
     policyPackages(): Promise<SharedPolicyPackage[]>;
   };
@@ -426,6 +455,12 @@ export interface DesktopApi {
     snapshot(): Promise<AdminControlSnapshot>;
     createJudge(input: Omit<JudgeGrant, "active">): Promise<AdminJudgeGrant>;
     revokeJudge(id: string): Promise<AdminJudgeGrant>;
+    createJudgeToken(input: {
+      label: string;
+      expiresAt?: string;
+      maxUses?: number;
+    }): Promise<{ token: string; metadata: JudgeAuthTokenMetadata }>;
+    revokeJudgeToken(id: string): Promise<JudgeAuthTokenMetadata>;
     setSkillStatus(
       id: string,
       status: "approved" | "rejected" | "revoked",

@@ -3,6 +3,7 @@ import type {
   DesktopProgressEvent,
   AdminControlSnapshot,
   AdminJudgeGrant,
+  JudgeAuthTokenMetadata,
   AdminSecretMetadata,
   AdminSkillReview,
   DemoApiKeyMetadata,
@@ -51,7 +52,10 @@ export class DesktopController {
     this.tasks = new TaskService(workspaceRoot, this.credentials);
     this.skills = new SkillsService(workspaceRoot);
     this.mcp = new McpService(workspaceRoot);
-    this.controlPlane = new ControlPlaneClient(workspaceRoot, options);
+    this.controlPlane = new ControlPlaneClient(workspaceRoot, {
+      ...options,
+      judgeTokenStore: this.credentials,
+    });
     this.securitySettings = new SecuritySettingsStore(workspaceRoot);
   }
 
@@ -81,6 +85,11 @@ export class DesktopController {
   ): Promise<TaskSourceConfig> {
     await this.securityConfiguration();
     return this.tasks.configure(source);
+  }
+
+  public async autoConfigureTaskSources(): Promise<TaskSourceConfig[]> {
+    await this.securityConfiguration();
+    return this.tasks.autoConfigureSources();
   }
 
   public async startTask(input: {
@@ -183,6 +192,10 @@ export class DesktopController {
     return this.controlPlane.judgeSession();
   }
 
+  public authorizeJudgeToken(token: string): Promise<JudgeSession> {
+    return this.controlPlane.authorizeJudgeToken(token);
+  }
+
   public judgeCatalog(): Promise<JudgeDemoAsset[]> {
     return this.controlPlane.judgeCatalog();
   }
@@ -196,7 +209,9 @@ export class DesktopController {
   }
 
   public createAdminJudge(input: {
-    githubUserId: string;
+    kind: "github-user-id" | "github-email";
+    githubUserId?: string;
+    githubEmail?: string;
     label: string;
     expiresAt?: string;
   }): Promise<AdminJudgeGrant> {
@@ -205,6 +220,18 @@ export class DesktopController {
 
   public revokeAdminJudge(id: string): Promise<AdminJudgeGrant> {
     return this.controlPlane.revokeJudge(id);
+  }
+
+  public createAdminJudgeToken(input: {
+    label: string;
+    expiresAt?: string;
+    maxUses?: number;
+  }): Promise<{ token: string; metadata: JudgeAuthTokenMetadata }> {
+    return this.controlPlane.createJudgeToken(input);
+  }
+
+  public revokeAdminJudgeToken(id: string): Promise<JudgeAuthTokenMetadata> {
+    return this.controlPlane.revokeJudgeToken(id);
   }
 
   public setSharedSkillStatus(

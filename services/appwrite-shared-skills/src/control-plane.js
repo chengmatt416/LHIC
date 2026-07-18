@@ -26,33 +26,35 @@ export async function handleControlPlane({
   tables,
   config,
   user,
+  githubIdentity,
   githubUserId,
+  judgeToken,
 }) {
   const route = path.pathname;
+  const identity = async () => {
+    if (githubIdentity) return githubIdentity();
+    const id = githubUserId ? await githubUserId() : undefined;
+    return id ? { githubUserId: id } : undefined;
+  };
   if (route === "/control/session" && method === "GET") {
-    const githubId = await githubUserId();
+    const github = await identity();
     const admin = await isAdmin(tables, config, user.$id);
     return res.json({
       accountId: user.$id,
       admin,
-      githubUserId: githubId ?? null,
-      judge: githubId ? await isJudge(tables, config, githubId) : false,
+      githubUserId: github?.githubUserId ?? null,
+      judge: Boolean(await judgeAccess(tables, config, github, judgeToken?.())),
     });
   }
 
   if (route === "/control/judge/session" && method === "GET") {
-    const id = await githubUserId();
-    if (!id || !(await isJudge(tables, config, id))) {
-      throw httpError(403, "A GitHub allowlisted judge identity is required.");
-    }
-    return res.json({ githubUserId: id, allowed: true });
+    return res.json(
+      await requireJudgeAccess(tables, config, identity, judgeToken),
+    );
   }
 
   if (route === "/control/judge/catalog" && method === "GET") {
-    const id = await githubUserId();
-    if (!id || !(await isJudge(tables, config, id))) {
-      throw httpError(403, "A GitHub allowlisted judge identity is required.");
-    }
+    await requireJudgeAccess(tables, config, identity, judgeToken);
     const assets = await listRows(tables, config, config.assetsTableId);
     return res.json({
       assets: assets.filter(isActiveAsset).map(publicAsset),
@@ -60,10 +62,7 @@ export async function handleControlPlane({
   }
 
   if (route === "/control/judge/policy-packages" && method === "GET") {
-    const id = await githubUserId();
-    if (!id || !(await isJudge(tables, config, id))) {
-      throw httpError(403, "A GitHub allowlisted judge identity is required.");
-    }
+    await requireJudgeAccess(tables, config, identity, judgeToken);
     const rows = await listRows(tables, config, config.policyPackagesTableId);
     return res.json({
       policyPackages: rows
@@ -122,47 +121,104 @@ export async function handleControlPlane({
   }
 
   if (route === "/control/judges" && method === "GET") {
+    const githubIds = await listRows(tables, config, config.judgesTableId);
+    const githubEmails = await listRows(
+      tables,
+      config,
+      config.judgeEmailsTableId,
+    );
     return res.json({
-      judges: (await listRows(tables, config, config.judgesTableId)).map(
-        publicJudge,
-      ),
+      judges: [
+        ...githubIds.map((row) => publicJudge(row, "github-user-id")),
+        ...githubEmails.map((row) => publicJudge(row, "github-email")),
+      ],
     });
   }
   if (route === "/control/judges" && method === "POST") {
     const body = objectBody(req);
-    const githubUserId = validateGithubUserId(body.githubUserId);
+    const grant = validateJudgeGrant(body);
     const label = requiredString(body.label, "label", 128);
     const expiresAt = optionalIsoDate(body.expiresAt);
     const row = await tables.createRow({
       databaseId: config.databaseId,
-      tableId: config.judgesTableId,
+      tableId:
+        grant.kind === "github-user-id"
+          ? config.judgesTableId
+          : config.judgeEmailsTableId,
       rowId: ID.unique(),
-      data: { githubUserId, label, active: true, expiresAt: expiresAt ?? null },
-    });
-    await audit(tables, config, user.$id, "judge.grant", row.$id, {
-      githubUserId,
-    });
-    return res.json(
-      {
-        id: row.$id,
-        githubUserId,
+      data: {
+        ...(grant.kind === "github-user-id"
+          ? { githubUserId: grant.value }
+          : { githubEmail: grant.value }),
         label,
         active: true,
-        ...(expiresAt ? { expiresAt } : {}),
+        expiresAt: expiresAt ?? null,
       },
-      201,
-    );
+    });
+    await audit(tables, config, user.$id, "judge.grant", row.$id, {
+      kind: grant.kind,
+    });
+    return res.json(publicJudge(row, grant.kind), 201);
   }
   const judgeRevokeMatch = route.match(/^\/control\/judges\/([^/]+)\/revoke$/);
   if (judgeRevokeMatch && method === "PATCH") {
+    const grant = parseJudgeGrantId(judgeRevokeMatch[1]);
     const row = await tables.updateRow({
       databaseId: config.databaseId,
-      tableId: config.judgesTableId,
-      rowId: judgeRevokeMatch[1],
+      tableId:
+        grant.kind === "github-user-id"
+          ? config.judgesTableId
+          : config.judgeEmailsTableId,
+      rowId: grant.rowId,
       data: { active: false },
     });
-    await audit(tables, config, user.$id, "judge.revoke", judgeRevokeMatch[1]);
-    return res.json({ judge: publicJudge(row) });
+    await audit(tables, config, user.$id, "judge.revoke", grant.rowId, {
+      kind: grant.kind,
+    });
+    return res.json({ judge: publicJudge(row, grant.kind) });
+  }
+
+  if (route === "/control/judge-tokens" && method === "GET") {
+    const rows = await listRows(tables, config, config.judgeTokensTableId);
+    return res.json({ tokens: rows.map(publicJudgeToken) });
+  }
+  if (route === "/control/judge-tokens" && method === "POST") {
+    const body = objectBody(req);
+    const label = requiredString(body.label, "label", 128);
+    const expiresAt = optionalIsoDate(body.expiresAt);
+    const maxUses = optionalPositiveInteger(body.maxUses, "maxUses", 1_000_000);
+    const token = `lhic_judge_${randomBytes(32).toString("base64url")}`;
+    const row = await tables.createRow({
+      databaseId: config.databaseId,
+      tableId: config.judgeTokensTableId,
+      rowId: ID.unique(),
+      data: {
+        label,
+        tokenHash: sha256(token),
+        expiresAt: expiresAt ?? null,
+        maxUses: maxUses ?? null,
+        useCount: 0,
+        revokedAt: null,
+      },
+    });
+    await audit(tables, config, user.$id, "judge-token.create", row.$id, {
+      maxUses: maxUses ?? null,
+    });
+    return res.json({ token, metadata: publicJudgeToken(row) }, 201);
+  }
+  const judgeTokenRevokeMatch = route.match(
+    /^\/control\/judge-tokens\/([^/]+)\/revoke$/,
+  );
+  if (judgeTokenRevokeMatch && method === "PATCH") {
+    const revokedAt = new Date().toISOString();
+    const row = await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: config.judgeTokensTableId,
+      rowId: judgeTokenRevokeMatch[1],
+      data: { revokedAt },
+    });
+    await audit(tables, config, user.$id, "judge-token.revoke", row.$id);
+    return res.json({ metadata: publicJudgeToken(row) });
   }
 
   if (route === "/control/skills" && method === "GET") {
@@ -364,6 +420,8 @@ export function controlConfigFromEnvironment(environment = process.env) {
   return {
     rolesTableId: required("LHIC_CONTROL_ROLES_TABLE_ID"),
     judgesTableId: required("LHIC_CONTROL_JUDGES_TABLE_ID"),
+    judgeEmailsTableId: required("LHIC_CONTROL_JUDGE_EMAILS_TABLE_ID"),
+    judgeTokensTableId: required("LHIC_CONTROL_JUDGE_TOKENS_TABLE_ID"),
     demoKeysTableId: required("LHIC_CONTROL_DEMO_KEYS_TABLE_ID"),
     secretsTableId: required("LHIC_CONTROL_SECRETS_TABLE_ID"),
     auditTableId: required("LHIC_CONTROL_AUDIT_TABLE_ID"),
@@ -381,6 +439,17 @@ export function validateGithubUserId(value) {
     throw httpError(400, "GitHub user IDs must be immutable numeric IDs.");
   }
   return value;
+}
+
+export function validateGithubEmail(value) {
+  if (
+    typeof value !== "string" ||
+    value.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+  ) {
+    throw httpError(400, "GitHub email is invalid.");
+  }
+  return value.trim().toLowerCase();
 }
 
 export function createDemoApiKey() {
@@ -428,12 +497,72 @@ async function isAdmin(tables, config, accountId) {
   return result.rows.length === 1;
 }
 
-async function isJudge(tables, config, githubUserId) {
+async function judgeAccess(tables, config, github, token) {
+  if (token) {
+    const tokenGrant = await consumeJudgeToken(tables, config, token);
+    return tokenGrant
+      ? {
+          allowed: true,
+          authentication: "token",
+          subject: `Issued token: ${String(tokenGrant.label)}`,
+        }
+      : undefined;
+  }
+  if (!github || !(await isJudge(tables, config, github))) return undefined;
+  return {
+    allowed: true,
+    authentication: "github",
+    subject: github.providerEmail
+      ? "GitHub email allowlist"
+      : "GitHub numeric-ID allowlist",
+    ...(github.githubUserId ? { githubUserId: github.githubUserId } : {}),
+  };
+}
+
+async function requireJudgeAccess(tables, config, identity, token) {
+  const access = await judgeAccess(tables, config, await identity(), token?.());
+  if (!access) {
+    throw httpError(
+      403,
+      "A GitHub allowlisted email or administrator-issued judge token is required.",
+    );
+  }
+  return access;
+}
+
+async function isJudge(tables, config, github) {
+  const checks = [];
+  if (github.githubUserId) {
+    checks.push(
+      activeJudgeMatch(
+        tables,
+        config,
+        config.judgesTableId,
+        "githubUserId",
+        github.githubUserId,
+      ),
+    );
+  }
+  if (github.providerEmail) {
+    checks.push(
+      activeJudgeMatch(
+        tables,
+        config,
+        config.judgeEmailsTableId,
+        "githubEmail",
+        validateGithubEmail(github.providerEmail),
+      ),
+    );
+  }
+  return (await Promise.all(checks)).some(Boolean);
+}
+
+async function activeJudgeMatch(tables, config, tableId, column, value) {
   const result = await tables.listRows({
     databaseId: config.databaseId,
-    tableId: config.judgesTableId,
+    tableId,
     queries: [
-      Query.equal("githubUserId", githubUserId),
+      Query.equal(column, value),
       Query.equal("active", true),
       Query.limit(1),
     ],
@@ -444,6 +573,38 @@ async function isJudge(tables, config, githubUserId) {
     judge &&
     (!judge.expiresAt || Date.parse(String(judge.expiresAt)) > Date.now()),
   );
+}
+
+async function consumeJudgeToken(tables, config, token) {
+  if (
+    typeof token !== "string" ||
+    !/^lhic_judge_[A-Za-z0-9_-]{32,}$/.test(token)
+  ) {
+    return undefined;
+  }
+  const result = await tables.listRows({
+    databaseId: config.databaseId,
+    tableId: config.judgeTokensTableId,
+    queries: [Query.equal("tokenHash", sha256(token)), Query.limit(1)],
+    total: false,
+  });
+  const row = result.rows[0];
+  if (
+    !row ||
+    row.revokedAt ||
+    (row.expiresAt && Date.parse(String(row.expiresAt)) <= Date.now()) ||
+    (Number.isFinite(Number(row.maxUses)) &&
+      Number(row.useCount) >= Number(row.maxUses))
+  ) {
+    return undefined;
+  }
+  await tables.updateRow({
+    databaseId: config.databaseId,
+    tableId: config.judgeTokensTableId,
+    rowId: row.$id,
+    data: { useCount: Number(row.useCount) + 1 },
+  });
+  return row;
 }
 
 async function listRows(tables, config, tableId) {
@@ -488,13 +649,29 @@ function publicDemoKey(row) {
   };
 }
 
-function publicJudge(row) {
+function publicJudge(row, kind) {
   return {
-    id: row.$id,
-    githubUserId: String(row.githubUserId),
+    id: `${kind}:${row.$id}`,
+    kind,
     label: String(row.label),
     active: row.active === true,
+    ...(kind === "github-user-id"
+      ? { githubUserId: String(row.githubUserId) }
+      : { githubEmail: String(row.githubEmail) }),
     ...(row.expiresAt ? { expiresAt: String(row.expiresAt) } : {}),
+  };
+}
+
+function publicJudgeToken(row) {
+  return {
+    id: row.$id,
+    label: String(row.label),
+    ...(row.expiresAt ? { expiresAt: String(row.expiresAt) } : {}),
+    ...(Number.isFinite(Number(row.maxUses))
+      ? { maxUses: Number(row.maxUses) }
+      : {}),
+    ...(row.revokedAt ? { revokedAt: String(row.revokedAt) } : {}),
+    createdAt: String(row.$createdAt),
   };
 }
 
@@ -568,6 +745,33 @@ function objectBody(req) {
   } catch {
     throw httpError(400, "Control request body must be a JSON object.");
   }
+}
+
+function validateJudgeGrant(value) {
+  const hasGithubUserId =
+    value.githubUserId !== undefined && value.githubUserId !== "";
+  const hasGithubEmail =
+    value.githubEmail !== undefined && value.githubEmail !== "";
+  if (hasGithubUserId === hasGithubEmail) {
+    throw httpError(
+      400,
+      "Provide exactly one GitHub numeric ID or GitHub email for a judge grant.",
+    );
+  }
+  return hasGithubUserId
+    ? {
+        kind: "github-user-id",
+        value: validateGithubUserId(value.githubUserId),
+      }
+    : { kind: "github-email", value: validateGithubEmail(value.githubEmail) };
+}
+
+function parseJudgeGrantId(value) {
+  const match = /^(github-user-id|github-email):([A-Za-z0-9._-]{1,36})$/.exec(
+    String(value),
+  );
+  if (!match) throw httpError(400, "Judge grant ID is invalid.");
+  return { kind: match[1], rowId: match[2] };
 }
 
 function requiredString(value, name, maximum) {

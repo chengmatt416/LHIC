@@ -27,6 +27,7 @@ import type {
   SkillSummary,
   TrainingJob,
 } from "../shared/contracts.js";
+import { bakedSharedSkillsConfig } from "./appwrite-public-config.js";
 import { PublicWebTrainingService } from "./public-web-training-service.js";
 import { createZip } from "./zip.js";
 
@@ -238,8 +239,9 @@ export class SkillsService {
   }
 
   private async config(): Promise<SharedSkillsConfig | undefined> {
-    const config = await readSharedSkillsConfig(this.databaseFile);
-    if (!config) return undefined;
+    const config =
+      (await readSharedSkillsConfig(this.databaseFile)) ??
+      bakedSharedSkillsConfig;
     return validateSharedConfig(config);
   }
 

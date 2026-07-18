@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { isExecutionProfile, type BrowserExecutionPlan } from "@lhic/schema";
+import { isBrowserExecutionPlan, isExecutionProfile } from "@lhic/schema";
 import { TaskBudgetTracker } from "@lhic/controller";
 
 import type {
@@ -16,16 +16,25 @@ import {
   summarizePlan,
   type BrowserRunResult,
 } from "./desktop-browser-runner.js";
+import {
+  DesktopGlobalRunner,
+  summarizeDesktopPlan,
+  type GlobalRunResult,
+} from "./desktop-global-runner.js";
 import { compileLocalFastPath } from "./fast-path-planner.js";
 import type { DesktopCredentialStore } from "./keyring.js";
-import { TaskSourceAdapter } from "./task-source-adapter.js";
+import {
+  TaskSourceAdapter,
+  type TaskExecutionPlan,
+} from "./task-source-adapter.js";
+import { recordTaskCandidate } from "./task-candidate-trainer.js";
 import { TaskSourceStore } from "./task-source-store.js";
 
 interface PendingTask {
   goal: string;
   source?: TaskSourceConfig;
   phase: "source" | "execution";
-  plan?: BrowserExecutionPlan;
+  plan?: TaskExecutionPlan;
   budget?: TaskBudgetTracker;
 }
 
@@ -46,6 +55,7 @@ export class TaskService {
   private readonly pending = new Map<string, PendingTask>();
   private readonly sourcesAdapter: TaskSourceAdapter;
   private readonly browserRunner: DesktopBrowserRunner;
+  private readonly globalRunner: DesktopGlobalRunner;
   private readonly sourceStore: Pick<TaskSourceStore, "load" | "save">;
   private readonly sourceBudgetOverride: (() => TaskBudgetTracker) | undefined;
   private slowPathProfile: "fast_only" | "balanced" | "deliberative" =
@@ -62,6 +72,7 @@ export class TaskService {
       sourcesAdapter ??
       new TaskSourceAdapter({ credentialFor: (id) => credentials.get(id) });
     this.browserRunner = new DesktopBrowserRunner(workspaceRoot);
+    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);
     this.sourceStore =
       options.sourceStore ?? new TaskSourceStore(workspaceRoot);
     this.sourceBudgetOverride = options.sourceBudget;
@@ -97,6 +108,19 @@ export class TaskService {
     return { ...validated };
   }
 
+  public async autoConfigureSources(): Promise<TaskSourceConfig[]> {
+    await this.initialize();
+    const detected = await this.sourcesAdapter.discoverCliSources(
+      this.workspaceRoot,
+    );
+    for (const source of detected) {
+      const current = this.sources.get(source.id);
+      if (!current?.enabled) this.sources.set(source.id, source);
+    }
+    await this.sourceStore.save(this.listSources());
+    return this.listSources();
+  }
+
   public async start(input: {
     goal: string;
     startUrl?: string;
@@ -108,49 +132,48 @@ export class TaskService {
         "A task goal between 1 and 12000 characters is required.",
       );
     }
-    if (!input.sourceId) {
-      const plan = compileLocalFastPath(input);
-      if (plan) {
-        const event: CommandEvent = {
-          commandId: randomUUID(),
-          status: "proposed",
-          message:
-            "A deterministic local Fast Path was compiled. It has not executed; start the browser session to continue through the normal approval and verifier gates.",
-          createdAt: new Date().toISOString(),
-          evidence: [
-            "Fast Path compiled locally with zero LLM calls and zero MCP calls.",
-            `Compiled ${plan.steps.length} browser steps with verifier conditions.`,
-          ],
-          proposal: summarizePlan(plan),
-        };
-        this.update(event);
-        this.pending.set(event.commandId, {
-          goal: input.goal,
-          phase: "execution",
-          plan,
-        });
-        return event;
-      }
+    const plan = compileLocalFastPath(input);
+    if (plan) {
+      const event: CommandEvent = {
+        commandId: randomUUID(),
+        status: "proposed",
+        message:
+          "A deterministic local Fast Path was compiled. It has not executed; start the browser session to continue through the normal approval and verifier gates.",
+        createdAt: new Date().toISOString(),
+        evidence: [
+          "Fast Path compiled locally with zero LLM calls and zero MCP calls.",
+          `Compiled ${plan.steps.length} browser steps with verifier conditions.`,
+        ],
+        proposal: summarizePlan(plan),
+      };
+      this.update(event);
+      this.pending.set(event.commandId, {
+        goal: input.goal,
+        phase: "execution",
+        plan,
+      });
+      return event;
+    }
+    const source = input.sourceId
+      ? this.sources.get(input.sourceId)
+      : this.automaticSource();
+    if (!source?.enabled) {
       const event: CommandEvent = {
         commandId: randomUUID(),
         status: "blocked",
         message:
-          "No deterministic local Skill matched this task. Select a configured Slow Path source to request a proposal.",
+          "No deterministic local Skill matched this task, and no configured Slow Path source is available.",
         createdAt: new Date().toISOString(),
         evidence: ["No LLM or MCP call was made on the Fast Path."],
       };
       this.update(event);
       return event;
     }
-    const source = this.sources.get(input.sourceId);
-    if (!source?.enabled) {
-      throw new Error("The selected Slow Path source is unavailable.");
-    }
     const commandId = randomUUID();
     const event: CommandEvent = {
       commandId,
       status: "awaiting_approval",
-      message: `${source.label} may receive the task description to produce one browser-plan proposal. Approve this provider request to continue.`,
+      message: `${source.label} may receive the task description to produce one guarded task-plan proposal. Approve this provider request to continue.`,
       createdAt: new Date().toISOString(),
       evidence: [
         "Slow Path sources do not receive browser, MCP, or OS control handles.",
@@ -179,15 +202,24 @@ export class TaskService {
       );
     }
     if (pending.phase === "execution") {
+      const plan = pending.plan;
+      if (!plan) {
+        throw new Error("The task execution plan is unavailable.");
+      }
       if (event.status !== "awaiting_approval") {
         throw new Error(
-          "The task is not waiting for a browser action approval.",
+          "The task is not waiting for an execution action approval.",
         );
       }
-      return this.recordBrowserResult(
-        commandId,
-        await this.browserRunner.approve(commandId, approval),
-      );
+      return isBrowserExecutionPlan(plan)
+        ? this.recordBrowserResult(
+            commandId,
+            await this.browserRunner.approve(commandId, approval),
+          )
+        : this.recordGlobalResult(
+            commandId,
+            await this.globalRunner.approve(commandId, approval),
+          );
     }
     if (event.status !== "awaiting_approval") {
       throw new Error("Only a pending provider approval may be accepted.");
@@ -203,7 +235,7 @@ export class TaskService {
     this.update({
       ...event,
       status: "running",
-      message: `${pending.source!.label} is preparing a browser-plan proposal.`,
+      message: `${pending.source!.label} is preparing a guarded task-plan proposal.`,
       evidence: [...(event.evidence ?? []), "Provider request approved."],
     });
     try {
@@ -220,17 +252,18 @@ export class TaskService {
       const proposed: CommandEvent = {
         ...event,
         status: "proposed",
-        message:
-          "The proposal satisfies browser-plan-v1 validation. It has not executed; review and approve each required action in the browser executor.",
+        message: isBrowserExecutionPlan(plan)
+          ? "The proposal satisfies browser-plan-v1 validation. It has not executed; review and approve each required action in the browser executor."
+          : "The proposal satisfies desktop-plan-v1 validation. It has not executed; each OS action needs a matching approval and local verifier.",
         createdAt: new Date().toISOString(),
         evidence: [
           ...(event.evidence ?? []),
           "Provider request approved.",
-          `Schema validation accepted ${plan.steps.length} browser steps with verifier conditions.`,
+          `Schema validation accepted ${plan.steps.length} ${isBrowserExecutionPlan(plan) ? "browser" : "desktop"} steps with verifier conditions.`,
           "No browser or OS action was performed while creating the proposal.",
           ...(budgetEvidence ? [budgetEvidence] : []),
         ],
-        proposal: summarizePlan(plan),
+        proposal: summarizeTaskPlan(plan),
       };
       this.pending.set(commandId, { ...pending, phase: "execution", plan });
       this.update(proposed);
@@ -253,18 +286,24 @@ export class TaskService {
     const pending = this.pending.get(commandId);
     if (!pending?.plan || pending.phase !== "execution") {
       throw new Error(
-        "A validated browser-plan proposal is required before execution.",
+        "A validated browser-plan-v1 or desktop-plan-v1 proposal is required before execution.",
       );
     }
     if (event.status !== "proposed") {
       throw new Error(
-        "Only an unexecuted proposal may start a browser session.",
+        "Only an unexecuted proposal may start an execution session.",
       );
     }
-    return this.recordBrowserResult(
-      commandId,
-      await this.browserRunner.execute(commandId, pending.plan),
-    );
+    const plan = pending.plan;
+    return isBrowserExecutionPlan(plan)
+      ? this.recordBrowserResult(
+          commandId,
+          await this.browserRunner.execute(commandId, plan),
+        )
+      : this.recordGlobalResult(
+          commandId,
+          this.globalRunner.execute(commandId, plan),
+        );
   }
 
   public cancel(commandId: string): void {
@@ -276,6 +315,7 @@ export class TaskService {
     });
     this.pending.delete(commandId);
     void this.browserRunner.cancel(commandId);
+    this.globalRunner.cancel(commandId);
   }
 
   public recentEvents(limit = 8): CommandEvent[] {
@@ -317,8 +357,22 @@ export class TaskService {
   }
 
   private async loadConfiguredSources(): Promise<void> {
-    for (const source of await this.sourceStore.load()) {
+    const configured = await this.sourceStore.load();
+    for (const source of configured) {
       this.sources.set(source.id, source);
+    }
+    const detector = this.sourcesAdapter as TaskSourceAdapter & {
+      discoverCliSources?: (
+        workspaceRoot: string,
+      ) => Promise<TaskSourceConfig[]>;
+    };
+    if (!detector.discoverCliSources) return;
+    for (const source of await detector.discoverCliSources(
+      this.workspaceRoot,
+    )) {
+      if (!configured.some((item) => item.id === source.id)) {
+        this.sources.set(source.id, source);
+      }
     }
   }
 
@@ -334,6 +388,49 @@ export class TaskService {
     result: BrowserRunResult,
   ): CommandEvent {
     const existing = this.require(commandId);
+    const pending = this.pending.get(commandId);
+    const candidateEvidence =
+      result.status === "completed" &&
+      pending?.source &&
+      pending.plan &&
+      isBrowserExecutionPlan(pending.plan)
+        ? "Verified Slow Path browser plan is being recorded as a local candidate Skill; Fast Path promotion still requires three independent runs and an offline holdout."
+        : undefined;
+    const event: CommandEvent = {
+      ...existing,
+      status: result.status,
+      message: result.message,
+      createdAt: new Date().toISOString(),
+      evidence: [
+        ...result.evidence,
+        ...(candidateEvidence ? [candidateEvidence] : []),
+      ],
+      proposal: result.proposal,
+    };
+    this.update(event);
+    if (
+      result.status === "completed" &&
+      pending?.source &&
+      pending.plan &&
+      isBrowserExecutionPlan(pending.plan)
+    ) {
+      void recordTaskCandidate(
+        this.workspaceRoot,
+        commandId,
+        pending.plan,
+      ).catch(() => undefined);
+    }
+    if (result.status === "completed" || result.status === "failed") {
+      this.pending.delete(commandId);
+    }
+    return event;
+  }
+
+  private recordGlobalResult(
+    commandId: string,
+    result: GlobalRunResult,
+  ): CommandEvent {
+    const existing = this.require(commandId);
     const event: CommandEvent = {
       ...existing,
       status: result.status,
@@ -347,6 +444,10 @@ export class TaskService {
       this.pending.delete(commandId);
     }
     return event;
+  }
+
+  private automaticSource(): TaskSourceConfig | undefined {
+    return [...this.sources.values()].find((source) => source.enabled);
   }
 
   private update(event: CommandEvent): void {
@@ -365,6 +466,12 @@ export class TaskService {
     this.events.set(event.commandId, snapshot);
     for (const listener of this.listeners) listener(snapshot);
   }
+}
+
+function summarizeTaskPlan(plan: TaskExecutionPlan) {
+  return isBrowserExecutionPlan(plan)
+    ? summarizePlan(plan)
+    : summarizeDesktopPlan(plan);
 }
 
 function safeError(error: unknown): string {

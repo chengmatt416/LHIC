@@ -199,6 +199,13 @@ direct DOM actions also add local selector-memory candidates; the MCP server
 exposes redacted `lhic_runtime_status`, `lhic_skills_list`, and
 `lhic_selector_memory_list` views for inspection.
 
+A completed `lhic_browser_execute_plan` MCP batch is also eligible for local
+Skill training when every step has execution and verifier evidence. LHIC stores
+a redacted, parameterized candidate only after the batch completes; individual
+MCP actions, approval pauses, and failed plans are excluded. A planner can
+specify or declare parameters before the batch starts, but the executor never
+calls a model while it runs.
+
 ### Optional public shared skills
 
 Deploy the reviewed Appwrite Function template in

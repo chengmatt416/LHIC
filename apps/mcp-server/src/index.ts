@@ -21,7 +21,11 @@ import {
 } from "@lhic/browser";
 import {
   executeBrowserPlan,
+  learnDemoSkill,
   type BrowserPlanRunResult,
+  type BrowserPlanStepOutcome,
+  type LocalEmbeddingEngine,
+  TransformersEmbeddingEngine,
 } from "@lhic/controller";
 import { createMemoryDatabase, SelectorMemory, SkillStore } from "@lhic/memory";
 import {
@@ -55,6 +59,17 @@ const directComputerActionTypes = new Set<BrowserSemanticAction["type"]>([
   "wait",
 ]);
 
+interface PendingMcpPlanTraining {
+  plan: BrowserExecutionPlan;
+  initialState: NormalizedUIState;
+  taskId: string;
+}
+
+const pendingMcpPlanTraining = new WeakMap<
+  ComputerUseSession,
+  PendingMcpPlanTraining
+>();
+
 export interface ComputerUseSnapshot {
   state: NormalizedUIState;
 }
@@ -69,7 +84,17 @@ export interface ComputerUseActionResult extends ComputerUseSnapshot {
 
 export interface ComputerUsePlanResult extends ComputerUseSnapshot {
   result: BrowserPlanRunResult;
+  learning?: McpPlanLearningResult;
 }
+
+export type McpPlanLearningResult =
+  | {
+      status: "recorded";
+      candidateName: string;
+      verifiedRunCount: number;
+      promotion: "requires_three_independent_runs_and_holdout";
+    }
+  | { status: "skipped"; reason: string };
 
 export interface ComputerUseSessionStatus {
   active: boolean;
@@ -93,12 +118,18 @@ export interface McpRuntime {
   databaseFile: string;
   skillStore: SkillStore;
   selectorMemory: SelectorMemory;
+  embeddingEngine: LocalEmbeddingEngine;
   sharedSkills?: ConfiguredSharedSkillsRuntime;
   close(): void;
 }
 
+export interface McpRuntimeOptions {
+  embeddingEngine?: LocalEmbeddingEngine;
+}
+
 export async function createMcpRuntime(
   databaseFile = process.env.LHIC_MEMORY_DATABASE ?? ".lhic/skills.sqlite",
+  options: McpRuntimeOptions = {},
 ): Promise<McpRuntime> {
   const resolvedDatabaseFile = resolve(databaseFile);
   await mkdir(dirname(resolvedDatabaseFile), { recursive: true });
@@ -117,6 +148,8 @@ export async function createMcpRuntime(
     databaseFile: resolvedDatabaseFile,
     skillStore,
     selectorMemory: new SelectorMemory(database),
+    embeddingEngine:
+      options.embeddingEngine ?? new TransformersEmbeddingEngine(),
     ...(sharedSkills ? { sharedSkills } : {}),
     close: () => database.close(),
   };
@@ -202,8 +235,14 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
   private executor: PlaywrightDirectExecutor | null = null;
   private verifier: VerifierEngine | null = null;
   private pendingPlan:
-    { plan: BrowserExecutionPlan; nextStepIndex: number } | undefined;
+    | {
+        plan: BrowserExecutionPlan;
+        nextStepIndex: number;
+        completedSteps: BrowserPlanStepOutcome[];
+      }
+    | undefined;
   private taskId = this.createTaskId();
+  private planTaskId: string | undefined;
 
   public constructor(
     private readonly options: PlaywrightComputerUseSessionOptions = {},
@@ -249,6 +288,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       await browser.close().catch(() => undefined);
     }
     this.taskId = this.createTaskId();
+    this.planTaskId = undefined;
   }
 
   public async executePlan(
@@ -264,6 +304,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
         "plan must be a valid browser-plan-v1 BrowserExecutionPlan.",
       );
     }
+    this.planTaskId = this.createTaskId();
     const { executor, verifier } = await this.ensureStartedSession();
     const result = await executeBrowserPlan(plan, executor, verifier, {
       requireActivationApproval: true,
@@ -277,7 +318,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     if (!this.pendingPlan) {
       throw new Error("No browser plan is waiting for approval.");
     }
-    const { plan, nextStepIndex } = this.pendingPlan;
+    const { plan, nextStepIndex, completedSteps } = this.pendingPlan;
     const step = plan.steps[nextStepIndex];
     if (!step) {
       throw new Error("The pending browser plan has no next step.");
@@ -288,13 +329,15 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       approvals: { [step.id]: approval },
       requireActivationApproval: true,
     });
-    return this.completePlanResult(plan, result);
+    return this.completePlanResult(plan, result, completedSteps);
   }
 
   public getStatus(): ComputerUseSessionStatus {
     return {
       active: this.browser !== null && this.page !== null,
-      ...(this.browser && this.page ? { taskId: this.taskId } : {}),
+      ...(this.browser && this.page
+        ? { taskId: this.planTaskId ?? this.taskId }
+        : {}),
     };
   }
 
@@ -385,6 +428,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     this.executor = null;
     this.verifier = null;
     this.pendingPlan = undefined;
+    this.planTaskId = undefined;
   }
 
   private createTaskId(): string {
@@ -394,13 +438,23 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
   private async completePlanResult(
     plan: BrowserExecutionPlan,
     result: BrowserPlanRunResult,
+    previousCompletedSteps: readonly BrowserPlanStepOutcome[] = [],
   ): Promise<ComputerUsePlanResult> {
+    const completedSteps = [
+      ...previousCompletedSteps,
+      ...result.completedSteps,
+    ];
+    const combined: BrowserPlanRunResult = { ...result, completedSteps };
     this.pendingPlan =
-      result.status === "awaiting_approval"
-        ? { plan, nextStepIndex: result.nextStepIndex }
+      combined.status === "awaiting_approval"
+        ? {
+            plan,
+            nextStepIndex: combined.nextStepIndex,
+            completedSteps,
+          }
         : undefined;
     const { state } = await this.observe();
-    return { state, result };
+    return { state, result: combined };
   }
 }
 
@@ -535,7 +589,7 @@ export const COMPUTER_USE_TOOLS = [
   {
     name: "lhic_browser_execute_plan",
     description:
-      "Fast Path execution boundary. Execute one complete browser-plan-v1 emitted by an external harness model. LHIC does not call a model while running the plan; it pauses only for human approval or verifier failure.",
+      "Fast Path execution boundary. Execute one complete parameterized browser-plan-v1 prepared before this call by a local Skill or an external planner. LHIC never calls a model while running the plan; it pauses only for human approval or verifier failure. A fully verified plan is recorded as a local candidate Skill after execution.",
     annotations: {
       title: "Execute LHIC browser plan",
       readOnlyHint: false,
@@ -790,8 +844,21 @@ export async function callComputerUseTool(
             "This browser session does not support batch plans.",
           );
         }
+        const initialState = runtime
+          ? (await session.observe()).state
+          : undefined;
         const result = await session.executePlan(plan);
-        return toolResult(result, result.result.status === "failed");
+        const learning = await captureMcpPlanLearning(
+          session,
+          runtime,
+          result,
+          initialState,
+          plan,
+        );
+        return toolResult(
+          learning ? { ...result, learning } : result,
+          result.result.status === "failed",
+        );
       }
       case "lhic_browser_resume_plan": {
         const approval = args?.approval;
@@ -804,9 +871,14 @@ export async function callComputerUseTool(
           );
         }
         const result = await session.resumePlan(approval);
-        return toolResult(result, result.result.status === "failed");
+        const learning = await captureMcpPlanLearning(session, runtime, result);
+        return toolResult(
+          learning ? { ...result, learning } : result,
+          result.result.status === "failed",
+        );
       }
       case "lhic_browser_close":
+        pendingMcpPlanTraining.delete(session);
         await session.close();
         return toolResult({ closed: true });
       case "lhic_runtime_status":
@@ -831,6 +903,88 @@ export async function callComputerUseTool(
   }
 }
 
+async function captureMcpPlanLearning(
+  session: ComputerUseSession,
+  runtime: McpRuntime | undefined,
+  result: ComputerUsePlanResult,
+  initialState?: NormalizedUIState,
+  plan?: BrowserExecutionPlan,
+): Promise<McpPlanLearningResult | undefined> {
+  if (!runtime) return undefined;
+
+  const taskId = session.getStatus?.().taskId;
+  if (plan && initialState && taskId) {
+    if (result.result.status === "awaiting_approval") {
+      pendingMcpPlanTraining.set(session, { plan, initialState, taskId });
+      return {
+        status: "skipped",
+        reason: "Training waits until every plan step has verifier evidence.",
+      };
+    }
+    if (result.result.status !== "completed") {
+      return {
+        status: "skipped",
+        reason: "Training requires a completed plan with verifier evidence.",
+      };
+    }
+    return recordMcpPlanCandidate(runtime, taskId, initialState, plan, result);
+  }
+
+  const pending = pendingMcpPlanTraining.get(session);
+  if (!pending) return undefined;
+  if (result.result.status === "awaiting_approval") {
+    return {
+      status: "skipped",
+      reason: "Training waits until every plan step has verifier evidence.",
+    };
+  }
+  pendingMcpPlanTraining.delete(session);
+  if (result.result.status !== "completed") {
+    return {
+      status: "skipped",
+      reason: "Training requires a completed plan with verifier evidence.",
+    };
+  }
+  return recordMcpPlanCandidate(
+    runtime,
+    pending.taskId,
+    pending.initialState,
+    pending.plan,
+    result,
+  );
+}
+
+async function recordMcpPlanCandidate(
+  runtime: McpRuntime,
+  taskId: string,
+  initialState: NormalizedUIState,
+  plan: BrowserExecutionPlan,
+  result: ComputerUsePlanResult,
+): Promise<McpPlanLearningResult> {
+  try {
+    const candidate = await learnDemoSkill(
+      runtime.skillStore,
+      runtime.embeddingEngine,
+      taskId,
+      plan.goal,
+      initialState,
+      plan,
+      result.result.completedSteps,
+    );
+    return {
+      status: "recorded",
+      candidateName: candidate.name,
+      verifiedRunCount: candidate.verifiedRunCount,
+      promotion: "requires_three_independent_runs_and_holdout",
+    };
+  } catch {
+    return {
+      status: "skipped",
+      reason: "Local candidate training was not completed.",
+    };
+  }
+}
+
 function runtimeStatus(
   session: ComputerUseSession,
   runtime: McpRuntime | undefined,
@@ -852,6 +1006,8 @@ function runtimeStatus(
           selectorCandidateCount: runtime.selectorMemory.list(1_000).length,
           selectorMemory:
             "Successful direct DOM actions are retained locally as selector-memory candidates.",
+          planTraining:
+            "Only fully completed MCP browser plans with verifier evidence become local parameterized candidate Skills. Training is local and never calls an LLM or MCP server.",
           sharedSkills: runtime.sharedSkills
             ? runtime.sharedSkills.service.status()
             : { enabled: false },

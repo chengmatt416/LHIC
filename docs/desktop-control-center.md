@@ -46,8 +46,13 @@ probe command require an explicit restart and status check.
 
 Slow Path source metadata is stored in `.lhic/task-sources.json` with owner
 read/write permissions. It contains no credential values; provider credentials
-remain in the operating-system Keychain. A supported deterministic Fast Path
-requires a browser start URL and does not invoke a model or MCP server.
+remain in the operating-system Keychain. Task Console detects installed Codex,
+Antigravity, and Claude Code CLIs and can use their existing local sign-in
+state; it never reads or automates a third-party password prompt. Every task
+tries a matching deterministic Fast Path Skill first. When none matches, an
+enabled Slow Path source can propose a redacted `browser-plan-v1` or
+`desktop-plan-v1` after user approval. The Fast Path remains model- and
+MCP-free.
 
 The Security panel persists only the selected Slow Path budget profile in
 `.lhic/security-settings.json` with owner read/write permissions. `fast_only`
@@ -88,12 +93,16 @@ runs and offline holdout workflow complete.
 
 ## Appwrite Judge Center
 
-Deploy the extra control-plane tables from `appwrite.config.json`, set the
-Function secrets listed in the shared-skills service README, and enable GitHub
-OAuth. The bootstrap Appwrite account can manage roles, judge allowlists,
-shared Skill review, encrypted registry credential metadata, Demo API key
-configuration, and evidence assets. Judge access is granted only when the current Appwrite session
-has a GitHub identity whose numeric provider ID is active in the allowlist.
+The desktop bundle contains only the public Appwrite endpoint, project ID, and
+Function URL for the LHIC shared registry. It does not contain API keys, OAuth
+secrets, Function encryption keys, or sessions. Deploy the extra control-plane
+tables from `appwrite.config.json`, set the Function secrets listed in the
+shared-skills service README, and enable GitHub OAuth. The bootstrap Appwrite
+account can manage roles, judge allowlists, revocable judge tokens, shared Skill
+review, encrypted registry credential metadata, Demo API key configuration, and
+evidence assets. Judge access is granted either when the current Appwrite
+session's GitHub OAuth identity matches an active provider email or numeric-ID
+allowlist, or when an administrator-issued judge token is valid.
 
 Judge Center assets are registered by an administrator in the control plane.
 The judge catalog returns only active records, each with a source URL, SHA-256

@@ -52,14 +52,21 @@ describe("shared-skills control plane primitives", () => {
       user: { $id: "judge-account" },
       githubUserId: async () => "42",
     });
-    expect(judgeSession.value).toEqual({ githubUserId: "42", allowed: true });
+    expect(judgeSession.value).toEqual({
+      githubUserId: "42",
+      authentication: "github",
+      subject: "GitHub numeric-ID allowlist",
+      allowed: true,
+    });
 
     const revoke = responseCapture();
     const grantId = tables.rows.get("judges")?.[0]?.$id;
     await handleControlPlane({
       req: { body: "" },
       res: revoke,
-      path: new URL(`https://function.test/control/judges/${grantId}/revoke`),
+      path: new URL(
+        `https://function.test/control/judges/github-user-id:${grantId}/revoke`,
+      ),
       method: "PATCH",
       tables,
       config,
@@ -67,7 +74,8 @@ describe("shared-skills control plane primitives", () => {
       githubUserId: async () => undefined,
     });
     expect(revoke.value.judge).toMatchObject({
-      id: grantId,
+      id: `github-user-id:${grantId}`,
+      kind: "github-user-id",
       githubUserId: "42",
       label: "Judge",
       active: false,
@@ -94,6 +102,73 @@ describe("shared-skills control plane primitives", () => {
     expect(tables.rows.get("secrets")?.[0]?.envelope).not.toContain(
       "not-for-output",
     );
+  });
+
+  it("allows an exact GitHub provider email or a hashed administrator-issued token", async () => {
+    const tables = new FakeTables();
+    const config = testConfig();
+    await handleControlPlane({
+      req: {
+        body: JSON.stringify({
+          githubEmail: "reviewer@example.com",
+          label: "Email judge",
+        }),
+      },
+      res: responseCapture(),
+      path: new URL("https://function.test/control/judges"),
+      method: "POST",
+      tables,
+      config,
+      user: { $id: "bootstrap" },
+    });
+    const emailSession = responseCapture();
+    await handleControlPlane({
+      req: { body: "" },
+      res: emailSession,
+      path: new URL("https://function.test/control/judge/session"),
+      method: "GET",
+      tables,
+      config,
+      user: { $id: "judge-account" },
+      githubIdentity: async () => ({
+        githubUserId: "999",
+        providerEmail: "REVIEWER@example.com",
+      }),
+    });
+    expect(emailSession.value).toMatchObject({
+      authentication: "github",
+      subject: "GitHub email allowlist",
+      allowed: true,
+    });
+
+    const created = responseCapture();
+    await handleControlPlane({
+      req: { body: JSON.stringify({ label: "Token judge", maxUses: 2 }) },
+      res: created,
+      path: new URL("https://function.test/control/judge-tokens"),
+      method: "POST",
+      tables,
+      config,
+      user: { $id: "bootstrap" },
+    });
+    expect(created.value.token).toMatch(/^lhic_judge_/);
+    expect(JSON.stringify(tables.rows.get("judge-tokens"))).not.toContain(
+      created.value.token,
+    );
+    const tokenSession = responseCapture();
+    await handleControlPlane({
+      req: { body: "" },
+      res: tokenSession,
+      path: new URL("https://function.test/control/judge/session"),
+      method: "GET",
+      tables,
+      config,
+      judgeToken: () => created.value.token,
+    });
+    expect(tokenSession.value).toMatchObject({
+      authentication: "token",
+      allowed: true,
+    });
   });
 
   it("serves only registered, active judge assets with integrity metadata", async () => {
@@ -367,6 +442,8 @@ function testConfig() {
     skillsTableId: "skills",
     rolesTableId: "roles",
     judgesTableId: "judges",
+    judgeEmailsTableId: "judge-emails",
+    judgeTokensTableId: "judge-tokens",
     demoKeysTableId: "keys",
     secretsTableId: "secrets",
     auditTableId: "audit",

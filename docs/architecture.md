@@ -24,11 +24,22 @@ does not make Antigravity a Slow Path provider.
 An external harness may also compile one `browser-plan-v1` with its LLM and
 send it to the MCP batch executor. That single planning request happens before
 LHIC Fast execution: the local batch runner then executes direct Playwright
-actions, verifier checks, and human approval pauses without model calls. Slow
-Path remains the one-action/one-observation tool loop, so the model can
-intervene after every action result.
+actions, verifier checks, and human approval pauses without model calls. The
+planner must bind its non-sensitive parameter values before execution or
+declare them in `requiredVariables`; LHIC never asks a model to fill values
+during a running plan. Slow Path remains the one-action/one-observation tool
+loop, so the model can intervene after every action result.
 
 `@lhic/controller` routes only low-risk predictions with confidence at least 0.8 to the Fast Path. Ambiguity goes to a provider-agnostic Slow Path interface, while high or unknown risk asks the user for confirmation.
+
+The desktop Task Console uses the same order for ordinary work: it first tries
+an eligible deterministic local Skill; when no Skill matches, it selects an
+enabled local CLI or configured API Slow Path source, requests a redacted
+structured plan only after user approval, then schema-validates the plan before
+local execution. Slow Path plans can be either browser plans or explicitly
+approved desktop plans. Desktop actions are never Fast Path actions and every
+one requires a matching human approval plus an active-window or process
+verifier.
 
 The executor repeats this check at its own boundary and binds an approval to a hash of the exact action with a short expiry. In production, `createProductionExecutor` consumes the validated runtime configuration so navigation targets, timeouts, and trace location cannot be silently omitted by a caller.
 
@@ -73,6 +84,20 @@ A candidate requires three independent task IDs and a successful deterministic
 holdout evaluation in a local fixture, allowlisted sandbox, or registered test
 account before it is promoted. An offline evaluation worker cannot target an
 unallowlisted production site and cannot create verifier evidence itself.
+
+The desktop records completed Slow Path browser plans as local candidates using
+only a fixed verifier-success marker; raw browser state, credentials, and
+provider responses are not used for training. Current desktop-plan-v1 OS tasks
+are intentionally excluded from Fast Path training.
+
+The MCP batch executor follows the same rule. Only a completed
+`lhic_browser_execute_plan` run whose every action and verifier has evidence is
+trained locally. It templates fill/select values into declared parameters,
+redacts the stored definition, and records one candidate run under a unique
+plan task ID. Waiting-for-approval, failed, cancelled, and individual
+`lhic_browser_act` calls never produce a Skill candidate. The post-run local
+embedding step is training only; it has no LLM or MCP call and cannot alter the
+already-completed execution.
 
 Task summaries compact completed steps, redacted verifier evidence, failures,
 and the current origin/path before any planner request. `DurableTaskSummaryStore`

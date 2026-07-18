@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("lhic", {
   dashboard: () => ipcRenderer.invoke("lhic:dashboard"),
   tasks: {
     configure: (source) => ipcRenderer.invoke("lhic:task:configure", source),
+    autoConfigure: () => ipcRenderer.invoke("lhic:task:auto-configure"),
     start: (input) => ipcRenderer.invoke("lhic:task:start", input),
     execute: (commandId) => ipcRenderer.invoke("lhic:task:execute", commandId),
     approve: (commandId, approval) =>
@@ -57,6 +58,8 @@ contextBridge.exposeInMainWorld("lhic", {
     beginGithubLogin: () => ipcRenderer.invoke("lhic:judge:begin-github-login"),
     pollGithubLogin: () => ipcRenderer.invoke("lhic:judge:poll-github-login"),
     session: () => ipcRenderer.invoke("lhic:judge:session"),
+    authorizeToken: (token) =>
+      ipcRenderer.invoke("lhic:judge:authorize-token", token),
     catalog: () => ipcRenderer.invoke("lhic:judge:catalog"),
     policyPackages: () => ipcRenderer.invoke("lhic:judge:policy-packages"),
   },
@@ -69,6 +72,10 @@ contextBridge.exposeInMainWorld("lhic", {
     createJudge: (input) =>
       ipcRenderer.invoke("lhic:admin:create-judge", input),
     revokeJudge: (id) => ipcRenderer.invoke("lhic:admin:revoke-judge", id),
+    createJudgeToken: (input) =>
+      ipcRenderer.invoke("lhic:admin:create-judge-token", input),
+    revokeJudgeToken: (id) =>
+      ipcRenderer.invoke("lhic:admin:revoke-judge-token", id),
     setSkillStatus: (id, status) =>
       ipcRenderer.invoke("lhic:admin:set-skill-status", id, status),
     setPolicyPackageStatus: (id, status) =>

@@ -32,6 +32,36 @@ const plan = {
   ],
 };
 
+const desktopPlan = {
+  schemaVersion: "desktop-plan-v1",
+  goal: "Open the local notes app",
+  skillName: null,
+  requiredVariables: [],
+  steps: [
+    {
+      id: "launch-notes",
+      action: {
+        scope: "os",
+        type: "os_launch",
+        intent: "Launch the Notes application",
+        target: null,
+        methodPreference: ["accessibility"],
+        riskLevel: "medium",
+        x: null,
+        y: null,
+        text: null,
+        key: null,
+        application: "Notes",
+        verifier: {
+          type: "process_running",
+          application: "Notes",
+          title: null,
+        },
+      },
+    },
+  ],
+};
+
 describe("TaskSourceAdapter", () => {
   it.each([
     [
@@ -156,6 +186,34 @@ describe("TaskSourceAdapter", () => {
         process.cwd(),
       ),
     ).rejects.toThrow("browser-plan-v1");
+  });
+
+  it("accepts a guarded desktop plan without giving the provider an OS handle", async () => {
+    const adapter = new TaskSourceAdapter({
+      credentialFor: async () => "key-only-in-test",
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({ output_text: JSON.stringify(desktopPlan) }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(
+      adapter.propose(
+        {
+          id: "gemini",
+          kind: "gemini",
+          label: "Gemini",
+          model: "test-model",
+          enabled: true,
+        },
+        desktopPlan.goal,
+        process.cwd(),
+      ),
+    ).resolves.toMatchObject({
+      schemaVersion: "desktop-plan-v1",
+      steps: [expect.objectContaining({ id: "launch-notes" })],
+    });
   });
 
   it("redacts credentials and personal data before sending a Slow Path prompt", async () => {

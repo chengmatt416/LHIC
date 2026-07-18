@@ -17,6 +17,10 @@ import type {
   TrainingJob,
   PublicWebTrainingRequest,
 } from "../shared/contracts.js";
+import {
+  createDashboardOverview,
+  type DashboardDestination,
+} from "./dashboard-model.js";
 
 type Section =
   | "dashboard"
@@ -92,6 +96,7 @@ export function App(): JSX.Element {
               key={item.id}
               className={section === item.id ? "nav-item active" : "nav-item"}
               onClick={() => setSection(item.id)}
+              aria-current={section === item.id ? "page" : undefined}
             >
               <span>{item.mark}</span>
               {item.label}
@@ -157,7 +162,7 @@ function Panel({
 }): JSX.Element {
   switch (section) {
     case "dashboard":
-      return <Dashboard snapshot={snapshot} />;
+      return <Dashboard snapshot={snapshot} navigate={navigate} />;
     case "skills":
       return (
         <Skills snapshot={snapshot} setNotice={setNotice} refresh={refresh} />
@@ -179,64 +184,146 @@ function Panel({
   }
 }
 
-function Dashboard({ snapshot }: { snapshot: DashboardSnapshot }): JSX.Element {
-  const counts = useMemo(
-    () => ({
-      ready: snapshot.skills.filter((skill) => skill.fastPathEligible).length,
-      shared: snapshot.skills.filter((skill) => skill.source === "shared")
-        .length,
-      mcp: snapshot.mcp.filter((client) => client.detected).length,
-    }),
-    [snapshot],
-  );
+function Dashboard({
+  snapshot,
+  navigate,
+}: {
+  snapshot: DashboardSnapshot;
+  navigate: (section: Section) => void;
+}): JSX.Element {
+  const overview = useMemo(() => createDashboardOverview(snapshot), [snapshot]);
+  const go = (destination: DashboardDestination) => navigate(destination);
+
   return (
     <div className="dashboard-grid">
-      <Metric
-        number={String(counts.ready).padStart(2, "0")}
-        label="Fast-path skills ready"
-        detail="Verified local actions"
-      />
-      <Metric
-        number={String(counts.shared).padStart(2, "0")}
-        label="Shared skills online"
-        detail="Approved registry records"
-      />
-      <Metric
-        number={String(counts.mcp).padStart(2, "0")}
-        label="MCP clients detected"
-        detail="Preview before any write"
-      />
-      <section className="panel wide">
-        <PanelTitle code="SYSTEM/01" title="Execution boundary" />
-        <div className="boundary">
-          <div>
-            <b>FAST</b>
-            <span>
-              Deterministic local policy
-              <br />
-              No LLM. No MCP.
-            </span>
+      <section
+        className="panel wide command-center"
+        aria-label="Command center"
+      >
+        <div className="command-primary">
+          <span className="eyebrow">WORKSPACE / NEXT SAFE STEP</span>
+          <span className={`status ${overview.priority.status}`}>
+            {overview.priority.status.replaceAll("_", " ")}
+          </span>
+          <h2>{overview.priority.title}</h2>
+          <p>{overview.priority.detail}</p>
+          <div className="boundary compact command-boundary">
+            <div>
+              <b>FAST</b>
+              <span>Verified local Skills</span>
+            </div>
+            <div>
+              <b>SLOW</b>
+              <span>Budgeted plan proposal</span>
+            </div>
+            <div>
+              <b>TRACE</b>
+              <span>Redacted verifier evidence</span>
+            </div>
           </div>
-          <i>→</i>
-          <div>
-            <b>SLOW</b>
-            <span>
-              Budgeted provider proposal
-              <br />
-              Schema + approval + verifier
-            </span>
-          </div>
-          <i>→</i>
-          <div>
-            <b>TRACE</b>
-            <span>
-              Redacted evidence
-              <br />
-              Inspectable by judges
-            </span>
-          </div>
+          <button
+            className="button primary"
+            onClick={() => go(overview.priority.destination)}
+          >
+            {overview.priority.actionLabel}
+          </button>
         </div>
+        <aside className="command-side">
+          <div className="command-side-heading">
+            <div>
+              <span>LIVE / PULSE</span>
+              <h2>Control surface</h2>
+            </div>
+            <span className="runtime-pill">
+              <span className="lamp" />
+              LOCAL FIRST
+            </span>
+          </div>
+          <dl className="pulse-grid">
+            <div>
+              <dt>FAST SKILLS</dt>
+              <dd>{String(overview.fastPathSkillCount).padStart(2, "0")}</dd>
+              <small>verified local routes</small>
+            </div>
+            <div>
+              <dt>PLANNERS</dt>
+              <dd>{String(overview.enabledSourceCount).padStart(2, "0")}</dd>
+              <small>approval-gated sources</small>
+            </div>
+            <div>
+              <dt>MCP CLIENTS</dt>
+              <dd>{String(overview.detectedMcpCount).padStart(2, "0")}</dd>
+              <small>detected locally</small>
+            </div>
+          </dl>
+          <div className="quick-actions" aria-label="Quick actions">
+            <button className="quick-action" onClick={() => go("skills")}>
+              Train a Skill <i aria-hidden="true">→</i>
+            </button>
+            <button className="quick-action" onClick={() => go("mcp")}>
+              Review MCP <i aria-hidden="true">→</i>
+            </button>
+          </div>
+        </aside>
       </section>
+      <section className="panel wide readiness-strip">
+        <div className="readiness-copy">
+          <span>READINESS / MAP</span>
+          <h2>Local paths at a glance</h2>
+          <p>Open any route to configure it; no change is applied from here.</p>
+        </div>
+        <ul className="readiness-list">
+          {overview.readiness.map((item) => (
+            <li key={item.id}>
+              <button
+                className="readiness-item"
+                onClick={() => go(item.destination)}
+              >
+                <span className={`readiness-state ${item.state}`}>
+                  {item.state}
+                </span>
+                <span>
+                  <b>{item.label}</b>
+                  <small>{item.detail}</small>
+                </span>
+                <i aria-hidden="true">→</i>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {overview.attention.length ? (
+        <section className="panel wide attention-panel">
+          <PanelTitle
+            code="ATTENTION/QUEUE"
+            title="Needs a decision"
+            action={
+              <button className="button ghost" onClick={() => go("tasks")}>
+                Open task console
+              </button>
+            }
+          />
+          <ul className="attention-list">
+            {overview.attention.map((item) => (
+              <li key={item.id}>
+                <button
+                  className="attention-item"
+                  onClick={() => go(item.destination)}
+                >
+                  <span className={`status ${item.status}`}>
+                    {item.status.replaceAll("_", " ")}
+                  </span>
+                  <span>
+                    <b>{item.title}</b>
+                    <small>{item.detail}</small>
+                  </span>
+                  <i aria-hidden="true">→</i>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="panel wide">
         <PanelTitle code="EVENT/LOG" title="Recent evidence" />
         {snapshot.recentEvents.length ? (
@@ -266,12 +353,7 @@ function Skills({
 }): JSX.Element {
   const [destination, setDestination] = useState("./lhic-approved-skills.zip");
   const [query, setQuery] = useState("");
-  const [connection, setConnection] = useState({
-    endpoint: "",
-    projectId: "",
-    functionUrl: "",
-    email: "",
-  });
+  const [email, setEmail] = useState("");
   const [trainingInput, setTrainingInput] = useState<PublicWebTrainingRequest>({
     scenarioId: "wikipedia-search",
     query: "browser automation",
@@ -289,24 +371,12 @@ function Skills({
   const visibleSkills = snapshot.skills.filter((skill) =>
     skill.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
-  const connect = async () => {
-    try {
-      setNotice(
-        "Magic Link requested. Complete the email sign-in to finish connecting the library.",
-      );
-      const event = await window.lhic.skills.connect(connection);
-      setNotice(event.message);
-      await refresh();
-    } catch (error) {
-      setNotice(message(error));
-    }
-  };
   const login = async () => {
     try {
       setNotice(
         "Magic Link requested. Complete the email sign-in to refresh the local session.",
       );
-      const event = await window.lhic.skills.login(connection.email);
+      const event = await window.lhic.skills.login(email);
       setNotice(event.message);
       await refresh();
     } catch (error) {
@@ -368,7 +438,7 @@ function Skills({
         <p className="muted">
           {snapshot.sharedLibrary.configured
             ? `Registry mirror: ${snapshot.sharedLibrary.cachedSkillCount} approved records; ${snapshot.sharedLibrary.pendingSubmissionCount} local submissions pending review.`
-            : "Connect an Appwrite Shared Skills registry with a Magic Link. The session is stored only in the operating-system Keychain."}
+            : "The bundled Appwrite registry is waiting for Magic Link sign-in."}
         </p>
         {snapshot.sharedLibrary.lastSuccessAt ? (
           <p className="verified">
@@ -382,57 +452,18 @@ function Skills({
         ) : null}
         <div className="form-grid">
           <label>
-            Appwrite endpoint
-            <input
-              value={connection.endpoint}
-              onChange={(event) =>
-                setConnection({ ...connection, endpoint: event.target.value })
-              }
-              placeholder="https://cloud.example/v1"
-            />
-          </label>
-          <label>
-            Appwrite project ID
-            <input
-              value={connection.projectId}
-              onChange={(event) =>
-                setConnection({ ...connection, projectId: event.target.value })
-              }
-            />
-          </label>
-          <label>
-            Registry Function URL
-            <input
-              value={connection.functionUrl}
-              onChange={(event) =>
-                setConnection({
-                  ...connection,
-                  functionUrl: event.target.value,
-                })
-              }
-              placeholder="https://functions.example/shared-skills"
-            />
-          </label>
-          <label>
-            Magic Link email
+            Magic Link email for the bundled registry
             <input
               type="email"
-              value={connection.email}
-              onChange={(event) =>
-                setConnection({ ...connection, email: event.target.value })
-              }
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
             />
           </label>
         </div>
         <div className="actions">
-          <button className="button primary" onClick={() => void connect()}>
-            Connect library
+          <button className="button primary" onClick={() => void login()}>
+            Sign in with Magic Link
           </button>
-          {snapshot.sharedLibrary.configured ? (
-            <button className="button" onClick={() => void login()}>
-              Refresh sign-in
-            </button>
-          ) : null}
         </div>
       </section>
       <section className="panel">
@@ -655,6 +686,17 @@ function Tasks({
       setNotice(message(error));
     }
   };
+  const autoConfigureSources = async () => {
+    try {
+      await window.lhic.tasks.autoConfigure();
+      setNotice(
+        "Detected local CLI planners were configured from their existing local sign-in state.",
+      );
+      await refresh();
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
   return (
     <div className="stack">
       <section className="panel">
@@ -664,12 +706,12 @@ function Tasks({
           <textarea
             value={goal}
             onChange={(event) => setGoal(event.target.value)}
-            placeholder="Describe the browser task. The system will resolve Fast Path first."
+            placeholder="Describe the task. LHIC tries a verified Fast Path skill first, then requests a guarded Slow Path plan when needed."
           />
         </label>
         <div className="form-row">
           <label>
-            Browser start URL
+            Browser start URL (browser tasks only)
             <input
               type="url"
               value={startUrl}
@@ -689,7 +731,9 @@ function Tasks({
                 );
               }}
             >
-              <option value="">Fast Path only</option>
+              <option value="">
+                Automatic — Fast Path, then configured Slow Path
+              </option>
               {snapshot.sources.map((source) => (
                 <option key={source.id} value={source.id}>
                   {source.label}
@@ -701,14 +745,20 @@ function Tasks({
           <button className="button primary" onClick={() => void start()}>
             Start guarded task
           </button>
+          <button
+            className="button"
+            onClick={() => void autoConfigureSources()}
+          >
+            Detect local planners
+          </button>
         </div>
       </section>
       {sourceConfig && (
         <section className="panel">
           <PanelTitle code="SOURCE/CONFIG" title={sourceConfig.label} />
           <p className="muted">
-            A configured source may produce a browser-plan proposal only. It
-            cannot receive a browser or OS control handle.
+            A configured source may produce a browser or desktop plan proposal
+            only. It cannot receive a browser, MCP, or OS control handle.
           </p>
           <div className="form-grid">
             <label>
@@ -1714,6 +1764,7 @@ function Judge({
   navigate: (section: Section) => void;
 }): JSX.Element {
   const [session, setSession] = useState<string>();
+  const [judgeToken, setJudgeToken] = useState("");
   const [assets, setAssets] = useState<
     Awaited<ReturnType<typeof window.lhic.judge.catalog>>
   >([]);
@@ -1740,12 +1791,10 @@ function Judge({
         window.lhic.judge.catalog(),
         window.lhic.judge.policyPackages(),
       ]);
-      setSession(judge.githubUserId);
+      setSession(judge.subject);
       setAssets(catalog);
       setPolicyPackages(packages);
-      setNotice(
-        `Judge Center unlocked for GitHub identity ${judge.githubUserId}.`,
-      );
+      setNotice(`Judge Center unlocked through ${judge.subject}.`);
     } catch (error) {
       setNotice(message(error));
     }
@@ -1757,7 +1806,7 @@ function Judge({
         window.lhic.judge.catalog(),
         window.lhic.judge.policyPackages(),
       ]);
-      setSession(judge.githubUserId);
+      setSession(judge.subject);
       setAssets(catalog);
       setPolicyPackages(packages);
       setNotice("Judge evidence catalog refreshed from the control plane.");
@@ -1765,14 +1814,30 @@ function Judge({
       setNotice(message(error));
     }
   };
+  const authorizeToken = async () => {
+    try {
+      const judge = await window.lhic.judge.authorizeToken(judgeToken);
+      const [catalog, packages] = await Promise.all([
+        window.lhic.judge.catalog(),
+        window.lhic.judge.policyPackages(),
+      ]);
+      setSession(judge.subject);
+      setAssets(catalog);
+      setPolicyPackages(packages);
+      setJudgeToken("");
+      setNotice(`Judge Center unlocked through ${judge.subject}.`);
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
   return (
     <div className="stack">
       <section className="panel hero">
-        <span className="eyebrow">GITHUB OAUTH // ALLOWLIST REQUIRED</span>
+        <span className="eyebrow">GITHUB OAUTH OR ISSUED TOKEN</span>
         <h2>Verified evaluation evidence</h2>
         <p>
-          Judge Center unlocks after Appwrite verifies the GitHub provider UID
-          against the administrator-managed numeric-ID allowlist.
+          Judge Center unlocks after Appwrite verifies the GitHub provider email
+          or numeric ID allowlist, or validates an administrator-issued token.
         </p>
         <div className="actions">
           <button
@@ -1785,8 +1850,23 @@ function Judge({
             Check judge access
           </button>
           {session ? (
-            <span className="verified">ALLOWLISTED GITHUB ID: {session}</span>
+            <span className="verified">VERIFIED JUDGE: {session}</span>
           ) : null}
+        </div>
+        <div className="form-row">
+          <label>
+            Administrator-issued judge token
+            <input
+              type="password"
+              value={judgeToken}
+              onChange={(event) => setJudgeToken(event.target.value)}
+              autoComplete="off"
+              placeholder="lhic_judge_…"
+            />
+          </label>
+          <button className="button" onClick={() => void authorizeToken()}>
+            Unlock with token
+          </button>
         </div>
       </section>
       <section className="panel">
@@ -1919,11 +1999,25 @@ function Admin({
 }): JSX.Element {
   const [snapshot, setSnapshot] =
     useState<Awaited<ReturnType<typeof window.lhic.admin.snapshot>>>();
-  const [judge, setJudge] = useState({
+  const [judge, setJudge] = useState<{
+    kind: "github-user-id" | "github-email";
+    githubUserId: string;
+    githubEmail: string;
+    label: string;
+    expiresAt: string;
+  }>({
+    kind: "github-email",
     githubUserId: "",
+    githubEmail: "",
     label: "",
     expiresAt: "",
   });
+  const [judgeToken, setJudgeToken] = useState({
+    label: "",
+    expiresAt: "",
+    maxUses: "",
+  });
+  const [revealedJudgeToken, setRevealedJudgeToken] = useState<string>();
   const [demoKey, setDemoKey] = useState({
     label: "",
     scopes: "judge:demo",
@@ -1965,11 +2059,41 @@ function Admin({
   const createJudge = async () => {
     try {
       await window.lhic.admin.createJudge({
-        githubUserId: judge.githubUserId,
+        kind: judge.kind,
+        ...(judge.kind === "github-user-id"
+          ? { githubUserId: judge.githubUserId }
+          : { githubEmail: judge.githubEmail }),
         label: judge.label,
         ...(judge.expiresAt ? { expiresAt: judge.expiresAt } : {}),
       });
-      setNotice("GitHub numeric-ID judge grant created.");
+      setNotice(
+        `GitHub ${judge.kind === "github-email" ? "email" : "numeric-ID"} judge grant created.`,
+      );
+      await load();
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+  const createJudgeToken = async () => {
+    try {
+      const created = await window.lhic.admin.createJudgeToken({
+        label: judgeToken.label,
+        ...(judgeToken.expiresAt ? { expiresAt: judgeToken.expiresAt } : {}),
+        ...(judgeToken.maxUses ? { maxUses: Number(judgeToken.maxUses) } : {}),
+      });
+      setRevealedJudgeToken(created.token);
+      setNotice(
+        "Judge authorization token created. Copy it now; it is not retrievable later.",
+      );
+      await load();
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+  const revokeJudgeToken = async (id: string) => {
+    try {
+      await window.lhic.admin.revokeJudgeToken(id);
+      setNotice("Judge authorization token revoked.");
       await load();
     } catch (error) {
       setNotice(message(error));
@@ -2103,9 +2227,9 @@ function Admin({
         />
         <p className="muted">
           The deployed Function accepts only authenticated Appwrite JWTs. The
-          bootstrap Appwrite account manages roles, GitHub numeric-ID judge
-          grants, skill review, encrypted registry credential metadata and demo
-          API-key policy.
+          bootstrap Appwrite account manages roles, GitHub email or numeric-ID
+          judge grants, revocable judge tokens, skill review, encrypted registry
+          credential metadata and demo API-key policy.
         </p>
         <div className="boundary compact">
           <div>
@@ -2119,9 +2243,9 @@ function Admin({
           <div>
             <b>JUDGE</b>
             <span>
-              GitHub provider UID
+              GitHub email or UID
               <br />
-              not username
+              OAuth identity only
             </span>
           </div>
           <div>
@@ -2140,11 +2264,37 @@ function Admin({
             <PanelTitle code="JUDGE/GRANT" title="GitHub reviewer allowlist" />
             <div className="form-grid">
               <label>
-                GitHub numeric ID
-                <input
-                  value={judge.githubUserId}
+                Allowlist type
+                <select
+                  value={judge.kind}
                   onChange={(event) =>
-                    setJudge({ ...judge, githubUserId: event.target.value })
+                    setJudge({
+                      ...judge,
+                      kind: event.target.value as
+                        "github-user-id" | "github-email",
+                    })
+                  }
+                >
+                  <option value="github-email">Verified GitHub email</option>
+                  <option value="github-user-id">GitHub numeric ID</option>
+                </select>
+              </label>
+              <label>
+                {judge.kind === "github-email"
+                  ? "GitHub email"
+                  : "GitHub numeric ID"}
+                <input
+                  value={
+                    judge.kind === "github-email"
+                      ? judge.githubEmail
+                      : judge.githubUserId
+                  }
+                  onChange={(event) =>
+                    setJudge(
+                      judge.kind === "github-email"
+                        ? { ...judge, githubEmail: event.target.value }
+                        : { ...judge, githubUserId: event.target.value },
+                    )
                   }
                 />
               </label>
@@ -2177,7 +2327,7 @@ function Admin({
               {snapshot.judges.map((grant) => (
                 <div className="table-row" key={grant.id}>
                   <strong>{grant.label}</strong>
-                  <span>{grant.githubUserId}</span>
+                  <span>{grant.githubEmail ?? grant.githubUserId}</span>
                   <span
                     className={`status ${grant.active ? "approved" : "revoked"}`}
                   >
@@ -2188,6 +2338,88 @@ function Admin({
                     <button
                       className="button ghost"
                       onClick={() => void revokeJudge(grant.id)}
+                    >
+                      Revoke
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle
+              code="JUDGE/TOKEN"
+              title="Administrator-issued judge tokens"
+            />
+            <p className="muted">
+              The raw token is shown only once, stored only as a SHA-256 hash,
+              and can be revoked immediately.
+            </p>
+            <div className="form-grid">
+              <label>
+                Token label
+                <input
+                  value={judgeToken.label}
+                  onChange={(event) =>
+                    setJudgeToken({ ...judgeToken, label: event.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Expires at (optional)
+                <input
+                  type="datetime-local"
+                  value={judgeToken.expiresAt}
+                  onChange={(event) =>
+                    setJudgeToken({
+                      ...judgeToken,
+                      expiresAt: event.target.value,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Maximum requests (optional)
+                <input
+                  inputMode="numeric"
+                  value={judgeToken.maxUses}
+                  onChange={(event) =>
+                    setJudgeToken({
+                      ...judgeToken,
+                      maxUses: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <div className="actions">
+              <button
+                className="button"
+                onClick={() => void createJudgeToken()}
+              >
+                Create judge token
+              </button>
+              {revealedJudgeToken ? (
+                <code className="revealed-key">{revealedJudgeToken}</code>
+              ) : null}
+            </div>
+            <div className="table">
+              {snapshot.judgeTokens.map((token) => (
+                <div className="table-row" key={token.id}>
+                  <strong>{token.label}</strong>
+                  <span>
+                    {token.maxUses ? `${token.maxUses} requests` : "No limit"}
+                  </span>
+                  <span>{token.expiresAt ?? "No expiry"}</span>
+                  <span
+                    className={`status ${token.revokedAt ? "revoked" : "approved"}`}
+                  >
+                    {token.revokedAt ? "revoked" : "active"}
+                  </span>
+                  {!token.revokedAt ? (
+                    <button
+                      className="button ghost"
+                      onClick={() => void revokeJudgeToken(token.id)}
                     >
                       Revoke
                     </button>
@@ -2546,23 +2778,6 @@ function Admin({
   );
 }
 
-function Metric({
-  number,
-  label,
-  detail,
-}: {
-  number: string;
-  label: string;
-  detail: string;
-}): JSX.Element {
-  return (
-    <section className="metric">
-      <strong>{number}</strong>
-      <span>{label}</span>
-      <small>{detail}</small>
-    </section>
-  );
-}
 function PanelTitle({
   code,
   title,
@@ -2590,10 +2805,22 @@ function EventRow({ event }: { event: CommandEvent }): JSX.Element {
       </span>
       <div>
         <b>{event.message}</b>
-        <small>{event.createdAt}</small>
+        <small title={event.createdAt}>
+          {formatTimestamp(event.createdAt)}
+        </small>
       </div>
     </li>
   );
+}
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
 }
 function message(error: unknown): string {
   return error instanceof Error

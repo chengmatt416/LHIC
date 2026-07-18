@@ -15,12 +15,14 @@ import type {
   AdminSession,
   AdminSkillReview,
   DemoApiKeyMetadata,
+  JudgeAuthTokenMetadata,
   JudgeDemoAsset,
   JudgeLoginState,
   JudgeSession,
   PolicyPackageSubmission,
   SharedPolicyPackage,
 } from "../shared/contracts.js";
+import { bakedSharedSkillsConfig } from "./appwrite-public-config.js";
 
 const databaseFile = ".lhic/skills.sqlite";
 const githubLoginLifetimeMs = 5 * 60_000;
@@ -36,6 +38,11 @@ export interface ControlPlaneClientOptions {
   fetchImplementation?: typeof fetch;
   credentialStore?: SharedSkillCredentialStore;
   openExternal?: (url: string) => Promise<void>;
+  judgeTokenStore?: {
+    get(id: string): Promise<string | undefined>;
+    set(id: string, secret: string): Promise<void>;
+    remove?(id: string): Promise<void>;
+  };
 }
 
 /**
@@ -47,6 +54,7 @@ export class ControlPlaneClient {
   private readonly databasePath: string;
   private readonly fetchImplementation: typeof fetch;
   private readonly credentialStore: SharedSkillCredentialStore;
+  private readonly judgeTokenStore: ControlPlaneClientOptions["judgeTokenStore"];
   private pendingGithubLogin: PendingGithubLogin | undefined;
 
   public constructor(
@@ -60,6 +68,7 @@ export class ControlPlaneClient {
     this.fetchImplementation = options.fetchImplementation ?? fetch;
     this.credentialStore =
       options.credentialStore ?? new KeyringSharedSkillCredentialStore();
+    this.judgeTokenStore = options.judgeTokenStore;
   }
 
   public async beginGithubLogin(): Promise<JudgeLoginState> {
@@ -123,21 +132,49 @@ export class ControlPlaneClient {
       payload.secret,
     );
     await this.credentialStore.set(pending.config, cookie);
+    await this.judgeTokenStore?.remove?.(
+      judgeTokenCredentialId(pending.config),
+    );
     this.pendingGithubLogin = undefined;
     const judge = await this.judgeSession();
     return {
       status: "complete",
       expiresAt: new Date(pending.expiresAt).toISOString(),
-      message: `GitHub identity ${judge.githubUserId} is allowlisted for Judge Center.`,
+      message: `Judge Center unlocked through ${judge.subject}.`,
     };
   }
 
   public async judgeSession(): Promise<JudgeSession> {
     const payload = await this.request("/control/judge/session");
-    if (typeof payload.githubUserId !== "string" || payload.allowed !== true) {
+    if (
+      typeof payload.subject !== "string" ||
+      !["github", "token"].includes(payload.authentication as string) ||
+      payload.allowed !== true
+    ) {
       throw new Error("Judge Center returned an invalid access response.");
     }
-    return { githubUserId: payload.githubUserId, allowed: true };
+    return {
+      subject: payload.subject,
+      authentication: payload.authentication as JudgeSession["authentication"],
+      ...(typeof payload.githubUserId === "string"
+        ? { githubUserId: payload.githubUserId }
+        : {}),
+      allowed: true,
+    };
+  }
+
+  public async authorizeJudgeToken(token: string): Promise<JudgeSession> {
+    const normalized = token.trim();
+    if (!/^lhic_judge_[A-Za-z0-9_-]{32,}$/.test(normalized)) {
+      throw new Error("Judge authorization token is invalid.");
+    }
+    const payload = await this.request("/control/judge/session", {
+      judgeToken: normalized,
+    });
+    const session = parseJudgeSession(payload);
+    const config = await this.requiredConfig();
+    await this.judgeTokenStore?.set(judgeTokenCredentialId(config), normalized);
+    return session;
   }
 
   public async judgeCatalog(): Promise<JudgeDemoAsset[]> {
@@ -155,18 +192,27 @@ export class ControlPlaneClient {
 
   public async adminSnapshot(): Promise<AdminControlSnapshot> {
     const session = parseAdminSession(await this.request("/control/session"));
-    const [judges, skills, demoKeys, secrets, assets, policyPackages] =
-      await Promise.all([
-        this.request("/control/judges"),
-        this.request("/control/skills"),
-        this.request("/control/demo-keys"),
-        this.request("/control/secrets"),
-        this.request("/control/assets"),
-        this.request("/control/policy-packages"),
-      ]);
+    const [
+      judges,
+      judgeTokens,
+      skills,
+      demoKeys,
+      secrets,
+      assets,
+      policyPackages,
+    ] = await Promise.all([
+      this.request("/control/judges"),
+      this.request("/control/judge-tokens"),
+      this.request("/control/skills"),
+      this.request("/control/demo-keys"),
+      this.request("/control/secrets"),
+      this.request("/control/assets"),
+      this.request("/control/policy-packages"),
+    ]);
     return {
       session,
       judges: parseArray(judges.judges, parseAdminJudge),
+      judgeTokens: parseArray(judgeTokens.tokens, parseJudgeToken),
       skills: parseArray(skills.skills, parseAdminSkill),
       demoKeys: parseArray(demoKeys.keys, parseDemoKey),
       secrets: parseArray(secrets.secrets, parseSecretMetadata),
@@ -179,7 +225,9 @@ export class ControlPlaneClient {
   }
 
   public async createJudge(input: {
-    githubUserId: string;
+    kind: "github-user-id" | "github-email";
+    githubUserId?: string;
+    githubEmail?: string;
     label: string;
     expiresAt?: string;
   }): Promise<AdminJudgeGrant> {
@@ -194,6 +242,38 @@ export class ControlPlaneClient {
       { method: "PATCH" },
     );
     return parseAdminJudge(response.judge);
+  }
+
+  public async createJudgeToken(input: {
+    label: string;
+    expiresAt?: string;
+    maxUses?: number;
+  }): Promise<{ token: string; metadata: JudgeAuthTokenMetadata }> {
+    const response = await this.request("/control/judge-tokens", {
+      method: "POST",
+      body: input,
+    });
+    if (typeof response.token !== "string" || !response.token) {
+      throw new Error("Judge authorization token response is invalid.");
+    }
+    return {
+      token: response.token,
+      metadata: parseJudgeToken(response.metadata),
+    };
+  }
+
+  public async revokeJudgeToken(id: string): Promise<JudgeAuthTokenMetadata> {
+    const response = await this.request(
+      `/control/judge-tokens/${encodePath(id)}/revoke`,
+      { method: "PATCH" },
+    );
+    const metadata = parseJudgeToken(response.metadata);
+    if (!metadata.revokedAt) {
+      throw new Error(
+        "Judge authorization token revocation response is invalid.",
+      );
+    }
+    return metadata;
   }
 
   public async setSkillStatus(
@@ -330,14 +410,26 @@ export class ControlPlaneClient {
 
   private async request(
     path: string,
-    options: { method?: "GET" | "POST" | "PATCH"; body?: object } = {},
+    options: {
+      method?: "GET" | "POST" | "PATCH";
+      body?: object;
+      judgeToken?: string;
+    } = {},
   ): Promise<Record<string, unknown>> {
     const config = await this.requiredConfig();
     const cookie = await this.credentialStore.get(config);
-    if (!cookie) {
-      throw new Error("Sign in with GitHub before accessing Judge Center.");
+    const token =
+      options.judgeToken ??
+      (isJudgeRoute(path)
+        ? await this.judgeTokenStore?.get(judgeTokenCredentialId(config))
+        : undefined);
+    if (!cookie && !token) {
+      throw new Error(
+        "Sign in with GitHub or enter an administrator-issued judge token before accessing Judge Center.",
+      );
     }
-    const jwt = await this.createJwt(config, cookie);
+    const jwt =
+      cookie && !token ? await this.createJwt(config, cookie) : undefined;
     const response = await this.fetchImplementation(
       `${config.functionUrl}${path}`,
       {
@@ -346,7 +438,8 @@ export class ControlPlaneClient {
           Accept: "application/json",
           ...(options.body ? { "Content-Type": "application/json" } : {}),
           "X-Appwrite-Project": config.projectId,
-          "X-Appwrite-User-JWT": jwt,
+          ...(jwt ? { "X-Appwrite-User-JWT": jwt } : {}),
+          ...(token ? { "X-LHIC-Judge-Token": token } : {}),
         },
         ...(options.body ? { body: JSON.stringify(options.body) } : {}),
         signal: AbortSignal.timeout(15_000),
@@ -407,12 +500,10 @@ export class ControlPlaneClient {
   }
 
   private async requiredConfig(): Promise<SharedSkillsConfig> {
-    const config = await readSharedSkillsConfig(this.databasePath);
-    if (!config?.enabled) {
-      throw new Error(
-        "Connect the Shared Skills registry before using Judge Center.",
-      );
-    }
+    const config =
+      (await readSharedSkillsConfig(this.databasePath)) ??
+      bakedSharedSkillsConfig;
+    if (!config.enabled) throw new Error("Shared Skills are disabled locally.");
     return config;
   }
 }
@@ -443,6 +534,16 @@ function getSetCookies(headers: Headers): string[] {
     extendedHeaders.getSetCookie?.() ??
     (headers.get("set-cookie") ? [headers.get("set-cookie")!] : [])
   );
+}
+
+function isJudgeRoute(path: string): boolean {
+  return (
+    path === "/control/judge/session" || path.startsWith("/control/judge/")
+  );
+}
+
+function judgeTokenCredentialId(config: SharedSkillsConfig): string {
+  return `judge-token:${config.projectId}:${config.functionUrl}`;
 }
 
 function parseJudgeAsset(value: unknown): JudgeDemoAsset {
@@ -492,23 +593,78 @@ function parseAdminSession(value: Record<string, unknown>): AdminSession {
   };
 }
 
+function parseJudgeSession(value: Record<string, unknown>): JudgeSession {
+  if (
+    typeof value.subject !== "string" ||
+    !["github", "token"].includes(value.authentication as string) ||
+    value.allowed !== true
+  ) {
+    throw new Error("Judge Center returned an invalid access response.");
+  }
+  return {
+    subject: value.subject,
+    authentication: value.authentication as JudgeSession["authentication"],
+    ...(typeof value.githubUserId === "string"
+      ? { githubUserId: value.githubUserId }
+      : {}),
+    allowed: true,
+  };
+}
+
 function parseAdminJudge(value: unknown): AdminJudgeGrant {
   const record = requiredRecord(value, "Judge grant");
   if (
-    !["id", "githubUserId", "label"].every(
+    !["id", "kind", "label"].every(
       (key) => typeof record[key] === "string" && Boolean(record[key]),
     ) ||
+    !["github-user-id", "github-email"].includes(record.kind as string) ||
     typeof record.active !== "boolean"
   ) {
     throw new Error("Judge grant is invalid.");
   }
+  const kind = record.kind as AdminJudgeGrant["kind"];
+  const identity =
+    kind === "github-user-id"
+      ? typeof record.githubUserId === "string" && record.githubUserId
+        ? { githubUserId: record.githubUserId }
+        : undefined
+      : typeof record.githubEmail === "string" && record.githubEmail
+        ? { githubEmail: record.githubEmail }
+        : undefined;
+  if (!identity) throw new Error("Judge grant identity is invalid.");
   return {
     id: record.id as string,
-    githubUserId: record.githubUserId as string,
+    kind,
     label: record.label as string,
     active: record.active,
+    ...identity,
     ...(typeof record.expiresAt === "string"
       ? { expiresAt: record.expiresAt }
+      : {}),
+  };
+}
+
+function parseJudgeToken(value: unknown): JudgeAuthTokenMetadata {
+  const record = requiredRecord(value, "Judge authorization token");
+  if (
+    !["id", "label", "createdAt"].every(
+      (key) => typeof record[key] === "string" && Boolean(record[key]),
+    ) ||
+    (record.maxUses !== undefined &&
+      (!Number.isSafeInteger(record.maxUses) || Number(record.maxUses) < 1))
+  ) {
+    throw new Error("Judge authorization token is invalid.");
+  }
+  return {
+    id: record.id as string,
+    label: record.label as string,
+    createdAt: record.createdAt as string,
+    ...(typeof record.expiresAt === "string"
+      ? { expiresAt: record.expiresAt }
+      : {}),
+    ...(typeof record.maxUses === "number" ? { maxUses: record.maxUses } : {}),
+    ...(typeof record.revokedAt === "string"
+      ? { revokedAt: record.revokedAt }
       : {}),
   };
 }

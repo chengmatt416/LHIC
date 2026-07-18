@@ -81,6 +81,15 @@ describe("demo learning", () => {
       expect(JSON.stringify(skill.definition)).not.toContain(
         "person@example.com",
       );
+      const learnedPlan = (skill.definition as { plan: BrowserExecutionPlan })
+        .plan;
+      expect(learnedPlan.requiredVariables).toEqual([
+        {
+          name: "input-1",
+          prompt: "Provide the value for fill search.",
+        },
+      ]);
+      expect(learnedPlan.steps[0]?.action.value).toBe("{{variables.input-1}}");
 
       const match = await findSimilarDemoSkill(
         new SkillStore(database),

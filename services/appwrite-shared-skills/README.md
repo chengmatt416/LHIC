@@ -32,9 +32,10 @@ Add the Function callback origin as an Appwrite Web platform before using
 ## Desktop Control Center
 
 The native Control Center uses the same Function for privileged dashboard
-routes under `/control/*`. These endpoints are never public: they require an
-Appwrite user JWT, and every write requires either the configured bootstrap
-Appwrite account ID or an explicit `admin` role row.
+routes under `/control/*`. Administration requires an Appwrite user JWT, and
+every write requires either the configured bootstrap Appwrite account ID or an
+explicit `admin` role row. Judge read routes accept either an Appwrite JWT with
+a GitHub OAuth identity or an administrator-issued judge token.
 
 Configure these additional Function secrets after the tables from
 `appwrite.config.json` are deployed:
@@ -42,6 +43,8 @@ Configure these additional Function secrets after the tables from
 - `LHIC_BOOTSTRAP_ADMIN_ACCOUNT_ID`
 - `LHIC_CONTROL_ROLES_TABLE_ID=control-roles`
 - `LHIC_CONTROL_JUDGES_TABLE_ID=judge-grants`
+- `LHIC_CONTROL_JUDGE_EMAILS_TABLE_ID=judge-email-grants`
+- `LHIC_CONTROL_JUDGE_TOKENS_TABLE_ID=judge-auth-tokens`
 - `LHIC_CONTROL_DEMO_KEYS_TABLE_ID=demo-api-keys`
 - `LHIC_CONTROL_SECRETS_TABLE_ID=control-secrets`
 - `LHIC_CONTROL_AUDIT_TABLE_ID=control-audit-events`
@@ -49,11 +52,13 @@ Configure these additional Function secrets after the tables from
 - `LHIC_CONTROL_POLICY_PACKAGES_TABLE_ID=policy-packages`
 - `LHIC_SECRET_ENCRYPTION_KEY` — a base64-encoded, 32-byte AES-256-GCM key
 
-Enable GitHub OAuth in the Appwrite project for Judge Center. The Function
-checks the authenticated GitHub identity's immutable `providerUid`, not a
-mutable GitHub login name. Demo API keys are shown only by their create
-response; the Function stores only their SHA-256 hash. Shared-library secrets
-are stored as AES-GCM envelopes and list endpoints return metadata only.
+Enable GitHub OAuth in the Appwrite project for Judge Center. The Function can
+check either the authenticated GitHub identity's immutable `providerUid` or its
+provider email, both obtained from the OAuth identity rather than a mutable
+GitHub login name. Administrator-issued judge tokens are shown only by their
+create response and stored only as SHA-256 hashes. Demo API keys are also
+shown only by their create response. Shared-library secrets are stored as
+AES-GCM envelopes and list endpoints return metadata only.
 
 Administrators register each Judge Center asset through `POST /control/assets`.
 An asset must reference an existing credential-free HTTPS report, trace summary,

@@ -340,7 +340,7 @@
           "type": "integer",
           "required": true,
           "array": false,
-          "default": 0,
+          "default": null,
           "min": 0,
           "max": 1000000
         },
@@ -359,6 +359,129 @@
           "type": "unique",
           "status": "available",
           "columns": ["keyHash"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "judge-email-grants",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Judge GitHub Email Grants",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "githubEmail",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 254,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "label",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "expiresAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "judge-email-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["githubEmail", "active"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "judge-auth-tokens",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Judge Authorization Tokens",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "label",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "tokenHash",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expiresAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "maxUses",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "key": "useCount",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": null,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "revokedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "judge-token-hash-unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["tokenHash"],
           "orders": []
         }
       ]

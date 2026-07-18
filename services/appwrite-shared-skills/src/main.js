@@ -54,16 +54,22 @@ export default async ({ req, res, error }) => {
       return res.json({ status: "pending" }, 202);
     }
     if (path.pathname.startsWith("/control/")) {
-      const user = await authenticatedUser(req, config);
+      const controlConfig = { ...config, ...controlConfigFromEnvironment() };
+      const token = header(req, "x-lhic-judge-token");
+      const user =
+        isJudgeReadRoute(path.pathname) && token
+          ? undefined
+          : await authenticatedUser(req, config);
       return handleControlPlane({
         req,
         res,
         path,
         method,
         tables,
-        config: { ...config, ...controlConfigFromEnvironment() },
+        config: controlConfig,
         user,
-        githubUserId: () => githubIdentityUserId(req, config),
+        githubIdentity: () => githubIdentity(req, config),
+        judgeToken: () => token,
       });
     }
     if (method === "GET" && path.pathname === "/auth/callback") {
@@ -124,7 +130,7 @@ async function authenticatedUser(req, config) {
   }
 }
 
-async function githubIdentityUserId(req, config) {
+async function githubIdentity(req, config) {
   const jwt = header(req, "x-appwrite-user-jwt");
   if (!jwt) return undefined;
   const client = new Client()
@@ -136,12 +142,25 @@ async function githubIdentityUserId(req, config) {
     const github = identities.identities.find(
       (identity) => identity.provider === "github",
     );
-    return typeof github?.providerUid === "string"
-      ? github.providerUid
-      : undefined;
+    if (typeof github?.providerUid !== "string") return undefined;
+    return {
+      githubUserId: github.providerUid,
+      ...(typeof github.providerEmail === "string" &&
+      github.providerEmail.trim()
+        ? { providerEmail: github.providerEmail }
+        : {}),
+    };
   } catch {
     return undefined;
   }
+}
+
+function isJudgeReadRoute(pathname) {
+  return [
+    "/control/judge/session",
+    "/control/judge/catalog",
+    "/control/judge/policy-packages",
+  ].includes(pathname);
 }
 
 async function submitSkill(tables, config, authorId, payload) {

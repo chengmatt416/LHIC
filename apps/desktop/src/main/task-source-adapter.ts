@@ -4,7 +4,9 @@ import { join } from "node:path";
 
 import {
   isBrowserExecutionPlan,
+  isDesktopExecutionPlan,
   type BrowserExecutionPlan,
+  type DesktopExecutionPlan,
 } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
@@ -12,6 +14,8 @@ import type { TaskSourceConfig } from "../shared/contracts.js";
 import { spawnProcess, type ProcessResult } from "./process-runner.js";
 
 const providerTimeoutMs = 60_000;
+
+export type TaskExecutionPlan = BrowserExecutionPlan | DesktopExecutionPlan;
 
 export interface TaskSourceAdapterOptions {
   credentialFor(id: string): Promise<string | undefined>;
@@ -25,8 +29,8 @@ export interface TaskSourceAdapterOptions {
 
 /**
  * Slow Path sources receive only a task description and return an untrusted
- * browser-plan proposal. This adapter never owns a browser, MCP client, or
- * execution handle.
+ * browser or desktop proposal. This adapter never owns a browser, MCP client,
+ * or execution handle.
  */
 export class TaskSourceAdapter {
   private readonly fetchImplementation: typeof fetch;
@@ -46,10 +50,59 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     goal: string,
     workspaceRoot: string,
-  ): Promise<BrowserExecutionPlan> {
+  ): Promise<TaskExecutionPlan> {
     const prompt = planningPrompt(goal);
     const raw = await this.request(source, prompt, workspaceRoot);
     return parsePlan(raw);
+  }
+
+  /**
+   * Uses only each CLI's version command, so ambient authenticated sessions can
+   * be used without reading, exporting, or logging their credentials.
+   */
+  public async discoverCliSources(
+    workspaceRoot: string,
+  ): Promise<TaskSourceConfig[]> {
+    const candidates = [
+      { kind: "codex-cli" as const, executable: "codex", label: "Codex CLI" },
+      {
+        kind: "antigravity-cli" as const,
+        executable: "agy",
+        label: "Antigravity CLI",
+      },
+      {
+        kind: "claude-code-cli" as const,
+        executable: "claude",
+        label: "Claude Code CLI",
+      },
+    ];
+    const detected = await Promise.all(
+      candidates.map(async (candidate) => {
+        try {
+          const result = await this.runProcess(
+            candidate.executable,
+            ["--version"],
+            {
+              cwd: workspaceRoot,
+            },
+          );
+          return result.exitCode === 0
+            ? {
+                id: candidate.kind,
+                kind: candidate.kind,
+                label: candidate.label,
+                enabled: true,
+              }
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    return detected.filter(
+      (source): source is Exclude<(typeof detected)[number], undefined> =>
+        source !== undefined,
+    );
   }
 
   private async request(
@@ -78,10 +131,10 @@ export class TaskSourceAdapter {
     workspaceRoot: string,
   ): Promise<unknown> {
     const directory = await mkdtemp(join(tmpdir(), "lhic-codex-plan-"));
-    const schemaPath = join(directory, "browser-plan.schema.json");
+    const schemaPath = join(directory, "task-plan.schema.json");
     const outputPath = join(directory, "proposal.json");
     try {
-      await writeFile(schemaPath, `${JSON.stringify(browserPlanSchema)}\n`, {
+      await writeFile(schemaPath, `${JSON.stringify(taskPlanSchema)}\n`, {
         encoding: "utf8",
         mode: 0o600,
       });
@@ -144,7 +197,7 @@ export class TaskSourceAdapter {
         "--output-format",
         "json",
         "--json-schema",
-        JSON.stringify(browserPlanSchema),
+        JSON.stringify(taskPlanSchema),
         ...(source.model ? ["--model", source.model] : []),
         prompt,
       ],
@@ -225,7 +278,7 @@ function providerRequest(
         response_format: {
           type: "text",
           mime_type: "application/json",
-          schema: browserPlanSchema,
+          schema: taskPlanSchema,
         },
       },
     };
@@ -268,7 +321,7 @@ function providerRequest(
           json_schema: {
             name: "lhic_browser_plan",
             strict: true,
-            schema: browserPlanSchema,
+            schema: taskPlanSchema,
           },
         },
       },
@@ -293,7 +346,7 @@ function providerRequest(
           type: "json_schema",
           name: "lhic_browser_plan",
           strict: true,
-          schema: browserPlanSchema,
+          schema: taskPlanSchema,
         },
       },
     },
@@ -349,10 +402,11 @@ function planningPrompt(goal: string): string {
 }
 
 const structuredSystemInstruction = [
-  "Return only a browser-plan-v1 JSON object that conforms to the supplied schema.",
+  "Return only one browser-plan-v1 or desktop-plan-v1 JSON object that conforms to the supplied schema.",
   "Create a proposal only; never claim execution, call tools, or request browser control.",
-  "Every step must be a browser action with a concrete verifier.",
-  "Do not create OS, shell, custom, raw-coordinate, credential, private-network, or cross-origin actions.",
+  "Browser steps require a concrete verifier. Desktop steps require a supported OS action and an observable local verifier.",
+  "Do not create shell, custom, credential, private-network, or cross-origin actions.",
+  "Any desktop action will require an explicit matching human approval immediately before it executes.",
   "Use requiredVariables for information that is not already present in the task.",
 ].join(" ");
 
@@ -375,15 +429,18 @@ function parseJsonText(value: string, label: string): unknown {
   try {
     return JSON.parse(value) as unknown;
   } catch {
-    throw new Error(`${label} did not return a JSON browser plan.`);
+    throw new Error(`${label} did not return a JSON task plan.`);
   }
 }
 
-function parsePlan(value: unknown): BrowserExecutionPlan {
+function parsePlan(value: unknown): TaskExecutionPlan {
   const normalized = normalizePlan(value);
-  if (!isBrowserExecutionPlan(normalized)) {
+  if (
+    !isBrowserExecutionPlan(normalized) &&
+    !isDesktopExecutionPlan(normalized)
+  ) {
     throw new Error(
-      "The Slow Path proposal failed browser-plan-v1 validation.",
+      "The Slow Path proposal failed browser-plan-v1 or desktop-plan-v1 validation.",
     );
   }
   return normalized;
@@ -398,10 +455,23 @@ function normalizePlan(value: unknown): unknown {
       if (!isRecord(step)) return step;
       const normalized = { ...step };
       if (isRecord(normalized.action)) {
-        normalized.action = withoutNulls(normalized.action, [
+        const action = withoutNulls(normalized.action, [
           "target",
           "value",
+          "x",
+          "y",
+          "text",
+          "key",
+          "application",
         ]);
+        if (isRecord(action.verifier)) {
+          normalized.action = {
+            ...action,
+            verifier: withoutNulls(action.verifier, ["application", "title"]),
+          };
+        } else {
+          normalized.action = action;
+        }
       }
       const verification = normalized.verification;
       if (isRecord(verification)) {
@@ -563,4 +633,112 @@ const browserPlanSchema = {
     "requiredVariables",
     "steps",
   ],
+} as const;
+
+const desktopPlanSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    schemaVersion: { type: "string", const: "desktop-plan-v1" },
+    goal: { type: "string" },
+    skillName: { type: ["string", "null"] },
+    requiredVariables: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          name: { type: "string" },
+          prompt: { type: "string" },
+        },
+        required: ["name", "prompt"],
+      },
+    },
+    steps: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          id: { type: "string" },
+          action: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              scope: { type: "string", const: "os" },
+              type: {
+                type: "string",
+                enum: [
+                  "os_click",
+                  "os_type",
+                  "os_press",
+                  "os_launch",
+                  "os_focus",
+                ],
+              },
+              intent: { type: "string" },
+              target: { type: ["string", "null"] },
+              methodPreference: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "string",
+                  enum: ["accessibility", "keyboard", "mouse"],
+                },
+              },
+              riskLevel: {
+                type: "string",
+                enum: ["low", "medium", "high", "unknown"],
+              },
+              x: { type: ["number", "null"] },
+              y: { type: ["number", "null"] },
+              text: { type: ["string", "null"] },
+              key: { type: ["string", "null"] },
+              application: { type: ["string", "null"] },
+              verifier: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  type: {
+                    type: "string",
+                    enum: ["active_window", "process_running"],
+                  },
+                  application: { type: ["string", "null"] },
+                  title: { type: ["string", "null"] },
+                },
+                required: ["type", "application", "title"],
+              },
+            },
+            required: [
+              "scope",
+              "type",
+              "intent",
+              "target",
+              "methodPreference",
+              "riskLevel",
+              "x",
+              "y",
+              "text",
+              "key",
+              "application",
+              "verifier",
+            ],
+          },
+        },
+        required: ["id", "action"],
+      },
+    },
+  },
+  required: [
+    "schemaVersion",
+    "goal",
+    "skillName",
+    "requiredVariables",
+    "steps",
+  ],
+} as const;
+
+const taskPlanSchema = {
+  oneOf: [browserPlanSchema, desktopPlanSchema],
 } as const;

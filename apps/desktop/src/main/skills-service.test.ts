@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { SkillsService } from "./skills-service.js";
 
 describe("SkillsService", () => {
-  it("reports an unconfigured library without opening a remote connection", async () => {
+  it("uses the bundled public registry configuration without opening a remote connection", async () => {
     const directory = await mkdtemp(join(tmpdir(), "lhic-desktop-skills-"));
     try {
       const service = new SkillsService(directory, {
@@ -19,10 +19,12 @@ describe("SkillsService", () => {
       });
 
       await expect(service.status()).resolves.toEqual({
-        configured: false,
-        enabled: false,
+        configured: true,
+        enabled: true,
         cachedSkillCount: 0,
         pendingSubmissionCount: 0,
+        registryId:
+          "lhic-shared-skills:https://lhic-shared-registry.fra.appwrite.run",
       });
     } finally {
       await rm(directory, { recursive: true, force: true });

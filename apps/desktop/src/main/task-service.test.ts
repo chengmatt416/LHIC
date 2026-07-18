@@ -63,6 +63,22 @@ describe("TaskService", () => {
     expect(updates).toEqual(["awaiting_approval", "running", "proposed"]);
   });
 
+  it("automatically selects an enabled Slow Path source after no local Skill matches", async () => {
+    const service = createService(async () => validPlan);
+    await service.configure({
+      id: "openai",
+      kind: "openai-responses",
+      label: "OpenAI",
+      model: "test-model",
+      enabled: true,
+    });
+
+    const pending = await service.start({ goal: "plan a desktop task" });
+
+    expect(pending.status).toBe("awaiting_approval");
+    expect(pending.message).toContain("OpenAI may receive");
+  });
+
   it("blocks a Slow Path provider before sending a request when its budget is exhausted", async () => {
     let proposalCalls = 0;
     const service = new TaskService(
