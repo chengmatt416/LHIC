@@ -216,4 +216,172 @@ describe("testWebFlow", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it("executes a highly complex multi-stage checkout wizard with active validation checks", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(`
+      <div id="step1">
+        <h3>Step 1: Account</h3>
+        <input id="pwd" type="password" placeholder="Password">
+        <input id="pwd-confirm" type="password" placeholder="Confirm">
+        <button id="next1" disabled>Next</button>
+      </div>
+      <div id="step2" style="display:none">
+        <h3>Step 2: Contact</h3>
+        <input id="email" placeholder="Email">
+        <label><input id="agree" type="checkbox">Agree</label>
+        <button id="next2" disabled>Next</button>
+      </div>
+      <div id="step3" style="display:none">
+        <h3>Step 3: Payment</h3>
+        <input id="card" placeholder="Card number">
+        <button id="submit" disabled>Submit</button>
+      </div>
+      <div id="success" style="display:none">
+        <h3>Purchase Complete</h3>
+      </div>
+      <script>
+        const pwd = document.querySelector('#pwd');
+        const confirm = document.querySelector('#pwd-confirm');
+        const next1 = document.querySelector('#next1');
+        const email = document.querySelector('#email');
+        const agree = document.querySelector('#agree');
+        const next2 = document.querySelector('#next2');
+        const card = document.querySelector('#card');
+        const submit = document.querySelector('#submit');
+
+        function check1() {
+          next1.disabled = !(pwd.value && pwd.value === confirm.value);
+        }
+        pwd.addEventListener('input', check1);
+        confirm.addEventListener('input', check1);
+
+        next1.addEventListener('click', () => {
+          document.querySelector('#step1').style.display = 'none';
+          document.querySelector('#step2').style.display = 'block';
+        });
+
+        function check2() {
+          next2.disabled = !(email.value.includes('@') && agree.checked);
+        }
+        email.addEventListener('input', check2);
+        agree.addEventListener('change', check2);
+
+        next2.addEventListener('click', () => {
+          document.querySelector('#step2').style.display = 'none';
+          document.querySelector('#step3').style.display = 'block';
+        });
+
+        card.addEventListener('input', () => {
+          submit.disabled = card.value.length < 16;
+        });
+
+        submit.addEventListener('click', () => {
+          document.querySelector('#step3').style.display = 'none';
+          document.querySelector('#success').style.display = 'block';
+        });
+      </script>
+    `);
+
+    const directory = await mkdtemp(join(tmpdir(), "lhic-complex-wizard-"));
+    try {
+      const result = await testWebFlow(
+        {
+          page,
+          verifier: new VerifierEngine({ page }),
+          taskId: "complex-wizard",
+          traceFilePath: join(directory, "events.jsonl"),
+        },
+        {
+          steps: [
+            // Step 1: Fill Account
+            {
+              type: "fill",
+              intent: "fill password",
+              target: "#pwd",
+              value: "secret123",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "fill",
+              intent: "confirm password",
+              target: "#pwd-confirm",
+              value: "secret123",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "click",
+              intent: "go to step 2",
+              target: "#next1",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            // Step 2: Fill Contact
+            {
+              type: "fill",
+              intent: "fill email",
+              target: "#email",
+              value: "buyer@example.test",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "click",
+              intent: "agree to terms",
+              target: "#agree",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "click",
+              intent: "go to step 3",
+              target: "#next2",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            // Step 3: Fill Payment
+            {
+              type: "fill",
+              intent: "fill card number",
+              target: "#card",
+              value: "1234567812345678",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+            {
+              type: "click",
+              intent: "submit purchase",
+              target: "#submit",
+              methodPreference: ["dom"],
+              riskLevel: "low",
+            },
+          ],
+          successConditions: [
+            {
+              type: "dom",
+              description: "purchase finished",
+              params: { text: "Purchase Complete" },
+            },
+          ],
+          approvals: {
+            2: createActionApproval({ type: "click", intent: "go to step 2", target: "#next1", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
+            4: createActionApproval({ type: "click", intent: "agree to terms", target: "#agree", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
+            5: createActionApproval({ type: "click", intent: "go to step 3", target: "#next2", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
+            7: createActionApproval({ type: "click", intent: "submit purchase", target: "#submit", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
+          },
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(await page.locator("#success").textContent()).toContain(
+        "Purchase Complete",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });

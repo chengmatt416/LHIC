@@ -40,6 +40,12 @@ export class HttpAppwriteRegistryClient implements AppwriteRegistryClient {
   }
 
   public async fetchSnapshot(): Promise<SharedSkillSnapshot> {
+    if (process.env.LHIC_MOCK_APPWRITE === "true") {
+      return {
+        skills: [],
+        revokedSkillIds: [],
+      };
+    }
     const response = await this.fetchImplementation(
       `${this.config.functionUrl}/skills`,
       { headers: { Accept: "application/json" } },
@@ -65,6 +71,19 @@ export class HttpAppwriteRegistryClient implements AppwriteRegistryClient {
     payload: Record<string, unknown>,
     sessionCookie: string,
   ): Promise<void> {
+    if (process.env.LHIC_MOCK_APPWRITE === "true") {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const uploadsDir = path.resolve(".lhic/shared-skills-uploads");
+      await fs.mkdir(uploadsDir, { recursive: true });
+      const filename = `${payload.name || "skill"}-${Date.now()}.json`;
+      await fs.writeFile(
+        path.join(uploadsDir, filename),
+        JSON.stringify(payload, null, 2),
+        "utf8",
+      );
+      return;
+    }
     const jwt = await this.createJwt(sessionCookie);
     const response = await this.fetchImplementation(
       `${this.config.functionUrl}/skills`,
@@ -86,6 +105,9 @@ export class HttpAppwriteRegistryClient implements AppwriteRegistryClient {
   }
 
   public async login(email: string): Promise<string> {
+    if (process.env.LHIC_MOCK_APPWRITE === "true") {
+      return "mock-session-cookie";
+    }
     if (!email.trim()) {
       throw new Error("An email address is required for shared skill login.");
     }

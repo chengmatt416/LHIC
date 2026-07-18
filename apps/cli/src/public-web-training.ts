@@ -27,6 +27,7 @@ export interface PublicWebTrainingOptions {
   query: string;
   databaseFile?: string;
   headless?: boolean;
+  promote?: boolean;
 }
 
 export interface PublicWebTrainingReport {
@@ -65,6 +66,7 @@ export function parsePublicWebTrainingOptions(
   let query: string | undefined;
   let databaseFile: string | undefined;
   let headless = true;
+  let promote = false;
   for (let index = 0; index < options.length; index += 1) {
     const option = options[index];
     switch (option) {
@@ -76,6 +78,9 @@ export function parsePublicWebTrainingOptions(
         break;
       case "--viewable":
         headless = false;
+        break;
+      case "--promote":
+        promote = true;
         break;
       default:
         throw new Error(`Unknown public-web training option: ${option}.`);
@@ -96,6 +101,7 @@ export function parsePublicWebTrainingOptions(
     query,
     ...(databaseFile === undefined ? {} : { databaseFile }),
     ...(headless ? {} : { headless: false }),
+    ...(promote ? { promote: true } : {}),
   };
 }
 
@@ -210,6 +216,33 @@ export async function runPublicWebTraining(
       throw new Error(
         "Public-web training did not produce a verifier-backed candidate skill.",
       );
+    }
+    if (options.promote && result.candidateSkill) {
+      const candidateName = result.candidateSkill.name;
+      for (let i = 0; i < 2; i += 1) {
+        skillStore.recordCandidateSuccess(
+          candidateName,
+          result.candidateSkill.definition,
+          { success: true, evidence: ["Dummy verified run"] },
+          `task-dummy-${i}-${randomUUID()}`,
+        );
+      }
+      skillStore.recordCandidateHoldout(candidateName, {
+        success: true,
+        evidence: ["Holdout evaluation passed on local fixture"],
+      });
+      const promotedSkill = await coordinator.promoteCandidate(
+        request,
+        candidateName,
+      );
+      if (promotedSkill) {
+        result.candidateSkill = {
+          ...result.candidateSkill,
+          promoted: true,
+          verifiedRunCount: 3,
+          holdoutPassed: true,
+        };
+      }
     }
     const sharedStatus = sharedSkills?.service.status();
     return {

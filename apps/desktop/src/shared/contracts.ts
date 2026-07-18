@@ -152,9 +152,11 @@ export interface PublicWebTrainingRequest {
     | "wikipedia-search"
     | "mdn-search"
     | "github-issue-filter"
-    | "openstreetmap-place-search";
+    | "openstreetmap-place-search"
+    | "psycho-flow";
   query: string;
   viewable?: boolean;
+  promote?: boolean;
 }
 
 export interface GameTrainingRequest {

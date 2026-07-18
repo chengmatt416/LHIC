@@ -156,6 +156,7 @@ export class PlaywrightDirectExecutor {
         {
           ...this.approvalValidation,
           ...(resolvedActionTarget &&
+          (action.type === "click" || action.type === "press") &&
           isSideEffectActivationTarget(resolvedActionTarget.safetyText)
             ? {
                 forceConfirmation: true,
@@ -248,6 +249,12 @@ export class PlaywrightDirectExecutor {
       case "click": {
         const target =
           resolvedActivationTarget ?? (await this.requireTarget(action));
+        const isDisabled = await target.locator.isDisabled().catch(() => false);
+        if (isDisabled) {
+          throw new Error(
+            `Target ${target.description} is disabled and cannot be clicked.`,
+          );
+        }
         await target.locator.click();
         return {
           method: target.method,

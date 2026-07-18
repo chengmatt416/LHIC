@@ -127,6 +127,7 @@ export interface GamePolicyArtifact {
   actionCodec: string;
   weightsFile: string;
   weightsSha256: string;
+  modelType?: string;
   metrics: {
     behaviorCloningLoss: number;
     ppoReward: number;

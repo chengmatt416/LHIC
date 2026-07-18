@@ -516,4 +516,31 @@ describe("PlaywrightDirectExecutor", () => {
       await executor.execute(action, signActionApproval(approval, privateKey)),
     ).toMatchObject({ success: true, method: "dom" });
   });
+
+  it("fails fast when attempting to click a disabled button", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<button id="submit" disabled>Submit</button>');
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "disabled-target",
+      traceFilePath: join(tmpdir(), `lhic-disabled-target-${Date.now()}.jsonl`),
+    });
+
+    const clickAction = {
+      type: "click" as const,
+      intent: "click disabled button",
+      target: "#submit",
+      methodPreference: ["dom" as const],
+      riskLevel: "low" as const,
+    };
+
+    const clickResult = await executor.execute(
+      clickAction,
+      createActionApproval(clickAction, "operator@example.test"),
+    );
+
+    expect(clickResult.success).toBe(false);
+    expect(clickResult.error).toContain("is disabled and cannot be clicked");
+  });
 });

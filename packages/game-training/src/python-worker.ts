@@ -29,6 +29,7 @@ export interface PythonTrainingRequest {
   frameHeight?: number;
   frameHistory?: number;
   epochs?: number;
+  modelType?: string | undefined;
 }
 
 export interface PythonTrainingResult {
@@ -164,7 +165,7 @@ export async function runPythonPrediction(
 
 export async function startPythonPolicySession(
   python: string,
-  request: { core: GameCoreId; weightsFile: string },
+  request: { core: GameCoreId; weightsFile: string; modelType?: string | undefined },
 ): Promise<PythonPolicySession> {
   const child = spawn(python, [gameTrainingWorkerPath(), "--serve"], {
     stdio: ["pipe", "pipe", "pipe"],

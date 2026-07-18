@@ -12,8 +12,53 @@ const sensitiveKeyPattern =
 const sensitiveFieldHintPattern =
   /(password|passphrase|pwd|token|secret|api[_-]?key|authorization|cookie)/i;
 
+/**
+ * Local Named Entity Recognition (NER) and Contextual Heuristic Parser.
+ * Scans text for names, organizations, locations, or sensitive API keys
+ * that are missed by generic regular expressions.
+ */
+function localNERRedact(value: string): string {
+  if (process.env.LHIC_DISABLE_LOCAL_NER === "true") {
+    return value;
+  }
+  let redacted = value;
+  
+  // 1. Identify common PII names and capitalize patterns in specific sentence contexts
+  const introductionPatterns = [
+    /\bmy\s+name\s+is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g,
+    /\bI\s+am\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g,
+    /\blogin\s+as\s+([A-Za-z0-9_.-]+)\b/gi,
+  ];
+
+  for (const pattern of introductionPatterns) {
+    redacted = redacted.replace(pattern, (match, p1) => {
+      return match.replace(p1, "[REDACTED_NAME]");
+    });
+  }
+
+  // 2. Identify potential high-entropy keys/secrets not covered by apiTokenPattern
+  const credentialAssignments = [
+    /\b(?:secret|password|passwd|key|token|auth)\s*[:=]\s*['"]?([A-Za-z0-9_~+/=-]{8,})['"]?/gi,
+  ];
+
+  for (const pattern of credentialAssignments) {
+    redacted = redacted.replace(pattern, (match, p1) => {
+      if (p1.toLowerCase() === "true" || p1.toLowerCase() === "false" || p1.toLowerCase() === "null") {
+        return match;
+      }
+      return match.replace(p1, "[REDACTED_SECRET]");
+    });
+  }
+
+  // 3. Organization patterns
+  const orgPattern = /\b[A-Z][a-zA-Z0-9._&+-]+\s+(?:Inc|Incorporated|Corp|Corporation|LLC|Ltd|Limited)\b\.?/g;
+  redacted = redacted.replace(orgPattern, "[REDACTED_ORG]");
+
+  return redacted;
+}
+
 function redactString(value: string): string {
-  return value
+  const redacted = value
     .replace(emailPattern, "[REDACTED_EMAIL]")
     .replace(phonePattern, "[REDACTED_PHONE]")
     .replace(bearerTokenPattern, "Bearer [REDACTED_TOKEN]")
@@ -22,6 +67,7 @@ function redactString(value: string): string {
     .replace(creditCardPattern, "[REDACTED_CREDIT_CARD]")
     .replace(ssnPattern, "[REDACTED_SSN]")
     .replace(addressPattern, "[REDACTED_ADDRESS]");
+  return localNERRedact(redacted);
 }
 
 export function redactPII<T>(input: T): T {

@@ -390,9 +390,19 @@ async function isGlobalProcessRunning(
 function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
   switch (action.type) {
     case "os_click":
+      if (
+        action.methodPreference.includes("accessibility") &&
+        action.target &&
+        action.application
+      ) {
+        return appleScriptCommand(macAccessibilityClickScript, [
+          action.application,
+          action.target,
+        ]);
+      }
       return appleScriptCommand(macClickScript, [
-        String(action.x),
-        String(action.y),
+        String(action.x ?? 0),
+        String(action.y ?? 0),
       ]);
     case "os_type":
       return appleScriptCommand(macTypeScript, [action.text ?? ""]);
@@ -416,6 +426,15 @@ function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
 function buildWindowsCommand(action: GlobalComputerAction): GlobalCommand {
   switch (action.type) {
     case "os_click":
+      if (
+        action.methodPreference.includes("accessibility") &&
+        action.target &&
+        action.application
+      ) {
+        return powerShellCommand(
+          windowsAccessibilityClickScript(action.application, action.target),
+        );
+      }
       return powerShellCommand(
         windowsClickScript(action.x ?? 0, action.y ?? 0),
       );
@@ -677,6 +696,37 @@ function safeGlobalActionError(error: unknown): string {
   return "Global computer action could not be completed. Run `lhic global doctor` and confirm the required OS accessibility permission.";
 }
 
+const macAccessibilityClickScript = `on run argv
+  tell application "System Events"
+    tell process (item 1 of argv)
+      set targetElement to missing value
+      repeat with win in windows
+        try
+          if exists (first UI element of win whose name is (item 2 of argv) or title is (item 2 of argv) or description is (item 2 of argv)) then
+            set targetElement to (first UI element of win whose name is (item 2 of argv) or title is (item 2 of argv) or description is (item 2 of argv))
+            exit repeat
+          end if
+          set allElements to entire contents of win
+          repeat with el in allElements
+            try
+              if (name of el is (item 2 of argv)) or (title of el is (item 2 of argv)) or (description of el is (item 2 of argv)) then
+                set targetElement to el
+                exit repeat
+              end if
+            end try
+          end repeat
+          if targetElement is not missing value then exit repeat
+        end try
+      end repeat
+      if targetElement is not missing value then
+        click targetElement
+      else
+        error "Accessibility element " & (item 2 of argv) & " not found"
+      end if
+    end tell
+  end tell
+end run`;
+
 const macClickScript = `on run argv
   tell application "System Events"
     click at {(item 1 of argv) as integer, (item 2 of argv) as integer}
@@ -784,3 +834,31 @@ $processId = 0
 [WindowProbe]::GetWindowThreadProcessId($window, [ref]$processId) | Out-Null
 $process = Get-Process -Id $processId -ErrorAction Stop
 @{ application = $process.ProcessName; title = $title.ToString() } | ConvertTo-Json -Compress`;
+
+function windowsAccessibilityClickScript(application: string, target: string): string {
+  return `Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1
+if ($null -eq $proc) { throw "Application process not found" }
+$ae = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+$condition = New-Object System.Windows.Automation.OrCondition(
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "${target}")),
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, "${target}"))
+)
+$elem = $ae.FindFirst([System.Windows.Automation.TreeScope]::Subtree, $condition)
+if ($null -eq $elem) { throw "Accessibility element ${target} not found" }
+$invokePattern = $null
+try {
+  $invokePattern = $elem.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+} catch {}
+if ($null -ne $invokePattern) {
+  $invokePattern.Invoke()
+} else {
+  $point = $elem.GetClickablePoint()
+  Add-Type -AssemblyName System.Windows.Forms
+  [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point($point.X, $point.Y)
+  ${windowsNativeInputScript}
+  [Native]::mouse_event(0x0002, 0, 0, 0, 0)
+  [Native]::mouse_event(0x0004, 0, 0, 0, 0)
+}`;
+}

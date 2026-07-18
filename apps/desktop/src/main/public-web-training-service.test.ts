@@ -78,4 +78,17 @@ describe("PublicWebTrainingService", () => {
     expect(signal?.aborted).toBe(true);
     expect(service.status(job.id).status).toBe("cancelled");
   });
+
+  it("preserves promote flag in validation", () => {
+    const validated = validatePublicWebTrainingRequest({
+      scenarioId: "mdn-search",
+      query: "browser automation",
+      promote: true,
+    });
+    expect(validated).toMatchObject({
+      scenarioId: "mdn-search",
+      query: "browser automation",
+      promote: true,
+    });
+  });
 });

@@ -140,4 +140,38 @@ describe("GlobalComputerExecutor", () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it("dispatches accessibility clicks on macOS", () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "click the button",
+      methodPreference: ["accessibility"],
+      riskLevel: "high",
+      application: "Safari",
+      target: "Submit",
+      verifier: { type: "active_window", application: "Safari" },
+    };
+    const command = buildGlobalComputerCommand(action, "darwin");
+    expect(command.file).toBe("osascript");
+    expect(command.args[1]).toContain("tell process (item 1 of argv)");
+    expect(command.args[3]).toBe("Safari");
+    expect(command.args[4]).toBe("Submit");
+  });
+
+  it("dispatches accessibility clicks on Windows", () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "click the button",
+      methodPreference: ["accessibility"],
+      riskLevel: "high",
+      application: "chrome",
+      target: "Submit",
+      verifier: { type: "active_window", application: "chrome" },
+    };
+    const command = buildGlobalComputerCommand(action, "win32");
+    expect(command.file).toBe("powershell.exe");
+    expect(command.args).toContain("-EncodedCommand");
+  });
 });

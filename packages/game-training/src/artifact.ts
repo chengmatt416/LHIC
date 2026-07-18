@@ -49,6 +49,7 @@ export function validateGamePolicyArtifact(
     !artifact.actionCodec ||
     !isSafeWeightsFile(artifact.weightsFile) ||
     !/^[a-f0-9]{64}$/.test(artifact.weightsSha256 ?? "") ||
+    (artifact.modelType !== undefined && typeof artifact.modelType !== "string") ||
     !artifact.metrics ||
     !Number.isFinite(artifact.metrics.behaviorCloningLoss) ||
     !Number.isFinite(artifact.metrics.ppoReward) ||

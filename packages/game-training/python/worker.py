@@ -69,8 +69,86 @@ def import_training_dependencies() -> tuple[Any, Any, Any]:
     return np, torch, Image
 
 
-def build_model(torch: Any, core: str) -> Any:
+def build_model(torch: Any, core: str, model_type: str = "cnn") -> Any:
     history, _, _, _ = model_spec(core)
+
+    if model_type == "gru":
+        class GRUPolicy(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.single_frame_extractor = torch.nn.Sequential(
+                    torch.nn.Conv2d(3, 32, kernel_size=5, stride=2),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv2d(32, 64, kernel_size=3, stride=2),
+                    torch.nn.ReLU(),
+                    torch.nn.Conv2d(64, 64, kernel_size=3, stride=2),
+                    torch.nn.ReLU(),
+                    torch.nn.AdaptiveAvgPool2d((4, 4)),
+                    torch.nn.Flatten(),
+                    torch.nn.Linear(64 * 4 * 4, 256),
+                    torch.nn.ReLU(),
+                )
+                self.history = history
+                self.gru = torch.nn.GRU(input_size=256, hidden_size=256, batch_first=True)
+                self.movement = torch.nn.Linear(256, 9)
+                self.fire = torch.nn.Linear(256, 2)
+                self.axis_x = torch.nn.Linear(256, 7 if core == "3d" else 9)
+                self.axis_y = torch.nn.Linear(256, 7 if core == "3d" else 9)
+
+            def forward(self, frames: Any) -> tuple[Any, ...]:
+                batch_size = frames.size(0)
+                # Reshape to treat history frames as sequential steps
+                reshaped = frames.view(batch_size * self.history, 3, frames.size(2), frames.size(3))
+                features = self.single_frame_extractor(reshaped)
+                features = features.view(batch_size, self.history, 256)
+                gru_out, _ = self.gru(features)
+                last_features = gru_out[:, -1, :]
+                values: list[Any] = [self.movement(last_features), self.fire(last_features)]
+                values.extend([self.axis_x(last_features), self.axis_y(last_features)])
+                return tuple(values)
+
+        return GRUPolicy()
+
+    if model_type == "vit":
+        class ViTPolicy(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.history = history
+                self.patch_size = 8
+                self.emb_size = 128
+                in_channels = history * 3
+                self.patch_proj = torch.nn.Conv2d(in_channels, self.emb_size, kernel_size=self.patch_size, stride=self.patch_size)
+                # Max patches: 256 for 128x128, + 1 cls token = 257
+                self.pos_emb = torch.nn.Parameter(torch.zeros(1, 257, self.emb_size))
+                self.cls_token = torch.nn.Parameter(torch.zeros(1, 1, self.emb_size))
+                encoder_layer = torch.nn.TransformerEncoderLayer(
+                    d_model=self.emb_size, nhead=4, dim_feedforward=256, batch_first=True, activation='relu'
+                )
+                self.transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=2)
+                self.mlp_head = torch.nn.Sequential(
+                    torch.nn.Linear(self.emb_size, 256),
+                    torch.nn.ReLU()
+                )
+                self.movement = torch.nn.Linear(256, 9)
+                self.fire = torch.nn.Linear(256, 2)
+                self.axis_x = torch.nn.Linear(256, 7 if core == "3d" else 9)
+                self.axis_y = torch.nn.Linear(256, 7 if core == "3d" else 9)
+
+            def forward(self, frames: Any) -> tuple[Any, ...]:
+                patches = self.patch_proj(frames)
+                patches = patches.flatten(2).transpose(1, 2)
+                batch_size = patches.size(0)
+                cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+                x = torch.cat((cls_tokens, patches), dim=1)
+                x = x + self.pos_emb[:, :x.size(1), :]
+                x = self.transformer(x)
+                cls_rep = x[:, 0]
+                features = self.mlp_head(cls_rep)
+                values: list[Any] = [self.movement(features), self.fire(features)]
+                values.extend([self.axis_x(features), self.axis_y(features)])
+                return tuple(values)
+
+        return ViTPolicy()
 
     class Policy(torch.nn.Module):
         def __init__(self) -> None:
@@ -209,7 +287,7 @@ def fit(request: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("fit requires datasetPath and artifactDirectory")
     loaded = load_dataset(request, np, Image)
     frames, movement, fire, look_x, look_y, rewards = loaded
-    model = build_model(torch, core)
+    model = build_model(torch, core, str(request.get("modelType", "cnn")))
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
     frame_tensor = torch.tensor(frames, dtype=torch.float32)
     movement_tensor = torch.tensor(movement, dtype=torch.long)
@@ -229,6 +307,7 @@ def fit(request: dict[str, Any]) -> dict[str, Any]:
         loss = loss + torch.nn.functional.cross_entropy(outputs[2], look_x_tensor)
         loss = loss + torch.nn.functional.cross_entropy(outputs[3], look_y_tensor)
         optimizer.zero_grad()
+        loss.integrate = 0 # Dummy modification to force update / track
         loss.backward()
         optimizer.step()
         behavior_loss = float(loss.item())
@@ -270,7 +349,7 @@ def smoke(request: dict[str, Any]) -> dict[str, Any]:
     _, torch, _ = import_training_dependencies()
     core = str(request.get("core"))
     history, width, height, _ = model_spec(core)
-    model = build_model(torch, core)
+    model = build_model(torch, core, str(request.get("modelType", "cnn")))
     output = model(torch.zeros((2, history * 3, height, width), dtype=torch.float32))
     return {
         "core": core,
@@ -309,12 +388,12 @@ def prediction_action(core: str, outputs: tuple[Any, ...]) -> dict[str, Any]:
     return action
 
 
-def load_policy(core: str, weights_file: Path, torch: Any) -> Any:
+def load_policy(core: str, weights_file: Path, torch: Any, model_type: str = "cnn") -> Any:
     if core not in ("2d", "3d"):
         raise ValueError("core must be 2d or 3d")
     if not weights_file.is_file():
         raise ValueError("predict requires an existing weightsFile")
-    model = build_model(torch, core)
+    model = build_model(torch, core, model_type)
     try:
         state = torch.load(weights_file, map_location="cpu", weights_only=True)
     except TypeError:
@@ -356,7 +435,7 @@ def predict(request: dict[str, Any]) -> dict[str, Any]:
     np, torch, Image = import_training_dependencies()
     core = str(request.get("core"))
     weights_file = Path(str(request.get("weightsFile", ""))).resolve()
-    model = load_policy(core, weights_file, torch)
+    model = load_policy(core, weights_file, torch, str(request.get("modelType", "cnn")))
     return predict_loaded(request, core, model, np, torch, Image)
 
 
@@ -375,7 +454,7 @@ def serve() -> None:
                 np, torch, Image = import_training_dependencies()
                 core = str(request.get("core"))
                 weights_file = Path(str(request.get("weightsFile", ""))).resolve()
-                model = load_policy(core, weights_file, torch)
+                model = load_policy(core, weights_file, torch, str(request.get("modelType", "cnn")))
                 loaded = (core, model, np, torch, Image)
                 result: dict[str, Any] = {"ready": True, "core": core}
             elif command == "predict":

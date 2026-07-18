@@ -161,4 +161,22 @@ describe("trace redaction and event log", () => {
       eventsByRisk: { low: 2, high: 1 },
     });
   });
+
+  it("redacts sensitive data using local NER-like heuristics", () => {
+    const redacted = redactPII({
+      nameInfo: "Hello, my name is Alice Cooper",
+      intro: "I am John Doe and I want to login as administrator",
+      credentialAssigned: "password = super_secret_pass_12345",
+      apiInfo: "key: my_personal_token_9999",
+      orgInfo: "Acme Corp. is a great enterprise",
+    });
+
+    expect(JSON.stringify(redacted)).toContain("[REDACTED_NAME]");
+    expect(JSON.stringify(redacted)).toContain("[REDACTED_SECRET]");
+    expect(JSON.stringify(redacted)).toContain("[REDACTED_ORG]");
+    expect(JSON.stringify(redacted)).not.toContain("Alice");
+    expect(JSON.stringify(redacted)).not.toContain("John");
+    expect(JSON.stringify(redacted)).not.toContain("super_secret_pass_12345");
+    expect(JSON.stringify(redacted)).not.toContain("Acme Corp.");
+  });
 });

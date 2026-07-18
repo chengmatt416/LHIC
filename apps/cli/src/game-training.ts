@@ -495,6 +495,7 @@ async function fitPolicy(
     gameTrainingPython(paths.environmentRoot);
   const frameSpec = frameSpecFor(profile.core);
   const actionCodec = actionCodecFor(profile.core);
+  const modelType = optionString(options, "--model-type") ?? "cnn";
   const result = await runPythonTraining(python, {
     command: "fit",
     core: profile.core,
@@ -507,6 +508,7 @@ async function fitPolicy(
     frameHeight: frameSpec.height,
     frameHistory: frameSpec.history,
     epochs: optionInteger(options, "--epochs") ?? 3,
+    modelType,
   });
   if (!result.weightsFile || !result.weightsSha256) {
     throw new Error(
@@ -523,6 +525,7 @@ async function fitPolicy(
     actionCodec,
     weightsFile: basename(result.weightsFile),
     weightsSha256: result.weightsSha256,
+    modelType,
     metrics: {
       behaviorCloningLoss: result.behaviorCloningLoss,
       ppoReward: result.ppoReward,
@@ -593,6 +596,7 @@ async function evaluateBrowserPolicy(
       const activePolicy = await startPythonPolicySession(python, {
         core: profile.core,
         weightsFile,
+        modelType: artifact.modelType,
       });
       policy = activePolicy;
       const result = await runBrowserEpisode(
@@ -711,6 +715,7 @@ async function playBrowserPolicy(
   const policy = await startPythonPolicySession(python, {
     core: profile.core,
     weightsFile,
+    modelType: artifact.modelType,
   });
   let result: BrowserEpisodeResult;
   try {
@@ -787,6 +792,7 @@ async function playDesktopPolicy(
   const policy = await startPythonPolicySession(python, {
     core: profile.core,
     weightsFile,
+    modelType: artifact.modelType,
   });
   const sessionId = randomUUID();
   const trace = {

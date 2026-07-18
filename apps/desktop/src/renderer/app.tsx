@@ -549,6 +549,9 @@ function Skills({
               <option value="openstreetmap-place-search">
                 OpenStreetMap place search
               </option>
+              <option value="psycho-flow">
+                Psycho Flow advanced psychological survey
+              </option>
             </select>
           </label>
           <label>
@@ -570,17 +573,26 @@ function Skills({
               type="checkbox"
               checked={trainingInput.viewable === true}
               onChange={(event) => {
-                if (event.target.checked) {
-                  setTrainingInput({ ...trainingInput, viewable: true });
-                  return;
-                }
                 setTrainingInput({
-                  scenarioId: trainingInput.scenarioId,
-                  query: trainingInput.query,
+                  ...trainingInput,
+                  viewable: event.target.checked,
                 });
               }}
             />
             Show the training browser window
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={trainingInput.promote === true}
+              onChange={(event) => {
+                setTrainingInput({
+                  ...trainingInput,
+                  promote: event.target.checked,
+                });
+              }}
+            />
+            Immediately promote candidate to Fast Path (habit)
           </label>
         </div>
         <div className="actions">
