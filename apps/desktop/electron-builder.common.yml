@@ -1,0 +1,32 @@
+appId: io.github.chengmatt416.lhic
+productName: LHIC Control Center
+executableName: lhic-control-center
+artifactName: lhic-control-center-${version}-${arch}.${ext}
+directories:
+  output: release
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+linux:
+  syncDesktopName: true
+  category: Utility
+  maintainer: chengmatt416 <chengmatt416@gmail.com>
+  icon: build/icon.png
+  target:
+    - AppImage
+    - deb
+deb:
+  packageName: lhic-control-center
+files:
+  - dist/**
+  - package.json
+  - from: ../../packages/game-training/dist
+    to: node_modules/@lhic/game-training/dist
+    filter:
+      - desktop-recording.js
+asarUnpack:
+  - node_modules/@lhic/game-training/python/**
+  - node_modules/@lhic/game-training/requirements.txt
+  - node_modules/@pinyencheng/lhic/node_modules/@lhic/game-training/python/**
+  - node_modules/@pinyencheng/lhic/node_modules/@lhic/game-training/requirements.txt

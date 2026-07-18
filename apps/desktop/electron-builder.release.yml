@@ -1,8 +1,8 @@
 extends: ./electron-builder.common.yml
 mac:
   icon: build/icon.icns
-  identity: "-"
-  hardenedRuntime: false
-  notarize: false
+  forceCodeSigning: true
+  hardenedRuntime: true
+  notarize: true
   target:
     - dmg

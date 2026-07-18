@@ -1,6 +1,6 @@
 {
   "name": "@lhic/desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Native control center for the Local Human Intent Controller.",
   "desktopName": "lhic-control-center",
   "author": {
@@ -17,7 +17,8 @@
     "dev": "vite --host 127.0.0.1",
     "dev:desktop": "npm run build && electron .",
     "start": "electron .",
-    "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs"
+    "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs",
+    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs"
   },
   "dependencies": {
     "@pinyencheng/lhic": "^0.1.2",

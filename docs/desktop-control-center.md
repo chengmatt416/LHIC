@@ -13,11 +13,30 @@ npm run desktop:build
 npm run desktop:start
 ```
 
-Package unsigned development installers for the host platform with:
+Package a development DMG for the host platform with:
 
 ```sh
 npm run desktop:package
 ```
+
+The development DMG is complete ad-hoc signed and the package verifier runs
+`codesign --verify --deep --strict`, so it cannot silently produce a malformed
+application bundle. It is not a distributable macOS release: Gatekeeper will
+not trust an ad-hoc signature downloaded from the internet.
+
+Public macOS releases must be signed with a Developer ID Application
+certificate and notarized. Provide either `CSC_LINK` or `CSC_NAME`, plus one
+supported notarization credential set, and use:
+
+```sh
+npm run package:release --workspace @lhic/desktop
+```
+
+The release command requires either `APPLE_API_KEY`, `APPLE_API_KEY_ID`, and
+`APPLE_API_ISSUER`; `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and
+`APPLE_TEAM_ID`; or `APPLE_KEYCHAIN_PROFILE`. It fails before packaging when
+these values are absent and runs both code-signature and Gatekeeper assessment
+after packaging. Do not upload the development DMG to a public release.
 
 The app's MCP screen detects a supported client, produces the full proposed
 configuration, and writes only after confirmation. A detected file receives a

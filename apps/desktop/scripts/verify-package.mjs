@@ -1,6 +1,8 @@
 import { access, readdir } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { listPackage } from "@electron/asar";
 
@@ -9,6 +11,7 @@ const applicationDirectory = resolve(
   "..",
 );
 const releaseDirectory = join(applicationDirectory, "release");
+const execFileAsync = promisify(execFile);
 const allArchives = await findAsarArchives(releaseDirectory);
 const archives =
   process.env.LHIC_VERIFY_ALL_PACKAGES === "true"
@@ -42,6 +45,25 @@ for (const archive of archives) {
     access(join(unpacked, "node_modules/@lhic/game-training/python/worker.py")),
     access(join(unpacked, "node_modules/@lhic/game-training/requirements.txt")),
   ]);
+  if (isMacArchive(archive)) {
+    const applicationBundle = macApplicationBundle(archive);
+    await execFileAsync("codesign", [
+      "--verify",
+      "--deep",
+      "--strict",
+      "--verbose=4",
+      applicationBundle,
+    ]);
+    if (process.env.LHIC_REQUIRE_NOTARIZATION === "true") {
+      await execFileAsync("spctl", [
+        "--assess",
+        "--type",
+        "execute",
+        "--verbose=4",
+        applicationBundle,
+      ]);
+    }
+  }
 }
 
 console.log(
@@ -70,4 +92,19 @@ function isCurrentPlatformArchive(archive) {
         ? `${sep}win-`
         : `${sep}linux-`;
   return archive.includes(marker);
+}
+
+function isMacArchive(archive) {
+  return archive.includes(`${sep}mac-`);
+}
+
+function macApplicationBundle(archive) {
+  const marker = `${sep}Contents${sep}Resources${sep}app.asar`;
+  const markerIndex = archive.lastIndexOf(marker);
+  if (markerIndex < 0) {
+    throw new Error(
+      `Could not resolve the macOS application bundle for ${archive}.`,
+    );
+  }
+  return archive.slice(0, markerIndex);
 }

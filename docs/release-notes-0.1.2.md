@@ -23,6 +23,9 @@ Git tag, and GitHub Release all succeed.
   platform.
 - Adds the public `lhic` npm compatibility entry so `npx lhic` invokes the
   complete scoped CLI.
+- Replaces the invalid unsigned macOS bundle with a complete ad-hoc-signed
+  development build and adds a fail-closed Developer ID/notarization release
+  path. Public macOS release assets must pass `spctl` before upload.
 - Documents the safe Fast Path boundary, reproducibility procedure,
   benchmark scope, threat model, Judge Guide, and Devpost evidence gaps.
 
