@@ -21,9 +21,9 @@ LHIC — Local-First Human Intent Controller | OpenAI Build Week Demo
 ```text
 LHIC is a local-first execution runtime for computer-use agents. It separates probabilistic planning from deterministic, policy-controlled browser actions and records verifier evidence for every completed step.
 
-This 2:51 demo opens a real local HTTP shopping site in Playwright. A complex Slow Path cart plan searches, configures a keyboard, opens checkout, survives a checkout UI mutation, redeems a promotion, selects delivery, and verifies the cart preview. Every action must have verifier evidence before LHIC saves a redacted local verified skill.
+This 2:51 demo opens a real local HTTP shopping site in Playwright. A complex Slow Path cart plan searches, configures a keyboard, opens checkout, survives a checkout UI mutation, redeems a promotion, selects delivery, and verifies the cart preview. Every action must have verifier evidence before LHIC saves a redacted local candidate; three independent runs and a deterministic offline holdout are required before promotion.
 
-The video then opens a fresh cart and routes the same learned skill through the Fast Path: zero model calls and zero MCP calls. The learned Fast Path still refuses to place an order until a human provides approval.
+The video then opens a fresh cart and routes an explicitly preloaded deterministic fixture skill through the Fast Path: zero model calls and zero MCP calls. It does not claim that the just-recorded candidate is already Fast Path eligible. The Fast Path still refuses to place an order until a human provides approval.
 
 GPT-5.6 is LHIC's explicit Slow Path planner for uncertain work. When enabled, its structured output is redacted, schema-checked, policy-checked, and cannot bypass approval or verification. The Fast Path makes no model or MCP calls.
 

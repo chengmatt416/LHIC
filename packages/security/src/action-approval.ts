@@ -110,7 +110,7 @@ export function validateActionApproval(
   if (options.requireSignature) {
     let verificationKey = options.publicKey;
     if (!verificationKey && options.kmsKeyId) {
-      // Dimension 4: Dynamic KMS / Key Vault Lookup Simulation
+      // A configured local KMS key is resolved without persisting key material.
       const envVarName = `LHIC_KMS_KEY_${options.kmsKeyId.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`;
       const fetchedKey =
         process.env[envVarName] || process.env.LHIC_KMS_DEFAULT_PUBLIC_KEY;

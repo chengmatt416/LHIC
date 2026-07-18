@@ -4,6 +4,7 @@ import { createMemoryDatabase, SkillStore } from "@lhic/memory";
 
 import { ClaudeSlowPathProvider } from "./claude-provider.js";
 import { FastPathRouter } from "./fast-path-router.js";
+import { OfflineEvaluationWorker } from "./offline-evaluation.js";
 import {
   compileSlowPathSkill,
   SlowPathLearningCoordinator,
@@ -56,7 +57,7 @@ describe("Slow Path interfaces", () => {
     });
   });
 
-  it("executes verified Slow Path plans and automatically learns a redacted skill", async () => {
+  it("executes verified Slow Path plans into a redacted candidate skill", async () => {
     const database = createMemoryDatabase();
     try {
       const coordinator = new SlowPathLearningCoordinator(
@@ -97,9 +98,10 @@ describe("Slow Path interfaces", () => {
         },
       );
 
-      expect(result?.learnedSkill).toMatchObject({
-        lifecycle: "verified",
-        successCount: 1,
+      expect(result?.learnedSkill).toBeUndefined();
+      expect(result?.candidateSkill).toMatchObject({
+        verifiedRunCount: 1,
+        holdoutPassed: false,
         definition: {
           compiler: "slow-path-v1",
           actions: [{ value: "[REDACTED]" }],
@@ -151,7 +153,7 @@ describe("Slow Path interfaces", () => {
     }
   });
 
-  it("queues a sanitized shared publication only after local verified learning", async () => {
+  it("publishes a sanitized shared skill only after candidate promotion", async () => {
     const database = createMemoryDatabase();
     try {
       const publications: unknown[] = [];
@@ -163,34 +165,51 @@ describe("Slow Path interfaces", () => {
           },
         },
       );
-      await coordinator.execute(
-        request,
-        {
-          decision: "propose_plan",
-          message: "Search.",
-          proposedActions: [
-            {
-              type: "fill",
-              intent: "search",
-              target: "Search",
-              value: "notebooks",
-              methodPreference: ["accessibility"],
-              riskLevel: "low",
-            },
-          ],
-        },
-        {
-          execute: async () => ({
-            execution: {
-              success: true,
-              method: "accessibility",
-              latencyMs: 1,
-              evidence: ["filled"],
-            },
-            verification: { success: true, evidence: ["retained"] },
-          }),
-        },
-      );
+      const response = {
+        decision: "propose_plan" as const,
+        message: "Search.",
+        proposedActions: [
+          {
+            type: "fill" as const,
+            intent: "search",
+            target: "Search",
+            value: "notebooks",
+            methodPreference: ["accessibility" as const],
+            riskLevel: "low" as const,
+          },
+        ],
+      };
+      const executor = {
+        execute: async () => ({
+          execution: {
+            success: true,
+            method: "accessibility" as const,
+            latencyMs: 1,
+            evidence: ["filled"],
+          },
+          verification: { success: true, evidence: ["retained"] },
+        }),
+      };
+      let candidateName = "";
+      for (const taskId of ["candidate-1", "candidate-2", "candidate-3"]) {
+        const result = await coordinator.execute(
+          { ...request, taskId },
+          response,
+          executor,
+        );
+        candidateName = result.candidateSkill?.name ?? "";
+      }
+
+      expect(publications).toHaveLength(0);
+      await new OfflineEvaluationWorker(
+        new SkillStore(database),
+      ).evaluateCandidate({
+        candidateName,
+        environment: "local_fixture",
+        targetUrl: "http://127.0.0.1:4173/fixture",
+        verify: async () => ({ success: true, evidence: ["holdout verified"] }),
+      });
+      await coordinator.promoteCandidate(request, candidateName);
 
       expect(publications).toHaveLength(1);
       expect(JSON.stringify(publications)).not.toContain("notebooks");

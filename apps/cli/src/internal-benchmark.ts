@@ -24,6 +24,7 @@ export interface BenchmarkTaskResult {
   durationMs: number;
   success: boolean;
   modelCalls: number;
+  mcpCalls: number;
   fastPath: boolean;
   structuredActions: number;
   rawCoordinateActions: number;
@@ -37,6 +38,7 @@ export interface BenchmarkMetrics {
   medianTimeToCompleteMs: number;
   p95TimeToCompleteMs: number;
   modelCallsPerTask: number;
+  mcpCallsPerTask: number;
   fastPathRatio: number;
   structuredActionRatio: number;
   rawCoordinateActionRatio: number;
@@ -49,11 +51,16 @@ export interface InternalBenchmarkReport {
   fixtureCount: number;
   results: BenchmarkTaskResult[];
   metrics: BenchmarkMetrics;
+  repetitions: number;
+  runs: Array<{ repetition: number; metrics: BenchmarkMetrics }>;
+  fastOnlyBaselineP95Ms: number;
   passCriteria: {
     taskSuccessRate: boolean;
     medianModelCallsPerTask: boolean;
+    mcpCallsPerTask: boolean;
     fastPathRatio: boolean;
     verifierPassRate: boolean;
+    fastOnlyP95Regression: boolean;
   };
   passed: boolean;
 }
@@ -77,6 +84,7 @@ export function calculateBenchmarkMetrics(
       medianTimeToCompleteMs: 0,
       p95TimeToCompleteMs: 0,
       modelCallsPerTask: 0,
+      mcpCallsPerTask: 0,
       fastPathRatio: 0,
       structuredActionRatio: 0,
       rawCoordinateActionRatio: 0,
@@ -106,6 +114,8 @@ export function calculateBenchmarkMetrics(
     p95TimeToCompleteMs: percentile(durations, 0.95),
     modelCallsPerTask:
       results.reduce((sum, result) => sum + result.modelCalls, 0) / total,
+    mcpCallsPerTask:
+      results.reduce((sum, result) => sum + result.mcpCalls, 0) / total,
     fastPathRatio: results.filter((result) => result.fastPath).length / total,
     structuredActionRatio:
       totalActions === 0 ? 0 : totalStructured / totalActions,
@@ -125,10 +135,11 @@ export function calculateBenchmarkMetrics(
 
 export function assessBenchmark(
   metrics: BenchmarkMetrics,
-): InternalBenchmarkReport["passCriteria"] {
+): Omit<InternalBenchmarkReport["passCriteria"], "fastOnlyP95Regression"> {
   return {
     taskSuccessRate: metrics.taskSuccessRate >= 0.85,
-    medianModelCallsPerTask: metrics.modelCallsPerTask <= 2,
+    medianModelCallsPerTask: metrics.modelCallsPerTask === 0,
+    mcpCallsPerTask: metrics.mcpCallsPerTask === 0,
     fastPathRatio: metrics.fastPathRatio >= 0.7,
     verifierPassRate: metrics.verifierPassRate >= 0.9,
   };
@@ -136,45 +147,111 @@ export function assessBenchmark(
 
 export async function runInternalBenchmark(
   projectRoot = process.cwd(),
+  options: { repetitions?: number } = {},
 ): Promise<InternalBenchmarkReport> {
+  const repetitions = options.repetitions ?? 5;
+  if (
+    !Number.isSafeInteger(repetitions) ||
+    repetitions < 1 ||
+    repetitions > 20
+  ) {
+    throw new Error(
+      "Internal benchmark repetitions must be an integer from 1 to 20.",
+    );
+  }
   const fixtures = await loadInternalFixtures(projectRoot);
+  const runs = [] as Array<{
+    repetition: number;
+    results: BenchmarkTaskResult[];
+    metrics: BenchmarkMetrics;
+  }>;
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "lhic-benchmark-"));
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  const results: BenchmarkTaskResult[] = [];
-
   try {
-    for (const fixture of fixtures) {
-      const startedAt = performance.now();
-      const result = await executeFixture(page, fixture, temporaryDirectory);
-      results.push({
-        fixtureId: fixture.id,
-        skill: fixture.skill,
-        durationMs: Math.round(performance.now() - startedAt),
-        success: result.success,
-        modelCalls: 0,
-        fastPath: true,
-        structuredActions: structuredActionCount(),
-        rawCoordinateActions: 0,
-        verifierPassed: result.success,
-        falsePositive: false,
-        humanIntervention: result.askUser === true,
-      });
-    }
+    const completedRuns = await Promise.all(
+      Array.from({ length: repetitions }, async (_value, index) => {
+        const repetition = index + 1;
+        const page = await browser.newPage();
+        try {
+          const results = await runInternalBenchmarkPass(
+            page,
+            fixtures,
+            join(temporaryDirectory, `run-${repetition}`),
+          );
+          return {
+            repetition,
+            metrics: calculateBenchmarkMetrics(results),
+            results,
+          };
+        } finally {
+          await page.close();
+        }
+      }),
+    );
+    runs.push(
+      ...completedRuns.sort(
+        (left, right) => left.repetition - right.repetition,
+      ),
+    );
   } finally {
     await browser.close();
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
-
-  const metrics = calculateBenchmarkMetrics(results);
-  const passCriteria = assessBenchmark(metrics);
+  const metrics = calculateBenchmarkMetrics(runs.flatMap((run) => run.results));
+  const fastOnlyBaselineP95Ms = percentile(
+    runs
+      .map((run) => run.metrics.p95TimeToCompleteMs)
+      .sort((left, right) => left - right),
+    0.5,
+  );
+  const passCriteria = {
+    ...assessBenchmark(metrics),
+    fastOnlyP95Regression: runs.every(
+      (run) => run.metrics.p95TimeToCompleteMs <= fastOnlyBaselineP95Ms * 1.1,
+    ),
+  };
   return {
-    fixtureCount: fixtures.length,
-    results,
+    fixtureCount: runs[0]?.results.length ?? 0,
+    results: runs.flatMap((run) => run.results),
     metrics,
+    repetitions,
+    runs: runs.map(({ repetition, metrics: runMetrics }) => ({
+      repetition,
+      metrics: runMetrics,
+    })),
+    fastOnlyBaselineP95Ms,
     passCriteria,
     passed: Object.values(passCriteria).every(Boolean),
   };
+}
+
+async function runInternalBenchmarkPass(
+  page: Page,
+  fixtures: readonly BenchmarkFixture[],
+  temporaryDirectory: string,
+): Promise<BenchmarkTaskResult[]> {
+  const results: BenchmarkTaskResult[] = [];
+
+  for (const fixture of fixtures) {
+    const startedAt = performance.now();
+    const result = await executeFixture(page, fixture, temporaryDirectory);
+    results.push({
+      fixtureId: fixture.id,
+      skill: fixture.skill,
+      durationMs: Math.round(performance.now() - startedAt),
+      success: result.success,
+      modelCalls: 0,
+      mcpCalls: 0,
+      fastPath: true,
+      structuredActions: structuredActionCount(),
+      rawCoordinateActions: 0,
+      verifierPassed: result.success,
+      falsePositive: false,
+      humanIntervention: result.askUser === true,
+    });
+  }
+
+  return results;
 }
 
 async function executeFixture(

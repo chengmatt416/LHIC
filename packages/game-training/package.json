@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./desktop-recording": {
+      "types": "./dist/desktop-recording.d.ts",
+      "default": "./dist/desktop-recording.js"
     }
   },
   "dependencies": {

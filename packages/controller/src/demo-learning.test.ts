@@ -60,6 +60,7 @@ describe("demo learning", () => {
       const skill = await learnDemoSkill(
         new SkillStore(database),
         embeddingEngine,
+        "demo-learning-test-1",
         "Search notebooks for person@example.com",
         state,
         plan,
@@ -87,8 +88,8 @@ describe("demo learning", () => {
         "Search a similar catalogue query",
         state,
       );
-      expect(match?.skill.name).toBe(skill.name);
-      expect(match?.similarity).toBe(1);
+      expect(skill).toMatchObject({ verifiedRunCount: 1, promoted: false });
+      expect(match).toBeUndefined();
     } finally {
       database.close();
     }

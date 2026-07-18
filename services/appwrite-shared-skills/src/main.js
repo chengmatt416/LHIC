@@ -1,6 +1,11 @@
 import { Account, Client, ID, Query, TablesDB } from "node-appwrite";
 import { createHash } from "node:crypto";
 
+import {
+  controlConfigFromEnvironment,
+  handleControlPlane,
+} from "./control-plane.js";
+
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const phonePattern = /(?<!\w)(?:\+?\d[\d().\-\s]{7,}\d)(?!\w)/g;
 const tokenPattern =
@@ -47,6 +52,19 @@ export default async ({ req, res, error }) => {
       const payload = validateSubmission(parseBody(req));
       await submitSkill(tables, config, user.$id, payload);
       return res.json({ status: "pending" }, 202);
+    }
+    if (path.pathname.startsWith("/control/")) {
+      const user = await authenticatedUser(req, config);
+      return handleControlPlane({
+        req,
+        res,
+        path,
+        method,
+        tables,
+        config: { ...config, ...controlConfigFromEnvironment() },
+        user,
+        githubUserId: () => githubIdentityUserId(req, config),
+      });
     }
     if (method === "GET" && path.pathname === "/auth/callback") {
       await receiveMagicCallback(tables, config, path.searchParams);
@@ -103,6 +121,26 @@ async function authenticatedUser(req, config) {
     return await new Account(client).get();
   } catch {
     throw new HttpError(401, "Shared skill sign-in is invalid or expired.");
+  }
+}
+
+async function githubIdentityUserId(req, config) {
+  const jwt = header(req, "x-appwrite-user-jwt");
+  if (!jwt) return undefined;
+  const client = new Client()
+    .setEndpoint(config.endpoint)
+    .setProject(config.projectId)
+    .setJWT(jwt);
+  try {
+    const identities = await new Account(client).listIdentities();
+    const github = identities.identities.find(
+      (identity) => identity.provider === "github",
+    );
+    return typeof github?.providerUid === "string"
+      ? github.providerUid
+      : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -382,7 +420,10 @@ function publicError(message) {
 }
 
 function statusFor(error) {
-  return error instanceof HttpError ? error.status : 500;
+  return error instanceof HttpError ||
+    (isRecord(error) && Number.isInteger(error.status))
+    ? error.status
+    : 500;
 }
 
 class HttpError extends Error {

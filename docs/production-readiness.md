@@ -21,6 +21,8 @@ LHIC_ENV=production \
 - `testWebFlow` can execute a side-effecting step only when its caller supplies that step's matching `ActionApproval`.
 - Browser actions have bounded default timeouts; `wait` cannot exceed the configured limit.
 - Traces are redacted before persistence. `lhic trace inspect <file>` reports action reliability, risk distribution, and incomplete actions.
+- Multi-path routing is legacy-by-default. Before setting `LHIC_PATH_ROUTING_MODE=enabled`, run it in `shadow` mode, inspect redacted `stage_routed` events, and keep the default `fast_only` profile unless the task explicitly needs a bounded Slow Path budget.
+- A Slow Path result is a candidate skill only. It is not Fast Path eligible until three independent verifier-backed executions and a deterministic offline holdout evaluation have passed.
 
 ## Operational requirements outside this repository
 

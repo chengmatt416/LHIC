@@ -1,10 +1,12 @@
 import {
   isGlobalComputerAction,
-  type SemanticAction,
   type NormalizedUIState,
+  type SemanticAction,
+  type StageRoute,
   type UserIntent,
 } from "@lhic/schema";
 import { evaluateRisk } from "@lhic/security";
+import { redactPII } from "@lhic/trace";
 
 import type { IntentPrediction } from "./predictor.js";
 import {
@@ -16,12 +18,19 @@ import type {
   SlowPathRequest,
   SlowPathResponse,
 } from "./slow-path.js";
+import { toSlowPathSafeUiState } from "./slow-path.js";
 import type {
   SlowPathActionExecutor,
   SlowPathLearningCoordinator,
   SlowPathLearningResult,
 } from "./slow-path-learning.js";
 import type { SharedSkillResolver } from "./shared-skills.js";
+import {
+  readPathRoutingConfig,
+  type PathRoutingConfig,
+} from "./path-routing-config.js";
+import { StageRouter, type StageRoutingInput } from "./stage-router.js";
+import type { TaskBudgetTracker } from "./task-budget.js";
 
 export interface RouteDecision {
   path: "fast" | "slow" | "ask_user" | "blocked";
@@ -35,6 +44,8 @@ export interface ResolvedRoute {
 }
 
 export class FastPathRouter {
+  private readonly stageRouter = new StageRouter();
+
   public constructor(
     private readonly slowPathProvider?: SlowPathProvider,
     private readonly slowPathLearningCoordinator?: SlowPathLearningCoordinator,
@@ -148,6 +159,85 @@ export class FastPathRouter {
       return undefined;
     }
     return this.slowPathProvider.reason(request);
+  }
+
+  /**
+   * Admits a provider call only after the stage route and task budget allow it.
+   * This leaves the legacy invokeSlowPath API untouched for existing callers.
+   */
+  public async invokeRoutedSlowPath(
+    route: StageRoute,
+    request: SlowPathRequest,
+    budget: TaskBudgetTracker,
+  ): Promise<SlowPathResponse | undefined> {
+    if (
+      (route.path !== "slow_planner" && route.path !== "slow_vision_planner") ||
+      !this.slowPathProvider
+    ) {
+      return undefined;
+    }
+    if (
+      route.path === "slow_vision_planner" &&
+      this.slowPathProvider.capabilities?.visualObservation !== true
+    ) {
+      return undefined;
+    }
+    const redactedRequest = redactPII(request) as SlowPathRequest;
+    const safeRequest: SlowPathRequest = {
+      ...redactedRequest,
+      uiState: toSlowPathSafeUiState(redactedRequest.uiState),
+    };
+    const inputChars = JSON.stringify(safeRequest).length;
+    const reservation = budget.reserveSlowPath(
+      inputChars,
+      route.path === "slow_vision_planner" ? 1 : 0,
+    );
+    if (!reservation.allowed) {
+      return undefined;
+    }
+    const startedAt = performance.now();
+    try {
+      return await this.slowPathProvider.reason({
+        ...safeRequest,
+        // A compact summary is authoritative for new orchestrated requests.
+        recentTrace: safeRequest.taskSummary ? [] : safeRequest.recentTrace,
+      });
+    } finally {
+      budget.recordSlowPathLatency(performance.now() - startedAt);
+    }
+  }
+
+  /** Routes an individual controller stage without changing the legacy facade. */
+  public routeStage(input: StageRoutingInput): StageRoute {
+    return this.stageRouter.route({
+      ...input,
+      ...(input.visualPlanningAvailable === undefined
+        ? {
+            visualPlanningAvailable:
+              this.slowPathProvider?.capabilities?.visualObservation === true,
+          }
+        : {}),
+    });
+  }
+
+  /**
+   * Applies the deployment flag without changing the legacy router contract.
+   * Shadow routes are evidence-only; callers must continue legacy execution.
+   */
+  public routeConfiguredStage(
+    input: Omit<StageRoutingInput, "profile" | "shadow"> & {
+      profile?: StageRoutingInput["profile"];
+    },
+    config: PathRoutingConfig = readPathRoutingConfig(),
+  ): StageRoute | undefined {
+    if (config.mode === "legacy") {
+      return undefined;
+    }
+    return this.routeStage({
+      ...input,
+      profile: input.profile ?? config.defaultProfile,
+      shadow: config.mode === "shadow",
+    });
   }
 
   public async executeSlowPath(

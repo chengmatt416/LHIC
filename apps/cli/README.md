@@ -65,8 +65,10 @@ Companion:
 npx @pinyencheng/lhic gui
 ```
 
-The Demo tab drives the same API-key, provider, Slow Path, learning, and Fast
-Path flow in a separate visible Chromium window. The MCP tab generates a
+The Demo tab drives the same API-key, provider, bounded Slow Path, and
+candidate-learning flow in a separate visible Chromium window. A candidate
+requires three independent verified runs plus an offline holdout before it can
+enter Fast Path. The MCP tab generates a
 client-specific local stdio configuration for Codex, Claude Code, VS Code, or
 Antigravity; review and paste it into the selected client yourself. It never
 rewrites MCP settings. Use `lhic gui mcp --no-open` to print a local GUI URL

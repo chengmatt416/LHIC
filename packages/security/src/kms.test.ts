@@ -4,7 +4,7 @@ import { createActionApproval, signActionApproval } from "./action-approval.js";
 import { KmsKeyManager } from "./kms.js";
 
 describe("KmsKeyManager", () => {
-  it("authenticates using AWS/GCP/Vault provider simulation and local key fallback", async () => {
+  it("authenticates with a configured local Ed25519 key and never invents remote keys", async () => {
     const manager = new KmsKeyManager({ provider: "local" });
     const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 
@@ -41,40 +41,28 @@ describe("KmsKeyManager", () => {
     const cachedKey = await manager.fetchPublicKey("testkey");
     expect(cachedKey).toBeDefined();
 
-    const awsManager = new KmsKeyManager({ provider: "aws" });
-    const awsKey = await awsManager.fetchPublicKey("aws-key");
-    expect(awsKey).toContain("MOCKAWSKMSKEY");
-
-    const gcpManager = new KmsKeyManager({ provider: "gcp" });
-    const gcpKey = await gcpManager.fetchPublicKey("gcp-key");
-    expect(gcpKey).toContain("MOCKGCPKMSKEY");
-
-    const vaultManager = new KmsKeyManager({ provider: "vault" });
-    const vaultKey = await vaultManager.fetchPublicKey("vault-key");
-    expect(vaultKey).toContain("MOCKVAULTKEY");
+    await expect(
+      new KmsKeyManager({ provider: "aws" }).fetchPublicKey("aws-key"),
+    ).rejects.toThrow("SigV4-authenticated");
+    await expect(
+      new KmsKeyManager({ provider: "gcp" }).fetchPublicKey("gcp-key"),
+    ).rejects.toThrow("endpoint is required");
+    await expect(
+      new KmsKeyManager({ provider: "vault" }).fetchPublicKey("vault-key"),
+    ).rejects.toThrow("endpoint is required");
   });
 
-  it("handles key revocation check and cache expiration properly", async () => {
-    const manager = new KmsKeyManager({ provider: "aws", cacheTtlMs: 50 });
+  it("rejects remote responses that do not contain a valid Ed25519 key", async () => {
+    const manager = new KmsKeyManager({
+      provider: "gcp",
+      endpoint: "https://kms.example.test",
+      gcpAccessToken: "test-token",
+      fetchImplementation: async () =>
+        new Response(JSON.stringify({ pem: "invalid" })),
+    });
 
-    // Try fetching a revoked key -> should reject/throw
-    await expect(manager.fetchPublicKey("revoked-key")).rejects.toThrow(
-      "KMS Key revoked-key is disabled/revoked in AWS KMS.",
-    );
-
-    // Fetch normal key
-    const normalKey = await manager.fetchPublicKey("ok-key");
-    expect(normalKey).toBeDefined();
-
-    // Cache is active, normal key resolves
-    const cachedKey = await manager.fetchPublicKey("ok-key");
-    expect(cachedKey).toBe(normalKey);
-
-    // Wait for TTL (50ms) to expire
-    await new Promise((resolve) => setTimeout(resolve, 80));
-
-    // Refetching after TTL works
-    const normalKey2 = await manager.fetchPublicKey("ok-key");
-    expect(normalKey2).toBe(normalKey);
+    await expect(
+      manager.fetchPublicKey("projects/test/keys/key"),
+    ).rejects.toThrow("valid Ed25519 public key");
   });
 });

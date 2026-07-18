@@ -26,6 +26,7 @@ import {
   createMemoryDatabase,
   SelectorMemory,
   SkillStore,
+  type CandidateSkillRecord,
   type SkillRecord,
 } from "@lhic/memory";
 import { createActionApproval } from "@lhic/security";
@@ -95,6 +96,11 @@ interface VendorCommerceWorkflow {
   slowDurationSeconds: number;
   slowSourceDurationSeconds: number;
   slowStartOffsetSeconds: number;
+}
+
+interface VendorPlanLearningResult {
+  candidate: CandidateSkillRecord;
+  fixtureFastSkill: SkillRecord;
 }
 
 interface KokoroTtsConfiguration {
@@ -250,7 +256,7 @@ async function main(): Promise<void> {
           slide: slides.learning,
           duration: 18,
           voice:
-            "Learning is deliberately conservative. A Slow Path plan becomes a redacted skill only when every proposed action succeeds with non-empty verifier evidence. Repeated evidence promotes a pattern from verified, to habit, to trusted—while keeping it locally inspectable.",
+            "Learning is deliberately conservative. A successful Slow Path plan first becomes a redacted candidate. Only three independent verified runs and an offline holdout can promote it to Fast Path—while keeping the evidence locally inspectable.",
         },
         {
           slide: slides.mcp,
@@ -321,7 +327,7 @@ async function main(): Promise<void> {
           slide: slides.title,
           duration: 11,
           voice:
-            "Meet LHIC, the Local Human Intent Controller. It turns a verified first encounter into a local skill, then keeps every later run fast, observable, and approval-bound.",
+            "Meet LHIC, the Local Human Intent Controller. It records a verified first encounter as a local candidate, then keeps already-approved deterministic skills fast, observable, and approval-bound.",
         },
         {
           slide: slides.vendorSlow,
@@ -342,13 +348,13 @@ async function main(): Promise<void> {
           slide: slides.vendorLearning,
           duration: 15,
           voice:
-            "The completed first pass becomes a reusable Skill only after every action has evidence. LHIC stores a redacted semantic plan and verified selector candidates locally, ready for the next matching intent in a fresh browser context.",
+            "The completed first pass becomes a candidate only after every action has evidence. LHIC stores a redacted semantic plan and verified selector candidates locally; three independent runs and an offline holdout are still required before Fast Path promotion.",
         },
         {
           slide: slides.vendorFast,
           duration: 13,
           voice:
-            "Second encounter. LHIC matches the verified Skill locally and takes the Fast Path. The green mode is direct Playwright execution: zero model calls and zero MCP calls in the execution loop.",
+            "Second encounter. This recording uses an explicitly preloaded deterministic fixture skill on the Fast Path. The green mode is direct Playwright execution: zero model calls and zero MCP calls in the execution loop.",
         },
         {
           workflow: "browserHero",
@@ -357,13 +363,13 @@ async function main(): Promise<void> {
             vendorWorkflow?.fastDurationSeconds ?? 0,
           duration: vendorWorkflow?.fastDurationSeconds ?? 0,
           voice:
-            "Same task, fresh browser, learned local route. Direct Playwright replays the Skill with zero model and zero MCP calls. The verifier checks every result, and policy still blocks the purchase.",
+            "Same task, fresh browser, explicitly preloaded deterministic local route. Direct Playwright replays it with zero model and zero MCP calls. The verifier checks every result, and policy still blocks the purchase.",
         },
         {
           slide: slides.vendorSpeed,
           duration: 13,
           voice:
-            "The recorded first encounter is compared directly with the recorded local replay. The speedup comes from self-learning: planning is removed only after a route proves itself, while verification and policy remain in place.",
+            "The recorded first encounter is compared directly with a deterministic local replay. The comparison shows the Fast Path cost boundary; a newly recorded candidate still needs repeated independent verification and an offline holdout before promotion.",
         },
         {
           slide: slides.vendorRecovery,
@@ -376,7 +382,7 @@ async function main(): Promise<void> {
           workflowSourceDurationSeconds: 20,
           duration: 20,
           voice:
-            "The controlled website-v2 update invalidates Skill v1. A typed GPT-5.6 recovery-plan fixture proposes the new offer field. LHIC schema-checks and policy-checks the plan, verifies the new route, and saves Skill v2 locally. The sequence is reproducible without sending a credential or an order.",
+            "The controlled website-v2 update invalidates the fixture route. A typed GPT-5.6 recovery-plan fixture proposes the new offer field. LHIC schema-checks and policy-checks the plan, verifies the new route, and saves a candidate locally. The sequence is reproducible without sending a credential or an order.",
         },
         {
           slide: slides.vendorPolicy,
@@ -414,13 +420,13 @@ async function main(): Promise<void> {
           workflow: "browserHero",
           duration: 58,
           voice:
-            "This is a real local shopping site, not a dashboard. The first cart is a complex Slow Path: search, configure a keyboard, add it, open checkout, redeem a promotion after the checkout mutates, choose delivery, and verify the order preview. This credential-free recording uses a deterministic redacted plan fixture at the Slow Path boundary. Only when every action has verifier evidence does LHIC save a local verified skill. Watch the second fresh cart: the Fast Path reuses that learned plan directly. No model call. No MCP. It still refuses to place the order without human approval.",
+            "This is a real local shopping site, not a dashboard. The first cart is a complex Slow Path: search, configure a keyboard, add it, open checkout, redeem a promotion after the checkout mutates, choose delivery, and verify the order preview. This credential-free recording uses a deterministic redacted plan fixture at the Slow Path boundary. Every evidenced action creates a local candidate. The second fresh cart uses a clearly marked preloaded deterministic fixture skill: no model call, no MCP, and no claim that the new candidate was promoted early. It still refuses to place the order without human approval.",
         },
         {
           slide: slides.verification,
           duration: 14,
           voice:
-            "The learning rule is strict. A Slow Path plan becomes local skill memory only after every step returns verifier evidence. The next matched intent can then route through the Fast Path while keeping its risk boundary intact.",
+            "The learning rule is strict. A Slow Path plan becomes a local candidate only after every step returns verifier evidence. It needs three independent runs and an offline holdout before a matched intent can route through the Fast Path.",
         },
         {
           slide: slides.security,
@@ -534,7 +540,7 @@ async function recordVendorEnglishCommerceWorkflow(): Promise<VendorCommerceWork
     });
     const slowPage = await slowContext.newPage();
     const slowVideo = slowPage.video();
-    let commerceSkill: SkillRecord | undefined;
+    let commerceLearning: VendorPlanLearningResult | undefined;
     try {
       const slowExecutor = createVendorExecutor(
         slowPage,
@@ -542,7 +548,7 @@ async function recordVendorEnglishCommerceWorkflow(): Promise<VendorCommerceWork
         traceFilePath,
         selectorMemory,
       );
-      commerceSkill = await learnVendorPlan(
+      commerceLearning = await learnVendorPlan(
         slowPage,
         slowExecutor,
         skillStore,
@@ -553,8 +559,8 @@ async function recordVendorEnglishCommerceWorkflow(): Promise<VendorCommerceWork
       );
       await showVendorLearnedSkill(
         slowPage,
-        commerceSkill,
-        "ORDER SKILL VERIFIED · LOCAL SQLITE",
+        commerceLearning.candidate,
+        "ORDER CANDIDATE RECORDED · LOCAL SQLITE",
       );
       await localizeVendorPage(slowPage);
       await slowPage.waitForTimeout(1_900);
@@ -592,9 +598,9 @@ async function recordVendorEnglishCommerceWorkflow(): Promise<VendorCommerceWork
       );
     }
     slowRecording = await slowVideo.path();
-    if (!commerceSkill) {
+    if (!commerceLearning) {
       throw new Error(
-        "English Slow Path did not produce a verified local skill.",
+        "English Slow Path did not produce a verifier-backed candidate.",
       );
     }
 
@@ -617,7 +623,7 @@ async function recordVendorEnglishCommerceWorkflow(): Promise<VendorCommerceWork
       await replayVendorFastPath(
         fastPage,
         fastExecutor,
-        commerceSkill,
+        commerceLearning.fixtureFastSkill,
         vendorCommerceActions(),
         vendorCommerceIntent(),
         "",
@@ -710,7 +716,7 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
         traceFilePath,
         selectorMemory,
       );
-      const commerceSkill = await learnVendorPlan(
+      const commerceLearning = await learnVendorPlan(
         slowPage,
         slowExecutor,
         skillStore,
@@ -721,8 +727,8 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
       );
       await showVendorLearnedSkill(
         slowPage,
-        commerceSkill,
-        "ORDER SKILL VERIFIED · LOCAL SQLITE",
+        commerceLearning.candidate,
+        "ORDER CANDIDATE RECORDED · LOCAL SQLITE",
       );
       await slowPage.waitForTimeout(2_600);
 
@@ -752,7 +758,7 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
       );
       await slowPage.waitForTimeout(2_800);
 
-      const financeSkill = await learnVendorPlan(
+      const financeLearning = await learnVendorPlan(
         slowPage,
         slowExecutor,
         skillStore,
@@ -763,8 +769,8 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
       );
       await showVendorLearnedSkill(
         slowPage,
-        financeSkill,
-        "FINANCE SKILL VERIFIED · LOCAL SQLITE",
+        financeLearning.candidate,
+        "FINANCE CANDIDATE RECORDED · LOCAL SQLITE",
       );
       await slowPage.waitForTimeout(2_300);
 
@@ -795,7 +801,7 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
         await replayVendorFastPath(
           fastPage,
           fastExecutor,
-          commerceSkill,
+          commerceLearning.fixtureFastSkill,
           vendorCommerceActions(),
           vendorCommerceIntent(),
           financeCode,
@@ -805,7 +811,7 @@ async function recordVendorLiveWorkflow(financeCode: string): Promise<string> {
         await replayVendorFastPath(
           fastPage,
           fastExecutor,
-          financeSkill,
+          financeLearning.fixtureFastSkill,
           vendorFinanceActions(),
           vendorFinanceIntent(),
           financeCode,
@@ -892,7 +898,7 @@ async function recordVendorFinanceContinuation(
         traceFilePath,
         selectorMemory,
       );
-      const financeSkill = await learnVendorPlan(
+      const financeLearning = await learnVendorPlan(
         financeSlowPage,
         slowExecutor,
         skillStore,
@@ -903,8 +909,8 @@ async function recordVendorFinanceContinuation(
       );
       await showVendorLearnedSkill(
         financeSlowPage,
-        financeSkill,
-        "FINANCE SKILL VERIFIED · LOCAL SQLITE",
+        financeLearning.candidate,
+        "FINANCE CANDIDATE RECORDED · LOCAL SQLITE",
       );
       await financeSlowPage.waitForTimeout(2_300);
       await executeAuthorizedVendorAction(
@@ -944,7 +950,7 @@ async function recordVendorFinanceContinuation(
         await replayVendorFastPath(
           fastPage,
           fastExecutor,
-          financeSkill,
+          financeLearning.fixtureFastSkill,
           vendorFinanceActions(),
           vendorFinanceIntent(),
           financeCode,
@@ -1029,7 +1035,7 @@ async function learnVendorPlan(
   plan: SlowPathResponse,
   financeCode: string,
   phase: VendorPhase,
-): Promise<SkillRecord> {
+): Promise<VendorPlanLearningResult> {
   let actionCount = 0;
   const keepsEnglishSurface =
     request.userIntent.constraints?.operation === "vendor-anonymous-order";
@@ -1072,19 +1078,40 @@ async function learnVendorPlan(
       },
     },
   );
-  if (!learned.learnedSkill) {
+  if (!learned.candidateSkill) {
     const failedOutcome = learned.outcomes.find(
       (outcome) => !outcome.execution.success || !outcome.verification.success,
     );
     throw new Error(
-      `Vendor ${phase} plan did not qualify for local skill learning: ${
+      `Vendor ${phase} plan did not qualify for candidate evaluation: ${
         failedOutcome?.execution.error ??
         failedOutcome?.verification.error ??
         "an action had no verifier evidence"
       }`,
     );
   }
-  return learned.learnedSkill;
+  return {
+    candidate: learned.candidateSkill,
+    fixtureFastSkill: getVendorFixtureFastSkill(skillStore, request, plan),
+  };
+}
+
+function getVendorFixtureFastSkill(
+  skillStore: SkillStore,
+  request: SlowPathRequest,
+  plan: SlowPathResponse,
+): SkillRecord {
+  const operation =
+    typeof request.userIntent.constraints?.operation === "string" &&
+    request.userIntent.constraints.operation.trim()
+      ? request.userIntent.constraints.operation
+      : request.taskId;
+  return skillStore.preload(`fixture-${operation}`, {
+    compiler: "vendor-fixture-fast-path-v1",
+    source: "local-render-fixture",
+    constraints: request.userIntent.constraints,
+    actions: plan.proposedActions ?? [],
+  });
 }
 
 async function replayVendorFastPath(
@@ -1101,7 +1128,7 @@ async function replayVendorFastPath(
       predictedIntent: "form_filling",
       skillName: skill.name,
       confidence: 0.98,
-      evidence: ["Matched a verified local vendor skill."],
+      evidence: ["Matched an allowlisted deterministic local fixture skill."],
     },
     intent,
     actions,
@@ -2079,7 +2106,7 @@ async function showVendorSlowPathContract(page: Page): Promise<void> {
 
 async function showVendorLearnedSkill(
   page: Page,
-  skill: SkillRecord,
+  skill: CandidateSkillRecord,
   label: string,
 ): Promise<void> {
   await installVendorOverlay(page, "slow");
@@ -2092,15 +2119,15 @@ async function showVendorLearnedSkill(
         return;
       }
       skill.style.display = "block";
-      skill.textContent = `★ ${value.label} · ${value.lifecycle.toUpperCase()} · ${value.successCount} evidenced run · inputs redacted`;
+      skill.textContent = `★ ${value.label} · ${value.verifiedRunCount}/3 independent evidenced runs · holdout pending · inputs redacted`;
     },
-    { label, lifecycle: skill.lifecycle, successCount: skill.successCount },
+    { label, verifiedRunCount: skill.verifiedRunCount },
   );
 }
 
 async function showVendorFastPathSkill(
   page: Page,
-  skill: SkillRecord,
+  _skill: SkillRecord,
   workflow: "commerce" | "finance",
 ): Promise<void> {
   await installVendorOverlay(page, "fast");
@@ -2113,9 +2140,9 @@ async function showVendorFastPathSkill(
         return;
       }
       skill.style.display = "block";
-      skill.textContent = `⚡ ${value.workflow.toUpperCase()} SKILL MATCH · ${value.lifecycle.toUpperCase()} · 0 MODEL · 0 MCP`;
+      skill.textContent = `⚡ ${value.workflow.toUpperCase()} FIXTURE SKILL MATCH · LOCAL ONLY · 0 MODEL · 0 MCP`;
     },
-    { workflow, lifecycle: skill.lifecycle },
+    { workflow },
   );
 }
 
@@ -2203,20 +2230,25 @@ async function recordBrowserHeroWorkflow(): Promise<string> {
         },
       },
     );
-    if (!learned.learnedSkill) {
+    if (!learned.candidateSkill) {
       throw new Error(
-        "Slow Path commerce plan did not earn verified local skill memory.",
+        "Slow Path commerce plan did not earn a verifier-backed candidate.",
       );
     }
-    await showLearnedCommerceSkill(page, learned.learnedSkill);
+    await showLearnedCommerceSkill(page, learned.candidateSkill);
     await page.waitForTimeout(4_000);
 
     await page.goto(`${fixture.url}?mode=fast`);
     const actions = commerceActions();
+    const fixtureFastSkill = getVendorFixtureFastSkill(
+      skillStore,
+      commerceSlowPathRequest(),
+      commerceSlowPathPlan(),
+    );
     const fastDecision = new FastPathRouter().decide(
       {
         predictedIntent: "form_filling",
-        skillName: learned.learnedSkill.name,
+        skillName: fixtureFastSkill.name,
         confidence: 0.96,
         evidence: ["Verified local commerce skill matched."],
       },
@@ -2229,10 +2261,11 @@ async function recordBrowserHeroWorkflow(): Promise<string> {
       );
     }
     await setCommerceRoute(page, {
-      detail: `${learned.learnedSkill.lifecycle.toUpperCase()} skill matched · 0 model calls · 0 MCP calls`,
-      label: "FAST PATH · LEARNED SKILL",
+      detail:
+        "preloaded deterministic fixture skill matched · 0 model calls · 0 MCP calls",
+      label: "FAST PATH · LOCAL FIXTURE SKILL",
     });
-    await showFastPathSkill(page, learned.learnedSkill);
+    await showFastPathSkill(page, fixtureFastSkill);
     const fastExecutor = new PlaywrightDirectExecutor(page, {
       taskId: "demo-commerce-fast-path",
       traceFilePath,
@@ -2531,7 +2564,7 @@ async function setCommerceRoute(
 
 async function showLearnedCommerceSkill(
   page: Page,
-  skill: SkillRecord,
+  skill: CandidateSkillRecord,
 ): Promise<void> {
   await page.evaluate((learned) => {
     const card = document.querySelector("#learning-promotion");
@@ -2539,11 +2572,12 @@ async function showLearnedCommerceSkill(
       return;
     }
     card.classList.add("visible");
-    card.querySelector("strong")!.textContent = "VERIFIED SKILL SAVED LOCALLY";
+    card.querySelector("strong")!.textContent =
+      "VERIFIED CANDIDATE SAVED LOCALLY";
     card.querySelector("span")!.textContent =
-      `${learned.name} · ${learned.successCount} verified run · inputs redacted`;
+      `${learned.name} · ${learned.verifiedRunCount}/3 independent verified runs · holdout pending`;
     document.querySelector("#route-detail")!.textContent =
-      "Every planned action carried verifier evidence → Fast Path eligible";
+      "Every planned action carried verifier evidence → offline holdout required before Fast Path";
   }, skill);
 }
 
@@ -2557,7 +2591,8 @@ async function showFastPathSkill(
       return;
     }
     card.classList.add("visible", "fast");
-    card.querySelector("strong")!.textContent = "LEARNED SKILL REUSED LOCALLY";
+    card.querySelector("strong")!.textContent =
+      "PRELOADED FIXTURE SKILL REUSED LOCALLY";
     card.querySelector("span")!.textContent =
       `${learned.name} · Fast Path route accepted · zero model calls`;
   }, skill);
@@ -2686,10 +2721,12 @@ async function recordWebsiteUpdateRecoveryWorkflow(): Promise<string> {
         },
       },
     );
-    if (!recovered.learnedSkill) {
-      throw new Error("Website recovery did not earn the verified Skill v2.");
+    if (!recovered.candidateSkill) {
+      throw new Error(
+        "Website recovery did not earn a verifier-backed candidate.",
+      );
     }
-    await showWebsiteRecoveryVerified(page, recovered.learnedSkill);
+    await showWebsiteRecoveryVerified(page, recovered.candidateSkill);
     await page.waitForTimeout(1_650);
 
     const dangerousAction = commerceOrderAction();
@@ -2829,7 +2866,7 @@ async function showWebsiteRecoveryPlan(page: Page): Promise<void> {
 
 async function showWebsiteRecoveryVerified(
   page: Page,
-  skill: SkillRecord,
+  skill: CandidateSkillRecord,
 ): Promise<void> {
   await showLearnedCommerceSkill(page, skill);
   await page.evaluate(() => {
@@ -2837,15 +2874,15 @@ async function showWebsiteRecoveryVerified(
     const detail = document.querySelector("#route-detail");
     const plan = document.querySelector("#website-recovery-plan");
     if (route) {
-      route.textContent = "RECOVERY VERIFIED · SKILL V2";
+      route.textContent = "RECOVERY VERIFIED · CANDIDATE V2";
     }
     if (detail) {
       detail.textContent =
-        "Replacement route is local only after every recovery action carries verifier evidence";
+        "Replacement route remains a candidate until three independent runs and an offline holdout pass";
     }
     if (plan) {
       plan.innerHTML =
-        "<strong>SKILL V2 SAVED LOCALLY</strong><span>Recovered route verified. The place-order action remains approval-gated.</span>";
+        "<strong>CANDIDATE V2 SAVED LOCALLY</strong><span>Recovered route verified. The place-order action remains approval-gated and Fast Path promotion is still pending.</span>";
     }
   });
 }
@@ -3153,7 +3190,7 @@ function createSlides(
     vendorSlow: {
       id: "vendor-slow-path",
       eyebrow: "01 · FIRST ENCOUNTER",
-      title: "Slow Path learns the work before it earns the speed.",
+      title: "Slow Path collects evidence before a candidate can earn trust.",
       body: "A live vendor workflow is localized into English for the demo. LHIC builds a bounded plan, executes it through Playwright, and requires verifier evidence after every low-risk action.",
       note: "Cyan = Slow Path · first encounter · discovery and verification",
       accent: "cyan",
@@ -3177,10 +3214,10 @@ function createSlides(
     },
     vendorLearning: {
       id: "vendor-learning-loop",
-      eyebrow: "02 · VERIFIED SELF-LEARNING",
-      title: "Evidence turns a first run into a reusable local skill.",
-      body: "LHIC stores a redacted semantic action plan and only the selector candidates that proved reliable. The next matching intent can use that inspected local memory—not a blind recording.",
-      note: "Slow Path → verifier evidence → redacted SQLite skill → Fast Path",
+      eyebrow: "02 · VERIFIED CANDIDATE",
+      title: "Evidence turns a first run into a local candidate.",
+      body: "LHIC stores a redacted semantic action plan and only the selector candidates that proved reliable. Three independent task IDs and an offline holdout are required before Fast Path promotion.",
+      note: "Slow Path → verifier evidence → redacted SQLite candidate → offline holdout",
       accent: "violet",
       cards: [
         {
@@ -3190,21 +3227,21 @@ function createSlides(
         },
         {
           label: "Promotion",
-          value: "Verified",
+          value: "Candidate",
           detail: "Evidence is mandatory",
         },
         {
           label: "Memory",
           value: "Local",
-          detail: "Redacted SQLite skill",
+          detail: "Redacted SQLite candidate",
         },
       ],
     },
     vendorFast: {
       id: "vendor-fast-path",
-      eyebrow: "03 · LEARNED REPLAY",
+      eyebrow: "03 · LOCAL FIXTURE REPLAY",
       title: "Fast Path: same intent, fresh browser, no model detour.",
-      body: "The newly learned commerce skill matches locally, replays through direct Playwright, and retains the exact same verifier and approval boundaries from the first encounter.",
+      body: "An explicitly preloaded deterministic fixture skill matches locally, replays through direct Playwright, and retains the exact same verifier and approval boundaries from the first encounter.",
       note: "Lime = Fast Path · 0 model calls · 0 MCP calls",
       accent: "lime",
       cards: [
@@ -3228,20 +3265,20 @@ function createSlides(
     vendorSpeed: {
       id: "vendor-speed-review",
       eyebrow: "04 · MEASURED DIFFERENCE",
-      title: `${vendorSpeedup.toFixed(1)}× faster—because the system learned, not because it skipped checks.`,
-      body: `This comparison comes from the recorded live vendor workflow: ${vendorSlowSeconds.toFixed(1)} seconds for the evidence-building first encounter and ${vendorFastSeconds.toFixed(1)} seconds for the matched local replay.`,
+      title: `${vendorSpeedup.toFixed(1)}× faster on the deterministic local replay.`,
+      body: `This comparison comes from the recorded live vendor workflow: ${vendorSlowSeconds.toFixed(1)} seconds for the evidence-building first encounter and ${vendorFastSeconds.toFixed(1)} seconds for the matched deterministic local replay. It does not promote the first-run candidate automatically.`,
       note: "Same intent · fresh browser · verifier retained · approval retained",
       accent: "lime",
       cards: [
         {
           label: "Slow Path",
           value: `${vendorSlowSeconds.toFixed(1)} s`,
-          detail: "Plan and learn",
+          detail: "Plan and candidate evidence",
         },
         {
           label: "Fast Path",
           value: `${vendorFastSeconds.toFixed(1)} s`,
-          detail: "Local skill replay",
+          detail: "Deterministic fixture replay",
         },
         {
           label: "Speedup",
@@ -3253,9 +3290,10 @@ function createSlides(
     vendorRecovery: {
       id: "vendor-website-recovery",
       eyebrow: "03 · WEBSITE UPDATE",
-      title: "A changed page must break safely before it learns a new route.",
-      body: "When a stored Fast Path selector no longer matches, LHIC records the mismatch and stops. A GPT-5.6 recovery plan is schema-checked, policy-checked, and re-verified before the replacement becomes Skill v2.",
-      note: "Fast Path mismatch → GPT-5.6 recovery plan → verified Skill v2",
+      title:
+        "A changed page must break safely before it proposes a new candidate.",
+      body: "When a stored Fast Path selector no longer matches, LHIC records the mismatch and stops. A GPT-5.6 recovery plan is schema-checked, policy-checked, and re-verified before the replacement becomes a candidate.",
+      note: "Fast Path mismatch → GPT-5.6 recovery plan → verified candidate",
       accent: "amber",
       cards: [
         {
@@ -3401,16 +3439,20 @@ function createSlides(
       id: "learning",
       eyebrow: "VERIFIED LEARNING",
       title: "It does not merely remember. It earns trust through evidence.",
-      body: "A Slow Path plan becomes a redacted skill only when every action succeeds with non-empty verifier evidence. Successful DOM actions also leave selector-memory candidates.",
-      note: "draft → verified → habit → trusted",
+      body: "A Slow Path plan becomes a redacted candidate only when every action succeeds with non-empty verifier evidence. Three independent task IDs and a deterministic offline holdout are required before promotion. Successful DOM actions also leave selector-memory candidates.",
+      note: "candidate → holdout → habit → trusted",
       accent: "violet",
       cards: [
         {
           label: "1 verified run",
-          value: "Verified",
+          value: "Candidate",
           detail: "Evidence required",
         },
-        { label: "3 verified runs", value: "Habit", detail: "Local promotion" },
+        {
+          label: "3 runs + holdout",
+          value: "Habit",
+          detail: "Local promotion",
+        },
         {
           label: "10 verified runs",
           value: "Trusted",

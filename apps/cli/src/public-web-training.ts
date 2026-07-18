@@ -34,10 +34,11 @@ export interface PublicWebTrainingReport {
   website: string;
   databaseFile: string;
   traceFile: string;
-  skill: {
+  candidate: {
     name: string;
-    lifecycle: string;
-    successCount: number;
+    verifiedRunCount: number;
+    holdoutPassed: boolean;
+    promoted: boolean;
   };
   verifiedActionCount: number;
   sharedSkills:
@@ -205,9 +206,9 @@ export async function runPublicWebTraining(
         },
       },
     );
-    if (!result.learnedSkill) {
+    if (!result.candidateSkill) {
       throw new Error(
-        "Public-web training did not produce verified evidence for every action.",
+        "Public-web training did not produce a verifier-backed candidate skill.",
       );
     }
     const sharedStatus = sharedSkills?.service.status();
@@ -216,10 +217,11 @@ export async function runPublicWebTraining(
       website: scenario.entryUrl,
       databaseFile,
       traceFile,
-      skill: {
-        name: result.learnedSkill.name,
-        lifecycle: result.learnedSkill.lifecycle,
-        successCount: result.learnedSkill.successCount,
+      candidate: {
+        name: result.candidateSkill.name,
+        verifiedRunCount: result.candidateSkill.verifiedRunCount,
+        holdoutPassed: result.candidateSkill.holdoutPassed,
+        promoted: result.candidateSkill.promoted,
       },
       verifiedActionCount: result.outcomes.length,
       sharedSkills: sharedStatus
@@ -234,7 +236,7 @@ export async function runPublicWebTraining(
         : {
             enabled: false,
             reason:
-              "Shared skills are not configured. Run lhic shared enable before training to queue an Appwrite review submission.",
+              "Verified production runs create local candidates only. Offline holdout promotion is required before any shared-skill submission.",
           },
     };
   } finally {

@@ -110,10 +110,11 @@ in the operating-system credential store, not in `.lhic`. Use
   zero. This is not a claim that browser infrastructure or slow-path model use
   is free.
 - **Learning:** successful direct DOM actions retain selector candidates in
-  local SQLite. Slow Path plans become skills only when every action has
-  successful verifier evidence. Inputs are redacted before persistence.
-  Shared skill submissions are also redacted, remain pending until approved in
-  Appwrite, and never require a Fast Path network request.
+  local SQLite. A verifier-backed Slow Path plan becomes a redacted candidate;
+  it requires three independent task runs and a deterministic offline holdout
+  before Fast Path promotion. Shared skill submissions occur only after that
+  promotion, remain pending until approved in Appwrite, and never require a
+  Fast Path network request.
 
 Run `npm run bench:internal` and `npm run bench:simulate` to produce the local,
 controlled measurements used in product demonstrations. They are not external

@@ -10,16 +10,21 @@ import {
   createGameControlLease,
   createGameEpisodeSample,
   createSeededRandomInitScript,
+  GameFramePacer,
   gameTargetProfileDigest,
   gameTrainingPaths,
   getGameTargetProfile,
+  readGameDatasetManifest,
   readGamePolicyArtifact,
   readRegisteredLocalGameTarget,
+  readRegisteredRemoteGameTarget,
   registerLocalGameTarget,
-  runPythonPrediction,
+  registerRemoteGameTarget,
   runPythonDesktopWorker,
   runPythonTraining,
   inspectGameTrainingEnvironment,
+  startPythonDesktopRecordingSession,
+  startPythonPolicySession,
   setupGameTrainingEnvironment,
   startLocalGameTargetServer,
   validateGameControlLease,
@@ -31,8 +36,10 @@ import {
   type GameDatasetManifest,
   type GameInputSample,
   type GamePolicyArtifact,
+  type GameRealtimeMetrics,
   type GameTargetProfile,
   type GameTraceMetadata,
+  type PythonDesktopInput,
 } from "@lhic/game-training";
 import {
   game2dActionCodec,
@@ -46,7 +53,7 @@ import {
   game3dPreprocessingVersion,
   randomGame3dAction,
 } from "@lhic/game-training-3d";
-import { chromium, type Page } from "playwright";
+import { chromium, type BrowserContext, type Page } from "playwright";
 import {
   ExecFileGlobalCommandRunner,
   getGlobalDesktopPlatform,
@@ -70,6 +77,32 @@ export interface GameTrainingReport {
 interface GameExecutionTrace {
   root: string;
   metadata: GameTraceMetadata;
+}
+
+interface BrowserGameTarget {
+  url: string;
+  allowedOrigins: readonly string[];
+  supportsInjectedSeed: boolean;
+  close(): Promise<void>;
+}
+
+interface BrowserRecording {
+  samples: GameDatasetManifest["samples"];
+  realtime: GameRealtimeMetrics;
+}
+
+interface BrowserEpisodeResult {
+  score: number;
+  realtime: GameRealtimeMetrics;
+}
+
+interface GameDatasetQuality {
+  sampleCount: number;
+  durationMs: number;
+  captureRateHz: number;
+  movementActionCount: number;
+  fireSampleCount: number;
+  lookSampleCount: number;
 }
 
 export async function runGameTrainingCommand(
@@ -101,7 +134,9 @@ export async function runGameTrainingCommand(
     case "lease":
       return createDesktopLease(profile, parsed);
     case "record":
-      return recordBrowserDataset(profile, parsed, root);
+      return selectedSurface(parsed) === "desktop"
+        ? recordDesktopDataset(profile, parsed, root)
+        : recordBrowserDataset(profile, parsed, root);
     case "fit":
       return fitPolicy(profile, parsed, root);
     case "evaluate":
@@ -171,6 +206,18 @@ async function setupTarget(
   options: Map<string, string | true>,
   root: string,
 ): Promise<GameTrainingReport> {
+  if (profile.targetOrigin?.kind === "remote") {
+    if (optionString(options, "--source")) {
+      throw new Error("Remote game targets do not accept --source.");
+    }
+    const registration = await registerRemoteGameTarget(profile, root);
+    return {
+      command: "setup",
+      core: profile.core,
+      profile: profile.id,
+      target: registration,
+    };
+  }
   const source = requiredOption(options, "--source");
   const registration = await registerLocalGameTarget(profile, source, root);
   return {
@@ -200,30 +247,51 @@ async function recordBrowserDataset(
   await mkdir(output);
   const framesDirectory = join(output, "frames");
   await mkdir(framesDirectory);
-  const target = await readRegisteredLocalGameTarget(profile, root);
-  const server = await startLocalGameTargetServer(target.sourceDirectory);
-  const browser = await chromium.launch({ headless: false });
+  const target = await openBrowserGameTarget(profile, root);
+  const trace: GameExecutionTrace = {
+    root,
+    metadata: {
+      core: profile.core,
+      profileId: profile.id,
+      surface: "browser",
+      sessionId: randomUUID(),
+    },
+  };
+  const browser = await chromium.launch({
+    headless: optionBoolean(options, "--headless"),
+  });
   try {
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_browser_recording_started",
+      { durationMs, scripted: optionBoolean(options, "--scripted") },
+    );
     const context = await browser.newContext({ viewport: profile.viewport });
-    await context.addInitScript(createSeededRandomInitScript(seed));
+    if (target.supportsInjectedSeed) {
+      await context.addInitScript(createSeededRandomInitScript(seed));
+    }
     await context.addInitScript(installInputRecorder);
-    await context.route("**/*", async (route) => {
-      const requestUrl = new URL(route.request().url());
-      if (requestUrl.origin !== new URL(server.url).origin) {
-        await route.abort("blockedbyclient");
-        return;
-      }
-      await route.continue();
-    });
+    await restrictBrowserRequests(context, target.allowedOrigins);
     const page = await context.newPage();
-    await page.goto(server.url, { waitUntil: "domcontentloaded" });
+    await page.goto(target.url, { waitUntil: "domcontentloaded" });
     await startProfileIfPossible(page, profile);
-    const samples = await collectBrowserSamples(
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_browser_target_ready",
+    );
+    const scriptedDemo = optionBoolean(options, "--scripted")
+      ? runScriptedBrowserDemonstration(page, profile, durationMs)
+      : undefined;
+    const recording = await collectBrowserSamples(
       page,
       profile,
       framesDirectory,
       durationMs,
     );
+    const { samples } = recording;
+    await scriptedDemo;
     const manifest: GameDatasetManifest = {
       schemaVersion: "game-dataset-v1",
       core: profile.core,
@@ -232,22 +300,179 @@ async function recordBrowserDataset(
       preprocessingVersion: preprocessingVersionFor(profile.core),
       actionCodec: actionCodecFor(profile.core),
       seed,
+      seedMode: target.supportsInjectedSeed ? "injected" : "uncontrolled",
       surface: "browser",
       createdAt: new Date().toISOString(),
       samples,
     };
     const manifestPath = join(output, "manifest.json");
     await writeGameDatasetManifest(manifestPath, manifest);
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_browser_recording_completed",
+      { sampleCount: samples.length, realtime: recording.realtime },
+    );
     return {
       command: "record",
       core: profile.core,
       profile: profile.id,
       dataset: manifestPath,
       sampleCount: samples.length,
+      datasetQuality: summarizeDatasetQuality(profile, samples),
+      realtime: recording.realtime,
+      trace: join(
+        gameTrainingPaths(profile.core, root).tracesRoot,
+        `${trace.metadata.sessionId}.jsonl`,
+      ),
     };
+  } catch (error) {
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_browser_recording_failed",
+    ).catch(() => undefined);
+    throw error;
   } finally {
     await browser.close();
-    await server.close();
+    await target.close();
+  }
+}
+
+async function recordDesktopDataset(
+  profile: GameTargetProfile,
+  options: Map<string, string | true>,
+  root: string,
+): Promise<GameTrainingReport> {
+  if (!profile.supportedSurfaces.includes("desktop")) {
+    throw new Error(`${profile.id} is not approved for desktop recording.`);
+  }
+  if (profile.targetOrigin?.kind === "remote") {
+    await readRegisteredRemoteGameTarget(profile, root);
+  } else {
+    await readRegisteredLocalGameTarget(profile, root);
+  }
+  const windowTitle = requiredOption(options, "--window-title");
+  const captureRegion = parseCaptureRegion(requiredOption(options, "--region"));
+  const lease = await readDesktopLease(requiredOption(options, "--lease"));
+  assertDesktopGameControlLease(lease, profile.id, windowTitle, captureRegion);
+  const durationMs = boundedDuration(
+    optionNumber(options, "--duration-ms") ?? 30_000,
+  );
+  const seed = optionInteger(options, "--seed") ?? 1;
+  const paths = gameTrainingPaths(profile.core, root);
+  const output = resolve(
+    optionString(options, "--output") ??
+      join(paths.datasetsRoot, `${profile.id}-${Date.now()}`),
+  );
+  await mkdir(dirname(output), { recursive: true });
+  await mkdir(output);
+  const framesDirectory = join(output, "frames");
+  await mkdir(framesDirectory);
+  const python =
+    optionString(options, "--python") ??
+    gameTrainingPython(paths.environmentRoot);
+  const desktop = await runPythonDesktopWorker(python, {
+    command: "desktop-doctor",
+  });
+  if (desktop.supported !== true) {
+    throw new Error(desktop.detail ?? "Desktop game recording is unavailable.");
+  }
+  const trace: GameExecutionTrace = {
+    root,
+    metadata: {
+      core: profile.core,
+      profileId: profile.id,
+      surface: "desktop",
+      sessionId: randomUUID(),
+    },
+  };
+  const recorder = await startPythonDesktopRecordingSession(python, {
+    allowedKeys: [...profile.control.allowedKeys],
+    captureRegion,
+  });
+  try {
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_desktop_recording_started",
+      { durationMs },
+    );
+    const samples: GameDatasetManifest["samples"] = [];
+    const pacer = new GameFramePacer(profile.frameRate);
+    const startedAt = performance.now();
+    while (performance.now() - startedAt < durationMs) {
+      const frameStartedAt = pacer.startFrame();
+      assertDesktopGameControlLease(
+        lease,
+        profile.id,
+        windowTitle,
+        captureRegion,
+      );
+      await assertFocusedGameWindow(profile, windowTitle);
+      const index = String(samples.length).padStart(6, "0");
+      const frameName = `${index}.png`;
+      await recorder.capture(join(framesDirectory, frameName));
+      const input = await recorder.readInput();
+      await assertFocusedGameWindow(profile, windowTitle);
+      assertDesktopGameControlLease(
+        lease,
+        profile.id,
+        windowTitle,
+        captureRegion,
+      );
+      samples.push(
+        createGameEpisodeSample({
+          timestampMs: Math.round(performance.now() - startedAt),
+          frame: join("frames", frameName),
+          input: desktopRecordedInput(profile, input),
+          telemetry: { terminal: false },
+        }),
+      );
+      await pacer.completeFrame(frameStartedAt);
+    }
+    const manifest: GameDatasetManifest = {
+      schemaVersion: "game-dataset-v1",
+      core: profile.core,
+      profileId: profile.id,
+      profileDigest: gameTargetProfileDigest(profile),
+      preprocessingVersion: preprocessingVersionFor(profile.core),
+      actionCodec: actionCodecFor(profile.core),
+      seed,
+      seedMode: "uncontrolled",
+      surface: "desktop",
+      captureRegion,
+      createdAt: new Date().toISOString(),
+      samples,
+    };
+    const manifestPath = join(output, "manifest.json");
+    await writeGameDatasetManifest(manifestPath, manifest);
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_desktop_recording_completed",
+      { sampleCount: samples.length, realtime: pacer.metrics() },
+    );
+    return {
+      command: "record",
+      core: profile.core,
+      profile: profile.id,
+      surface: "desktop",
+      dataset: manifestPath,
+      sampleCount: samples.length,
+      datasetQuality: summarizeDatasetQuality(profile, samples),
+      realtime: pacer.metrics(),
+      trace: join(paths.tracesRoot, `${trace.metadata.sessionId}.jsonl`),
+    };
+  } catch (error) {
+    await appendGameTrainingTrace(
+      root,
+      trace.metadata,
+      "game_desktop_recording_failed",
+    ).catch(() => undefined);
+    throw error;
+  } finally {
+    await recorder.close().catch(() => undefined);
   }
 }
 
@@ -257,6 +482,9 @@ async function fitPolicy(
   root: string,
 ): Promise<GameTrainingReport> {
   const datasetPath = resolve(requiredOption(options, "--dataset"));
+  const dataset = await readGameDatasetManifest(datasetPath);
+  const datasetQuality = summarizeDatasetQuality(profile, dataset.samples);
+  assertDatasetTrainable(profile, datasetQuality);
   const paths = gameTrainingPaths(profile.core, root);
   const output = resolve(
     optionString(options, "--output") ??
@@ -309,6 +537,7 @@ async function fitPolicy(
     profile: profile.id,
     artifact: artifactPath,
     sampleCount: result.sampleCount,
+    datasetQuality,
     metrics: artifact.metrics,
   };
 }
@@ -332,7 +561,6 @@ async function evaluateBrowserPolicy(
       frameSpec: frameSpecFor(profile.core),
     },
   );
-  const target = await readRegisteredLocalGameTarget(profile, root);
   const episodes = boundedEpisodes(optionInteger(options, "--episodes") ?? 10);
   const durationMs = boundedDuration(
     optionNumber(options, "--duration-ms") ?? 10_000,
@@ -345,6 +573,10 @@ async function evaluateBrowserPolicy(
   await assertGamePolicyWeights(artifact, weightsFile);
   const learnedScores: number[] = [];
   const randomScores: number[] = [];
+  const learnedRealtime: GameRealtimeMetrics[] = [];
+  const randomRealtime: GameRealtimeMetrics[] = [];
+  const learnedFailures: Array<{ seed: number; detail: string }> = [];
+  const randomFailures: Array<{ seed: number; detail: string }> = [];
   for (let seed = 0; seed < episodes; seed += 1) {
     const learnedTrace: GameExecutionTrace = {
       root,
@@ -355,22 +587,30 @@ async function evaluateBrowserPolicy(
         sessionId: randomUUID(),
       },
     };
-    learnedScores.push(
-      await runBrowserEpisode(
+    let policy:
+      Awaited<ReturnType<typeof startPythonPolicySession>> | undefined;
+    try {
+      const activePolicy = await startPythonPolicySession(python, {
+        core: profile.core,
+        weightsFile,
+      });
+      policy = activePolicy;
+      const result = await runBrowserEpisode(
         profile,
-        target.sourceDirectory,
+        root,
         seed,
         durationMs,
-        async (frameFiles) =>
-          runPythonPrediction(python, {
-            core: profile.core,
-            weightsFile,
-            frameFiles,
-          }),
+        async (frameFiles) => activePolicy.predict(frameFiles),
         false,
         learnedTrace,
-      ),
-    );
+      );
+      learnedScores.push(result.score);
+      learnedRealtime.push(result.realtime);
+    } catch (error) {
+      learnedFailures.push({ seed, detail: errorDetail(error) });
+    } finally {
+      await policy?.close().catch(() => undefined);
+    }
     const random = seededRandom(seed);
     const randomTrace: GameExecutionTrace = {
       root,
@@ -381,20 +621,24 @@ async function evaluateBrowserPolicy(
         sessionId: randomUUID(),
       },
     };
-    randomScores.push(
-      await runBrowserEpisode(
+    try {
+      const result = await runBrowserEpisode(
         profile,
-        target.sourceDirectory,
+        root,
         seed,
         durationMs,
         async () => randomActionFor(profile, random),
         false,
         randomTrace,
-      ),
-    );
+      );
+      randomScores.push(result.score);
+      randomRealtime.push(result.realtime);
+    } catch (error) {
+      randomFailures.push({ seed, detail: errorDetail(error) });
+    }
   }
-  const learnedMeanScore = mean(learnedScores);
-  const randomMeanScore = mean(randomScores);
+  const learnedMeanScore = meanOrZero(learnedScores);
+  const randomMeanScore = meanOrZero(randomScores);
   const report = {
     command: "evaluate",
     core: profile.core,
@@ -402,9 +646,21 @@ async function evaluateBrowserPolicy(
     episodes,
     learnedScores,
     randomScores,
+    learnedFailures,
+    randomFailures,
+    learnedRealtime,
+    randomRealtime,
+    learnedAvailability: learnedScores.length / episodes,
+    randomAvailability: randomScores.length / episodes,
     learnedMeanScore,
     randomMeanScore,
-    passed: learnedMeanScore > 0 && learnedMeanScore > randomMeanScore,
+    deterministic: supportsInjectedSeed(profile),
+    passed:
+      supportsInjectedSeed(profile) &&
+      learnedFailures.length === 0 &&
+      randomFailures.length === 0 &&
+      learnedMeanScore > 0 &&
+      learnedMeanScore > randomMeanScore,
   };
   const reportPath = resolve(
     optionString(options, "--output") ??
@@ -437,7 +693,6 @@ async function playBrowserPolicy(
       frameSpec: frameSpecFor(profile.core),
     },
   );
-  const target = await readRegisteredLocalGameTarget(profile, root);
   const python =
     optionString(options, "--python") ??
     gameTrainingPython(gameTrainingPaths(profile.core, root).environmentRoot);
@@ -453,25 +708,30 @@ async function playBrowserPolicy(
       sessionId: randomUUID(),
     },
   };
-  const score = await runBrowserEpisode(
-    profile,
-    target.sourceDirectory,
-    optionInteger(options, "--seed") ?? 0,
-    boundedDuration(optionNumber(options, "--duration-ms") ?? 30_000),
-    async (frameFiles) =>
-      runPythonPrediction(python, {
-        core: profile.core,
-        weightsFile,
-        frameFiles,
-      }),
-    optionBoolean(options, "--viewable"),
-    trace,
-  );
+  const policy = await startPythonPolicySession(python, {
+    core: profile.core,
+    weightsFile,
+  });
+  let result: BrowserEpisodeResult;
+  try {
+    result = await runBrowserEpisode(
+      profile,
+      root,
+      optionInteger(options, "--seed") ?? 0,
+      boundedDuration(optionNumber(options, "--duration-ms") ?? 30_000),
+      async (frameFiles) => policy.predict(frameFiles),
+      optionBoolean(options, "--viewable"),
+      trace,
+    );
+  } finally {
+    await policy.close();
+  }
   return {
     command: "play",
     core: profile.core,
     profile: profile.id,
-    score,
+    score: result.score,
+    realtime: result.realtime,
     trace: join(
       gameTrainingPaths(profile.core, root).tracesRoot,
       `${trace.metadata.sessionId}.jsonl`,
@@ -500,7 +760,11 @@ async function playDesktopPolicy(
       frameSpec: frameSpecFor(profile.core),
     },
   );
-  const target = await readRegisteredLocalGameTarget(profile, root);
+  const isRemoteTarget = profile.targetOrigin?.kind === "remote";
+  if (isRemoteTarget) await readRegisteredRemoteGameTarget(profile, root);
+  const localTarget = isRemoteTarget
+    ? undefined
+    : await readRegisteredLocalGameTarget(profile, root);
   const windowTitle = requiredOption(options, "--window-title");
   const captureRegion = parseCaptureRegion(requiredOption(options, "--region"));
   const lease = await readDesktopLease(requiredOption(options, "--lease"));
@@ -520,6 +784,10 @@ async function playDesktopPolicy(
   const weightsFile = resolve(dirname(artifactPath), artifact.weightsFile);
   assertContainedPath(dirname(artifactPath), weightsFile);
   await assertGamePolicyWeights(artifact, weightsFile);
+  const policy = await startPythonPolicySession(python, {
+    core: profile.core,
+    weightsFile,
+  });
   const sessionId = randomUUID();
   const trace = {
     core: profile.core,
@@ -533,44 +801,53 @@ async function playDesktopPolicy(
   const frameHistory: string[] = [];
   const activeKeys = new Set<string>();
   const history = frameSpecFor(profile.core).history;
-  const server = await startLocalGameTargetServer(target.sourceDirectory);
+  const server = localTarget
+    ? await startLocalGameTargetServer(localTarget.sourceDirectory)
+    : undefined;
   let startedAt = 0;
   let primaryDown = false;
   let batches = 0;
   let frameIndex = 0;
+  const pacer = new GameFramePacer(profile.frameRate);
 
   await appendGameTrainingTrace(root, trace, "game_desktop_session_started", {
     captureWidth: captureRegion.width,
     captureHeight: captureRegion.height,
   });
   try {
-    const browser = await chromium.launch({ headless: false });
+    const browser = server
+      ? await chromium.launch({ headless: false })
+      : undefined;
     try {
-      const context = await browser.newContext({ viewport: profile.viewport });
-      await context.addInitScript(
-        createSeededRandomInitScript(optionInteger(options, "--seed") ?? 0),
-      );
-      await context.route("**/*", async (route) => {
-        const requestUrl = new URL(route.request().url());
-        if (requestUrl.origin !== new URL(server.url).origin) {
-          await route.abort("blockedbyclient");
-          return;
-        }
-        await route.continue();
-      });
-      const page = await context.newPage();
-      await page.goto(server.url, { waitUntil: "domcontentloaded" });
-      await startProfileIfPossible(page, profile);
-      await page.bringToFront();
+      if (browser && server) {
+        const context = await browser.newContext({
+          viewport: profile.viewport,
+        });
+        await context.addInitScript(
+          createSeededRandomInitScript(optionInteger(options, "--seed") ?? 0),
+        );
+        await restrictBrowserRequests(context, [new URL(server.url).origin]);
+        const page = await context.newPage();
+        await page.goto(server.url, { waitUntil: "domcontentloaded" });
+        await startProfileIfPossible(page, profile);
+        await page.bringToFront();
+      } else {
+        await appendGameTrainingTrace(
+          root,
+          trace,
+          "game_desktop_existing_target_required",
+        );
+      }
       startedAt = performance.now();
       while (performance.now() - startedAt < durationMs) {
+        const frameStartedAt = pacer.startFrame();
         assertDesktopGameControlLease(
           lease,
           profile.id,
           windowTitle,
           captureRegion,
         );
-        await assertFocusedGameWindow(windowTitle);
+        await assertFocusedGameWindow(profile, windowTitle);
         const frameFile = join(
           temporaryDirectory,
           `frame-${frameIndex % history}.png`,
@@ -584,12 +861,8 @@ async function playDesktopPolicy(
         frameHistory.push(frameFile);
         while (frameHistory.length > history) frameHistory.shift();
         while (frameHistory.length < history) frameHistory.unshift(frameFile);
-        const action = await runPythonPrediction(python, {
-          core: profile.core,
-          weightsFile,
-          frameFiles: [...frameHistory],
-        });
-        await assertFocusedGameWindow(windowTitle);
+        const action = await policy.predict([...frameHistory]);
+        await assertFocusedGameWindow(profile, windowTitle);
         assertDesktopGameControlLease(
           lease,
           profile.id,
@@ -605,7 +878,14 @@ async function playDesktopPolicy(
           activeKeys: [...activeKeys],
           desiredKeys,
           primaryDown,
-          desiredPrimaryDown: profile.control.allowPrimaryClick && action.fire,
+          desiredPrimaryDown:
+            profile.core !== "3d" &&
+            profile.control.allowPrimaryClick &&
+            action.fire,
+          primaryClick:
+            profile.core === "3d" &&
+            profile.control.allowPrimaryClick &&
+            action.fire,
           allowPrimaryClick: profile.control.allowPrimaryClick,
           aimMode: profile.control.aimMode,
           ...(pointer ? { pointer } : {}),
@@ -614,7 +894,9 @@ async function playDesktopPolicy(
         for (const key of result.activeKeys ?? desiredKeys) activeKeys.add(key);
         primaryDown =
           result.primaryDown ??
-          (profile.control.allowPrimaryClick && action.fire);
+          (profile.core !== "3d" &&
+            profile.control.allowPrimaryClick &&
+            action.fire);
         batches += 1;
         await appendGameTrainingTrace(
           root,
@@ -627,10 +909,10 @@ async function playDesktopPolicy(
             primaryDown,
           },
         );
-        await waitForFrame(profile.frameRate);
+        await pacer.completeFrame(frameStartedAt);
       }
     } finally {
-      await browser.close();
+      await browser?.close();
     }
   } catch (error) {
     await appendGameTrainingTrace(root, trace, "game_desktop_session_failed", {
@@ -646,15 +928,22 @@ async function playDesktopPolicy(
     await appendGameTrainingTrace(root, trace, "game_desktop_inputs_released", {
       batches,
     }).catch(() => undefined);
-    await server.close().catch(() => undefined);
+    await policy.close().catch(() => undefined);
+    await server?.close().catch(() => undefined);
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
+  const realtime = pacer.metrics();
+  await appendGameTrainingTrace(root, trace, "game_desktop_session_completed", {
+    controlBatches: batches,
+    realtime,
+  });
   return {
     command: "play",
     core: profile.core,
     profile: profile.id,
     surface: "desktop",
     controlBatches: batches,
+    realtime,
     trace: join(
       gameTrainingPaths(profile.core, root).tracesRoot,
       `${sessionId}.jsonl`,
@@ -664,31 +953,31 @@ async function playDesktopPolicy(
 
 async function runBrowserEpisode(
   profile: GameTargetProfile,
-  sourceDirectory: string,
+  root: string,
   seed: number,
   durationMs: number,
   nextAction: (frameFiles: string[]) => Promise<CoreGameAction>,
   viewable = false,
   trace?: GameExecutionTrace,
-): Promise<number> {
+): Promise<BrowserEpisodeResult> {
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "lhic-game-eval-"));
-  const server = await startLocalGameTargetServer(sourceDirectory);
+  const target = await openBrowserGameTarget(profile, root);
   const browser = await chromium.launch({ headless: !viewable });
   try {
     const context = await browser.newContext({ viewport: profile.viewport });
-    await context.addInitScript(createSeededRandomInitScript(seed));
-    await context.route("**/*", async (route) => {
-      const requestUrl = new URL(route.request().url());
-      if (requestUrl.origin !== new URL(server.url).origin) {
-        await route.abort("blockedbyclient");
-        return;
-      }
-      await route.continue();
-    });
+    if (target.supportsInjectedSeed) {
+      await context.addInitScript(createSeededRandomInitScript(seed));
+    }
+    await restrictBrowserRequests(context, target.allowedOrigins);
     const page = await context.newPage();
-    await page.goto(server.url, { waitUntil: "domcontentloaded" });
+    await page.goto(target.url, { waitUntil: "domcontentloaded" });
     await startProfileIfPossible(page, profile);
     if (trace) {
+      await appendGameTrainingTrace(
+        trace.root,
+        trace.metadata,
+        "game_browser_target_ready",
+      );
       await appendGameTrainingTrace(
         trace.root,
         trace.metadata,
@@ -703,9 +992,11 @@ async function runBrowserEpisode(
     const frameFiles: string[] = [];
     const history = frameSpecFor(profile.core).history;
     let frameIndex = 0;
+    const pacer = new GameFramePacer(profile.frameRate);
     const startedAt = performance.now();
     try {
       while (performance.now() - startedAt < durationMs) {
+        const frameStartedAt = pacer.startFrame();
         const frameFile = join(
           temporaryDirectory,
           `frame-${frameIndex % history}.png`,
@@ -736,7 +1027,7 @@ async function runBrowserEpisode(
         }
         const telemetry = await readTelemetry(page, profile);
         if (telemetry.health !== undefined && telemetry.health <= 0) break;
-        await page.waitForTimeout(Math.round(1_000 / profile.frameRate));
+        await pacer.completeFrame(frameStartedAt);
       }
     } finally {
       await releaseBrowserInputs(page, activeKeys, primaryDown);
@@ -748,12 +1039,263 @@ async function runBrowserEpisode(
         );
       }
     }
-    return (await readTelemetry(page, profile)).score ?? 0;
+    const result = {
+      score: (await readTelemetry(page, profile)).score ?? 0,
+      realtime: pacer.metrics(),
+    };
+    if (trace) {
+      await appendGameTrainingTrace(
+        trace.root,
+        trace.metadata,
+        "game_browser_session_completed",
+        result,
+      );
+    }
+    return result;
+  } catch (error) {
+    if (trace) {
+      await appendGameTrainingTrace(
+        trace.root,
+        trace.metadata,
+        "game_browser_session_failed",
+      ).catch(() => undefined);
+    }
+    throw error;
   } finally {
     await browser.close();
-    await server.close();
+    await target.close();
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
+}
+
+async function openBrowserGameTarget(
+  profile: GameTargetProfile,
+  root: string,
+): Promise<BrowserGameTarget> {
+  if (profile.targetOrigin?.kind === "remote") {
+    const target = await readRegisteredRemoteGameTarget(profile, root);
+    return {
+      url: target.url,
+      allowedOrigins: target.allowedOrigins,
+      supportsInjectedSeed: false,
+      close: async () => undefined,
+    };
+  }
+  const target = await readRegisteredLocalGameTarget(profile, root);
+  const server = await startLocalGameTargetServer(target.sourceDirectory);
+  return {
+    url: server.url,
+    allowedOrigins: [new URL(server.url).origin],
+    supportsInjectedSeed: true,
+    close: server.close,
+  };
+}
+
+async function restrictBrowserRequests(
+  context: BrowserContext,
+  allowedOrigins: readonly string[],
+): Promise<void> {
+  const approvedOrigins = new Set(allowedOrigins);
+  await context.route("**/*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    if (!approvedOrigins.has(requestUrl.origin)) {
+      await route.abort("blockedbyclient");
+      return;
+    }
+    await route.continue();
+  });
+}
+
+async function runScriptedBrowserDemonstration(
+  page: Page,
+  profile: GameTargetProfile,
+  durationMs: number,
+): Promise<void> {
+  const activeKeys = new Set<string>();
+  let primaryDown = false;
+  const startedAt = performance.now();
+  try {
+    while (performance.now() - startedAt < durationMs) {
+      const action = await scriptedActionFor(
+        page,
+        profile,
+        performance.now() - startedAt,
+      );
+      primaryDown = await applyBrowserAction(
+        page,
+        profile,
+        action,
+        activeKeys,
+        primaryDown,
+      );
+      await page.waitForTimeout(250);
+    }
+  } finally {
+    await releaseBrowserInputs(page, activeKeys, primaryDown);
+  }
+}
+
+async function scriptedActionFor(
+  page: Page,
+  profile: GameTargetProfile,
+  elapsedMs: number,
+): Promise<CoreGameAction> {
+  if (profile.core === "2d") {
+    const tracking = await page
+      .evaluate(() => {
+        const game = (
+          window as typeof window & {
+            game?: {
+              scene?: {
+                keys?: Record<
+                  string,
+                  {
+                    player?: { x?: number; y?: number };
+                    enemies?: {
+                      getChildren?: () => Array<{ x?: number; y?: number }>;
+                    };
+                  }
+                >;
+              };
+            };
+          }
+        ).game;
+        const scene = game?.scene?.keys?.SceneMain;
+        const player = scene?.player;
+        const enemies = scene?.enemies?.getChildren?.() ?? [];
+        const playerX = player?.x;
+        const playerY = player?.y;
+        if (typeof playerX !== "number" || typeof playerY !== "number") {
+          return undefined;
+        }
+        let targetX: number | undefined;
+        let distance = Number.POSITIVE_INFINITY;
+        for (const enemy of enemies) {
+          if (
+            typeof enemy.x !== "number" ||
+            typeof enemy.y !== "number" ||
+            enemy.y >= playerY
+          ) {
+            continue;
+          }
+          const candidateDistance = Math.abs(enemy.x - playerX);
+          if (candidateDistance < distance) {
+            targetX = enemy.x;
+            distance = candidateDistance;
+          }
+        }
+        return targetX === undefined ? undefined : { playerX, targetX };
+      })
+      .catch(() => undefined);
+    if (tracking) {
+      const movement =
+        tracking.targetX < tracking.playerX - 6
+          ? ["KeyA"]
+          : tracking.targetX > tracking.playerX + 6
+            ? ["KeyD"]
+            : [];
+      return { movement, fire: true };
+    }
+    const phase = Math.floor(elapsedMs / 900) % 4;
+    const movement = phase < 2 ? ["KeyA"] : ["KeyD"];
+    return { movement, fire: true };
+  }
+  if (profile.id === "epic-shooter-3d") {
+    const phase = Math.floor(elapsedMs / 750) % 8;
+    const movement = [
+      ["KeyW"],
+      ["KeyA"],
+      ["KeyS"],
+      ["KeyD"],
+      ["KeyW", "KeyA"],
+      ["KeyW", "KeyD"],
+      ["KeyS", "KeyA"],
+      ["KeyS", "KeyD"],
+    ][phase]!;
+    const lookDelta = [48, 16, -16, -48, -16, 16, 32, -32][phase]!;
+    return {
+      movement,
+      fire: true,
+      look: { deltaX: lookDelta, deltaY: 0 },
+    };
+  }
+  const target = await page
+    .evaluate(() => {
+      const runtime = window as typeof window & {
+        ai?: Array<{
+          position?: {
+            distanceTo?: (position: unknown) => number;
+            clone?: () => unknown;
+          };
+        }>;
+        cam?: { position?: unknown };
+        projector?: {
+          projectVector?: (
+            vector: unknown,
+            camera: unknown,
+          ) => { x?: number; y?: number };
+        };
+      };
+      const camera = runtime.cam;
+      const projector = runtime.projector;
+      if (!camera || !projector?.projectVector || !Array.isArray(runtime.ai)) {
+        return undefined;
+      }
+      const closest = runtime.ai
+        .filter(
+          (candidate) =>
+            candidate.position?.clone && candidate.position.distanceTo,
+        )
+        .sort(
+          (left, right) =>
+            (left.position?.distanceTo?.(camera.position) ??
+              Number.POSITIVE_INFINITY) -
+            (right.position?.distanceTo?.(camera.position) ??
+              Number.POSITIVE_INFINITY),
+        )[0];
+      const position = closest?.position?.clone?.();
+      if (!position) return undefined;
+      const projected = projector.projectVector(position, camera);
+      if (typeof projected.x !== "number" || typeof projected.y !== "number") {
+        return undefined;
+      }
+      return { x: projected.x, y: projected.y };
+    })
+    .catch(() => undefined);
+  const movement =
+    target?.x === undefined
+      ? elapsedMs % 1_500 < 750
+        ? ["KeyW", "KeyA"]
+        : ["KeyW", "KeyD"]
+      : target.x < -0.08
+        ? ["KeyA"]
+        : target.x > 0.08
+          ? ["KeyD"]
+          : ["KeyW"];
+  return {
+    movement,
+    fire: true,
+    look: {
+      deltaX: target ? clampPointerDelta(target.x * 48) : 16,
+      deltaY: target ? clampPointerDelta(-target.y * 48) : 0,
+    },
+  };
+}
+
+function clampPointerDelta(value: number): number {
+  return boundedRelativeLook(value, 48);
+}
+
+function boundedRelativeLook(
+  value: number,
+  maximum: number | undefined,
+): number {
+  if (!maximum || maximum < 1) {
+    throw new Error("Relative-look profiles require a positive pointer bound.");
+  }
+  const bounded = Math.max(-maximum, Math.min(maximum, value));
+  const step = Math.max(1, Math.round(maximum / 3));
+  return Math.round(bounded / step) * step;
 }
 
 async function collectBrowserSamples(
@@ -761,10 +1303,12 @@ async function collectBrowserSamples(
   profile: GameTargetProfile,
   framesDirectory: string,
   durationMs: number,
-): Promise<GameDatasetManifest["samples"]> {
+): Promise<BrowserRecording> {
   const samples: GameDatasetManifest["samples"] = [];
+  const pacer = new GameFramePacer(profile.frameRate);
   const startedAt = performance.now();
   while (performance.now() - startedAt < durationMs) {
+    const frameStartedAt = pacer.startFrame();
     const index = String(samples.length).padStart(6, "0");
     const frameName = `${index}.png`;
     await page.screenshot({ path: join(framesDirectory, frameName) });
@@ -780,9 +1324,9 @@ async function collectBrowserSamples(
       }),
     );
     if (terminal) break;
-    await page.waitForTimeout(Math.round(1_000 / profile.frameRate));
+    await pacer.completeFrame(frameStartedAt);
   }
-  return samples;
+  return { samples, realtime: pacer.metrics() };
 }
 
 async function applyBrowserAction(
@@ -816,6 +1360,18 @@ async function applyBrowserAction(
       action.aim.x * profile.viewport.width,
       action.aim.y * profile.viewport.height,
     );
+  }
+  if (profile.core === "3d" && action.fire) {
+    if (primaryDown) await page.mouse.up();
+    await page.mouse.click(
+      action.look
+        ? profile.viewport.width / 2 + action.look.deltaX
+        : profile.viewport.width / 2,
+      action.look
+        ? profile.viewport.height / 2 + action.look.deltaY
+        : profile.viewport.height / 2,
+    );
+    return false;
   }
   if (profile.control.allowPrimaryClick && action.fire !== primaryDown) {
     if (action.fire) await page.mouse.down();
@@ -893,15 +1449,77 @@ async function startProfileIfPossible(
 ): Promise<void> {
   const selectors = [
     ...(profile.telemetry.startSelectors ?? []),
-    ...(profile.telemetry.startSelector ? [profile.telemetry.startSelector] : []),
+    ...(profile.telemetry.startSelector
+      ? [profile.telemetry.startSelector]
+      : []),
   ];
-  for (const selector of selectors) {
-    await page
-      .locator(selector)
-      .first()
-      .click({ timeout: 1_000 })
-      .catch(() => undefined);
+  const strictStartup = Boolean(profile.telemetry.readySelector);
+  const attempts = strictStartup ? 3 : 1;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const alreadyReady = profile.telemetry.readySelector
+        ? await page
+            .locator(profile.telemetry.readySelector)
+            .first()
+            .isVisible()
+            .catch(() => false)
+        : false;
+      if (!alreadyReady) {
+        if (profile.startInput) {
+          await page
+            .locator(profile.startInput.selector)
+            .fill(profile.startInput.value, { timeout: 5_000 });
+        }
+        for (const selector of selectors) {
+          const click = page
+            .locator(selector)
+            .first()
+            .click({ timeout: 5_000 });
+          if (strictStartup) await click;
+          else await click.catch(() => undefined);
+        }
+      }
+      if (profile.telemetry.readySelector) {
+        await page.locator(profile.telemetry.readySelector).first().waitFor({
+          state: "visible",
+          timeout: 5_000,
+        });
+      }
+      await assertPointerLockIfRequired(page, profile);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt + 1 < attempts) await page.waitForTimeout(500);
+    }
   }
+  if (strictStartup) {
+    const detail = lastError instanceof Error ? `: ${lastError.message}` : "";
+    throw new Error(
+      `Game target did not become ready after startup retries${detail}`,
+    );
+  }
+}
+
+async function assertPointerLockIfRequired(
+  page: Page,
+  profile: GameTargetProfile,
+): Promise<void> {
+  if (!profile.requiresPointerLock) return;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const locked = await page.evaluate(
+      () => document.pointerLockElement !== null,
+    );
+    if (locked) return;
+    await page.mouse.click(
+      profile.viewport.width / 2,
+      profile.viewport.height / 2,
+    );
+    await page.waitForTimeout(250);
+  }
+  throw new Error(
+    "Game target requires browser pointer lock; use an interactive desktop session that permits pointer lock.",
+  );
 }
 
 async function readRecordedInput(
@@ -943,15 +1561,73 @@ async function readRecordedInput(
       ? { pointerX: value.x, pointerY: value.y }
       : {}),
     ...(profile.control.aimMode === "relative"
-      ? { pointerDeltaX: value.deltaX, pointerDeltaY: value.deltaY }
+      ? {
+          pointerDeltaX: boundedRelativeLook(
+            value.deltaX,
+            profile.control.maxPointerDelta,
+          ),
+          pointerDeltaY: boundedRelativeLook(
+            value.deltaY,
+            profile.control.maxPointerDelta,
+          ),
+        }
       : {}),
   };
+}
+
+function desktopRecordedInput(
+  profile: GameTargetProfile,
+  input: PythonDesktopInput,
+): GameInputSample {
+  if (
+    input.heldKeys.some((key) => !profile.control.allowedKeys.includes(key))
+  ) {
+    throw new Error(
+      "Desktop recorder returned a key outside the control profile.",
+    );
+  }
+  const pointerX = finiteInputNumber(input.pointerX);
+  const pointerY = finiteInputNumber(input.pointerY);
+  const pointerDeltaX = finiteInputNumber(input.pointerDeltaX);
+  const pointerDeltaY = finiteInputNumber(input.pointerDeltaY);
+  return {
+    timestampMs: Math.round(performance.now()),
+    heldKeys: input.heldKeys,
+    primaryDown: input.primaryDown,
+    ...(profile.control.aimMode === "absolute"
+      ? {
+          pointerX: Math.max(0, Math.min(1, pointerX)),
+          pointerY: Math.max(0, Math.min(1, pointerY)),
+        }
+      : {}),
+    ...(profile.control.aimMode === "relative"
+      ? {
+          pointerDeltaX: boundedRelativeLook(
+            pointerDeltaX,
+            profile.control.maxPointerDelta,
+          ),
+          pointerDeltaY: boundedRelativeLook(
+            pointerDeltaY,
+            profile.control.maxPointerDelta,
+          ),
+        }
+      : {}),
+  };
+}
+
+function finiteInputNumber(value: number | undefined): number {
+  if (value === undefined) return 0;
+  if (!Number.isFinite(value)) {
+    throw new Error("Desktop recorder returned a non-finite pointer value.");
+  }
+  return value;
 }
 
 function installInputRecorder(): void {
   const state = {
     keys: new Set<string>(),
     primaryDown: false,
+    firedSinceLastRead: false,
     x: 0,
     y: 0,
     deltaX: 0,
@@ -962,7 +1638,7 @@ function installInputRecorder(): void {
   ).__lhicReadGameInput = () => {
     const result = {
       keys: [...state.keys],
-      primaryDown: state.primaryDown,
+      primaryDown: state.primaryDown || state.firedSinceLastRead,
       x: state.x,
       y: state.y,
       deltaX: state.deltaX,
@@ -970,6 +1646,7 @@ function installInputRecorder(): void {
     };
     state.deltaX = 0;
     state.deltaY = 0;
+    state.firedSinceLastRead = false;
     return result;
   };
   window.addEventListener("keydown", (event) => {
@@ -979,7 +1656,10 @@ function installInputRecorder(): void {
     state.keys.delete(event.code);
   });
   window.addEventListener("mousedown", (event) => {
-    if (event.button === 0) state.primaryDown = true;
+    if (event.button === 0) {
+      state.primaryDown = true;
+      state.firedSinceLastRead = true;
+    }
   });
   window.addEventListener("mouseup", (event) => {
     if (event.button === 0) state.primaryDown = false;
@@ -1004,6 +1684,10 @@ function preprocessingVersionFor(core: GameCoreId): string {
   return core === "2d"
     ? game2dPreprocessingVersion
     : game3dPreprocessingVersion;
+}
+
+function supportsInjectedSeed(profile: GameTargetProfile): boolean {
+  return profile.targetOrigin?.supportsInjectedSeed ?? true;
 }
 
 function randomActionFor(
@@ -1132,14 +1816,34 @@ async function readDesktopLease(filePath: string): Promise<GameControlLease> {
   }
 }
 
-async function assertFocusedGameWindow(windowTitle: string): Promise<void> {
+async function assertFocusedGameWindow(
+  profile: GameTargetProfile,
+  windowTitle: string,
+): Promise<void> {
   const state = await inspectActiveGlobalDesktop(
     new ExecFileGlobalCommandRunner(),
     getGlobalDesktopPlatform(),
   );
-  if (state.title?.trim() !== windowTitle.trim()) {
+  if (!matchesFocusedGameWindowTitle(profile.id, windowTitle, state.title)) {
     throw new Error("The approved game window is no longer focused.");
   }
+}
+
+export function matchesFocusedGameWindowTitle(
+  profileId: string,
+  windowTitle: string,
+  activeWindowTitle: string | undefined,
+): boolean {
+  const expected = windowTitle.trim();
+  const active = activeWindowTitle?.trim();
+  if (!active) return false;
+  if (active === expected) return true;
+
+  return (
+    profileId === "epic-shooter-3d" &&
+    expected === "Epic Shooter 3D - Google Chrome" &&
+    /^Epic Shooter 3D(?: - .+)? - Google Chrome$/.test(active)
+  );
 }
 
 function desktopDesiredKeys(
@@ -1193,12 +1897,6 @@ function desktopPointer(
   return undefined;
 }
 
-function waitForFrame(frameRate: number): Promise<void> {
-  return new Promise((resolveWait) => {
-    setTimeout(resolveWait, Math.round(1_000 / frameRate));
-  });
-}
-
 function boundedDuration(value: number): number {
   if (!Number.isFinite(value) || value < 1_000 || value > 5 * 60_000) {
     throw new Error("--duration-ms must be between 1000 and 300000.");
@@ -1213,6 +1911,70 @@ function boundedEpisodes(value: number): number {
   return value;
 }
 
+function summarizeDatasetQuality(
+  profile: GameTargetProfile,
+  samples: readonly GameDatasetManifest["samples"][number][],
+): GameDatasetQuality {
+  const durationMs = samples.at(-1)?.timestampMs ?? 0;
+  const movementActions = new Set(
+    samples.map((sample) => [...sample.input.heldKeys].sort().join(",")),
+  );
+  const fireSampleCount = samples.filter(
+    (sample) => sample.input.primaryDown,
+  ).length;
+  const lookSampleCount = samples.filter((sample) => {
+    if (profile.control.aimMode === "relative") {
+      return (
+        sample.input.pointerDeltaX !== 0 || sample.input.pointerDeltaY !== 0
+      );
+    }
+    if (profile.control.aimMode === "absolute") {
+      return (
+        sample.input.pointerX !== undefined ||
+        sample.input.pointerY !== undefined
+      );
+    }
+    return false;
+  }).length;
+  return {
+    sampleCount: samples.length,
+    durationMs,
+    captureRateHz:
+      durationMs > 0
+        ? Number(((samples.length * 1_000) / durationMs).toFixed(3))
+        : 0,
+    movementActionCount: movementActions.size,
+    fireSampleCount,
+    lookSampleCount,
+  };
+}
+
+function assertDatasetTrainable(
+  profile: GameTargetProfile,
+  quality: GameDatasetQuality,
+): void {
+  if (quality.sampleCount < 16) {
+    throw new Error(
+      "Game-policy fitting requires at least 16 recorded samples.",
+    );
+  }
+  if (quality.movementActionCount < 2) {
+    throw new Error(
+      "Game-policy fitting requires demonstrations of at least two movement actions.",
+    );
+  }
+  if (profile.control.allowPrimaryClick && quality.fireSampleCount === 0) {
+    throw new Error(
+      "Game-policy fitting requires at least one approved primary-fire sample.",
+    );
+  }
+  if (profile.control.aimMode === "relative" && quality.lookSampleCount === 0) {
+    throw new Error(
+      "Game-policy fitting requires at least one bounded relative-look sample.",
+    );
+  }
+}
+
 function assertContainedPath(directory: string, candidate: string): void {
   if (relative(resolve(directory), resolve(candidate)).startsWith("..")) {
     throw new Error(
@@ -1223,6 +1985,15 @@ function assertContainedPath(directory: string, candidate: string): void {
 
 function mean(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function meanOrZero(values: readonly number[]): number {
+  return values.length === 0 ? 0 : mean(values);
+}
+
+function errorDetail(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return detail.slice(0, 500);
 }
 
 function seededRandom(seed: number): () => number {

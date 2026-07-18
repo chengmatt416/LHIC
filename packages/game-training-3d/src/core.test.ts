@@ -12,7 +12,11 @@ import {
 describe("3D game-training core", () => {
   it("uses a four-frame FPS policy with bounded relative look", () => {
     const profile = getGameTargetProfile("nemesis");
-    expect(game3dFrameSpec).toMatchObject({ width: 96, height: 96, history: 4 });
+    expect(game3dFrameSpec).toMatchObject({
+      width: 96,
+      height: 96,
+      history: 4,
+    });
     expect(
       encodeGame3dInput(
         {
@@ -32,9 +36,17 @@ describe("3D game-training core", () => {
   });
 
   it("rejects 2D profiles and applies terminal penalties", () => {
-    expect(() => validateGame3dProfile(getGameTargetProfile("star-trooper"))).toThrow("3D");
+    expect(() =>
+      validateGame3dProfile(getGameTargetProfile("star-trooper")),
+    ).toThrow("3D");
     expect(
-      game3dReward({ previousScore: 0, score: 100, previousHealth: 100, health: 100, terminal: true }),
+      game3dReward({
+        previousScore: 0,
+        score: 100,
+        previousHealth: 100,
+        health: 100,
+        terminal: true,
+      }),
     ).toBeCloseTo(-0.001);
   });
 });

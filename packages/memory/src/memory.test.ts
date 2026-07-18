@@ -66,6 +66,55 @@ describe("SQLite skill memory", () => {
     });
   });
 
+  it("keeps learned Slow Path work as a candidate until independent runs and holdout pass", () => {
+    const database = createMemoryDatabase();
+    databases.push(database);
+    const store = new SkillStore(database);
+    const evidence = { success: true, evidence: ["verified"] };
+
+    store.recordCandidateSuccess(
+      "candidate-search",
+      { value: "secret@example.com" },
+      evidence,
+      "task-1",
+    );
+    store.recordCandidateSuccess(
+      "candidate-search",
+      { value: "secret@example.com" },
+      evidence,
+      "task-1",
+    );
+    store.recordCandidateSuccess(
+      "candidate-search",
+      { value: "secret@example.com" },
+      evidence,
+      "task-2",
+    );
+    store.recordCandidateSuccess(
+      "candidate-search",
+      { value: "secret@example.com" },
+      evidence,
+      "task-3",
+    );
+
+    expect(store.getCandidate("candidate-search")).toMatchObject({
+      verifiedRunCount: 3,
+      holdoutPassed: false,
+      promoted: false,
+      definition: { value: "[REDACTED_EMAIL]" },
+    });
+    expect(store.promoteCandidate("candidate-search")).toBeUndefined();
+
+    store.recordCandidateHoldout("candidate-search", evidence);
+    expect(store.promoteCandidate("candidate-search")).toMatchObject({
+      lifecycle: "habit",
+      successCount: 3,
+    });
+    expect(store.getCandidate("candidate-search")).toMatchObject({
+      promoted: true,
+    });
+  });
+
   it("lists skills by lifecycle and verified success count without exposing SQL rows", () => {
     const database = createMemoryDatabase();
     databases.push(database);

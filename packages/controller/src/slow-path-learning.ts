@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 
-import type { SkillRecord, SkillStore } from "@lhic/memory";
+import type {
+  CandidateSkillRecord,
+  SkillRecord,
+  SkillStore,
+} from "@lhic/memory";
 import type {
   ActionExecutionResult,
   SemanticAction,
@@ -25,6 +29,7 @@ export interface SlowPathActionExecutor {
 export interface SlowPathLearningResult {
   response: SlowPathResponse;
   outcomes: SlowPathActionOutcome[];
+  candidateSkill?: CandidateSkillRecord;
   learnedSkill?: SkillRecord;
 }
 
@@ -71,23 +76,39 @@ export class SlowPathLearningCoordinator {
     }
 
     const definition = compileSlowPathSkill(request, actions, outcomes);
-    const learnedSkill = this.skillStore.recordVerifiedSuccess(
+    const candidateSkill = this.skillStore.recordCandidateSuccess(
       createSlowPathSkillName(actions),
       definition,
       {
         success: true,
         evidence: outcomes.flatMap((outcome) => outcome.verification.evidence),
       },
+      request.taskId,
     );
+    return { response, outcomes, candidateSkill };
+  }
+
+  /**
+   * Promotion is deliberately separate from production execution. Call this
+   * only after an offline holdout evaluator recorded its evidence.
+   */
+  public async promoteCandidate(
+    request: SlowPathRequest,
+    name: string,
+  ): Promise<SkillRecord | undefined> {
+    const learnedSkill = this.skillStore.promoteCandidate(name);
+    if (!learnedSkill) {
+      return undefined;
+    }
     const publication = createSharedSkillPublication(request, learnedSkill);
     if (publication && this.sharedSkillPublisher) {
       try {
         await this.sharedSkillPublisher.publish(publication);
       } catch {
-        // Remote sharing must never turn a verified local result into a failure.
+        // Remote sharing must never turn a local Fast Path promotion into a failure.
       }
     }
-    return { response, outcomes, learnedSkill };
+    return learnedSkill;
   }
 }
 

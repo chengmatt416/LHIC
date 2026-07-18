@@ -1,7 +1,22 @@
 import { createReadStream } from "node:fs";
-import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readFile,
+  realpath,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createServer, type Server, type ServerResponse } from "node:http";
-import { basename, extname, join, relative, resolve } from "node:path";
+import {
+  basename,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 
 import { gameTrainingPaths } from "./paths.js";
 import type { GameTargetProfile } from "./types.js";
@@ -11,6 +26,15 @@ export interface RegisteredLocalGameTarget {
   profileId: string;
   core: "2d" | "3d";
   sourceDirectory: string;
+  registeredAt: string;
+}
+
+export interface RegisteredRemoteGameTarget {
+  schemaVersion: "remote-game-target-v1";
+  profileId: string;
+  core: "2d" | "3d";
+  url: string;
+  allowedOrigins: string[];
   registeredAt: string;
 }
 
@@ -64,10 +88,82 @@ export async function readRegisteredLocalGameTarget(
   return value as RegisteredLocalGameTarget;
 }
 
+export async function registerRemoteGameTarget(
+  profile: GameTargetProfile,
+  root?: string,
+): Promise<RegisteredRemoteGameTarget> {
+  const targetOrigin = profile.targetOrigin;
+  if (
+    targetOrigin?.kind !== "remote" ||
+    !targetOrigin.url ||
+    !targetOrigin.allowedOrigins?.length ||
+    !profile.telemetry.readySelector
+  ) {
+    throw new Error(
+      `${profile.id} is not an approved remote game target with a readiness check.`,
+    );
+  }
+  const parsedUrl = new URL(targetOrigin.url);
+  if (parsedUrl.protocol !== "https:") {
+    throw new Error("Remote game targets must use HTTPS.");
+  }
+  const allowedOrigins = [...targetOrigin.allowedOrigins];
+  if (!allowedOrigins.includes(parsedUrl.origin)) {
+    throw new Error("Remote target origin must be included in its allowlist.");
+  }
+  for (const origin of allowedOrigins) {
+    const parsedOrigin = new URL(origin);
+    if (parsedOrigin.origin !== origin || parsedOrigin.protocol !== "https:") {
+      throw new Error("Remote target allowlist entries must be HTTPS origins.");
+    }
+  }
+  const paths = gameTrainingPaths(profile.core, root);
+  const target: RegisteredRemoteGameTarget = {
+    schemaVersion: "remote-game-target-v1",
+    profileId: profile.id,
+    core: profile.core,
+    url: parsedUrl.toString(),
+    allowedOrigins,
+    registeredAt: new Date().toISOString(),
+  };
+  await mkdir(paths.targetsRoot, { recursive: true });
+  await writeFile(
+    join(paths.targetsRoot, `${profile.id}.json`),
+    `${JSON.stringify(target, null, 2)}\n`,
+    "utf8",
+  );
+  return target;
+}
+
+export async function readRegisteredRemoteGameTarget(
+  profile: GameTargetProfile,
+  root?: string,
+): Promise<RegisteredRemoteGameTarget> {
+  const paths = gameTrainingPaths(profile.core, root);
+  const value = JSON.parse(
+    await readFile(join(paths.targetsRoot, `${profile.id}.json`), "utf8"),
+  ) as Partial<RegisteredRemoteGameTarget>;
+  const expected = profile.targetOrigin;
+  if (
+    value.schemaVersion !== "remote-game-target-v1" ||
+    value.profileId !== profile.id ||
+    value.core !== profile.core ||
+    typeof value.url !== "string" ||
+    !Array.isArray(value.allowedOrigins) ||
+    expected?.kind !== "remote" ||
+    value.url !== expected.url ||
+    JSON.stringify(value.allowedOrigins) !==
+      JSON.stringify(expected.allowedOrigins)
+  ) {
+    throw new Error("Registered remote game target is invalid.");
+  }
+  return value as RegisteredRemoteGameTarget;
+}
+
 export async function startLocalGameTargetServer(
   sourceDirectory: string,
 ): Promise<{ url: string; close(): Promise<void> }> {
-  const root = resolve(sourceDirectory);
+  const root = await realpath(resolve(sourceDirectory));
   const server = createServer((request, response) => {
     void serveLocalGameFile(root, request.url ?? "/", response);
   });
@@ -100,13 +196,17 @@ async function serveLocalGameFile(
       root,
       requested === "/" ? "index.html" : `.${requested}`,
     );
-    if (relative(root, candidate).startsWith("..")) {
+    if (!isContainedPath(root, candidate)) {
       response.writeHead(403).end();
       return;
     }
     const info = await stat(candidate);
     if (!info.isFile()) {
       response.writeHead(404).end();
+      return;
+    }
+    if (!isContainedPath(root, await realpath(candidate))) {
+      response.writeHead(403).end();
       return;
     }
     response.writeHead(200, {
@@ -119,6 +219,14 @@ async function serveLocalGameFile(
   } catch {
     response.writeHead(404).end();
   }
+}
+
+function isContainedPath(root: string, candidate: string): boolean {
+  const path = relative(root, candidate);
+  return (
+    path === "" ||
+    (!path.startsWith(`..${sep}`) && path !== ".." && !isAbsolute(path))
+  );
 }
 
 function contentTypeFor(fileName: string): string {

@@ -615,7 +615,7 @@ const packageDataZH = {
     title: "@lhic/security",
     desc: "安全邊界控管組件。負責在生產環境 (production) 下落實一系列強制限制，包含 SSL/HTTPS 白名單域名限制、KMS 公鑰簽章校驗與軟體靜態加密防護。",
     features: [
-      "KmsKeyManager：真正對接 AWS/GCP/Vault REST APIs 的公鑰拉取與 Ed25519 簽名校驗。",
+      "KmsKeyManager：使用本機 Ed25519 公鑰或明確設定的 GCP KMS／Vault 解析器；缺少、無效或不支援的解析器一律拒絕，AWS 需 SigV4 驗證的解析器。",
       "金鑰吊銷機制 (CRL) 與快取 TTL 更新限制，防止過期金鑰繼續生效。",
       "原生零依賴的 AES-256-GCM 靜態資料加密層，防資料庫內容遭拷貝洩漏。",
     ],
@@ -708,7 +708,7 @@ const packageDataEN = {
     title: "@lhic/security",
     desc: "Core sandbox and policy controller. Enforces domain whitelists, public/private network restrictions, and KMS verification.",
     features: [
-      "KmsKeyManager: Resolves AWS, GCP, and Vault public keys via direct REST APIs to verify signed approvals.",
+      "KmsKeyManager: Verifies Ed25519 keys from local configuration or explicitly configured GCP KMS and Vault resolvers; missing, invalid, and unsupported resolvers fail closed, while AWS requires a SigV4-authenticated resolver.",
       "CRL & Cache TTL: Supports certificate revocation checks and key expiration limits.",
       "AES-256-GCM Encryption: Secures user sessions, cookies, and local database storage at rest.",
     ],

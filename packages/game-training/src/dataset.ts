@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve, win32 } from "node:path";
 
 import type { GameDatasetManifest, GameEpisodeSample } from "./types.js";
 
@@ -48,7 +48,7 @@ export function gameDatasetDigest(manifest: GameDatasetManifest): string {
 export function createGameEpisodeSample(
   sample: GameEpisodeSample,
 ): GameEpisodeSample {
-  if (!sample.frame || sample.frame.includes("..")) {
+  if (!isSafeRelativeFramePath(sample.frame)) {
     throw new Error("Game frames must use a safe relative file path.");
   }
   return sample;
@@ -82,9 +82,7 @@ function isGameEpisodeSample(value: unknown): value is GameEpisodeSample {
   return (
     Number.isSafeInteger(sample.timestampMs) &&
     sample.timestampMs! >= 0 &&
-    typeof sample.frame === "string" &&
-    sample.frame.length > 0 &&
-    !sample.frame.includes("..") &&
+    isSafeRelativeFramePath(sample.frame) &&
     Array.isArray(sample.input?.heldKeys) &&
     typeof sample.input?.primaryDown === "boolean" &&
     typeof sample.telemetry?.terminal === "boolean" &&
@@ -97,4 +95,16 @@ function hasFiniteOptionalNumber(value: unknown): boolean {
   return (
     value === undefined || (typeof value === "number" && Number.isFinite(value))
   );
+}
+
+function isSafeRelativeFramePath(value: unknown): value is string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    isAbsolute(value) ||
+    win32.isAbsolute(value)
+  ) {
+    return false;
+  }
+  return !value.replaceAll("\\", "/").split("/").includes("..");
 }

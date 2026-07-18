@@ -1,0 +1,47 @@
+{
+  "name": "@lhic/desktop",
+  "version": "0.1.1",
+  "description": "Native control center for the Local Human Intent Controller.",
+  "desktopName": "lhic-control-center",
+  "author": {
+    "name": "chengmatt416",
+    "email": "chengmatt416@gmail.com"
+  },
+  "homepage": "https://github.com/chengmatt416/LHIC",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main/main/main.js",
+  "scripts": {
+    "build:runtime": "npm run build --workspace @pinyencheng/lhic && tsc -b ../../packages/schema ../../packages/trace ../../packages/memory ../../packages/security ../../packages/browser ../../packages/verifier ../../packages/controller ../../packages/skills ../../packages/shared-skills ../../packages/game-training --pretty false",
+    "build": "npm run build:runtime && tsc -p tsconfig.main.json && node scripts/copy-preload.mjs && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "dev:desktop": "npm run build && electron .",
+    "start": "electron .",
+    "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs"
+  },
+  "dependencies": {
+    "@pinyencheng/lhic": "^0.1.2",
+    "@lhic/browser": "^0.1.0",
+    "@lhic/controller": "^0.1.0",
+    "@lhic/game-training": "^0.1.0",
+    "@lhic/memory": "^0.1.0",
+    "@lhic/schema": "^0.1.0",
+    "@lhic/security": "^0.1.0",
+    "@lhic/shared-skills": "^0.1.0",
+    "@lhic/skills": "^0.1.0",
+    "@lhic/trace": "^0.1.0",
+    "@lhic/verifier": "^0.1.0",
+    "@napi-rs/keyring": "^1.3.0",
+    "playwright": "^1.61.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "electron": "37.10.3",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.1.7"
+  }
+}

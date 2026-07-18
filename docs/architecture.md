@@ -40,3 +40,43 @@ sync happens before a runtime begins and never during Fast Path execution. The
 controller can resolve one cached, low-risk browser skill only when its
 operation key and privacy-preserving UI fingerprint match uniquely; all other
 requests continue through the existing builtin or Slow Path policy.
+
+## Multi-path controller
+
+LHIC also provides a SIMA 2-inspired, deterministic multi-path scheduler. It
+does not replace the local Fast Path with a vision-language agent. Instead, it
+chooses a capability path separately for `observe`, `interpret`, `plan`,
+`execute`, `verify`, and `recover` stages:
+
+```text
+low-risk unique skill → local_fast → local executor → verifier
+verifier/selector failure → local_recovery (once) → re-observe
+remaining ambiguity → budgeted slow_planner → validated stage plan → local executor
+missing DOM/AX observation → deliberative-only slow_vision_planner
+```
+
+Every task carries an execution profile. `fast_only` permits only local Fast
+Path and one local recovery; `balanced` permits one text planner request;
+`deliberative` permits up to three planner calls and one pre-redacted visual
+observation. Profiles can be restricted per task, never expanded. Risk,
+approval, verifier, executor, and navigation rules take precedence over all
+paths. Fast Path never calls a model, MCP server, or remote planner.
+
+The scheduler is initially controlled with `LHIC_PATH_ROUTING_MODE=legacy`.
+Use `shadow` to record routing evidence without changing legacy execution;
+only then set `enabled` for an explicitly selected profile.
+
+## Controlled learning
+
+Verified Slow Path executions create candidate skills, not Fast Path skills.
+A candidate requires three independent task IDs and a successful deterministic
+holdout evaluation in a local fixture, allowlisted sandbox, or registered test
+account before it is promoted. An offline evaluation worker cannot target an
+unallowlisted production site and cannot create verifier evidence itself.
+
+Task summaries compact completed steps, redacted verifier evidence, failures,
+and the current origin/path before any planner request. `DurableTaskSummaryStore`
+persists only that compact redacted summary in SQLite; it has no columns for
+raw traces, screenshots, browser storage, or credentials. Route traces record
+the path, reason, profile, and budget consumption without logging inputs or
+image bytes.

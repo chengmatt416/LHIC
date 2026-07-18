@@ -35,6 +35,26 @@ export interface GameTelemetryProfile {
   startSelector?: string;
   startSelectors?: readonly string[];
   restartSelector?: string;
+  /** A post-start element that proves the playable target is ready. */
+  readySelector?: string;
+}
+
+export interface GameProfileStartInput {
+  selector: string;
+  value: string;
+}
+
+export interface GameTargetOriginPolicy {
+  kind: "local" | "remote";
+  /**
+   * The browser entry point for a remote target. Local targets derive their
+   * URL from the registered static server instead.
+   */
+  url?: string;
+  /** Exact origins the browser runner may load for this profile. */
+  allowedOrigins?: readonly string[];
+  /** Remote targets do not receive the local seeded RNG preload. */
+  supportsInjectedSeed: boolean;
 }
 
 export interface GameTargetProfile {
@@ -47,6 +67,9 @@ export interface GameTargetProfile {
   control: GameControlProfile;
   telemetry: GameTelemetryProfile;
   frameRate: number;
+  startInput?: GameProfileStartInput;
+  targetOrigin?: GameTargetOriginPolicy;
+  requiresPointerLock?: boolean;
 }
 
 export interface GameFrameSpec {
@@ -87,6 +110,7 @@ export interface GameDatasetManifest {
   preprocessingVersion: string;
   actionCodec: string;
   seed: number;
+  seedMode?: "injected" | "uncontrolled";
   surface: GameSurface;
   captureRegion?: GameCaptureRegion;
   createdAt: string;

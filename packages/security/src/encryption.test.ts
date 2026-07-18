@@ -14,12 +14,10 @@ describe("AES-256-GCM Encryption", () => {
     expect(decrypted).toBe(plainText);
   });
 
-  it("bypasses encryption if no secret is provided", () => {
-    const plainText = "Public data";
-    const encrypted = encryptText(plainText, "");
-    expect(encrypted).toBe(plainText);
-
-    const decrypted = decryptText(encrypted, "");
-    expect(decrypted).toBe(plainText);
+  it("fails closed when encryption material or ciphertext is invalid", () => {
+    expect(() => encryptText("Public data", "")).toThrow("non-empty secret");
+    expect(() => decryptText("Public data", "valid-secret")).toThrow(
+      "unsupported format",
+    );
   });
 });

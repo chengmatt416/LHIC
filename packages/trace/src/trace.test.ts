@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  appendStageRouteEvent,
   appendTraceEvent,
   hashState,
   readTraceEvents,
@@ -74,6 +75,47 @@ describe("trace redaction and event log", () => {
         email: "[REDACTED_EMAIL]",
         password: "[REDACTED]",
       });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("records route decisions and budgets without model inputs", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-route-trace-"));
+    const filePath = join(directory, "events.jsonl");
+    try {
+      await appendStageRouteEvent(
+        filePath,
+        "task-1",
+        {
+          stage: "recover",
+          path: "slow_planner",
+          reason: "Selector changed for person@example.com",
+          confidence: 0.3,
+          profile: "balanced",
+          remainingBudget: {
+            maxSlowPathCalls: 0,
+            maxSlowPathInputChars: 11_900,
+            maxImageInputs: 0,
+            maxStages: 10,
+            maxWallClockMs: 59_000,
+          },
+          fallbackFrom: "local_recovery",
+        },
+        {
+          slowPathCalls: 1,
+          slowPathInputChars: 100,
+          imageInputs: 0,
+          slowPathLatencyMs: 500,
+          stages: 2,
+          wallClockMs: 1_000,
+        },
+      );
+      const raw = await readFile(filePath, "utf8");
+      expect(raw).not.toContain("person@example.com");
+      expect(await readTraceEvents(filePath)).toEqual([
+        expect.objectContaining({ type: "stage_routed" }),
+      ]);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

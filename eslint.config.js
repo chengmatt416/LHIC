@@ -10,6 +10,7 @@ export default tseslint.config(
       "demo-output/**",
       "playwright-report/**",
       "test-results/**",
+      ".lhic/**",
     ],
   },
   js.configs.recommended,
@@ -18,6 +19,17 @@ export default tseslint.config(
     files: ["docs-site/i18n-data.js"],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
+    },
+  },
+  {
+    files: ["apps/desktop/src/preload/preload.cjs"],
+    languageOptions: {
+      globals: {
+        require: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
   {

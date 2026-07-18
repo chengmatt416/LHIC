@@ -87,6 +87,9 @@ function normalizeUrl(value: string, name: string): string {
   if (url.protocol !== "https:") {
     throw new Error(`${name} must be an HTTPS URL.`);
   }
+  if (url.username || url.password) {
+    throw new Error(`${name} must not include URL credentials.`);
+  }
   return url.toString().replace(/\/$/, "");
 }
 

@@ -43,3 +43,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:smoke
+      - run: npm run desktop:package

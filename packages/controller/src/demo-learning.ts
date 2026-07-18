@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 
-import type { SkillRecord, SkillStore } from "@lhic/memory";
+import type {
+  CandidateSkillRecord,
+  SkillRecord,
+  SkillStore,
+} from "@lhic/memory";
 import type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
@@ -73,11 +77,12 @@ export class TransformersEmbeddingEngine implements LocalEmbeddingEngine {
 export async function learnDemoSkill(
   skillStore: SkillStore,
   embeddingEngine: LocalEmbeddingEngine,
+  taskId: string,
   task: string,
   initialState: NormalizedUIState,
   plan: BrowserExecutionPlan,
   outcomes: readonly BrowserPlanStepOutcome[],
-): Promise<SkillRecord> {
+): Promise<CandidateSkillRecord> {
   if (
     outcomes.length !== plan.steps.length ||
     outcomes.some(
@@ -111,10 +116,15 @@ export async function learnDemoSkill(
     .update(`${origin}:${definition.uiFingerprint}:${taskTemplate}`)
     .digest("hex")
     .slice(0, 16)}`;
-  return skillStore.recordVerifiedSuccess(name, definition, {
-    success: true,
-    evidence: outcomes.flatMap((outcome) => outcome.verification.evidence),
-  });
+  return skillStore.recordCandidateSuccess(
+    name,
+    definition,
+    {
+      success: true,
+      evidence: outcomes.flatMap((outcome) => outcome.verification.evidence),
+    },
+    taskId,
+  );
 }
 
 export async function findSimilarDemoSkill(

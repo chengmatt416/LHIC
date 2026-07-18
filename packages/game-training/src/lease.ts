@@ -36,8 +36,14 @@ export function createGameControlLease(
   }
   const now = options.now ?? new Date();
   const expiresInMs = options.expiresInMs ?? 5 * 60_000;
-  if (!Number.isSafeInteger(expiresInMs) || expiresInMs < 1 || expiresInMs > 5 * 60_000) {
-    throw new Error("Game control leases may last from 1ms through five minutes.");
+  if (
+    !Number.isSafeInteger(expiresInMs) ||
+    expiresInMs < 1 ||
+    expiresInMs > 5 * 60_000
+  ) {
+    throw new Error(
+      "Game control leases may last from 1ms through five minutes.",
+    );
   }
   return {
     schemaVersion: "game-control-lease-v1",
@@ -55,21 +61,36 @@ export function validateGameControlLease(
   request: GameControlLeaseRequest,
   now = new Date(),
 ): { valid: boolean; reason: string } {
-  if (!lease) return { valid: false, reason: "A desktop game-control lease is required." };
+  if (!lease)
+    return {
+      valid: false,
+      reason: "A desktop game-control lease is required.",
+    };
   if (lease.schemaVersion !== "game-control-lease-v1") {
-    return { valid: false, reason: "Game-control lease schema is unsupported." };
+    return {
+      valid: false,
+      reason: "Game-control lease schema is unsupported.",
+    };
   }
   if (lease.requestHash !== hashGameControlLeaseRequest(request)) {
-    return { valid: false, reason: "Game-control lease does not match this session." };
+    return {
+      valid: false,
+      reason: "Game-control lease does not match this session.",
+    };
   }
   const expiry = Date.parse(lease.expiresAt);
   if (!Number.isFinite(expiry) || expiry <= now.getTime()) {
     return { valid: false, reason: "Game-control lease has expired." };
   }
-  return { valid: true, reason: "Game-control lease matches the active session." };
+  return {
+    valid: true,
+    reason: "Game-control lease matches the active session.",
+  };
 }
 
-export function hashGameControlLeaseRequest(request: GameControlLeaseRequest): string {
+export function hashGameControlLeaseRequest(
+  request: GameControlLeaseRequest,
+): string {
   return createHash("sha256").update(hashState(request)).digest("hex");
 }
 
@@ -85,6 +106,8 @@ function assertLeaseRequest(request: GameControlLeaseRequest): void {
     region.width < 1 ||
     region.height < 1
   ) {
-    throw new Error("Game-control lease capture regions must be finite and positive.");
+    throw new Error(
+      "Game-control lease capture regions must be finite and positive.",
+    );
   }
 }

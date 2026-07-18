@@ -12,7 +12,6 @@ import {
   TransformersEmbeddingEngine,
   createDemoModelProvider,
   executeBrowserPlan,
-  findSimilarDemoSkill,
   learnDemoSkill,
   resolveBrowserPlanVariables,
   toModelSafeUiState,
@@ -39,7 +38,7 @@ const defaultModels: Record<DemoModelProviderKind, string> = {
   gemini: "gemini-2.5-flash",
   claude: "claude-sonnet-4-5",
 };
-const maxSlowPathTurns = 20;
+const maxSlowPathTurns = 3;
 
 export interface InteractiveDemoOptions {
   credentialStore?: DemoCredentialStore;
@@ -188,7 +187,9 @@ export async function runInteractiveDemo(
         .join("; ");
     }
     if (slowTurns === maxSlowPathTurns) {
-      throw new Error("Slow Path reached its 20-turn safety limit.");
+      throw new Error(
+        "Slow Path reached its deliberative 3-turn safety limit.",
+      );
     }
     if (slowSteps.length === 0) {
       throw new Error(
@@ -208,67 +209,14 @@ export async function runInteractiveDemo(
     const learnedSkill = await learnDemoSkill(
       skillStore,
       embeddingEngine,
+      taskId,
       initialTask,
       initialState,
       learnedPlan,
       slowOutcomes,
     );
     console.log(
-      `Learned local skill ${learnedSkill.name}; now enter a similar task for Fast Path.`,
-    );
-
-    const fastTask = await requiredPrompt(
-      prompter,
-      "Similar Fast Path task prompt",
-    );
-    const currentState = await observer.observe();
-    const match = await findSimilarDemoSkill(
-      skillStore,
-      embeddingEngine,
-      fastTask,
-      currentState,
-    );
-    if (!match) {
-      throw new Error(
-        "No verified learned skill matched this prompt and page state. Start a new Slow Path task.",
-      );
-    }
-    const learnedSkillContext: Record<string, unknown> = {
-      ...match.definition,
-    };
-    delete learnedSkillContext.embedding;
-    console.log(
-      `Fast Path matched ${match.skill.name}; requesting one complete plan from ${providerKind}.`,
-    );
-    const fastResponse = await provider.plan({
-      task: fastTask,
-      uiState: toModelSafeUiState(currentState),
-      learnedSkill: learnedSkillContext,
-    });
-    if (fastResponse.status !== "plan" || !fastResponse.plan) {
-      throw new Error(
-        `${redactPII(fastResponse.message)} Start a new Slow Path task instead.`,
-      );
-    }
-    const fastVariables = await collectVariables(
-      prompter,
-      mergeVariables(
-        fastResponse.plan.requiredVariables,
-        fastResponse.requiredVariables,
-      ),
-    );
-    const fastPlan = resolveBrowserPlanVariables(
-      fastResponse.plan,
-      fastVariables,
-    );
-    const fastOutcomes = await executePlanWithHumanApprovals(
-      fastPlan,
-      executor,
-      verifier,
-      prompter,
-    );
-    console.log(
-      `Fast Path completed ${fastOutcomes.length} verified action(s) after one planning call; no model calls occurred during execution.`,
+      `Recorded candidate ${learnedSkill.name} (${learnedSkill.verifiedRunCount}/3 independent verified runs). It is not eligible for Fast Path until a local offline holdout also passes.`,
     );
     await prompter.prompt("Press Enter to close the visible demo browser");
     observer.dispose();
@@ -430,16 +378,6 @@ async function collectMissingVariables(
     prompter,
     variables.filter((variable) => !existing[variable.name]?.trim()),
   );
-}
-
-function mergeVariables(
-  first: ReadonlyArray<{ name: string; prompt: string }>,
-  second: ReadonlyArray<{ name: string; prompt: string }>,
-): Array<{ name: string; prompt: string }> {
-  const values = new Map<string, { name: string; prompt: string }>();
-  for (const variable of [...first, ...second])
-    values.set(variable.name, variable);
-  return [...values.values()];
 }
 
 async function requiredPrompt(

@@ -15,7 +15,7 @@ model or MCP server.
 - **Global Desktop Control**: Executes approved native actions across macOS, Windows, and Linux: focus or launch apps, type, press hotkeys, and click. Every desktop action requires a matching human approval and a post-action window or process verifier.
 - **Semantic Locator Resilience**: In the included 100-task, five-layout local ablation, verified semantic targeting succeeds on all fixtures while the intentionally limited static-selector baseline succeeds on 20%; this is an 80-percentage-point controlled result, not a general web benchmark.
 - **Security & KMS Controls**:
-  - **KmsKeyManager**: Integrates AWS KMS, GCP KMS, and HashiCorp Vault key verification for high-risk actions.
+  - **KmsKeyManager**: Verifies Ed25519 approval keys from local configuration or explicitly configured GCP KMS / HashiCorp Vault. Missing, invalid, or unsupported resolvers fail closed; AWS requires a SigV4-authenticated resolver.
   - **AES-256-GCM Encryption**: Secure software-based database-level static encryption for sensitive user cookies and sessions.
   - **PII & Credential Guard**: Automatically redacts credentials, passwords, and personally identifiable information from all system traces.
 - **Enterprise Concurrency & Durability**:
@@ -118,6 +118,24 @@ npx @pinyencheng/lhic gui mcp
 The companion binds only to loopback, requires a per-launch capability token,
 and does not modify MCP client configuration automatically.
 
+For the full native Control Center (Skills, task admission, MCP review, game
+training, security, and Judge Center), build and launch the Electron app:
+
+```bash
+npm run desktop:build
+npm run desktop:start
+```
+
+The Security panel stores only the selected local Slow Path budget profile in
+`.lhic/security-settings.json` (mode `0600`); provider credentials remain in
+the operating-system Keychain. Selecting `fast_only` prevents provider calls
+for new tasks. Interactive approvals, verifier evidence, redaction, and the
+model-free Fast Path are mandatory controls and cannot be disabled from the
+desktop app.
+
+See the [Desktop Control Center guide](docs/desktop-control-center.md) for the
+Appwrite GitHub-OAuth judge setup, local Keychain boundary, and packaging.
+
 Run preflight environment verification:
 
 ```bash
@@ -136,12 +154,13 @@ Global actions are always approval-gated, including low-risk labels. See the
 [global control guide](docs/global-control.md) for the JSON contract, platform
 requirements, and examples.
 
-Slow Path integrations can use `FastPathRouter.executeSlowPath(...)` with a
+Slow Path integrations can use a budgeted `MultiPathTaskController` with a
 `SlowPathLearningCoordinator`. When every proposed action has a successful
-execution result and non-empty verifier evidence, LHIC compiles the plan into a
-redacted skill and persists it in SQLite automatically. Successful direct DOM
-actions also add local selector-memory candidates; the MCP server exposes
-redacted `lhic_runtime_status`, `lhic_skills_list`, and
+execution result and non-empty verifier evidence, LHIC stores only a redacted
+candidate in SQLite. A candidate becomes Fast Path eligible only after three
+independent task IDs and a deterministic offline holdout pass. Successful
+direct DOM actions also add local selector-memory candidates; the MCP server
+exposes redacted `lhic_runtime_status`, `lhic_skills_list`, and
 `lhic_selector_memory_list` views for inspection.
 
 ### Optional public shared skills

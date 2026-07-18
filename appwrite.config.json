@@ -187,6 +187,502 @@
           "orders": []
         }
       ]
+    },
+    {
+      "$id": "control-roles",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Control Plane Roles",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "accountId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "role",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["admin", "member"]
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        }
+      ],
+      "indexes": [
+        {
+          "key": "role-account-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["accountId", "role", "active"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "judge-grants",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Judge GitHub Grants",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "githubUserId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 20,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "label",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": true,
+          "array": false,
+          "default": null
+        },
+        {
+          "key": "expiresAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "judge-id-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["githubUserId", "active"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "demo-api-keys",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Judge Demo API Keys",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "label",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "keyHash",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "scopes",
+          "type": "text",
+          "required": true,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "expiresAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "maxUses",
+          "type": "integer",
+          "required": false,
+          "array": false,
+          "default": null,
+          "min": 1,
+          "max": 1000000
+        },
+        {
+          "key": "useCount",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "default": 0,
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "key": "revokedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "demo-key-hash-unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["keyHash"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "control-secrets",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Encrypted Control Secrets",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "label",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "kind",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "envelope",
+          "type": "text",
+          "required": true,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "keyVersion",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 32,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "revokedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "control-audit-events",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Control Plane Audit Events",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "actorId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "action",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 96,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "target",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "metadata",
+          "type": "text",
+          "required": true,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "audit-actor-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["actorId", "action"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "demo-assets",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Judge Demo Assets",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "title",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 160,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "kind",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["benchmark", "trace", "presentation", "guide", "report"]
+        },
+        {
+          "key": "sourceUrl",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "generatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": ""
+        },
+        {
+          "key": "sha256",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "metadata",
+          "type": "text",
+          "required": true,
+          "array": false,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "retiredAt",
+          "type": "datetime",
+          "required": false,
+          "array": false,
+          "default": null,
+          "format": ""
+        }
+      ],
+      "indexes": [
+        {
+          "key": "demo-asset-kind-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["kind", "retiredAt"],
+          "orders": []
+        }
+      ]
+    },
+    {
+      "$id": "policy-packages",
+      "$permissions": [],
+      "databaseId": "lhic-shared-registry",
+      "name": "Reviewed Game Policy Packages",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "packageId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "core",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["2d", "3d"]
+        },
+        {
+          "key": "profileId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bundleUrl",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 2048,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "bundleSha256",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "manifestSha256",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "weightsSha256",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "actionCodec",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 128,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "evaluationReportSha256",
+          "type": "varchar",
+          "required": false,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "version",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 64,
+          "default": null,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "array": false,
+          "default": null,
+          "format": "enum",
+          "elements": ["pending", "approved", "rejected", "revoked"]
+        },
+        {
+          "key": "authorId",
+          "type": "varchar",
+          "required": true,
+          "array": false,
+          "size": 36,
+          "default": null,
+          "encrypt": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "policy-package-id-unique",
+          "type": "unique",
+          "status": "available",
+          "columns": ["packageId"],
+          "orders": []
+        },
+        {
+          "key": "policy-package-status-index",
+          "type": "key",
+          "status": "available",
+          "columns": ["status", "core"],
+          "orders": []
+        }
+      ]
     }
   ]
 }

@@ -28,10 +28,18 @@ npm run bench:internal -- --output artifacts/internal-benchmark.json
 ```
 
 The report includes task success rate, median and P95 completion time, model
-calls per task, Fast Path ratio, structured-action ratio, raw-coordinate-action
+calls per task, MCP calls per task, Fast Path ratio, structured-action ratio, raw-coordinate-action
 ratio, verifier pass rate, false-positive success rate, and human-intervention
 count. Record the command output, machine, OS, Node, Playwright, browser
 revision, repetition count, and commit SHA whenever publishing a result.
+
+For a multi-path release, `npm run bench:internal` captures five runs and uses
+their median P95 as the same-machine Fast Path baseline. Every run must remain
+within 10% of that baseline. `fast_only` must retain zero model and MCP planner
+calls, verifier evidence for every successful fixture, and the resulting P95
+gate. Report Slow Path calls,
+input size, and image count separately for `balanced` and `deliberative`; do
+not blend those costs into Fast Path claims.
 
 ## Limits
 

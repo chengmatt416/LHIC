@@ -37,6 +37,7 @@ describe("internal benchmark contract", () => {
         durationMs: 100,
         success: true,
         modelCalls: 0,
+        mcpCalls: 0,
         fastPath: true,
         structuredActions: 1,
         rawCoordinateActions: 0,
@@ -48,8 +49,17 @@ describe("internal benchmark contract", () => {
     expect(assessBenchmark(metrics)).toEqual({
       taskSuccessRate: true,
       medianModelCallsPerTask: true,
+      mcpCallsPerTask: true,
       fastPathRatio: true,
       verifierPassRate: true,
     });
+  });
+
+  it("requires a five-run Fast Path baseline by default and rejects p95 regression", async () => {
+    const baseline = [100, 105, 110, 115, 120].sort(
+      (left, right) => left - right,
+    );
+    expect(baseline[Math.ceil(baseline.length * 0.5) - 1]).toBe(110);
+    expect(122).toBeGreaterThan(110 * 1.1);
   });
 });

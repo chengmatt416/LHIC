@@ -1,4 +1,4 @@
-import { verify, type KeyLike } from "node:crypto";
+import { createPublicKey, verify, type KeyLike } from "node:crypto";
 
 export interface KmsConfig {
   provider: "aws" | "gcp" | "vault" | "local";
@@ -8,6 +8,7 @@ export interface KmsConfig {
   cacheTtlMs?: number;
   vaultToken?: string;
   gcpAccessToken?: string;
+  fetchImplementation?: typeof fetch;
 }
 
 export class KmsKeyManager {
@@ -16,9 +17,11 @@ export class KmsKeyManager {
     { key: string | KeyLike; fetchedAt: number }
   > = new Map();
   private readonly cacheTtlMs: number;
+  private readonly fetchImplementation: typeof fetch;
 
   public constructor(private readonly config: KmsConfig) {
     this.cacheTtlMs = config.cacheTtlMs ?? 5 * 60 * 1000;
+    this.fetchImplementation = config.fetchImplementation ?? fetch;
   }
 
   /**
@@ -37,8 +40,6 @@ export class KmsKeyManager {
       return cached.key;
     }
 
-    let key: string | KeyLike;
-
     if (this.config.provider === "local") {
       const localKey =
         process.env[
@@ -47,102 +48,80 @@ export class KmsKeyManager {
       if (!localKey) {
         throw new Error(`Local KMS Key ID ${keyId} not found in environment.`);
       }
-      key = localKey;
-    } else if (this.config.provider === "vault") {
-      // Real REST fetch from HashiCorp Vault transit engine if endpoint is configured
-      if (this.config.endpoint) {
-        try {
-          const res = await fetch(
-            `${this.config.endpoint}/v1/transit/keys/${keyId}`,
-            {
-              headers: {
-                "X-Vault-Token": this.config.vaultToken || "root",
-              },
-            },
-          );
-          if (res.ok) {
-            const data = (await res.json()) as {
-              data?: { keys?: Record<string, { public_key?: string }> };
-            };
-            const pubKey = data.data?.keys?.["1"]?.public_key;
-            if (pubKey) {
-              key = pubKey;
-              this.cachedKeys.set(cacheKey, { key, fetchedAt: now });
-              return key;
-            }
-          }
-        } catch {
-          // Fallback to mock if network fails
-        }
-      }
-      if (keyId.includes("revoked")) {
-        throw new Error(
-          `KMS Key ${keyId} is disabled/revoked in HashiCorp Vault.`,
-        );
-      }
-      key = `-----BEGIN PUBLIC KEY-----\nMCOWBQBDMOCKVAULTKEY\n-----END PUBLIC KEY-----`;
-    } else if (this.config.provider === "gcp") {
-      // Real REST fetch from GCP Cloud KMS API if endpoint/token is configured
-      if (this.config.endpoint && this.config.gcpAccessToken) {
-        try {
-          const res = await fetch(
-            `${this.config.endpoint}/v1/${keyId}/publicKey`,
-            {
-              headers: {
-                Authorization: `Bearer ${this.config.gcpAccessToken}`,
-              },
-            },
-          );
-          if (res.ok) {
-            const data = (await res.json()) as { pem?: string };
-            if (data.pem) {
-              key = data.pem;
-              this.cachedKeys.set(cacheKey, { key, fetchedAt: now });
-              return key;
-            }
-          }
-        } catch {
-          // Fallback to mock
-        }
-      }
-      if (keyId.includes("revoked")) {
-        throw new Error(`KMS Key ${keyId} is disabled/revoked in GCP KMS.`);
-      }
-      key = `-----BEGIN PUBLIC KEY-----\nMCOWBQBDMOCKGCPKMSKEY\n-----END PUBLIC KEY-----`;
-    } else if (this.config.provider === "aws") {
-      // Real REST fetch from AWS KMS region endpoint if region/endpoint is configured
-      if (this.config.endpoint) {
-        try {
-          const res = await fetch(this.config.endpoint, {
-            method: "POST",
-            headers: {
-              "X-Amz-Target": "TrentService.GetPublicKey",
-              "Content-Type": "application/x-amz-json-1.1",
-            },
-            body: JSON.stringify({ KeyId: keyId }),
-          });
-          if (res.ok) {
-            const data = (await res.json()) as { PublicKey?: string };
-            if (data.PublicKey) {
-              key = `-----BEGIN PUBLIC KEY-----\n${data.PublicKey}\n-----END PUBLIC KEY-----`;
-              this.cachedKeys.set(cacheKey, { key, fetchedAt: now });
-              return key;
-            }
-          }
-        } catch {
-          // Fallback to mock
-        }
-      }
-      if (keyId.includes("revoked")) {
-        throw new Error(`KMS Key ${keyId} is disabled/revoked in AWS KMS.`);
-      }
-      key = `-----BEGIN PUBLIC KEY-----\nMCOWBQBDMOCKAWSKMSKEY\n-----END PUBLIC KEY-----`;
-    } else {
-      throw new Error(`Unsupported KMS provider: ${this.config.provider}`);
+      const key = assertEd25519PublicKey(localKey, "Local KMS");
+      this.cachedKeys.set(cacheKey, { key, fetchedAt: now });
+      return key;
     }
 
+    if (this.config.provider === "aws") {
+      throw new Error(
+        "AWS KMS requires a SigV4-authenticated key resolver. LHIC will not use an unsigned endpoint or a synthetic fallback.",
+      );
+    }
+
+    const endpoint = requiredHttpsEndpoint(
+      this.config.endpoint,
+      this.config.provider,
+    );
+    const response =
+      this.config.provider === "vault"
+        ? await this.fetchVaultKey(endpoint, keyId)
+        : await this.fetchGcpKey(endpoint, keyId);
+    const key = assertEd25519PublicKey(response, this.config.provider);
     this.cachedKeys.set(cacheKey, { key, fetchedAt: now });
     return key;
+  }
+
+  private async fetchVaultKey(endpoint: URL, keyId: string): Promise<string> {
+    const token = requiredSecret(this.config.vaultToken, "Vault token");
+    const response = await this.fetchImplementation(
+      new URL(`/v1/transit/keys/${encodeURIComponent(keyId)}`, endpoint),
+      {
+        headers: { "X-Vault-Token": token },
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `Vault public-key request failed with HTTP ${response.status}.`,
+      );
+    }
+    const payload = (await response.json()) as {
+      data?: { keys?: Record<string, { public_key?: unknown }> };
+    };
+    const key = payload.data?.keys?.["1"]?.public_key;
+    if (typeof key !== "string" || !key.trim()) {
+      throw new Error(
+        "Vault did not return a public key for the requested key ID.",
+      );
+    }
+    return key;
+  }
+
+  private async fetchGcpKey(endpoint: URL, keyId: string): Promise<string> {
+    const token = requiredSecret(
+      this.config.gcpAccessToken,
+      "GCP access token",
+    );
+    const response = await this.fetchImplementation(
+      new URL(`/v1/${keyId.replace(/^\/+/, "")}/publicKey`, endpoint),
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(
+        `GCP KMS public-key request failed with HTTP ${response.status}.`,
+      );
+    }
+    const payload = (await response.json()) as { pem?: unknown };
+    if (typeof payload.pem !== "string" || !payload.pem.trim()) {
+      throw new Error(
+        "GCP KMS did not return a public key for the requested key ID.",
+      );
+    }
+    return payload.pem;
   }
 
   /**
@@ -165,4 +144,42 @@ export class KmsKeyManager {
       return false;
     }
   }
+}
+
+function requiredHttpsEndpoint(
+  value: string | undefined,
+  provider: string,
+): URL {
+  if (!value) throw new Error(`${provider} KMS endpoint is required.`);
+  let endpoint: URL;
+  try {
+    endpoint = new URL(value);
+  } catch {
+    throw new Error(`${provider} KMS endpoint is invalid.`);
+  }
+  if (
+    endpoint.protocol !== "https:" ||
+    endpoint.username ||
+    endpoint.password
+  ) {
+    throw new Error(
+      `${provider} KMS endpoint must be a credential-free HTTPS URL.`,
+    );
+  }
+  return endpoint;
+}
+
+function requiredSecret(value: string | undefined, label: string): string {
+  if (!value?.trim()) throw new Error(`${label} is required.`);
+  return value;
+}
+
+function assertEd25519PublicKey(value: string, source: string): string {
+  try {
+    const key = createPublicKey(value);
+    if (key.asymmetricKeyType !== "ed25519") throw new Error();
+  } catch {
+    throw new Error(`${source} did not return a valid Ed25519 public key.`);
+  }
+  return value;
 }
