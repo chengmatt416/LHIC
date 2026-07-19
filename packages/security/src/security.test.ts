@@ -1,4 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -77,6 +80,10 @@ describe("risk policy", () => {
 
 describe("runtime configuration", () => {
   it("requires a strict HTTPS allowlist in production", () => {
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const approvalPublicKey = publicKey
+      .export({ format: "pem", type: "spki" })
+      .toString();
     expect(() => parseRuntimeConfig({ LHIC_ENV: "production" })).toThrow(
       "LHIC_ALLOWED_ORIGINS",
     );
@@ -90,6 +97,12 @@ describe("runtime configuration", () => {
       parseRuntimeConfig({
         LHIC_ENV: "production",
         LHIC_ALLOWED_ORIGINS: "https://example.test",
+      }),
+    ).toThrow("LHIC_APPROVAL_PUBLIC_KEY");
+    expect(() =>
+      parseRuntimeConfig({
+        LHIC_ENV: "production",
+        LHIC_ALLOWED_ORIGINS: "https://example.test",
         LHIC_APPROVAL_PUBLIC_KEY: "not-a-public-key",
       }),
     ).toThrow("Ed25519");
@@ -97,6 +110,7 @@ describe("runtime configuration", () => {
       parseRuntimeConfig({
         LHIC_ENV: "production",
         LHIC_ALLOWED_ORIGINS: "https://example.test,https://app.example.test",
+        LHIC_APPROVAL_PUBLIC_KEY: approvalPublicKey,
         LHIC_ACTION_TIMEOUT_MS: "15000",
       }),
     ).toMatchObject({
@@ -105,6 +119,35 @@ describe("runtime configuration", () => {
       actionTimeoutMs: 15_000,
       allowPrivateNetwork: false,
     });
+  });
+
+  it("loads a production approval key from an explicitly configured file", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-approval-key-"));
+    const publicKeyPath = join(directory, "approval-public.pem");
+    const { publicKey } = generateKeyPairSync("ed25519");
+    const approvalPublicKey = publicKey
+      .export({ format: "pem", type: "spki" })
+      .toString();
+    try {
+      await writeFile(publicKeyPath, approvalPublicKey, { mode: 0o600 });
+      expect(
+        parseRuntimeConfig({
+          LHIC_ENV: "production",
+          LHIC_ALLOWED_ORIGINS: "https://app.example.test",
+          LHIC_APPROVAL_PUBLIC_KEY_FILE: publicKeyPath,
+        }),
+      ).toMatchObject({ approvalPublicKey: approvalPublicKey.trim() });
+      expect(() =>
+        parseRuntimeConfig({
+          LHIC_ENV: "production",
+          LHIC_ALLOWED_ORIGINS: "https://app.example.test",
+          LHIC_APPROVAL_PUBLIC_KEY: approvalPublicKey,
+          LHIC_APPROVAL_PUBLIC_KEY_FILE: publicKeyPath,
+        }),
+      ).toThrow("only one");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 
@@ -167,6 +210,95 @@ describe("action approval", () => {
     ).toMatchObject({
       allowed: false,
       reason: expect.stringContaining("expired"),
+    });
+  });
+
+  it("only accepts short-lived approvals that are currently valid", () => {
+    const now = new Date("2026-07-15T00:00:00.000Z");
+    const approval = createActionApproval(
+      highRiskAction,
+      "operator@example.test",
+      {
+        now,
+        expiresInMs: 5 * 60_000,
+      },
+    );
+
+    expect(() =>
+      createActionApproval(highRiskAction, "operator@example.test", {
+        now,
+        expiresInMs: 5 * 60_000 + 1,
+      }),
+    ).toThrow("five minutes");
+    expect(
+      validateActionApproval(
+        highRiskAction,
+        {
+          ...approval,
+          approvedAt: "2026-07-15T00:00:31.000Z",
+          expiresAt: "2026-07-15T00:01:00.000Z",
+        },
+        now,
+      ),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("not valid yet"),
+    });
+    expect(
+      validateActionApproval(
+        highRiskAction,
+        {
+          ...approval,
+          expiresAt: "2026-07-15T00:05:00.001Z",
+        },
+        now,
+      ),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("exceeds five minutes"),
+    });
+    expect(
+      validateActionApproval(
+        highRiskAction,
+        {
+          ...approval,
+          expiresAt: approval.approvedAt,
+        },
+        now,
+      ),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("must be after"),
+    });
+  });
+
+  it("requires non-empty approval and approver identifiers before replay protection", () => {
+    const now = new Date("2026-07-15T00:00:00.000Z");
+    const approval = createActionApproval(
+      highRiskAction,
+      "operator@example.test",
+      { now, expiresInMs: 1_000 },
+    );
+
+    expect(
+      validateActionApproval(
+        highRiskAction,
+        { ...approval, approvalId: "" },
+        now,
+      ),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("approval identifier"),
+    });
+    expect(
+      validateActionApproval(
+        highRiskAction,
+        { ...approval, approvedBy: "  " },
+        now,
+      ),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("approver identifier"),
     });
   });
 

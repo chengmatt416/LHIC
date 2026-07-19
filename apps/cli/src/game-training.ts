@@ -496,6 +496,8 @@ async function fitPolicy(
   const frameSpec = frameSpecFor(profile.core);
   const actionCodec = actionCodecFor(profile.core);
   const modelType = optionString(options, "--model-type") ?? "cnn";
+  const trainingSeed = optionInteger(options, "--seed") ?? dataset.seed;
+  const validationSplit = optionNumber(options, "--validation-split") ?? 0.2;
   const result = await runPythonTraining(python, {
     command: "fit",
     core: profile.core,
@@ -508,6 +510,8 @@ async function fitPolicy(
     frameHeight: frameSpec.height,
     frameHistory: frameSpec.history,
     epochs: optionInteger(options, "--epochs") ?? 3,
+    seed: trainingSeed,
+    validationSplit,
     modelType,
   });
   if (!result.weightsFile || !result.weightsSha256) {
@@ -526,9 +530,19 @@ async function fitPolicy(
     weightsFile: basename(result.weightsFile),
     weightsSha256: result.weightsSha256,
     modelType,
+    training: {
+      algorithm: "behavior-cloning-v1",
+      seed: trainingSeed,
+      datasetSha256: result.datasetSha256,
+      validationSplit,
+      trainingSampleCount: result.trainingSampleCount,
+      validationSampleCount: result.validationSampleCount,
+    },
     metrics: {
       behaviorCloningLoss: result.behaviorCloningLoss,
-      ppoReward: result.ppoReward,
+      datasetReward: result.datasetReward,
+      validationLoss: result.validationLoss,
+      validationActionAccuracy: result.validationActionAccuracy,
     },
     createdAt: new Date().toISOString(),
   };

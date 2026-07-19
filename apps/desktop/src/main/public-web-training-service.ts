@@ -218,38 +218,12 @@ export class PublicWebTrainingService {
             return { execution, verification };
           },
         },
+        { source: "public_web", environment: "public_read_only" },
       );
       if (!result.candidateSkill) {
         throw new Error(
           "Training did not produce a verifier-backed candidate Skill.",
         );
-      }
-      if (input.promote) {
-        const candidateName = result.candidateSkill.name;
-        for (let i = 0; i < 2; i += 1) {
-          skillStore.recordCandidateSuccess(
-            candidateName,
-            result.candidateSkill.definition,
-            { success: true, evidence: ["Dummy verified run"] },
-            `task-dummy-${i}-${randomUUID()}`,
-          );
-        }
-        skillStore.recordCandidateHoldout(candidateName, {
-          success: true,
-          evidence: ["Holdout evaluation passed on local fixture"],
-        });
-        const promotedSkill = await new SlowPathLearningCoordinator(
-          skillStore,
-          sharedSkills?.service,
-        ).promoteCandidate(request, candidateName);
-        if (promotedSkill) {
-          result.candidateSkill = {
-            ...result.candidateSkill,
-            promoted: true,
-            verifiedRunCount: 3,
-            holdoutPassed: true,
-          };
-        }
       }
       return {
         scenario: scenario.id,
@@ -330,7 +304,6 @@ export function validatePublicWebTrainingRequest(
     scenarioId: input.scenarioId,
     query,
     ...(input.viewable ? { viewable: true } : {}),
-    ...(input.promote ? { promote: true } : {}),
   };
 }
 

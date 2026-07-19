@@ -49,10 +49,25 @@ export function validateGamePolicyArtifact(
     !artifact.actionCodec ||
     !isSafeWeightsFile(artifact.weightsFile) ||
     !/^[a-f0-9]{64}$/.test(artifact.weightsSha256 ?? "") ||
-    (artifact.modelType !== undefined && typeof artifact.modelType !== "string") ||
+    (artifact.modelType !== undefined &&
+      typeof artifact.modelType !== "string") ||
+    artifact.training?.algorithm !== "behavior-cloning-v1" ||
+    !Number.isSafeInteger(artifact.training.seed) ||
+    !/^[a-f0-9]{64}$/.test(artifact.training.datasetSha256 ?? "") ||
+    !Number.isFinite(artifact.training.validationSplit) ||
+    artifact.training.validationSplit! <= 0 ||
+    artifact.training.validationSplit! >= 0.5 ||
+    !Number.isSafeInteger(artifact.training.trainingSampleCount) ||
+    artifact.training.trainingSampleCount! < 1 ||
+    !Number.isSafeInteger(artifact.training.validationSampleCount) ||
+    artifact.training.validationSampleCount! < 1 ||
     !artifact.metrics ||
     !Number.isFinite(artifact.metrics.behaviorCloningLoss) ||
-    !Number.isFinite(artifact.metrics.ppoReward) ||
+    !Number.isFinite(artifact.metrics.datasetReward) ||
+    !Number.isFinite(artifact.metrics.validationLoss) ||
+    !Number.isFinite(artifact.metrics.validationActionAccuracy) ||
+    artifact.metrics.validationActionAccuracy < 0 ||
+    artifact.metrics.validationActionAccuracy > 1 ||
     !Number.isFinite(Date.parse(artifact.createdAt ?? ""))
   ) {
     throw new Error("Game policy artifact is invalid.");

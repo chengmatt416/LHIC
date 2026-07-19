@@ -245,7 +245,20 @@ describe("GameService", () => {
         actionCodec: "game-2d-action-v1",
         weightsFile: "weights.pt",
         weightsSha256: createHash("sha256").update(weights).digest("hex"),
-        metrics: { behaviorCloningLoss: 0.2, ppoReward: 1.5 },
+        training: {
+          algorithm: "behavior-cloning-v1",
+          seed: 1,
+          datasetSha256: "c".repeat(64),
+          validationSplit: 0.2,
+          trainingSampleCount: 12,
+          validationSampleCount: 4,
+        },
+        metrics: {
+          behaviorCloningLoss: 0.2,
+          datasetReward: 1.5,
+          validationLoss: 0.4,
+          validationActionAccuracy: 0.75,
+        },
         createdAt: "2026-07-18T00:00:00.000Z",
       })}\n`,
     );

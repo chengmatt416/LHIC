@@ -10,6 +10,7 @@ export const builtinSkillDefinitions: readonly BuiltinSkillDefinition[] = [
       source: "builtin",
       description: "Download a requested file and verify it exists.",
       supportedActions: ["download"],
+      requiresApproval: true,
     },
   },
   {

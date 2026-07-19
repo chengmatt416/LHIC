@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   assessBenchmark,
   calculateBenchmarkMetrics,
+  calculateDailyWorkflowMetrics,
   type BenchmarkFixture,
 } from "../../apps/cli/src/internal-benchmark.js";
 
@@ -17,8 +18,9 @@ describe("internal benchmark contract", () => {
         "utf8",
       ),
     ) as BenchmarkFixture[];
-    expect(fixtures).toHaveLength(50);
+    expect(fixtures).toHaveLength(60);
     for (const skill of [
+      "browser_plan",
       "fill_form",
       "download_file",
       "login",
@@ -52,6 +54,29 @@ describe("internal benchmark contract", () => {
       mcpCallsPerTask: true,
       fastPathRatio: true,
       verifierPassRate: true,
+    });
+    expect(
+      calculateDailyWorkflowMetrics(
+        fixtures.map((fixture) => ({
+          fixtureId: fixture.id,
+          skill: fixture.skill,
+          durationMs: 500,
+          success: true,
+          modelCalls: 0,
+          mcpCalls: 0,
+          fastPath: true,
+          structuredActions: 1,
+          rawCoordinateActions: 0,
+          verifierPassed: true,
+          falsePositive: false,
+          humanIntervention: false,
+        })),
+      ),
+    ).toEqual({
+      taskCount: 10,
+      taskSuccessRate: 1,
+      p95TimeToCompleteMs: 500,
+      verifierPassRate: 1,
     });
   });
 

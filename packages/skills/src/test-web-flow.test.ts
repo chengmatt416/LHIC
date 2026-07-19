@@ -368,10 +368,46 @@ describe("testWebFlow", () => {
             },
           ],
           approvals: {
-            2: createActionApproval({ type: "click", intent: "go to step 2", target: "#next1", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
-            4: createActionApproval({ type: "click", intent: "agree to terms", target: "#agree", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
-            5: createActionApproval({ type: "click", intent: "go to step 3", target: "#next2", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
-            7: createActionApproval({ type: "click", intent: "submit purchase", target: "#submit", methodPreference: ["dom"], riskLevel: "low" }, "operator@example.test"),
+            2: createActionApproval(
+              {
+                type: "click",
+                intent: "go to step 2",
+                target: "#next1",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
+            4: createActionApproval(
+              {
+                type: "click",
+                intent: "agree to terms",
+                target: "#agree",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
+            5: createActionApproval(
+              {
+                type: "click",
+                intent: "go to step 3",
+                target: "#next2",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
+            7: createActionApproval(
+              {
+                type: "click",
+                intent: "submit purchase",
+                target: "#submit",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
           },
         },
       );

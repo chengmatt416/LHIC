@@ -11,6 +11,9 @@ const sensitiveKeyPattern =
   /(password|passphrase|pwd|token|secret|api[_-]?key|authorization|cookie)/i;
 const sensitiveFieldHintPattern =
   /(password|passphrase|pwd|token|secret|api[_-]?key|authorization|cookie)/i;
+const sensitiveUrlParameterPattern =
+  /^(?:access[_-]?token|api[_-]?key|authorization|cookie|password|passphrase|pwd|secret|token)$/i;
+const httpUrlPattern = /https?:\/\/[^\s"'<>]+/gi;
 
 /**
  * Local Named Entity Recognition (NER) and Contextual Heuristic Parser.
@@ -22,7 +25,7 @@ function localNERRedact(value: string): string {
     return value;
   }
   let redacted = value;
-  
+
   // 1. Identify common PII names and capitalize patterns in specific sentence contexts
   const introductionPatterns = [
     /\bmy\s+name\s+is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/g,
@@ -43,7 +46,11 @@ function localNERRedact(value: string): string {
 
   for (const pattern of credentialAssignments) {
     redacted = redacted.replace(pattern, (match, p1) => {
-      if (p1.toLowerCase() === "true" || p1.toLowerCase() === "false" || p1.toLowerCase() === "null") {
+      if (
+        p1.toLowerCase() === "true" ||
+        p1.toLowerCase() === "false" ||
+        p1.toLowerCase() === "null"
+      ) {
         return match;
       }
       return match.replace(p1, "[REDACTED_SECRET]");
@@ -51,14 +58,16 @@ function localNERRedact(value: string): string {
   }
 
   // 3. Organization patterns
-  const orgPattern = /\b[A-Z][a-zA-Z0-9._&+-]+\s+(?:Inc|Incorporated|Corp|Corporation|LLC|Ltd|Limited)\b\.?/g;
+  const orgPattern =
+    /\b[A-Z][a-zA-Z0-9._&+-]+\s+(?:Inc|Incorporated|Corp|Corporation|LLC|Ltd|Limited)\b\.?/g;
   redacted = redacted.replace(orgPattern, "[REDACTED_ORG]");
 
   return redacted;
 }
 
 function redactString(value: string): string {
-  const redacted = value
+  const redactedUrls = value.replace(httpUrlPattern, redactHttpUrl);
+  const redacted = redactedUrls
     .replace(emailPattern, "[REDACTED_EMAIL]")
     .replace(phonePattern, "[REDACTED_PHONE]")
     .replace(bearerTokenPattern, "Bearer [REDACTED_TOKEN]")
@@ -68,6 +77,35 @@ function redactString(value: string): string {
     .replace(ssnPattern, "[REDACTED_SSN]")
     .replace(addressPattern, "[REDACTED_ADDRESS]");
   return localNERRedact(redacted);
+}
+
+function redactHttpUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.username || url.password) {
+      url.username = "";
+      url.password = "";
+    }
+    for (const [name] of url.searchParams) {
+      if (sensitiveUrlParameterPattern.test(name)) {
+        url.searchParams.set(name, "[REDACTED]");
+      }
+    }
+    if (url.hash) {
+      const fragment = new URLSearchParams(url.hash.slice(1));
+      let changed = false;
+      for (const [name] of fragment) {
+        if (sensitiveUrlParameterPattern.test(name)) {
+          fragment.set(name, "[REDACTED]");
+          changed = true;
+        }
+      }
+      if (changed) url.hash = fragment.toString();
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
 }
 
 export function redactPII<T>(input: T): T {

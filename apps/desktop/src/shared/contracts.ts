@@ -156,7 +156,6 @@ export interface PublicWebTrainingRequest {
     | "psycho-flow";
   query: string;
   viewable?: boolean;
-  promote?: boolean;
 }
 
 export interface GameTrainingRequest {

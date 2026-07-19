@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { lookup } from "node:dns/promises";
 import { mkdir, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import type {
   ActionExecutionResult,
@@ -9,9 +10,11 @@ import type {
   TraceEvent,
 } from "@lhic/schema";
 import {
+  FileApprovalReplayStore,
   isSideEffectActivationTarget,
   validateActionApproval,
   type ActionApproval,
+  type ApprovalReplayStore,
   type ActionApprovalValidationOptions,
   type ProductionRuntimeConfig,
 } from "@lhic/security";
@@ -34,6 +37,7 @@ export interface PlaywrightDirectExecutorOptions {
   actionTimeoutMs?: number;
   maxWaitMs?: number;
   approvalValidation?: ActionApprovalValidationOptions;
+  approvalReplayStore?: ApprovalReplayStore;
   selectorMemory?: {
     find(
       skillName: string,
@@ -50,10 +54,15 @@ export interface PlaywrightDirectExecutorOptions {
       verification: unknown,
     ): boolean;
   };
-  /** Do not persist action values to the trace file. */
-  redactActionValues?: boolean;
+  /**
+   * Retained for caller compatibility. Action values are always redacted from
+   * persisted traces.
+   */
+  redactActionValues?: true;
   /** Directory used by supported semantic download actions. */
   downloadDirectory?: string;
+  /** Resolve hostnames before browser navigation. Primarily injectable for tests. */
+  resolveHostname?: HostnameResolver;
 }
 
 export interface NavigationPolicy {
@@ -66,7 +75,10 @@ export interface ProductionExecutorOptions {
   taskId?: string;
   traceFilePath?: string;
   selectorMemory?: PlaywrightDirectExecutorOptions["selectorMemory"];
+  resolveHostname?: HostnameResolver;
 }
+
+export type HostnameResolver = (hostname: string) => Promise<readonly string[]>;
 
 const defaultActionTimeoutMs = 10_000;
 const defaultMaxWaitMs = 30_000;
@@ -79,9 +91,13 @@ export class PlaywrightDirectExecutor {
   private readonly actionTimeoutMs: number;
   private readonly maxWaitMs: number;
   private readonly approvalValidation: ActionApprovalValidationOptions;
+  private readonly approvalReplayStore: ApprovalReplayStore | undefined;
   private readonly selectorMemory?: PlaywrightDirectExecutorOptions["selectorMemory"];
   private readonly redactActionValues: boolean;
   private readonly downloadDirectory: string;
+  private readonly resolveHostname: HostnameResolver;
+  private readonly navigationPolicyReady: Promise<unknown>;
+  private blockedNavigation: Error | undefined;
 
   public constructor(
     private readonly page: Page,
@@ -102,10 +118,30 @@ export class PlaywrightDirectExecutor {
       "maxWaitMs",
     );
     this.approvalValidation = options.approvalValidation ?? {};
+    this.approvalReplayStore = options.approvalReplayStore;
     this.selectorMemory = options.selectorMemory;
-    this.redactActionValues = options.redactActionValues ?? false;
+    this.redactActionValues = true;
     this.downloadDirectory = options.downloadDirectory ?? "downloads";
+    this.resolveHostname =
+      options.resolveHostname ?? resolveHostnameToAddresses;
     this.page.setDefaultTimeout(this.actionTimeoutMs);
+    this.navigationPolicyReady = this.page.route("**/*", async (route) => {
+      if (!route.request().isNavigationRequest()) {
+        await route.fallback();
+        return;
+      }
+
+      try {
+        await this.validateNavigationTarget(route.request().url());
+        await route.fallback();
+      } catch (error) {
+        this.blockedNavigation =
+          error instanceof Error
+            ? error
+            : new Error("Navigation policy rejected the request.");
+        await route.abort("blockedbyclient");
+      }
+    });
   }
 
   private async waitForStability(): Promise<void> {
@@ -133,6 +169,7 @@ export class PlaywrightDirectExecutor {
     await this.trace("action_started", { action });
 
     try {
+      await this.navigationPolicyReady;
       if (
         !action.methodPreference.some((method) =>
           supportedMethods.includes(method),
@@ -145,7 +182,7 @@ export class PlaywrightDirectExecutor {
 
       const resolvedActionTarget = await this.resolveActionTarget(action);
       if (action.type === "click" && resolvedActionTarget?.href) {
-        this.validateNavigationTarget(
+        await this.validateNavigationTarget(
           new URL(resolvedActionTarget.href, this.page.url()).toString(),
         );
       }
@@ -155,28 +192,41 @@ export class PlaywrightDirectExecutor {
         new Date(),
         {
           ...this.approvalValidation,
-          ...(resolvedActionTarget &&
-          (action.type === "click" || action.type === "press") &&
-          isSideEffectActivationTarget(resolvedActionTarget.safetyText)
-            ? {
-                forceConfirmation: true,
-                confirmationReason:
-                  "The resolved click or key-press target may have an external side effect and requires human confirmation.",
-              }
-            : {}),
+          ...additionalApprovalRequirement(action, resolvedActionTarget),
         },
       );
       if (!approvalDecision.allowed) {
         throw new Error(approvalDecision.reason);
       }
+      if (approval && approvalDecision.approvalId && this.approvalReplayStore) {
+        const replayDecision = await this.approvalReplayStore.reserve(approval);
+        if (!replayDecision.allowed) {
+          throw new Error(replayDecision.reason);
+        }
+      }
 
-      const outcome = await this.perform(action, resolvedActionTarget);
+      this.blockedNavigation = undefined;
+      let outcome: { method: ActionMethod; evidence: string[] };
+      try {
+        outcome = await this.perform(action, resolvedActionTarget);
+      } catch (error) {
+        if (this.blockedNavigation) {
+          throw this.blockedNavigation;
+        }
+        throw error;
+      }
+      if (this.blockedNavigation) {
+        throw this.blockedNavigation;
+      }
       if (!action.methodPreference.includes(outcome.method)) {
         throw new Error(
           `Resolved ${outcome.method} method is not permitted for this action.`,
         );
       }
-      this.validateCurrentPageOrigin();
+      await this.validateCurrentPageOrigin();
+      if (this.blockedNavigation) {
+        throw this.blockedNavigation;
+      }
 
       // Store only the target strategy that produced a successful local action.
       if (
@@ -236,7 +286,7 @@ export class PlaywrightDirectExecutor {
         if (!action.target) {
           throw new Error("Navigate action requires a URL target.");
         }
-        this.validateNavigationTarget(action.target);
+        await this.validateNavigationTarget(action.target);
         await this.page.goto(action.target, {
           timeout: this.actionTimeoutMs,
           waitUntil: "domcontentloaded",
@@ -374,7 +424,7 @@ export class PlaywrightDirectExecutor {
     };
   }
 
-  private validateNavigationTarget(target: string): void {
+  private async validateNavigationTarget(target: string): Promise<void> {
     let parsed: URL;
     try {
       parsed = new URL(target);
@@ -405,15 +455,35 @@ export class PlaywrightDirectExecutor {
     ) {
       throw new Error(`Navigation origin ${parsed.origin} is not allowlisted.`);
     }
+    if (
+      !this.navigationPolicy.allowPrivateNetwork &&
+      (parsed.protocol === "https:" || parsed.protocol === "http:")
+    ) {
+      await this.assertPublicHostname(parsed.hostname);
+    }
   }
 
-  private validateCurrentPageOrigin(): void {
+  private async assertPublicHostname(hostname: string): Promise<void> {
+    let addresses: readonly string[];
+    try {
+      addresses = await this.resolveHostname(hostname);
+    } catch {
+      throw new Error(
+        "Navigation hostname could not be resolved to public network addresses.",
+      );
+    }
+
+    if (addresses.length === 0 || addresses.some(isPrivateHostname)) {
+      throw new Error(
+        "Navigation hostname resolves to a private-network address.",
+      );
+    }
+  }
+
+  private async validateCurrentPageOrigin(): Promise<void> {
     const currentUrl = this.page.url();
-    if (
-      this.navigationPolicy.allowedOrigins?.length &&
-      currentUrl !== "about:blank"
-    ) {
-      this.validateNavigationTarget(currentUrl);
+    if (currentUrl !== "about:blank") {
+      await this.validateNavigationTarget(currentUrl);
     }
   }
 
@@ -434,6 +504,41 @@ export class PlaywrightDirectExecutor {
       ...(riskLevel ? { riskLevel } : {}),
     });
   }
+}
+
+function additionalApprovalRequirement(
+  action: BrowserSemanticAction,
+  resolvedActionTarget: ResolvedTarget | undefined,
+): Pick<
+  ActionApprovalValidationOptions,
+  "forceConfirmation" | "confirmationReason"
+> {
+  if (action.type === "download") {
+    return {
+      forceConfirmation: true,
+      confirmationReason:
+        "Downloads write a file to local storage and require human confirmation.",
+    };
+  }
+  if (action.type === "press" && !resolvedActionTarget) {
+    return {
+      forceConfirmation: true,
+      confirmationReason:
+        "Untargeted key presses can activate the focused control and require human confirmation.",
+    };
+  }
+  if (
+    resolvedActionTarget &&
+    (action.type === "click" || action.type === "press") &&
+    isSideEffectActivationTarget(resolvedActionTarget.safetyText)
+  ) {
+    return {
+      forceConfirmation: true,
+      confirmationReason:
+        "The resolved click or key-press target may have an external side effect and requires human confirmation.",
+    };
+  }
+  return {};
 }
 
 function redactActionInputs(
@@ -488,12 +593,14 @@ export function createProductionExecutor(
   options: ProductionExecutorOptions = {},
 ): PlaywrightDirectExecutor {
   const taskId = options.taskId ?? "browser-session";
+  const traceFilePath =
+    options.traceFilePath ?? join(config.traceDirectory, `${taskId}.jsonl`);
   return new PlaywrightDirectExecutor(page, {
     taskId,
-    traceFilePath:
-      options.traceFilePath ?? join(config.traceDirectory, `${taskId}.jsonl`),
+    traceFilePath,
     actionTimeoutMs: config.actionTimeoutMs,
     maxWaitMs: config.maxWaitMs,
+    redactActionValues: true,
     approvalValidation: {
       requireSignature: config.environment === "production",
       ...(config.approvalPublicKey
@@ -506,8 +613,18 @@ export function createProductionExecutor(
         : {}),
       allowPrivateNetwork: config.allowPrivateNetwork,
     },
+    ...(config.environment === "production"
+      ? {
+          approvalReplayStore: new FileApprovalReplayStore(
+            join(dirname(traceFilePath), "approval-replay"),
+          ),
+        }
+      : {}),
     ...(options.selectorMemory
       ? { selectorMemory: options.selectorMemory }
+      : {}),
+    ...(options.resolveHostname
+      ? { resolveHostname: options.resolveHostname }
       : {}),
   });
 }
@@ -524,16 +641,26 @@ function normalizeTimeout(
   return timeout;
 }
 
+async function resolveHostnameToAddresses(
+  hostname: string,
+): Promise<readonly string[]> {
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  return addresses.map(({ address }) => address);
+}
+
 function isPrivateHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (normalized === "localhost" || normalized.endsWith(".local")) {
     return true;
   }
   if (
+    normalized === "::" ||
     normalized === "::1" ||
+    (normalized.startsWith("::ffff:") &&
+      isPrivateHostname(normalized.slice("::ffff:".length))) ||
     normalized.startsWith("fc") ||
     normalized.startsWith("fd") ||
-    normalized.startsWith("fe80:")
+    /^fe[89ab][0-9a-f]*:/.test(normalized)
   ) {
     return true;
   }
@@ -543,11 +670,19 @@ function isPrivateHostname(hostname: string): boolean {
   }
   const octets = ipv4.slice(1).map(Number);
   const [first, second] = octets;
+  if (octets.some((octet) => octet > 255)) {
+    return true;
+  }
   return (
     first === 10 ||
+    first === 0 ||
     first === 127 ||
     (first === 169 && second === 254) ||
     (first === 172 && second !== undefined && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168)
+    (first === 192 && second === 0) ||
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19)) ||
+    (first === 100 && second !== undefined && second >= 64 && second <= 127) ||
+    (first !== undefined && first >= 224)
   );
 }

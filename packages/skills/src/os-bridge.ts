@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
 import { isGlobalComputerAction } from "@lhic/schema";
@@ -12,9 +12,11 @@ import type {
   RiskLevel,
 } from "@lhic/schema";
 import {
+  FileApprovalReplayStore,
   validateActionApproval,
   type ActionApproval,
   type ActionApprovalValidationOptions,
+  type ApprovalReplayStore,
 } from "@lhic/security";
 import { appendTraceEvent } from "@lhic/trace";
 
@@ -47,6 +49,7 @@ export interface GlobalComputerExecutorOptions {
   platform?: GlobalDesktopPlatform;
   runner?: GlobalCommandRunner;
   approvalValidation?: ActionApprovalValidationOptions;
+  approvalReplayStore?: ApprovalReplayStore;
 }
 
 export interface GlobalControlCapability {
@@ -66,6 +69,7 @@ export class GlobalComputerExecutor {
   private readonly platform: GlobalDesktopPlatform;
   private readonly runner: GlobalCommandRunner;
   private readonly approvalValidation: ActionApprovalValidationOptions;
+  private readonly approvalReplayStore: ApprovalReplayStore | undefined;
 
   public constructor(options: GlobalComputerExecutorOptions = {}) {
     this.taskId = options.taskId ?? "global-computer-session";
@@ -77,6 +81,13 @@ export class GlobalComputerExecutor {
       requireSignature: process.env.LHIC_ENV === "production",
       ...options.approvalValidation,
     };
+    this.approvalReplayStore =
+      options.approvalReplayStore ??
+      (this.approvalValidation.requireSignature
+        ? new FileApprovalReplayStore(
+            join(dirname(this.traceFilePath), "approval-replay"),
+          )
+        : undefined);
   }
 
   public async execute(
@@ -123,7 +134,14 @@ export class GlobalComputerExecutor {
       if (!approvalDecision.allowed) {
         throw new Error(approvalDecision.reason);
       }
+      if (approval && approvalDecision.approvalId && this.approvalReplayStore) {
+        const replayDecision = await this.approvalReplayStore.reserve(approval);
+        if (!replayDecision.allowed) {
+          throw new Error(replayDecision.reason);
+        }
+      }
 
+      await this.verifyTargetBeforeDispatch(action);
       await this.runner.run(buildGlobalComputerCommand(action, this.platform));
       const verificationEvidence = await this.verify(action.verifier);
       const result: ActionExecutionResult = {
@@ -188,6 +206,25 @@ export class GlobalComputerExecutor {
       throw new Error("Verified process is not running.");
     }
     return "Verified a running application against the requested verifier.";
+  }
+
+  private async verifyTargetBeforeDispatch(
+    action: GlobalComputerAction,
+  ): Promise<void> {
+    if (!requiresActiveWindowTargeting(action)) {
+      return;
+    }
+    if (action.verifier.type !== "active_window") {
+      throw new Error(
+        "Keyboard and coordinate input require an active-window verifier before dispatch.",
+      );
+    }
+    if (!action.verifier.application && !action.verifier.title) {
+      throw new Error(
+        "Keyboard and coordinate input require an active-window verifier with an application or title.",
+      );
+    }
+    await this.verify(action.verifier);
   }
 
   private async trace(
@@ -648,6 +685,19 @@ function methodForGlobalAction(
   }
 }
 
+function requiresActiveWindowTargeting(action: GlobalComputerAction): boolean {
+  return (
+    action.type === "os_type" ||
+    action.type === "os_press" ||
+    (action.type === "os_click" &&
+      !(
+        action.methodPreference.includes("accessibility") &&
+        action.target &&
+        action.application
+      ))
+  );
+}
+
 function parseWindowsDesktopState(stdout: string): GlobalDesktopState {
   let parsed: unknown;
   try {
@@ -835,7 +885,10 @@ $processId = 0
 $process = Get-Process -Id $processId -ErrorAction Stop
 @{ application = $process.ProcessName; title = $title.ToString() } | ConvertTo-Json -Compress`;
 
-function windowsAccessibilityClickScript(application: string, target: string): string {
+function windowsAccessibilityClickScript(
+  application: string,
+  target: string,
+): string {
   return `Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 $proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1

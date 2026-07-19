@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -67,7 +67,10 @@ export async function runPreflight(
   try {
     const config = parseRuntimeConfig(environment);
     traceDirectory = resolve(config.traceDirectory);
-    await mkdir(traceDirectory, { recursive: true });
+    await mkdir(traceDirectory, { recursive: true, mode: 0o700 });
+    if (process.platform !== "win32") {
+      await chmod(traceDirectory, 0o700);
+    }
     checks.push({
       name: "runtime-configuration",
       passed: true,
@@ -89,7 +92,10 @@ export async function runPreflight(
     let temporaryDirectory: string | undefined;
     try {
       temporaryDirectory = await mkdtemp(join(traceDirectory, "preflight-"));
-      await writeFile(join(temporaryDirectory, "write-check"), "ok", "utf8");
+      await writeFile(join(temporaryDirectory, "write-check"), "ok", {
+        encoding: "utf8",
+        mode: 0o600,
+      });
       checks.push({
         name: "trace-storage",
         passed: true,

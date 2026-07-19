@@ -17,6 +17,7 @@ from typing import Any
 
 REQUIRED_PACKAGES = ("torch", "numpy", "PIL", "mss", "pyautogui", "pynput")
 MIN_TRAINING_SAMPLES = 16
+MIN_VALIDATION_SAMPLES = 2
 
 
 def decode_request(value: str) -> dict[str, Any]:
@@ -276,6 +277,39 @@ def load_dataset(request: dict[str, Any], np: Any, Image: Any) -> tuple[Any, Any
     )
 
 
+def training_split_counts(sample_count: int, validation_split: float) -> tuple[int, int]:
+    if sample_count < MIN_TRAINING_SAMPLES:
+        raise ValueError(
+            f"dataset must contain at least {MIN_TRAINING_SAMPLES} recorded samples"
+        )
+    if not 0.1 <= validation_split < 0.5:
+        raise ValueError("validationSplit must be between 0.1 and 0.5")
+    validation_count = max(MIN_VALIDATION_SAMPLES, round(sample_count * validation_split))
+    training_count = sample_count - validation_count
+    if training_count < 8:
+        raise ValueError("dataset does not leave enough chronological samples for training")
+    return training_count, validation_count
+
+
+def classifier_loss(torch: Any, outputs: tuple[Any, ...], labels: tuple[Any, Any, Any, Any]) -> Any:
+    movement, fire, look_x, look_y = labels
+    return (
+        torch.nn.functional.cross_entropy(outputs[0], movement)
+        + torch.nn.functional.cross_entropy(outputs[1], fire)
+        + torch.nn.functional.cross_entropy(outputs[2], look_x)
+        + torch.nn.functional.cross_entropy(outputs[3], look_y)
+    )
+
+
+def classifier_accuracy(outputs: tuple[Any, ...], labels: tuple[Any, Any, Any, Any]) -> float:
+    correct = 0
+    total = 0
+    for output, label in zip(outputs, labels):
+        correct += int((output.argmax(dim=1) == label).sum().item())
+        total += int(label.numel())
+    return correct / total if total else 0.0
+
+
 def fit(request: dict[str, Any]) -> dict[str, Any]:
     np, torch, Image = import_training_dependencies()
     core = str(request.get("core"))
@@ -287,6 +321,15 @@ def fit(request: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("fit requires datasetPath and artifactDirectory")
     loaded = load_dataset(request, np, Image)
     frames, movement, fire, look_x, look_y, rewards = loaded
+    seed = int(request.get("seed", 1))
+    if not -(2**31) <= seed < 2**31:
+        raise ValueError("seed must be a signed 32-bit integer")
+    validation_split = float(request.get("validationSplit", 0.2))
+    training_count, validation_count = training_split_counts(
+        len(frames), validation_split
+    )
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     model = build_model(torch, core, str(request.get("modelType", "cnn")))
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
     frame_tensor = torch.tensor(frames, dtype=torch.float32)
@@ -298,38 +341,37 @@ def fit(request: dict[str, Any]) -> dict[str, Any]:
     epochs = int(request.get("epochs", 3))
     if epochs < 1 or epochs > 100:
         raise ValueError("epochs must be between 1 and 100")
+    training_labels = (
+        movement_tensor[:training_count],
+        fire_tensor[:training_count],
+        look_x_tensor[:training_count],
+        look_y_tensor[:training_count],
+    )
+    validation_labels = (
+        movement_tensor[training_count:],
+        fire_tensor[training_count:],
+        look_x_tensor[training_count:],
+        look_y_tensor[training_count:],
+    )
+    training_frames = frame_tensor[:training_count]
+    validation_frames = frame_tensor[training_count:]
     behavior_loss = 0.0
-    ppo_reward = float(reward_tensor.mean().item())
     for _ in range(epochs):
-        outputs = model(frame_tensor)
-        loss = torch.nn.functional.cross_entropy(outputs[0], movement_tensor)
-        loss = loss + torch.nn.functional.cross_entropy(outputs[1], fire_tensor)
-        loss = loss + torch.nn.functional.cross_entropy(outputs[2], look_x_tensor)
-        loss = loss + torch.nn.functional.cross_entropy(outputs[3], look_y_tensor)
+        outputs = model(training_frames)
+        loss = classifier_loss(torch, outputs, training_labels)
         optimizer.zero_grad()
-        loss.integrate = 0 # Dummy modification to force update / track
         loss.backward()
         optimizer.step()
         behavior_loss = float(loss.item())
-    outputs = model(frame_tensor)
-    log_probability = torch.nn.functional.log_softmax(outputs[0], dim=1)
-    old_selected = log_probability.gather(1, movement_tensor[:, None]).squeeze(1).detach()
-    advantages = reward_tensor - reward_tensor.mean()
-    if len(advantages) > 1:
-        advantages = advantages / (advantages.std() + 1e-6)
-    for _ in range(2):
-        outputs = model(frame_tensor)
-        current = torch.nn.functional.log_softmax(outputs[0], dim=1)
-        selected = current.gather(1, movement_tensor[:, None]).squeeze(1)
-        ratio = torch.exp(selected - old_selected)
-        surrogate = torch.minimum(
-            ratio * advantages,
-            torch.clamp(ratio, 0.8, 1.2) * advantages,
+    model.eval()
+    with torch.no_grad():
+        validation_outputs = model(validation_frames)
+        validation_loss = float(
+            classifier_loss(torch, validation_outputs, validation_labels).item()
         )
-        ppo_loss = -surrogate.mean()
-        optimizer.zero_grad()
-        ppo_loss.backward()
-        optimizer.step()
+        validation_accuracy = classifier_accuracy(
+            validation_outputs, validation_labels
+        )
     output_directory = Path(artifact_directory).resolve()
     output_directory.mkdir(parents=True, exist_ok=True)
     weights = output_directory / "weights.pt"
@@ -340,7 +382,12 @@ def fit(request: dict[str, Any]) -> dict[str, Any]:
         "weightsFile": str(weights),
         "weightsSha256": digest,
         "behaviorCloningLoss": behavior_loss,
-        "ppoReward": ppo_reward,
+        "datasetReward": float(reward_tensor[:training_count].mean().item()),
+        "validationLoss": validation_loss,
+        "validationActionAccuracy": validation_accuracy,
+        "datasetSha256": hashlib.sha256(Path(dataset_path).read_bytes()).hexdigest(),
+        "trainingSampleCount": training_count,
+        "validationSampleCount": validation_count,
         "sampleCount": int(frame_tensor.shape[0]),
     }
 
@@ -354,7 +401,12 @@ def smoke(request: dict[str, Any]) -> dict[str, Any]:
     return {
         "core": core,
         "behaviorCloningLoss": float(sum(value.mean() for value in output).item()),
-        "ppoReward": 0.0,
+        "datasetReward": 0.0,
+        "validationLoss": 0.0,
+        "validationActionAccuracy": 0.0,
+        "datasetSha256": hashlib.sha256(b"smoke").hexdigest(),
+        "trainingSampleCount": 1,
+        "validationSampleCount": 1,
         "sampleCount": 2,
     }
 

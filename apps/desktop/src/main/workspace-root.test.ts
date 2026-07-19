@@ -11,7 +11,8 @@ describe("resolveDesktopWorkspaceRoot", () => {
         cwd: "/",
         environmentWorkspaceRoot: "/Users/operator/lhic-workspace",
         isPackaged: true,
-        userData: "/Users/operator/Library/Application Support/LHIC Control Center",
+        userData:
+          "/Users/operator/Library/Application Support/LHIC Control Center",
       }),
     ).toBe("/Users/operator/lhic-workspace");
   });
@@ -33,7 +34,8 @@ describe("resolveDesktopWorkspaceRoot", () => {
       resolveDesktopWorkspaceRoot({
         cwd: "/Users/operator/Projects/LHIC",
         isPackaged: false,
-        userData: "/Users/operator/Library/Application Support/LHIC Control Center",
+        userData:
+          "/Users/operator/Library/Application Support/LHIC Control Center",
       }),
     ).toBe("/Users/operator/Projects/LHIC");
   });

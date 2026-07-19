@@ -2,11 +2,13 @@ import { createHash } from "node:crypto";
 
 import type {
   CandidateSkillRecord,
+  CandidateRunEnvironment,
+  CandidateRunSource,
   SkillRecord,
   SkillStore,
 } from "@lhic/memory";
 import type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";
-import { redactPII } from "@lhic/trace";
+import { hashState, redactPII } from "@lhic/trace";
 
 import type { BrowserPlanStepOutcome } from "./browser-plan-runner.js";
 
@@ -41,6 +43,11 @@ export interface DemoSkillMatch {
   definition: DemoLearnedSkillDefinition;
   similarity: number;
   uiSimilarity: number;
+}
+
+export interface DemoLearningOptions {
+  source?: Extract<CandidateRunSource, "interactive_demo" | "mcp_batch">;
+  environment?: CandidateRunEnvironment;
 }
 
 /** Lazily downloads once, then uses a locally cached transformer model. */
@@ -82,6 +89,7 @@ export async function learnDemoSkill(
   initialState: NormalizedUIState,
   plan: BrowserExecutionPlan,
   outcomes: readonly BrowserPlanStepOutcome[],
+  options: DemoLearningOptions = {},
 ): Promise<CandidateSkillRecord> {
   if (
     outcomes.length !== plan.steps.length ||
@@ -124,6 +132,24 @@ export async function learnDemoSkill(
       evidence: outcomes.flatMap((outcome) => outcome.verification.evidence),
     },
     taskId,
+    {
+      source: options.source ?? "interactive_demo",
+      environment: options.environment ?? "allowlisted_sandbox",
+      origin,
+      uiFingerprint: definition.uiFingerprint,
+      traceSha256: hashState(
+        redactPII({
+          taskId,
+          plan: definition.plan,
+          outcomes: outcomes.map((outcome) => ({
+            stepId: outcome.stepId,
+            execution: outcome.execution.success,
+            verification: outcome.verification,
+          })),
+        }),
+      ),
+      verifierVersion: "lhic-verifier-v1",
+    },
   );
 }
 

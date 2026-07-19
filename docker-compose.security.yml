@@ -1,20 +1,38 @@
-version: "3.8"
+x-lhic-build: &lhic-build
+  context: .
+  dockerfile: Dockerfile
 
 services:
+  trace-storage-init:
+    build: *lhic-build
+    image: chengmatt416/lhic-agent:latest
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - install -d -m 0700 -o lhic -g lhic /var/lib/lhic/traces
+    user: "0:0"
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+    volumes:
+      - trace-data:/var/lib/lhic/traces
+
   lhic-agent:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: *lhic-build
     image: chengmatt416/lhic-agent:latest
     environment:
-      - LHIC_ENV=production
-      - LHIC_TRACE_DIRECTORY=/tmp/traces
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318/v1/traces
-      - LHIC_KMS_DEFAULT_PUBLIC_KEY=/run/secrets/kms_pub.pem
-    ports:
-      - "8000:8000"
+      LHIC_ENV: production
+      LHIC_TRACE_DIRECTORY: /var/lib/lhic/traces
+      LHIC_ALLOWED_ORIGINS: "${LHIC_ALLOWED_ORIGINS:?Set an HTTPS origin allowlist.}"
+      LHIC_APPROVAL_PUBLIC_KEY_FILE: /run/secrets/lhic_approval_public_key
+    depends_on:
+      trace-storage-init:
+        condition: service_completed_successfully
+    secrets:
+      - source: lhic_approval_public_key
+        target: lhic_approval_public_key
     security_opt:
-      # Load Chromium hardened seccomp system-call restriction profile
       - seccomp=./chrome-seccomp.json
     deploy:
       resources:
@@ -23,16 +41,18 @@ services:
           memory: 4G
         reservations:
           memory: 1G
-    # Enforce non-root execution and read-only container root file-system
-    user: "1000:1000"
     read_only: true
     tmpfs:
       - /tmp:mode=1777
       - /run:mode=1777
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
+    volumes:
+      - trace-data:/var/lib/lhic/traces
+
+volumes:
+  trace-data:
+
+secrets:
+  lhic_approval_public_key:
+    file: "${LHIC_APPROVAL_PUBLIC_KEY_HOST_FILE:?Set the absolute path to the Ed25519 public-key PEM.}"

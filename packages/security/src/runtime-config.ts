@@ -1,4 +1,5 @@
 import { createPublicKey } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 export type RuntimeEnvironment = "development" | "test" | "production";
 
@@ -20,11 +21,16 @@ export function parseRuntimeConfig(
   const runtimeEnvironment = parseEnvironment(environment.LHIC_ENV);
   const allowedOrigins = parseOrigins(environment.LHIC_ALLOWED_ORIGINS);
   const approvalPublicKey = parseApprovalPublicKey(
-    environment.LHIC_APPROVAL_PUBLIC_KEY,
+    readApprovalPublicKey(environment),
   );
   const allowPrivateNetwork = environment.LHIC_ALLOW_PRIVATE_NETWORK === "true";
   if (runtimeEnvironment === "production" && allowedOrigins.length === 0) {
     throw new Error("LHIC_ALLOWED_ORIGINS is required in production.");
+  }
+  if (runtimeEnvironment === "production" && !approvalPublicKey) {
+    throw new Error(
+      "LHIC_APPROVAL_PUBLIC_KEY or LHIC_APPROVAL_PUBLIC_KEY_FILE is required in production.",
+    );
   }
   if (runtimeEnvironment === "production" && allowPrivateNetwork) {
     throw new Error(
@@ -49,6 +55,31 @@ export function parseRuntimeConfig(
     traceDirectory: environment.LHIC_TRACE_DIRECTORY ?? "traces",
     ...(approvalPublicKey ? { approvalPublicKey } : {}),
   };
+}
+
+function readApprovalPublicKey(
+  environment: EnvironmentSource,
+): string | undefined {
+  const inlineValue = environment.LHIC_APPROVAL_PUBLIC_KEY?.trim();
+  const filePath = environment.LHIC_APPROVAL_PUBLIC_KEY_FILE?.trim();
+  if (inlineValue && filePath) {
+    throw new Error(
+      "Configure only one of LHIC_APPROVAL_PUBLIC_KEY or LHIC_APPROVAL_PUBLIC_KEY_FILE.",
+    );
+  }
+  if (inlineValue) {
+    return inlineValue;
+  }
+  if (!filePath) {
+    return undefined;
+  }
+  try {
+    return readFileSync(filePath, "utf8").trim();
+  } catch {
+    throw new Error(
+      "LHIC_APPROVAL_PUBLIC_KEY_FILE must point to a readable Ed25519 public key.",
+    );
+  }
 }
 
 function parseApprovalPublicKey(value: string | undefined): string | undefined {

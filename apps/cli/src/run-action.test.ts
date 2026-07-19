@@ -4,25 +4,30 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { createActionApproval } from "@lhic/security";
+
 import { runActionFile } from "./run-action.js";
 
 describe("runActionFile", () => {
-  it("runs a low-risk action through the production executor", async () => {
+  it("runs an approved focus-sensitive action through the production executor", async () => {
     const directory = await mkdtemp(join(tmpdir(), "lhic-run-action-"));
     const actionPath = join(directory, "press.json");
+    const approvalPath = join(directory, "approval.json");
+    const action = {
+      type: "press" as const,
+      intent: "trigger a low-risk keyboard event",
+      value: "Enter",
+      methodPreference: ["keyboard" as const],
+      riskLevel: "low" as const,
+    };
     try {
+      await writeFile(actionPath, JSON.stringify(action));
       await writeFile(
-        actionPath,
-        JSON.stringify({
-          type: "press",
-          intent: "trigger a low-risk keyboard event",
-          value: "Enter",
-          methodPreference: ["keyboard"],
-          riskLevel: "low",
-        }),
+        approvalPath,
+        JSON.stringify(createActionApproval(action, "operator@example.test")),
       );
 
-      const result = await runActionFile(actionPath, undefined, {
+      const result = await runActionFile(actionPath, approvalPath, {
         LHIC_ENV: "test",
         LHIC_TRACE_DIRECTORY: directory,
       });

@@ -8,6 +8,11 @@ export interface OfflineEvaluationRequest {
   candidateName: string;
   environment: OfflineEvaluationEnvironment;
   targetUrl: string;
+  /** A unique evaluation run identifier, not a production task identifier. */
+  evaluationId: string;
+  /** Hash of the redacted holdout DOM/AX shape observed by the evaluator. */
+  uiFingerprint: string;
+  verifierVersion: string;
   allowlistedOrigins?: readonly string[];
   registeredTestAccountId?: string;
   /** The caller owns execution; this worker only admits safe targets. */
@@ -55,15 +60,32 @@ export class OfflineEvaluationWorker {
     if (!verification.success || verification.evidence.length === 0) {
       return { verification, promotionEligible: false };
     }
-    this.skillStore.recordCandidateHoldout(request.candidateName, verification);
     const candidate = this.skillStore.getCandidate(request.candidateName);
+    if (!candidate) {
+      throw new Error("Candidate Skill does not exist.");
+    }
+    const target = new URL(request.targetUrl);
+    this.skillStore.recordCandidateHoldout(
+      request.candidateName,
+      verification,
+      {
+        evaluator: "offline-evaluation-v1",
+        environment: request.environment,
+        evaluationId: request.evaluationId,
+        origin: target.origin,
+        uiFingerprint: request.uiFingerprint,
+        verifierVersion: request.verifierVersion,
+        candidateDefinitionSha256: candidate.definitionSha256,
+      },
+    );
+    const updated = this.skillStore.getCandidate(request.candidateName);
     return {
       verification,
       promotionEligible:
-        candidate !== undefined &&
-        candidate.verifiedRunCount >= 3 &&
-        candidate.holdoutPassed &&
-        !candidate.promoted,
+        updated !== undefined &&
+        updated.verifiedRunCount >= 3 &&
+        updated.holdoutPassed &&
+        !updated.promoted,
     };
   }
 }
@@ -97,6 +119,17 @@ export function assertOfflineTarget(
   request: OfflineEvaluationRequest,
   testAccountRegistry?: RegisteredTestAccountRegistry,
 ): void {
+  if (
+    !request.evaluationId.trim() ||
+    !/^[a-f0-9]{64}$/.test(request.uiFingerprint)
+  ) {
+    throw new Error(
+      "Offline evaluations require a unique evaluation ID and a redacted UI fingerprint.",
+    );
+  }
+  if (!request.verifierVersion.trim() || request.verifierVersion.length > 128) {
+    throw new Error("Offline evaluations require a verifier version.");
+  }
   let target: URL;
   try {
     target = new URL(request.targetUrl);

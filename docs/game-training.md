@@ -66,6 +66,7 @@ lhic train game 3d record epic-shooter-3d --scripted \
   --output .lhic/game-training/3d/datasets/epic-shooter-demo
 lhic train game 3d fit epic-shooter-3d \
   --dataset .lhic/game-training/3d/datasets/epic-shooter-demo/manifest.json \
+  --seed 17 --validation-split 0.2 \
   --output .lhic/game-training/3d/skills/epic-shooter-v1
 lhic train game 3d play epic-shooter-3d \
   --artifact .lhic/game-training/3d/skills/epic-shooter-v1/artifact.json \
@@ -73,9 +74,14 @@ lhic train game 3d play epic-shooter-3d \
 ```
 
 Each record/fit response includes capture rate, movement diversity, fire, and
-look sample counts. Fitting requires at least 16 frames; use the desktop
-recorder to collect a genuine operator demonstration rather than promoting a
-short startup smoke capture into a policy.
+look sample counts. Fitting requires at least 16 frames and uses the final
+chronological portion of the dataset as a validation split (20% by default).
+The artifact records the training seed, dataset-manifest SHA-256, split sizes,
+behavior-cloning loss, validation loss, and multi-head validation accuracy.
+`datasetReward` is descriptive telemetry from the recorded training portion;
+it is not a PPO or live-policy reward. Use the desktop recorder to collect a
+genuine operator demonstration rather than promoting a short startup smoke
+capture into a policy.
 
 Recording, evaluation, and play responses also include a `realtime` summary:
 the requested control rate, observed rate, processing P50/P95, frame P95, and
@@ -113,14 +119,22 @@ lhic train game 3d record epic-shooter-3d --surface desktop \
   --output .lhic/game-training/3d/datasets/epic-shooter-human-v1
 ```
 
-Evaluation uses ten fixed seeds by default and compares the policy with that
-core's legal-action random baseline. It passes only when the policy has a
-positive mean score and exceeds the baseline. The hosted FPS does not expose a
-seed API, so its reports are marked `deterministic: false` and cannot qualify
-as a fixed-seed pass; use a target-provided deterministic seed interface before
-treating it as a benchmark result. Reports retain per-seed failures and learned
-and random availability rates, so an intermittent hosted target does not erase
-the rest of a comparison run.
+Browser evaluation uses ten fixed seeds by default and compares the policy with
+that core's legal-action random baseline. It passes only when the policy has a
+positive mean score and exceeds the baseline. Run it after fitting and retain
+the JSON report with the policy package:
+
+```sh
+lhic train game 3d evaluate nemesis \
+  --artifact .lhic/game-training/3d/skills/nemesis-v1/artifact.json
+```
+
+The hosted FPS does not expose a seed API, so its reports are marked
+`deterministic: false` and cannot qualify as a fixed-seed pass; use a
+target-provided deterministic seed interface before treating it as a benchmark
+result. Reports retain per-seed failures and learned and random availability
+rates, so an intermittent hosted target does not erase the rest of a comparison
+run.
 
 Datasets, weights, reports, and trace files live below
 `.lhic/game-training/2d/` or `.lhic/game-training/3d/`. A load verifies core,

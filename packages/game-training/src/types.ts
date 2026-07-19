@@ -128,9 +128,19 @@ export interface GamePolicyArtifact {
   weightsFile: string;
   weightsSha256: string;
   modelType?: string;
+  training: {
+    algorithm: "behavior-cloning-v1";
+    seed: number;
+    datasetSha256: string;
+    validationSplit: number;
+    trainingSampleCount: number;
+    validationSampleCount: number;
+  };
   metrics: {
     behaviorCloningLoss: number;
-    ppoReward: number;
+    datasetReward: number;
+    validationLoss: number;
+    validationActionAccuracy: number;
   };
   createdAt: string;
 }

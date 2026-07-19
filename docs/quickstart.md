@@ -55,7 +55,33 @@ itself. A skill advances only after verified execution evidence; MCP callers
 cannot mark a skill learned by assertion alone. High- and unknown-risk actions
 still require a matching human approval.
 
-## 4. Train a public website Fast Path
+## 4. Run a saved daily browser plan
+
+For a repeatable multi-step task, keep a `browser-plan-v1` JSON recipe with a
+goal, declared variables, and an action plus verifier for every step. Execute
+it locally without involving a model or MCP server. In an interactive
+development or test terminal, the only required argument is the plan file:
+
+```bash
+lhic run plan ./daily-plan.json
+```
+
+LHIC prompts locally for missing declared variables and asks for an explicit
+confirmation before every click, key press, download, and elevated-risk step.
+For non-interactive automation, provide variables and an approval JSON file
+keyed by plan step ID:
+
+```bash
+lhic run plan ./daily-plan.json ./daily-plan-approvals.json \
+  --var query="weekly priorities"
+```
+
+Every completed step must produce verifier evidence, so the command never
+treats an input event alone as task success. Production never generates local
+approvals: it requires matching, unexpired, externally signed approvals. The
+browser remains local and Fast Path execution performs no model or MCP calls.
+
+## 5. Train a public website Fast Path
 
 The first reproducible live-training scenarios cover public Wikipedia and MDN
 search, GitHub issue filtering, and OpenStreetMap place lookup. They use a
@@ -71,12 +97,13 @@ lhic train public-web openstreetmap-place-search --query "Taipei Main Station"
 ```
 
 Use `--viewable` to watch the isolated browser and `--database <path>` to keep
-the resulting local skill memory outside `.lhic/skills.sqlite`. If shared
-skills are enabled first, a fully verified scenario is immediately queued for
-Appwrite review; it remains unavailable to other clients until an approver
-changes its status to `approved`.
+the resulting local skill memory outside `.lhic/skills.sqlite`. Each run records
+a local candidate only; it can never be immediately promoted or submitted. A
+candidate must accumulate three independently traced executions and then pass a
+separate offline holdout with a previously unseen UI fingerprint before review
+or Fast Path eligibility.
 
-## 5. Enable public shared skills (optional)
+## 6. Enable public shared skills (optional)
 
 Deploy the Appwrite Function and create the TablesDB tables described in
 [`services/appwrite-shared-skills`](../services/appwrite-shared-skills). Then
@@ -118,4 +145,6 @@ in the operating-system credential store, not in `.lhic`. Use
 
 Run `npm run bench:internal` and `npm run bench:simulate` to produce the local,
 controlled measurements used in product demonstrations. They are not external
-benchmark or market-comparison claims.
+benchmark or market-comparison claims. The internal benchmark includes a
+verified four-step daily browser workflow and fails if its controlled p95
+latency exceeds five seconds or verifier pass rate falls below 90%.

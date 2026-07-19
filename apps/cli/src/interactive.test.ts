@@ -73,6 +73,9 @@ describe("interactive CLI guidance", () => {
     await expect(
       guideCliArguments(["run", "action"], createPrompter(["action.json"])),
     ).resolves.toEqual(["run", "action", "action.json"]);
+    await expect(
+      guideCliArguments(["run", "plan"], createPrompter(["plan.json"])),
+    ).resolves.toEqual(["run", "plan", "plan.json"]);
   });
 
   it("expands single-purpose command shortcuts without extra prompts", async () => {

@@ -1,4 +1,13 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,6 +61,19 @@ describe("trace redaction and event log", () => {
     });
   });
 
+  it("redacts credentials and sensitive parameters embedded in URLs", () => {
+    const source =
+      "Navigation failed at https://person:credential@example.test/path?access_token=secret-token&query=safe#api_key=fragment-secret";
+    const redacted = redactPII({ action: { target: source } });
+
+    expect(JSON.stringify(redacted)).not.toContain("person");
+    expect(JSON.stringify(redacted)).not.toContain("credential");
+    expect(JSON.stringify(redacted)).not.toContain("secret-token");
+    expect(JSON.stringify(redacted)).not.toContain("fragment-secret");
+    expect(JSON.stringify(redacted)).toContain("example.test");
+    expect(JSON.stringify(redacted)).toContain("query=safe");
+  });
+
   it("appends and restores redacted JSONL trace events", async () => {
     const directory = await mkdtemp(join(tmpdir(), "lhic-trace-"));
     const filePath = join(directory, "events.jsonl");
@@ -75,6 +97,74 @@ describe("trace redaction and event log", () => {
         email: "[REDACTED_EMAIL]",
         password: "[REDACTED]",
       });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("restricts trace files and newly created directories to the service account", async () => {
+    if (process.platform === "win32") return;
+
+    const directory = await mkdtemp(join(tmpdir(), "lhic-trace-permissions-"));
+    const traceDirectory = join(directory, "private-traces");
+    const filePath = join(traceDirectory, "events.jsonl");
+    try {
+      await mkdir(traceDirectory, { recursive: true, mode: 0o755 });
+      await chmod(traceDirectory, 0o755);
+      await writeFile(filePath, "", { mode: 0o644 });
+      await chmod(filePath, 0o644);
+
+      await appendTraceEvent(filePath, {
+        eventId: "event-permissions",
+        taskId: "task-permissions",
+        timestamp: "2026-07-19T00:00:00.000Z",
+        type: "action_completed",
+        payload: {},
+        riskLevel: "low",
+      });
+
+      expect((await stat(traceDirectory)).mode & 0o777).toBe(0o755);
+      expect((await stat(filePath)).mode & 0o777).toBe(0o600);
+
+      const nestedFilePath = join(traceDirectory, "nested", "events.jsonl");
+      await appendTraceEvent(nestedFilePath, {
+        eventId: "event-nested-permissions",
+        taskId: "task-permissions",
+        timestamp: "2026-07-19T00:00:00.000Z",
+        type: "action_completed",
+        payload: {},
+        riskLevel: "low",
+      });
+      expect((await stat(join(traceDirectory, "nested"))).mode & 0o777).toBe(
+        0o700,
+      );
+      expect((await stat(nestedFilePath)).mode & 0o777).toBe(0o600);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a symbolic-link trace file", async () => {
+    if (process.platform === "win32") return;
+
+    const directory = await mkdtemp(join(tmpdir(), "lhic-trace-link-"));
+    const protectedFile = join(directory, "protected.jsonl");
+    const traceLink = join(directory, "events.jsonl");
+    try {
+      await writeFile(protectedFile, "protected\n", "utf8");
+      await symlink(protectedFile, traceLink);
+
+      await expect(
+        appendTraceEvent(traceLink, {
+          eventId: "event-link",
+          taskId: "task-link",
+          timestamp: "2026-07-19T00:00:00.000Z",
+          type: "action_completed",
+          payload: {},
+          riskLevel: "low",
+        }),
+      ).rejects.toThrow("symbolic links");
+      expect(await readFile(protectedFile, "utf8")).toBe("protected\n");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

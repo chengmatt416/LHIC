@@ -4,13 +4,28 @@ import { join } from "node:path";
 
 import { chromium, type Page } from "playwright";
 
-import { testWebFlow } from "@lhic/skills";
-import { downloadFile, fillForm, login, search } from "@lhic/skills";
-import type { SkillResult } from "@lhic/skills";
+import { PlaywrightDirectExecutor } from "@lhic/browser";
+import { executeBrowserPlan } from "@lhic/controller";
+import type { BrowserExecutionPlan } from "@lhic/schema";
+import { createActionApproval } from "@lhic/security";
+import {
+  downloadFile,
+  createDownloadAction,
+  fillForm,
+  login,
+  search,
+  testWebFlow,
+  type SkillResult,
+} from "@lhic/skills";
 import { VerifierEngine } from "@lhic/verifier";
 
 export type BenchmarkSkill =
-  "fill_form" | "download_file" | "login" | "search" | "test_web_flow";
+  | "browser_plan"
+  | "fill_form"
+  | "download_file"
+  | "login"
+  | "search"
+  | "test_web_flow";
 
 export interface BenchmarkFixture {
   id: string;
@@ -47,10 +62,18 @@ export interface BenchmarkMetrics {
   humanInterventionCount: number;
 }
 
+export interface DailyWorkflowBenchmarkMetrics {
+  taskCount: number;
+  taskSuccessRate: number;
+  p95TimeToCompleteMs: number;
+  verifierPassRate: number;
+}
+
 export interface InternalBenchmarkReport {
   fixtureCount: number;
   results: BenchmarkTaskResult[];
   metrics: BenchmarkMetrics;
+  dailyWorkflow: DailyWorkflowBenchmarkMetrics;
   repetitions: number;
   runs: Array<{ repetition: number; metrics: BenchmarkMetrics }>;
   fastOnlyBaselineP95Ms: number;
@@ -61,6 +84,8 @@ export interface InternalBenchmarkReport {
     fastPathRatio: boolean;
     verifierPassRate: boolean;
     fastOnlyP95Regression: boolean;
+    dailyWorkflowP95Ms: boolean;
+    dailyWorkflowVerifierPassRate: boolean;
   };
   passed: boolean;
 }
@@ -133,9 +158,45 @@ export function calculateBenchmarkMetrics(
   };
 }
 
+export function calculateDailyWorkflowMetrics(
+  results: BenchmarkTaskResult[],
+): DailyWorkflowBenchmarkMetrics {
+  const dailyWorkflowResults = results.filter(
+    (result) => result.skill === "browser_plan",
+  );
+  if (dailyWorkflowResults.length === 0) {
+    return {
+      taskCount: 0,
+      taskSuccessRate: 0,
+      p95TimeToCompleteMs: 0,
+      verifierPassRate: 0,
+    };
+  }
+  return {
+    taskCount: dailyWorkflowResults.length,
+    taskSuccessRate:
+      dailyWorkflowResults.filter((result) => result.success).length /
+      dailyWorkflowResults.length,
+    p95TimeToCompleteMs: percentile(
+      dailyWorkflowResults
+        .map((result) => result.durationMs)
+        .sort((left, right) => left - right),
+      0.95,
+    ),
+    verifierPassRate:
+      dailyWorkflowResults.filter((result) => result.verifierPassed).length /
+      dailyWorkflowResults.length,
+  };
+}
+
 export function assessBenchmark(
   metrics: BenchmarkMetrics,
-): Omit<InternalBenchmarkReport["passCriteria"], "fastOnlyP95Regression"> {
+): Omit<
+  InternalBenchmarkReport["passCriteria"],
+  | "fastOnlyP95Regression"
+  | "dailyWorkflowP95Ms"
+  | "dailyWorkflowVerifierPassRate"
+> {
   return {
     taskSuccessRate: metrics.taskSuccessRate >= 0.85,
     medianModelCallsPerTask: metrics.modelCallsPerTask === 0,
@@ -198,6 +259,9 @@ export async function runInternalBenchmark(
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
   const metrics = calculateBenchmarkMetrics(runs.flatMap((run) => run.results));
+  const dailyWorkflow = calculateDailyWorkflowMetrics(
+    runs.flatMap((run) => run.results),
+  );
   const fastOnlyBaselineP95Ms = percentile(
     runs
       .map((run) => run.metrics.p95TimeToCompleteMs)
@@ -209,11 +273,14 @@ export async function runInternalBenchmark(
     fastOnlyP95Regression: runs.every(
       (run) => run.metrics.p95TimeToCompleteMs <= fastOnlyBaselineP95Ms * 1.1,
     ),
+    dailyWorkflowP95Ms: dailyWorkflow.p95TimeToCompleteMs <= 5_000,
+    dailyWorkflowVerifierPassRate: dailyWorkflow.verifierPassRate >= 0.9,
   };
   return {
     fixtureCount: runs[0]?.results.length ?? 0,
     results: runs.flatMap((run) => run.results),
     metrics,
+    dailyWorkflow,
     repetitions,
     runs: runs.map(({ repetition, metrics: runMetrics }) => ({
       repetition,
@@ -243,7 +310,7 @@ async function runInternalBenchmarkPass(
       modelCalls: 0,
       mcpCalls: 0,
       fastPath: true,
-      structuredActions: structuredActionCount(),
+      structuredActions: structuredActionCount(fixture),
       rawCoordinateActions: 0,
       verifierPassed: result.success,
       falsePositive: false,
@@ -282,6 +349,10 @@ async function executeFixture(
         trigger: "#download",
         expectedExtension: ".txt",
         downloadDir: temporaryDirectory,
+        approval: createActionApproval(
+          createDownloadAction("#download"),
+          "benchmark-user",
+        ),
       });
     case "login":
       await page.setContent(
@@ -317,6 +388,8 @@ async function executeFixture(
         ],
         stopBeforeHighRisk: true,
       });
+    case "browser_plan":
+      return executeDailyWorkflowPlan(page, fixture, traceFilePath);
   }
 }
 
@@ -331,6 +404,124 @@ function percentile(sorted: number[], quantile: number): number {
   );
 }
 
-function structuredActionCount(): number {
-  return 1;
+async function executeDailyWorkflowPlan(
+  page: Page,
+  fixture: BenchmarkFixture,
+  traceFilePath: string,
+): Promise<SkillResult> {
+  await page.setContent(`
+    <label>Search <input id="search" type="search"></label>
+    <button id="find" type="button">Find project</button>
+    <p id="project-result"></p>
+    <label>Daily update <textarea id="daily-update"></textarea></label>
+    <button id="save-draft" type="button">Save draft</button>
+    <p id="save-result"></p>
+    <script>
+      document.querySelector('#find').addEventListener('click', () => {
+        document.querySelector('#project-result').textContent = 'Project result ready';
+      });
+      document.querySelector('#save-draft').addEventListener('click', () => {
+        document.querySelector('#save-result').textContent = 'Draft saved';
+      });
+    </script>
+  `);
+  const plan: BrowserExecutionPlan = {
+    schemaVersion: "browser-plan-v1",
+    goal: "Find a project and save its daily update",
+    requiredVariables: [],
+    steps: [
+      {
+        id: "fill-search",
+        action: {
+          type: "fill",
+          intent: "enter the project search",
+          target: "#search",
+          value: `project-${fixture.variant}`,
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        },
+        verification: {
+          type: "dom",
+          description: "search field remains available",
+          params: { selector: "#search" },
+        },
+      },
+      {
+        id: "show-project",
+        action: {
+          type: "click",
+          intent: "show matching project",
+          target: "#find",
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        },
+        verification: {
+          type: "dom",
+          description: "project result is visible",
+          params: { text: "Project result ready" },
+        },
+      },
+      {
+        id: "fill-update",
+        action: {
+          type: "fill",
+          intent: "enter the daily update",
+          target: "#daily-update",
+          value: `daily-update-${fixture.variant}`,
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        },
+        verification: {
+          type: "dom",
+          description: "daily update field remains available",
+          params: { selector: "#daily-update" },
+        },
+      },
+      {
+        id: "save-draft",
+        action: {
+          type: "click",
+          intent: "save the daily update draft",
+          target: "#save-draft",
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        },
+        verification: {
+          type: "dom",
+          description: "draft save confirmation is visible",
+          params: { text: "Draft saved" },
+        },
+      },
+    ],
+  };
+  const approvals = Object.fromEntries(
+    plan.steps
+      .filter((step) => step.action.type === "click")
+      .map((step) => [
+        step.id,
+        createActionApproval(step.action, "benchmark-user"),
+      ]),
+  );
+  const result = await executeBrowserPlan(
+    plan,
+    new PlaywrightDirectExecutor(page, {
+      taskId: fixture.id,
+      traceFilePath,
+    }),
+    new VerifierEngine({ page }),
+    { approvals, requireActivationApproval: true },
+  );
+  return {
+    success: result.status === "completed",
+    evidence: result.completedSteps.flatMap((step) => [
+      ...step.execution.evidence,
+      ...step.verification.evidence,
+    ]),
+    traces: [],
+    ...(result.status === "failed" ? { error: result.error } : {}),
+  };
+}
+
+function structuredActionCount(fixture: BenchmarkFixture): number {
+  return fixture.skill === "browser_plan" ? 4 : 1;
 }

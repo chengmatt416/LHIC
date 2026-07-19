@@ -17,7 +17,7 @@ RUN npm ci \
 
 RUN groupadd --system lhic \
     && useradd --system --gid lhic --create-home lhic \
-    && mkdir -p /var/lib/lhic/traces \
+    && install -d -m 0700 -o lhic -g lhic /var/lib/lhic/traces \
     && chown -R lhic:lhic /app /ms-playwright /var/lib/lhic
 
 USER lhic

@@ -29,6 +29,8 @@ export interface PythonTrainingRequest {
   frameHeight?: number;
   frameHistory?: number;
   epochs?: number;
+  seed?: number;
+  validationSplit?: number;
   modelType?: string | undefined;
 }
 
@@ -37,7 +39,12 @@ export interface PythonTrainingResult {
   weightsFile?: string;
   weightsSha256?: string;
   behaviorCloningLoss: number;
-  ppoReward: number;
+  datasetReward: number;
+  validationLoss: number;
+  validationActionAccuracy: number;
+  datasetSha256: string;
+  trainingSampleCount: number;
+  validationSampleCount: number;
   sampleCount: number;
 }
 
@@ -165,7 +172,11 @@ export async function runPythonPrediction(
 
 export async function startPythonPolicySession(
   python: string,
-  request: { core: GameCoreId; weightsFile: string; modelType?: string | undefined },
+  request: {
+    core: GameCoreId;
+    weightsFile: string;
+    modelType?: string | undefined;
+  },
 ): Promise<PythonPolicySession> {
   const child = spawn(python, [gameTrainingWorkerPath(), "--serve"], {
     stdio: ["pipe", "pipe", "pipe"],

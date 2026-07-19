@@ -207,24 +207,28 @@ describe("PlaywrightDirectExecutor", () => {
         }),
       ).resolves.toMatchObject({ success: true });
       await expect(
+        executor.execute({
+          type: "download",
+          intent: "download report",
+          target: "#download",
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: expect.stringContaining("Downloads write a file"),
+      });
+      const downloadAction = {
+        type: "download" as const,
+        intent: "download report",
+        target: "#download",
+        methodPreference: ["dom" as const],
+        riskLevel: "low" as const,
+      };
+      await expect(
         executor.execute(
-          {
-            type: "download",
-            intent: "download report",
-            target: "#download",
-            methodPreference: ["dom"],
-            riskLevel: "low",
-          },
-          createActionApproval(
-            {
-              type: "download",
-              intent: "download report",
-              target: "#download",
-              methodPreference: ["dom"],
-              riskLevel: "low",
-            },
-            "operator@example.test",
-          ),
+          downloadAction,
+          createActionApproval(downloadAction, "operator@example.test"),
         ),
       ).resolves.toMatchObject({
         success: true,
@@ -238,6 +242,114 @@ describe("PlaywrightDirectExecutor", () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+
+  it("redacts every action value through the production executor", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<input id="note">');
+    const directory = await mkdtemp(join(tmpdir(), "lhic-production-trace-"));
+    const traceFilePath = join(directory, "events.jsonl");
+    const arbitraryValue = "blue-orchid-landing-zone";
+
+    try {
+      const executor = createProductionExecutor(
+        page,
+        parseRuntimeConfig({ LHIC_TRACE_DIRECTORY: directory }),
+        { taskId: "production-trace", traceFilePath },
+      );
+
+      expect(
+        await executor.execute({
+          type: "fill",
+          intent: "fill a private note",
+          target: "#note",
+          value: arbitraryValue,
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        }),
+      ).toMatchObject({ success: true });
+
+      const trace = await readFile(traceFilePath, "utf8");
+      expect(trace).not.toContain(arbitraryValue);
+      expect(trace).toContain("[REDACTED]");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("redacts action values by default for direct executor callers", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<input id="note">');
+    const directory = await mkdtemp(join(tmpdir(), "lhic-default-trace-"));
+    const traceFilePath = join(directory, "events.jsonl");
+    const arbitraryValue = "violet-summit-checkpoint";
+
+    try {
+      const executor = new PlaywrightDirectExecutor(page, {
+        taskId: "default-trace",
+        traceFilePath,
+      });
+
+      expect(
+        await executor.execute({
+          type: "fill",
+          intent: "fill a private note",
+          target: "#note",
+          value: arbitraryValue,
+          methodPreference: ["dom"],
+          riskLevel: "low",
+        }),
+      ).toMatchObject({ success: true });
+
+      const trace = await readFile(traceFilePath, "utf8");
+      expect(trace).not.toContain(arbitraryValue);
+      expect(trace).toContain("[REDACTED]");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("requires approval before an untargeted key press can activate focus", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent(`
+      <form><input id="command"><button>Continue</button></form>
+      <p id="result"></p>
+      <script>document.querySelector('form').addEventListener('submit', (event) => { event.preventDefault(); document.querySelector('#result').textContent = 'submitted'; });</script>
+    `);
+    await page.locator("#command").focus();
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "untargeted-press",
+      traceFilePath: join(
+        tmpdir(),
+        `lhic-untargeted-press-${Date.now()}.jsonl`,
+      ),
+    });
+    const action = {
+      type: "press" as const,
+      intent: "continue the current step",
+      value: "Enter",
+      methodPreference: ["keyboard" as const],
+      riskLevel: "low" as const,
+    };
+
+    expect(await executor.execute(action)).toMatchObject({
+      success: false,
+      error: expect.stringContaining("Untargeted key presses"),
+    });
+    expect(await page.locator("#result").textContent()).toBe("");
+    expect(
+      await executor.execute(
+        action,
+        createActionApproval(action, "operator@example.test"),
+      ),
+    ).toMatchObject({ success: true, method: "keyboard" });
+    expect(await page.locator("#result").textContent()).toBe("submitted");
   });
 
   it("redacts a failed action value from Playwright error trace data", async () => {
@@ -387,6 +499,73 @@ describe("PlaywrightDirectExecutor", () => {
     });
   });
 
+  it("rejects HTTP(S) targets that resolve to private or unavailable addresses", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    const action = {
+      type: "navigate" as const,
+      intent: "open public dashboard",
+      target: "https://public.example.test/dashboard",
+      methodPreference: ["api" as const],
+      riskLevel: "low" as const,
+    };
+    const privateAddressExecutor = new PlaywrightDirectExecutor(page, {
+      taskId: "private-dns-policy",
+      traceFilePath: join(tmpdir(), `lhic-private-dns-${Date.now()}.jsonl`),
+      navigationPolicy: { allowedOrigins: ["https://public.example.test"] },
+      resolveHostname: async () => ["127.0.0.1"],
+    });
+    const unavailableAddressExecutor = new PlaywrightDirectExecutor(page, {
+      taskId: "unavailable-dns-policy",
+      traceFilePath: join(tmpdir(), `lhic-unavailable-dns-${Date.now()}.jsonl`),
+      navigationPolicy: { allowedOrigins: ["https://public.example.test"] },
+      resolveHostname: async () => {
+        throw new Error("DNS lookup failed");
+      },
+    });
+
+    expect(await privateAddressExecutor.execute(action)).toMatchObject({
+      success: false,
+      error: expect.stringContaining("resolves to a private-network"),
+    });
+    expect(await unavailableAddressExecutor.execute(action)).toMatchObject({
+      success: false,
+      error: expect.stringContaining("could not be resolved"),
+    });
+  });
+
+  it("blocks redirects to a hostname that resolves to a private address", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    const redirectTarget = "https://redirect.example.test/private";
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "redirect-dns-policy",
+      traceFilePath: join(tmpdir(), `lhic-redirect-dns-${Date.now()}.jsonl`),
+      navigationPolicy: {
+        allowedProtocols: ["data:", "https:"],
+      },
+      resolveHostname: async (hostname) =>
+        hostname === "redirect.example.test"
+          ? ["127.0.0.1"]
+          : ["93.184.216.34"],
+    });
+
+    expect(
+      await executor.execute({
+        type: "navigate",
+        intent: "open redirected dashboard",
+        target: `data:text/html,${encodeURIComponent(`<script>location.href = ${JSON.stringify(redirectTarget)}</script>`)}`,
+        methodPreference: ["api"],
+        riskLevel: "low",
+      }),
+    ).toMatchObject({
+      success: false,
+      error: expect.stringContaining("resolves to a private-network"),
+    });
+  });
+
   it("does not trust a client-provided low-risk label for a destructive click target", async () => {
     const browser = await chromium.launch({ headless: true });
     browsers.push(browser);
@@ -513,8 +692,23 @@ describe("PlaywrightDirectExecutor", () => {
       error: expect.stringContaining("signature"),
     });
     expect(
+      await executor.execute(
+        action,
+        signActionApproval({ ...approval, approvalId: "" }, privateKey),
+      ),
+    ).toMatchObject({
+      success: false,
+      error: expect.stringContaining("approval identifier"),
+    });
+    expect(
       await executor.execute(action, signActionApproval(approval, privateKey)),
     ).toMatchObject({ success: true, method: "dom" });
+    expect(
+      await executor.execute(action, signActionApproval(approval, privateKey)),
+    ).toMatchObject({
+      success: false,
+      error: expect.stringContaining("already been used"),
+    });
   });
 
   it("fails fast when attempting to click a disabled button", async () => {

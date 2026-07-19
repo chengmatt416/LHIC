@@ -24,6 +24,11 @@ class WorkerCoreSmokeTest(unittest.TestCase):
         self.assertEqual(worker.movement_label(["KeyW", "KeyS"]), 0)
         self.assertEqual(worker.aim_label(0.5), 4)
 
+    def test_training_uses_a_chronological_holdout_split(self) -> None:
+        self.assertEqual(worker.training_split_counts(16, 0.2), (13, 3))
+        with self.assertRaises(ValueError):
+            worker.training_split_counts(16, 0.05)
+
     def test_desktop_region_rejects_unbounded_coordinates(self) -> None:
         with self.assertRaises(ValueError):
             worker.desktop_region(

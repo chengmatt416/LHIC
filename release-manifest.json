@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "lhic-release-manifest-v1",
+  "artifacts": [
+    {
+      "name": "@pinyencheng/lhic",
+      "packagePath": "apps/cli/package.json",
+      "version": "0.1.2",
+      "status": "release-candidate"
+    },
+    {
+      "name": "lhic",
+      "packagePath": "apps/lhic/package.json",
+      "version": "0.1.2",
+      "status": "release-candidate"
+    },
+    {
+      "name": "@lhic/desktop",
+      "packagePath": "apps/desktop/package.json",
+      "version": "0.1.4",
+      "status": "development-build"
+    }
+  ]
+}

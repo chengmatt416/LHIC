@@ -970,6 +970,7 @@ async function recordMcpPlanCandidate(
       initialState,
       plan,
       result.result.completedSteps,
+      { source: "mcp_batch", environment: "production" },
     );
     return {
       status: "recorded",

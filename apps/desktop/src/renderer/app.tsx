@@ -581,19 +581,11 @@ function Skills({
             />
             Show the training browser window
           </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={trainingInput.promote === true}
-              onChange={(event) => {
-                setTrainingInput({
-                  ...trainingInput,
-                  promote: event.target.checked,
-                });
-              }}
-            />
-            Immediately promote candidate to Fast Path (habit)
-          </label>
+          <p className="hint">
+            Training records a candidate only. Fast Path promotion requires
+            three independently verified executions and a separate offline
+            holdout on an unseen UI fingerprint.
+          </p>
         </div>
         <div className="actions">
           <button

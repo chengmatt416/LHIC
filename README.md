@@ -27,7 +27,7 @@ model or MCP server.
 
 ## 📁 Package Monorepo Structure
 
-- `packages/schema`: Core Zod schemas and validation types.
+- `packages/schema`: Core TypeScript schemas and validation types.
 - `packages/browser`: Playwright CDP wrappers, Screencast, and BrowserPool.
 - `packages/verifier`: Dynamic DOM, URL, and file download verification.
 - `packages/trace`: Redacted JSONL event logs and OTel APM export.
@@ -35,7 +35,12 @@ model or MCP server.
 - `packages/security`: KMS key managers, PII redaction, and database encryption.
 - `packages/skills`: Fault-tolerant browser skills and the native global-desktop executor.
 - `packages/controller`: Decision routing, confidence scorer, and Slow Path interface.
+- `packages/shared-skills`: Reviewed-skill cache, registry sync, and publication outbox.
+- `packages/game-training`: Local dataset, policy-artifact, and game-control contracts.
+- `packages/game-training-2d` / `packages/game-training-3d`: Core-specific control bounds.
 - `apps/cli`: LHIC CLI command entrypoint (`lhic`).
+- `apps/lhic`: Compatibility entrypoint for `npx lhic`.
+- `apps/desktop`: Electron Control Center.
 - `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint and HTTP API Control Plane.
 
 ## 🛠️ CLI Commands & Usage
@@ -80,6 +85,9 @@ file, trace, repository, screenshot, or demo recording.
 
 See the [0.1.2 release notes](docs/release-notes-0.1.2.md) for the exact
 release-candidate evidence and the remaining publication gates.
+The CLI and Desktop release independently; see the machine-checked
+[release status](docs/release-status.md) before using a version as release
+evidence.
 
 ### npm CLI and desktop installation (after the current release is verified)
 
@@ -97,8 +105,9 @@ your zsh/bash interactive shell configuration. Restart the terminal before using
 Windows, npm's global bin directory is used; ensure the normal npm global bin
 path is available after restarting the terminal.
 
-The public `lhic` compatibility package is published after the scoped package,
-so the following always runs the same full CLI without a global install:
+The public `lhic` compatibility package is not published yet. After the scoped
+CLI and compatibility package both pass their registry smoke tests, it will run
+the same full CLI without a global install:
 
 ```bash
 npx lhic preflight
@@ -183,6 +192,22 @@ Run action with human approval:
 ```bash
 npx @pinyencheng/lhic run action <action-file> [approval-file]
 ```
+
+Run a complete, locally verified browser recipe with declared variables:
+
+```bash
+npx @pinyencheng/lhic run plan <plan-file>
+```
+
+A `browser-plan-v1` recipe contains a goal and a verifier for every browser
+step. In an interactive development or test terminal, LHIC prompts locally for
+any declared variables and asks for confirmation before each click, key press,
+download, or elevated-risk step. It executes entirely through the model-free
+Fast Path and returns execution plus verifier evidence for every completed
+step. Scripts can instead provide `[approvals-file] --var name=value`; production
+requires matching externally signed approvals keyed by plan step ID. See the
+[quick-start guide](docs/quickstart.md) for the plan contract and invocation
+details.
 
 For desktop actions, run `npx @pinyencheng/lhic global doctor` first and use an action file
 with `scope: "os"`, a native method preference, and a required `verifier`.

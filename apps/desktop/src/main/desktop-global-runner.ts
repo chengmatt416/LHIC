@@ -6,6 +6,7 @@ import {
   type GlobalComputerAction,
 } from "@lhic/schema";
 import { GlobalComputerExecutor } from "@lhic/skills";
+import { parseRuntimeConfig } from "@lhic/security";
 
 import type { TaskApproval, TaskProposalSummary } from "../shared/contracts.js";
 
@@ -65,14 +66,23 @@ export class DesktopGlobalRunner {
     const session = this.require(commandId);
     const step = session.plan.steps[session.nextStepIndex];
     if (!step) throw new Error("This desktop task has no pending action.");
+    const runtimeConfig = parseRuntimeConfig({
+      ...process.env,
+      LHIC_TRACE_DIRECTORY: resolve(this.workspaceRoot, ".lhic/traces"),
+    });
 
     const executor = new GlobalComputerExecutor({
       taskId: commandId,
       traceFilePath: resolve(
-        this.workspaceRoot,
-        ".lhic/traces",
+        runtimeConfig.traceDirectory,
         `${commandId}.jsonl`,
       ),
+      approvalValidation: {
+        requireSignature: runtimeConfig.environment === "production",
+        ...(runtimeConfig.approvalPublicKey
+          ? { publicKey: runtimeConfig.approvalPublicKey }
+          : {}),
+      },
     });
     const execution = await executor.execute(step.action, approval);
     if (!execution.success) {

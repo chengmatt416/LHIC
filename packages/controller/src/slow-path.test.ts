@@ -21,6 +21,7 @@ const request = {
   },
   uiState: {
     surface: "browser" as const,
+    url: "https://docs.example.test/search",
     objects: [],
     signals: {},
     capturedAt: "2026-07-15T00:00:00.000Z",
@@ -153,6 +154,75 @@ describe("Slow Path interfaces", () => {
     }
   });
 
+  it("stores declared constraint values as stable candidate parameters", async () => {
+    const database = createMemoryDatabase();
+    try {
+      const coordinator = new SlowPathLearningCoordinator(
+        new SkillStore(database),
+      );
+      const executor = {
+        execute: async () => ({
+          execution: {
+            success: true,
+            method: "accessibility" as const,
+            latencyMs: 1,
+            evidence: ["filled"],
+          },
+          verification: { success: true, evidence: ["retained"] },
+        }),
+      };
+      const run = async (taskId: string, query: string) =>
+        coordinator.execute(
+          {
+            ...request,
+            taskId,
+            userIntent: {
+              ...request.userIntent,
+              constraints: { operation: "search", query },
+            },
+          },
+          {
+            decision: "propose_plan",
+            message: "Search.",
+            proposedActions: [
+              {
+                type: "fill",
+                intent: "fill search query",
+                target: "Search",
+                value: query,
+                methodPreference: ["accessibility"],
+                riskLevel: "low",
+              },
+            ],
+          },
+          executor,
+        );
+
+      const first = await run("parameterized-1", "notebooks");
+      const second = await run("parameterized-2", "databases");
+
+      expect(second.candidateSkill).toMatchObject({
+        name: first.candidateSkill?.name,
+        verifiedRunCount: 2,
+        definition: {
+          constraints: {
+            operation: "search",
+            query: "{{constraints.query}}",
+          },
+          actions: [{ value: "{{constraints.query}}" }],
+        },
+      });
+      expect(JSON.stringify(second.candidateSkill?.definition)).not.toContain(
+        "notebooks",
+      );
+      expect(JSON.stringify(second.candidateSkill?.definition)).not.toContain(
+        "databases",
+      );
+    } finally {
+      database.close();
+    }
+  });
+
   it("publishes a sanitized shared skill only after candidate promotion", async () => {
     const database = createMemoryDatabase();
     try {
@@ -207,6 +277,9 @@ describe("Slow Path interfaces", () => {
         candidateName,
         environment: "local_fixture",
         targetUrl: "http://127.0.0.1:4173/fixture",
+        evaluationId: "candidate-holdout-1",
+        uiFingerprint: "f".repeat(64),
+        verifierVersion: "lhic-verifier-v1",
         verify: async () => ({ success: true, evidence: ["holdout verified"] }),
       });
       await coordinator.promoteCandidate(request, candidateName);

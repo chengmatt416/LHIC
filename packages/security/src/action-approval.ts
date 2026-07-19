@@ -5,6 +5,9 @@ import { hashState } from "@lhic/trace";
 
 import { evaluateRisk, type RiskDecision } from "./risk-policy.js";
 
+const maximumApprovalLifetimeMs = 5 * 60 * 1_000;
+const maximumApprovalClockSkewMs = 30_000;
+
 export interface ActionApproval {
   approvalId: string;
   actionHash: string;
@@ -36,8 +39,12 @@ export function createActionApproval(
   if (!approvedBy.trim()) {
     throw new Error("Action approvals require an approver identifier.");
   }
-  if (!Number.isFinite(expiresInMs) || expiresInMs <= 0) {
-    throw new Error("Action approval expiry must be a positive duration.");
+  if (
+    !Number.isSafeInteger(expiresInMs) ||
+    expiresInMs < 1 ||
+    expiresInMs > maximumApprovalLifetimeMs
+  ) {
+    throw new Error("Action approvals may last from 1ms through five minutes.");
   }
 
   return {
@@ -83,6 +90,20 @@ export function validateActionApproval(
       reason: `${confirmationReason} No action approval was supplied.`,
     };
   }
+  if (!approval.approvalId.trim()) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval is missing an approval identifier.",
+    };
+  }
+  if (!approval.approvedBy.trim()) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval is missing an approver identifier.",
+    };
+  }
   if (approval.actionHash !== hashState(action)) {
     return {
       allowed: false,
@@ -90,13 +111,34 @@ export function validateActionApproval(
       reason: "Action approval does not match the requested action.",
     };
   }
-  const approvedAt = Date.parse(approval.approvedAt);
-  const expiresAt = Date.parse(approval.expiresAt);
-  if (!Number.isFinite(approvedAt) || !Number.isFinite(expiresAt)) {
+  const approvedAt = parseApprovalTimestamp(approval.approvedAt);
+  const expiresAt = parseApprovalTimestamp(approval.expiresAt);
+  if (approvedAt === undefined || expiresAt === undefined) {
     return {
       allowed: false,
       requiresConfirmation: true,
       reason: "Action approval contains invalid timestamps.",
+    };
+  }
+  if (approvedAt > now.getTime() + maximumApprovalClockSkewMs) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval is not valid yet.",
+    };
+  }
+  if (expiresAt <= approvedAt) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval expiry must be after its approval time.",
+    };
+  }
+  if (expiresAt - approvedAt > maximumApprovalLifetimeMs) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval lifetime exceeds five minutes.",
     };
   }
   if (expiresAt <= now.getTime()) {
@@ -170,4 +212,12 @@ function isValidSignature(
   } catch {
     return false;
   }
+}
+
+function parseApprovalTimestamp(value: string): number | undefined {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    return undefined;
+  }
+  return new Date(timestamp).toISOString() === value ? timestamp : undefined;
 }

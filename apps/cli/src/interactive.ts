@@ -10,7 +10,7 @@ export interface CliPrompter {
 }
 
 export const cliUsage =
-  "Usage: lhic [install <cli|desktop> | start [memory-database] | demo [--safe] [--viewable] [--endpoint <URL>] | gui [demo|mcp] [--no-open] | shared <enable|login|disable|status|sync|list> [options] | train public-web <wikipedia-search|mdn-search|github-issue-filter|openstreetmap-place-search> --query <safe-public-query> [--database <path>] [--viewable] | train game env <setup|doctor> [--root <path>] [--python <path>] | train game <2d|3d> <setup|lease|record|fit|evaluate|play> <star-trooper|nemesis> [options] | preflight | global doctor | run action <action-file> [approval-file] | bench internal [--output <path>] | bench simulate resilience [task-count] [seed] | bench readiness <workarena|webarena> | bench validate-evidence <file> | mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | trace inspect <trace-file>]";
+  "Usage: lhic [install <cli|desktop> | start [memory-database] | demo [--safe] [--viewable] [--endpoint <URL>] | gui [demo|mcp] [--no-open] | shared <enable|login|disable|status|sync|list> [options] | train public-web <wikipedia-search|mdn-search|github-issue-filter|openstreetmap-place-search> --query <safe-public-query> [--database <path>] [--viewable] | train game env <setup|doctor> [--root <path>] [--python <path>] | train game <2d|3d> <setup|lease|record|fit|evaluate|play> <star-trooper|nemesis> [options] | preflight | global doctor | run action <action-file> [approval-file] | run plan <plan-file> [approvals-file] [--var name=value] | bench internal [--output <path>] | bench simulate resilience [task-count] [seed] | bench readiness <workarena|webarena> | bench validate-evidence <file> | mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | trace inspect <trace-file>]";
 
 export function createTerminalPrompter(): CliPrompter {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -149,6 +149,7 @@ async function chooseRootCommand(prompter: CliPrompter): Promise<string[]> {
     "preflight",
     "global doctor",
     "run action",
+    "run plan",
     "shared",
     "train",
     "bench",
@@ -260,8 +261,13 @@ async function guideRunCommand(
 ): Promise<string[]> {
   const guided = [...argumentsList];
   guided[1] ??= "action";
-  if (guided[1] === "action" && !guided[2]) {
-    guided[2] = await askRequired(prompter, "Path to action JSON file");
+  if (!guided[2] && (guided[1] === "action" || guided[1] === "plan")) {
+    guided[2] = await askRequired(
+      prompter,
+      guided[1] === "plan"
+        ? "Path to browser plan JSON file"
+        : "Path to action JSON file",
+    );
   }
   return guided;
 }

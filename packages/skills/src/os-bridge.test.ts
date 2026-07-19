@@ -67,11 +67,17 @@ describe("GlobalComputerExecutor", () => {
         "Verified active application against the requested verifier.",
       ],
     });
-    expect(runner.commands[0]).toEqual({
+    const expectedText = action.text;
+    if (!expectedText) throw new Error("Test action must include text.");
+    const inputCommand = runner.commands.find((command) =>
+      command.args.includes(expectedText),
+    );
+    expect(inputCommand).toEqual({
       file: "osascript",
-      args: expect.arrayContaining([action.text]),
+      args: expect.arrayContaining([expectedText]),
     });
-    expect(runner.commands[0]?.args[1]).not.toContain(action.text);
+    expect(inputCommand?.args[1]).not.toContain(action.text);
+    expect(runner.commands).toHaveLength(3);
   });
 
   it("does not dispatch an unapproved global action", async () => {
@@ -83,6 +89,53 @@ describe("GlobalComputerExecutor", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("approval");
     expect(runner.commands).toEqual([]);
+  });
+
+  it("fails closed when keyboard input does not name an active target window", async () => {
+    const action: GlobalComputerAction = {
+      ...typeAction(),
+      verifier: { type: "process_running", application: "TextEdit" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("active-window verifier"),
+    });
+    expect(runner.commands).toEqual([]);
+  });
+
+  it("does not dispatch coordinate input when the active window changes", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "click the approved editor coordinate",
+      methodPreference: ["mouse"],
+      riskLevel: "high",
+      x: 100,
+      y: 100,
+      verifier: { type: "active_window", application: "Terminal" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("Active application did not match"),
+    });
+    expect(runner.commands).toHaveLength(1);
+    expect(runner.commands[0]).toMatchObject({ file: "osascript" });
   });
 
   it("verifies a launched Linux application is running", async () => {

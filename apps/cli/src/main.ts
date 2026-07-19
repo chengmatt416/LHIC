@@ -28,6 +28,11 @@ import {
 } from "./mcp-harness-config.js";
 import { runPreflight } from "./preflight.js";
 import { runActionFile } from "./run-action.js";
+import {
+  parseBrowserPlanRunArguments,
+  runBrowserPlanInteractively,
+  runBrowserPlanFile,
+} from "./run-plan.js";
 import { runSelectorResilienceSimulation } from "./selector-resilience-simulation.js";
 import { runSharedCommand } from "./shared-skills.js";
 import { startLocalRuntime } from "./start.js";
@@ -177,6 +182,23 @@ async function runCommand(
     const result = await runActionFile(argument, approvalFilePath);
     console.log(JSON.stringify(result, null, 2));
     if (!result.success) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (command === "run" && subcommand === "plan" && argument) {
+    const result = await (prompter.interactive
+      ? runBrowserPlanInteractively(
+          argument,
+          prompter,
+          parseBrowserPlanRunArguments(argumentsList.slice(3)),
+        )
+      : runBrowserPlanFile(
+          argument,
+          parseBrowserPlanRunArguments(argumentsList.slice(3)),
+        ));
+    console.log(JSON.stringify(result, null, 2));
+    if (result.status !== "completed") {
       process.exitCode = 1;
     }
     return;

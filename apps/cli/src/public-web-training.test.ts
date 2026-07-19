@@ -41,5 +41,13 @@ describe("public web training command options", () => {
         "--unknown",
       ]),
     ).toThrow("Unknown public-web training option");
+    expect(() =>
+      parsePublicWebTrainingOptions([
+        "mdn-search",
+        "--query",
+        "CSS grid",
+        "--promote",
+      ]),
+    ).toThrow("was removed");
   });
 });

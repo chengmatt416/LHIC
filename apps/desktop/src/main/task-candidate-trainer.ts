@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 
 import { createMemoryDatabase, SkillStore } from "@lhic/memory";
 import type { BrowserExecutionPlan } from "@lhic/schema";
+import { hashState, redactPII } from "@lhic/trace";
 
 /**
  * Records only a verified, local Slow Path browser plan as a candidate. A
@@ -34,6 +35,24 @@ export async function recordTaskCandidate(
         evidence: ["Local browser verifier completed every planned step."],
       },
       taskId,
+      {
+        source: "slow_path",
+        environment: "production",
+        origin: planOrigin(plan),
+        uiFingerprint: hashState(
+          redactPII(
+            plan.steps.map((step) => ({
+              type: step.action.type,
+              target: step.action.target,
+              verification: step.verification,
+            })),
+          ),
+        ),
+        traceSha256: hashState(
+          redactPII({ taskId, plan, verifier: "desktop-browser-runner-v1" }),
+        ),
+        verifierVersion: "desktop-browser-runner-v1",
+      },
     );
     return {
       name: candidate.name,
@@ -42,6 +61,18 @@ export async function recordTaskCandidate(
   } finally {
     database.close();
   }
+}
+
+function planOrigin(plan: BrowserExecutionPlan): string {
+  for (const step of plan.steps) {
+    if (step.action.type !== "navigate" || !step.action.target) continue;
+    try {
+      return new URL(step.action.target).origin;
+    } catch {
+      // Continue searching for another explicit navigation target.
+    }
+  }
+  return "https://unknown.invalid";
 }
 
 function candidateName(plan: BrowserExecutionPlan): string {

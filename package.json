@@ -40,8 +40,9 @@
     "package:published-alias-smoke": "node scripts/published-alias-smoke.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
+    "check:release-versions": "node scripts/check-release-versions.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run scan:secrets"
+    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"
   },
   "dependencies": {
     "playwright": "^1.61.1"

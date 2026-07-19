@@ -61,7 +61,7 @@ describe("structured demo model providers", () => {
       let requestBody: Record<string, unknown> | undefined;
       const providerClient = createDemoModelProvider({
         provider,
-        apiKey: "sk-test-not-a-real-secret",
+        apiKey: "test-openai-key",
         model: "test-model",
         fetchImplementation: async (_url, init) => {
           requestBody = JSON.parse(String(init?.body)) as Record<
@@ -93,7 +93,7 @@ describe("structured demo model providers", () => {
     let requestUrl: string | undefined;
     const providerClient = createDemoModelProvider({
       provider: "openai",
-      apiKey: "sk-test-not-a-real-secret",
+      apiKey: "test-openai-key",
       model: "test-model",
       endpoint: "https://models.example.test/v1/responses",
       fetchImplementation: async (url) => {

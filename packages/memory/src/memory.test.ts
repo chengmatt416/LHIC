@@ -77,24 +77,28 @@ describe("SQLite skill memory", () => {
       { value: "secret@example.com" },
       evidence,
       "task-1",
+      candidateRun("task-1", "a"),
     );
     store.recordCandidateSuccess(
       "candidate-search",
       { value: "secret@example.com" },
       evidence,
       "task-1",
+      candidateRun("task-1", "a"),
     );
     store.recordCandidateSuccess(
       "candidate-search",
       { value: "secret@example.com" },
       evidence,
       "task-2",
+      candidateRun("task-2", "b"),
     );
     store.recordCandidateSuccess(
       "candidate-search",
       { value: "secret@example.com" },
       evidence,
       "task-3",
+      candidateRun("task-3", "c"),
     );
 
     expect(store.getCandidate("candidate-search")).toMatchObject({
@@ -105,7 +109,16 @@ describe("SQLite skill memory", () => {
     });
     expect(store.promoteCandidate("candidate-search")).toBeUndefined();
 
-    store.recordCandidateHoldout("candidate-search", evidence);
+    const candidate = store.getCandidate("candidate-search");
+    store.recordCandidateHoldout("candidate-search", evidence, {
+      evaluator: "offline-evaluation-v1",
+      environment: "local_fixture",
+      evaluationId: "holdout-search-1",
+      origin: "http://localhost:4173",
+      uiFingerprint: "f".repeat(64),
+      verifierVersion: "lhic-verifier-v1",
+      candidateDefinitionSha256: candidate!.definitionSha256,
+    });
     expect(store.promoteCandidate("candidate-search")).toMatchObject({
       lifecycle: "habit",
       successCount: 3,
@@ -113,6 +126,46 @@ describe("SQLite skill memory", () => {
     expect(store.getCandidate("candidate-search")).toMatchObject({
       promoted: true,
     });
+  });
+
+  it("rejects promotion evidence that reuses a training UI fingerprint", () => {
+    const database = createMemoryDatabase();
+    databases.push(database);
+    const store = new SkillStore(database);
+    const evidence = { success: true, evidence: ["verified"] };
+    for (const [index, trace] of ["a", "b", "c"].entries()) {
+      store.recordCandidateSuccess(
+        "candidate-ui",
+        { source: "verified" },
+        evidence,
+        `task-${index}`,
+        candidateRun(`task-${index}`, trace),
+      );
+    }
+    const candidate = store.getCandidate("candidate-ui")!;
+    expect(() =>
+      store.recordCandidateHoldout("candidate-ui", evidence, {
+        evaluator: "offline-evaluation-v1",
+        environment: "local_fixture",
+        evaluationId: "task-0",
+        origin: "http://localhost:4173",
+        uiFingerprint: "f".repeat(64),
+        verifierVersion: "lhic-verifier-v1",
+        candidateDefinitionSha256: candidate.definitionSha256,
+      }),
+    ).toThrow("separate evaluation identifier");
+    expect(() =>
+      store.recordCandidateHoldout("candidate-ui", evidence, {
+        evaluator: "offline-evaluation-v1",
+        environment: "local_fixture",
+        evaluationId: "holdout-ui-1",
+        origin: "http://localhost:4173",
+        uiFingerprint: "a".repeat(64),
+        verifierVersion: "lhic-verifier-v1",
+        candidateDefinitionSha256: candidate.definitionSha256,
+      }),
+    ).toThrow("UI fingerprint");
+    expect(store.promoteCandidate("candidate-ui")).toBeUndefined();
   });
 
   it("lists skills by lifecycle and verified success count without exposing SQL rows", () => {
@@ -203,3 +256,14 @@ describe("SQLite skill memory", () => {
     });
   });
 });
+
+function candidateRun(taskId: string, traceCharacter: string) {
+  return {
+    source: "slow_path" as const,
+    environment: "production" as const,
+    origin: "https://docs.example.test",
+    uiFingerprint: "a".repeat(64),
+    traceSha256: traceCharacter.repeat(64),
+    verifierVersion: `lhic-verifier-v1-${taskId}`,
+  };
+}

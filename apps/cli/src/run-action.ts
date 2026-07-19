@@ -27,25 +27,22 @@ export async function runActionFile(
     ? await readActionApproval(approvalFilePath)
     : undefined;
   const taskId = basename(actionFilePath).replace(/\.[^.]+$/, "");
+  const config = parseRuntimeConfig(environment);
 
   if (isGlobalComputerAction(action)) {
     const executor = new GlobalComputerExecutor({
       taskId,
-      traceFilePath: join(
-        environment.LHIC_TRACE_DIRECTORY ?? "traces",
-        `${taskId}.jsonl`,
-      ),
+      traceFilePath: join(config.traceDirectory, `${taskId}.jsonl`),
       approvalValidation: {
-        requireSignature: environment.LHIC_ENV === "production",
-        ...(environment.LHIC_APPROVAL_PUBLIC_KEY
-          ? { publicKey: environment.LHIC_APPROVAL_PUBLIC_KEY }
+        requireSignature: config.environment === "production",
+        ...(config.approvalPublicKey
+          ? { publicKey: config.approvalPublicKey }
           : {}),
       },
     });
     return executor.execute(action, approval);
   }
 
-  const config = parseRuntimeConfig(environment);
   const browser = await chromium.launch({ headless: true });
 
   try {

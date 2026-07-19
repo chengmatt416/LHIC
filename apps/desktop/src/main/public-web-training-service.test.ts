@@ -79,16 +79,15 @@ describe("PublicWebTrainingService", () => {
     expect(service.status(job.id).status).toBe("cancelled");
   });
 
-  it("preserves promote flag in validation", () => {
+  it("never accepts an immediate Fast Path promotion request", () => {
     const validated = validatePublicWebTrainingRequest({
       scenarioId: "mdn-search",
       query: "browser automation",
-      promote: true,
     });
     expect(validated).toMatchObject({
       scenarioId: "mdn-search",
       query: "browser automation",
-      promote: true,
     });
+    expect(validated).not.toHaveProperty("promote");
   });
 });

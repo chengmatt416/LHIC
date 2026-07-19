@@ -25,6 +25,7 @@ jobs:
       - run: npm run pw:install
       - run: npm run ci
       - run: PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests
+      - run: python packages/game-training/python/test_worker.py
       - run: python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
 
   package-smoke:
@@ -45,3 +46,25 @@ jobs:
       - run: npm run package:smoke
       - run: npm run package:alias-smoke
       - run: npm run desktop:package
+
+  container-preflight:
+    name: Container production preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate an ephemeral approval public key
+        run: |
+          node -e 'const { generateKeyPairSync } = require("node:crypto"); const { writeFileSync } = require("node:fs"); const { publicKey } = generateKeyPairSync("ed25519"); writeFileSync(process.argv[1], publicKey.export({ format: "pem", type: "spki" }), { mode: 0o400 });' "$RUNNER_TEMP/lhic-approval-public.pem"
+          echo "LHIC_APPROVAL_PUBLIC_KEY_HOST_FILE=$RUNNER_TEMP/lhic-approval-public.pem" >> "$GITHUB_ENV"
+      - name: Build and run the production Compose preflight
+        env:
+          LHIC_ALLOWED_ORIGINS: https://app.example.com
+        run: >-
+          docker compose -f docker-compose.security.yml up --build
+          --abort-on-container-exit --exit-code-from lhic-agent
+      - name: Remove test containers and trace data
+        if: always()
+        env:
+          LHIC_ALLOWED_ORIGINS: https://app.example.com
+        run: docker compose -f docker-compose.security.yml down --volumes --remove-orphans
