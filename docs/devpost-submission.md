@@ -54,7 +54,7 @@ or verifier requirements.
 
 - A working credential-free local Judge Demo with verifier evidence and a
   destructive-action approval gate.
-- A 50-fixture internal regression benchmark that emits raw results without
+- A 60-fixture internal regression benchmark that emits raw results without
   overwriting an existing artifact.
 - A package smoke path that packs the CLI, installs it in a fresh directory,
   installs Chromium, and runs the demo. GitHub Actions is configured to run

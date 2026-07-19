@@ -7,6 +7,10 @@
     "rootDir": "./src",
     "outDir": "./dist"
   },
-  "references": [{ "path": "../schema" }, { "path": "../trace" }],
+  "references": [
+    { "path": "../schema" },
+    { "path": "../security" },
+    { "path": "../trace" }
+  ],
   "include": ["src/**/*.ts"]
 }

@@ -18,7 +18,8 @@
     "dev:desktop": "npm run build && electron .",
     "start": "electron .",
     "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs",
-    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs"
+    "release:checksums": "node ../../scripts/generate-sha256-manifest.mjs release",
+    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums"
   },
   "dependencies": {
     "@pinyencheng/lhic": "^0.1.2",

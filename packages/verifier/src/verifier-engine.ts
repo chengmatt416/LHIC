@@ -1,5 +1,9 @@
 import type { ConsoleNetworkObserver } from "@lhic/browser";
-import type { VerificationCondition, VerificationResult } from "@lhic/schema";
+import {
+  isVerificationCondition,
+  type VerificationCondition,
+  type VerificationResult,
+} from "@lhic/schema";
 import type { Page } from "playwright";
 
 import { verifyDom, type DOMVerificationParams } from "./dom-verifier.js";
@@ -21,6 +25,13 @@ export class VerifierEngine {
   public async verify(
     condition: VerificationCondition,
   ): Promise<VerificationResult> {
+    if (!isVerificationCondition(condition)) {
+      return {
+        success: false,
+        evidence: [],
+        error: "Verification condition does not satisfy the verifier contract.",
+      };
+    }
     switch (condition.type) {
       case "dom":
         return this.context.page

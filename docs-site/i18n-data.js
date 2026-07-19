@@ -73,7 +73,7 @@ const i18nPage = {
       },
       {
         title: "Slow Path Planner",
-        desc: "呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。",
+        desc: "透過 provider-agnostic Slow Path 介面（可選 GPT-5.6 或其他 adapter）進行步驟拆解與例外修復。",
       },
       {
         title: "@lhic/trace & @lhic/security",
@@ -198,16 +198,16 @@ const i18nPage = {
     ],
     tutoCodesProd: [
       "# 驗證生產環境配置與預檢\nnpx @pinyencheng/lhic preflight",
-      "# 建立容器並以生產配置預檢\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
-      "# 傳入動作檔與人類簽章檔案進行嚴格驗簽執行\nnpx @pinyencheng/lhic run action action.json signature.sig",
+      "# 建立容器並以生產配置預檢\ndocker build -t lhic-prod .\ndocker run --rm -it -e LHIC_ALLOWED_ORIGINS=https://app.example.com lhic-prod preflight",
+      "# 傳入動作檔與人類授權檔案進行嚴格驗簽執行\nnpx @pinyencheng/lhic run action action.json approval.json",
     ],
     benchTag: "Performance & Testing",
     benchTitle: "基準測試與抗變性驗證",
     benchSubtitle:
       "LHIC 通過嚴密的本地回歸指標套件，確保程式碼修改不影響系統的高可靠性與安全性。",
-    benchCard1Title: "本地回歸測試套件 (50 Fixtures)",
+    benchCard1Title: "本地回歸測試套件 (60 Fixtures)",
     benchCard1Desc:
-      "由 <code>fill_form</code>, <code>download_file</code>, <code>login</code>, <code>search</code>, <code>test_web_flow</code> 各 10 組本地網頁所組成的回歸煙霧測試 (Smoke Suite)。下面為系統設定的硬性驗收門檻：",
+      "由 <code>browser_plan</code>、<code>fill_form</code>、<code>download_file</code>、<code>login</code>、<code>search</code>、<code>test_web_flow</code> 各 10 組本地網頁所組成的回歸煙霧測試 (Smoke Suite)。下面為系統設定的硬性驗收門檻：",
     benchGauges: [
       "任務成功率門檻",
       "Fast Path 路由比例",
@@ -356,7 +356,7 @@ const i18nPage = {
       },
       {
         title: "Slow Path Planner",
-        desc: "Invokes LLM agent planner (e.g., Claude) for step decomposition and recovery.",
+        desc: "Uses an optional provider-agnostic LLM planner for step decomposition and recovery.",
       },
       {
         title: "@lhic/trace & @lhic/security",
@@ -469,7 +469,7 @@ const i18nPage = {
     tutoStepsProd: [
       {
         title: "Hardened Dockerfile Setup",
-        desc: "Use multi-stage production Docker configurations for sandbox isolation.",
+        desc: "Use the checked-in production Docker image with an unprivileged runtime and a read-only Compose deployment.",
       },
       {
         title: "Run Non-root Preflight",
@@ -482,16 +482,16 @@ const i18nPage = {
     ],
     tutoCodesProd: [
       "# Run production environment preflight checks\nnpx @pinyencheng/lhic preflight",
-      "# Build container and run checks under production isolation\ndocker build -t lhic-prod -f apps/cli/Dockerfile .\ndocker run --rm -it lhic-prod lhic run preflight --strict",
-      "# Execute with strict Ed25519 cryptographic signature verification\nnpx @pinyencheng/lhic run action action.json signature.sig",
+      "# Build the checked-in container and run its CLI entrypoint\ndocker build -t lhic-prod .\ndocker run --rm -it -e LHIC_ALLOWED_ORIGINS=https://app.example.com lhic-prod preflight",
+      "# Execute with strict Ed25519 cryptographic approval verification\nnpx @pinyencheng/lhic run action action.json approval.json",
     ],
     benchTag: "Performance & Testing",
     benchTitle: "Benchmarks & Validation",
     benchSubtitle:
       "LHIC uses local regression metrics to catch changes in supported workflows; they are not market or SOTA measurements.",
-    benchCard1Title: "Regression Suite (50 Fixtures)",
+    benchCard1Title: "Regression Suite (60 Fixtures)",
     benchCard1Desc:
-      "Composed of local test runs (10 variants each). The following targets define core acceptance criteria:",
+      "Composed of six local workflows with 10 variants each. The following targets define core acceptance criteria:",
     benchGauges: [
       "Task Success Rate Limit",
       "Fast Path Ratio",
@@ -568,7 +568,7 @@ const i18nPage = {
 const packageDataZH = {
   schema: {
     title: "@lhic/schema",
-    desc: "專案最基礎的核心型別與資料綱要定義。使用 Zod 做靜態型別與執行階段校驗，涵蓋 Intent、UIState、SemanticAction、VerifierConditions 與 TraceEvent 等核心實體型別。",
+    desc: "專案最基礎的核心型別與資料綱要定義。使用 TypeScript 型別與明確的執行階段 guard，涵蓋 Intent、UIState、SemanticAction、VerifierConditions 與 TraceEvent。",
     features: [
       "保證整個 Monorepo 中各套件與應用程式通訊資料格式的一致性。",
       "定義明確的置信度閥值 (Confidence Level) 與風險權重 (Risk Weight)。",
@@ -580,7 +580,7 @@ const packageDataZH = {
     desc: "提供 Playwright SDK 與 Chrome DevTools Protocol (CDP) 的底層調用封裝。內建高階瀏覽器實例池與 CDP 畫面影格串流機制，防個資洩漏且支援旁聽控制。",
     features: [
       "瀏覽器實例池 (BrowserPool)：支援預熱、狀態回收清理、以及防個資洩漏機制。",
-      "影格即時旁聽 (Screencast)：基於 CDP startScreencast 實現即時 VNC 畫面廣播。",
+      "影格即時旁聽 (Screencast)：基於 CDP startScreencast 提供 JPEG 影格串流；它不是完整的 VNC 或遠端輸入服務。",
       "隱身模式 (Stealth) 與代理輪替 (Proxy Rotation) 機制，防爬蟲特徵識別與防封鎖。",
     ],
   },
@@ -598,7 +598,7 @@ const packageDataZH = {
     desc: "安全事件追踪與日誌持久化模組。所有任務執行的每一步操作細節與驗證數據均會寫入 Trace 檔案中。支援敏感 PII 全自動遮蔽，且包含 APM 及日誌自動清理功能。",
     features: [
       "自動日誌與截圖過期清理 (Log Pruning)，定期釋放磁碟空間防止硬碟爆滿。",
-      "OpenTelemetry (OTLP) 整合：支援導出標準 Trace 格式 Spans 至集中 APM 監控大盤。",
+      "Trace 工具：提供 PII 遮蔽、JSONL 事件記錄、可選的 OTLP exporter 與手動保留期清理工具。",
       "為每組 trace 生成獨立 SHA-256 狀態雜湊值，防止操作紀錄被篡改。",
     ],
   },
@@ -634,7 +634,7 @@ const packageDataZH = {
     desc: "整個 LHIC 的大腦路由器。接收 Intent 並分類網頁 UI 狀態，決定是將任務派發給零成本的 Fast Path，抑或是將任務轉派給 Slow Path LLM Planner / 請求人類介入審查。",
     features: [
       "信賴閥值控管：唯有 UI 預測置信度高於 0.8 且低風險時，才走本地 Fast Path。",
-      "內建 Claude 等 Slow Path 代理介面封裝 (預設關閉，確保 Fast Path 零大模型連線)。",
+      "提供 provider-agnostic Slow Path 介面（含選配 GPT-5.6 provider）；預設關閉，確保 Fast Path 零大模型連線。",
       "動態編譯語意 JSON 到本地執行代碼。",
     ],
   },
@@ -642,7 +642,7 @@ const packageDataZH = {
     title: "apps/cli",
     desc: "LHIC 的終端 Command Line 介面 (`lhic`)。為開發者與運維人員提供執行 Action 任務、預檢環境、檢查 Trace 安全性以及跑本地 Benchmark 的進入點。",
     features: [
-      "安全預檢功能：`lhic run preflight` 確保主機環境變數與容器環境符合生產規格。",
+      "安全預檢功能：`lhic preflight` 確保主機環境變數與容器環境符合生產規格。",
       "加固 Preflight：新增 Non-root 執行與網絡 DNS 完整性/劫持防護預檢。",
       "提供快速的本地回歸基準測試觸發入口 `lhic bench`。",
     ],
@@ -661,7 +661,7 @@ const packageDataZH = {
 const packageDataEN = {
   schema: {
     title: "@lhic/schema",
-    desc: "The absolute foundation defining core types and data schemas. Utilizes Zod for static and runtime validation, covering Intent, UIState, SemanticAction, VerifierConditions, and TraceEvent.",
+    desc: "The foundation for core types and data schemas, using TypeScript types and explicit runtime guards for Intent, UIState, SemanticAction, verifier conditions, and trace events.",
     features: [
       "Ensures data schema consistency across all packages and apps in the monorepo.",
       "Defines explicit confidence thresholds and risk weights.",
@@ -673,7 +673,7 @@ const packageDataEN = {
     desc: "Wraps Playwright and Chrome DevTools Protocol (CDP). Features browser instance pooling and CDP screencast screen-sharing to prevent leakage and allow manual override.",
     features: [
       "BrowserPool: Supports warm instances, isolated contexts, and cookie/session state cleanup.",
-      "CDP Screencast: Emits real-time screen frames as JPEG stream for remote manual intervention.",
+      "CDP Screencast: Emits JPEG frames over a CDP session; it is not a complete VNC or remote-input service.",
       "Stealth & Proxy Rotation: Bypasses anti-scrape browser fingerprinting and rotates proxies per context.",
     ],
   },
@@ -688,11 +688,11 @@ const packageDataEN = {
   },
   trace: {
     title: "@lhic/trace",
-    desc: "Event tracking and logging module. Records every semantic action details and redacted JSONL files. Features dynamic cleanup and OTel exporting.",
+    desc: "Event tracking and logging module. Records redacted JSONL events and provides optional OTLP export and explicit pruning utilities.",
     features: [
-      "Log Pruning: Automatically purges historical traces and screenshots older than 30 days.",
-      "OpenTelemetry Export: Maps local tracing events to OTLP JSON spans for Grafana/Elasticsearch.",
-      "State Hash: Generates SHA-256 state hashes to prevent trace manipulation.",
+      "Log Pruning: Offers an explicit pruning utility; retention scheduling must be configured by the deployment.",
+      "OpenTelemetry Export: Provides an optional OTLP exporter rather than an always-on monitoring service.",
+      "Redacted events: Removes sensitive action values before trace persistence.",
     ],
   },
   memory: {
@@ -727,7 +727,7 @@ const packageDataEN = {
     desc: "The router brain. Receives user intents and routes them to either the zero-cost Fast Path or Slow Path planner.",
     features: [
       "Confidence check: Only executes Fast Path if predicted UI confidence >= 0.8.",
-      "Slow Path fallbacks: Standard adapters for Claude 3.5 and other agent frameworks.",
+      "Slow Path fallback: Provider-agnostic adapters, including the optional GPT-5.6 integration.",
       "Semantic Action compiler: Compiles natural language input into JSON actions.",
     ],
   },
@@ -742,7 +742,7 @@ const packageDataEN = {
   },
   "mcp-server": {
     title: "apps/mcp-server",
-    desc: "Model Context Protocol (MCP) server stdio entrypoint. Exposes LHIC capabilities as tools for external agents, featuring an HTTP Control Plane Gateway.",
+    desc: "Model Context Protocol (MCP) stdio entrypoint. Exposes LHIC browser capabilities as tools for external agents; an HTTP control-plane utility exists separately and is not started by the stdio entrypoint.",
     features: [
       "Control Plane: Light-weight API Gateway with JWT authorization and IP-based rate limiting.",
       "Strict stdio: Complies with JSON-RPC over stdio.",

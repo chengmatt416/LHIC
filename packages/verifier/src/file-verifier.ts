@@ -1,10 +1,11 @@
-import { stat } from "node:fs/promises";
-import { extname } from "node:path";
+import { realpath, stat } from "node:fs/promises";
+import { extname, isAbsolute, relative, sep } from "node:path";
 
 import type { VerificationResult } from "@lhic/schema";
 
 export interface FileVerificationParams {
   filePath?: string;
+  allowedRoot?: string;
   extension?: string;
   minSize?: number;
 }
@@ -12,24 +13,49 @@ export interface FileVerificationParams {
 export async function verifyFile(
   params: FileVerificationParams,
 ): Promise<VerificationResult> {
-  if (!params.filePath) {
+  if (!params.filePath || !params.allowedRoot) {
     return {
       success: false,
       evidence: [],
-      error: "File verification requires filePath.",
+      error: "File verification requires filePath and allowedRoot.",
     };
   }
   try {
-    const fileStats = await stat(params.filePath);
+    const [resolvedFilePath, resolvedRoot] = await Promise.all([
+      resolveRealPath(params.filePath),
+      resolveRealPath(params.allowedRoot),
+    ]);
+    const relativePath = relative(resolvedRoot, resolvedFilePath);
+    if (
+      !relativePath ||
+      relativePath === ".." ||
+      relativePath.startsWith(`..${sep}`) ||
+      isAbsolute(relativePath)
+    ) {
+      return {
+        success: false,
+        evidence: [],
+        error: "File verification target is outside the allowed root.",
+      };
+    }
+
+    const fileStats = await stat(resolvedFilePath);
+    if (!fileStats.isFile()) {
+      return {
+        success: false,
+        evidence: [],
+        error: "File verification target is not a regular file.",
+      };
+    }
     const evidence = [
-      `File exists: ${params.filePath}`,
+      `File exists within allowed root: ${relativePath}`,
       `size=${fileStats.size}`,
     ];
     if (params.extension) {
       const expected = params.extension.startsWith(".")
         ? params.extension
         : `.${params.extension}`;
-      if (extname(params.filePath).toLowerCase() !== expected.toLowerCase()) {
+      if (extname(resolvedFilePath).toLowerCase() !== expected.toLowerCase()) {
         return {
           success: false,
           evidence,
@@ -53,4 +79,8 @@ export async function verifyFile(
         error instanceof Error ? error.message : "File verification failed.",
     };
   }
+}
+
+async function resolveRealPath(path: string): Promise<string> {
+  return realpath(path);
 }

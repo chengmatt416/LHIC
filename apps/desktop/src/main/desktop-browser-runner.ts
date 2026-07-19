@@ -123,6 +123,7 @@ export class DesktopBrowserRunner {
         verification.error ?? "The post-action verifier produced no evidence.",
       );
     }
+    session.executor.rememberVerifiedAction(step.action, verification);
     session.evidence.push(...execution.evidence, ...verification.evidence);
     session.nextStepIndex += 1;
     return this.run(commandId);
@@ -165,6 +166,7 @@ export class DesktopBrowserRunner {
             "The post-action verifier produced no evidence.",
         );
       }
+      session.executor.rememberVerifiedAction(step.action, verification);
       session.evidence.push(...execution.evidence, ...verification.evidence);
       session.nextStepIndex += 1;
     }

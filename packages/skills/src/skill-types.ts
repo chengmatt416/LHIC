@@ -1,15 +1,22 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 
-import type { RiskLevel, TraceEvent } from "@lhic/schema";
+import type {
+  RiskLevel,
+  TraceEvent,
+  VerificationCondition,
+  VerificationResult,
+} from "@lhic/schema";
 import { appendTraceEvent, redactPII } from "@lhic/trace";
 import type { Page } from "playwright";
 
-import type { VerifierEngine } from "@lhic/verifier";
+export interface SkillVerifier {
+  verify(condition: VerificationCondition): Promise<VerificationResult>;
+}
 
 export interface SkillContext {
   page: Page;
-  verifier: VerifierEngine;
+  verifier: SkillVerifier;
   taskId?: string;
   traceFilePath?: string;
 }
@@ -29,6 +36,20 @@ export interface SkillTrace {
     payload: Record<string, unknown>,
     riskLevel?: RiskLevel,
   ): Promise<void>;
+}
+
+/**
+ * Records a structured browser action without copying target values or other
+ * potentially sensitive input into the trace payload.
+ */
+export async function emitStructuredAction(
+  trace: SkillTrace,
+  actionType: string,
+): Promise<void> {
+  await trace.emit("action_completed", {
+    actionType,
+    result: { method: "dom" },
+  });
 }
 
 export function createSkillTrace(context: SkillContext): SkillTrace {

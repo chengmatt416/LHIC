@@ -308,6 +308,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
     const { executor, verifier } = await this.ensureStartedSession();
     const result = await executeBrowserPlan(plan, executor, verifier, {
       requireActivationApproval: true,
+      approvalScope: this.planTaskId,
     });
     return this.completePlanResult(plan, result);
   }
@@ -328,6 +329,7 @@ export class PlaywrightComputerUseSession implements ComputerUseSession {
       startAt: nextStepIndex,
       approvals: { [step.id]: approval },
       requireActivationApproval: true,
+      ...(this.planTaskId ? { approvalScope: this.planTaskId } : {}),
     });
     return this.completePlanResult(plan, result, completedSteps);
   }
@@ -1124,6 +1126,7 @@ function isActionApproval(value: unknown): value is ActionApproval {
     typeof approval.approvalId === "string" &&
     typeof approval.actionHash === "string" &&
     typeof approval.approvedBy === "string" &&
+    (approval.scope === undefined || typeof approval.scope === "string") &&
     typeof approval.approvedAt === "string" &&
     typeof approval.expiresAt === "string" &&
     (approval.signature === undefined || typeof approval.signature === "string")

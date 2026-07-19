@@ -9,7 +9,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm ci \
+RUN npm ci --include=dev \
     && npm run build \
     && npx playwright install --with-deps chromium \
     && npm prune --omit=dev \

@@ -123,7 +123,9 @@ describe("runBrowserPlanFile", () => {
         if (!step) throw new Error(`Fixture step ${stepId} is missing.`);
         return [
           stepId,
-          createActionApproval(step.action, "daily-workflow-reviewer"),
+          createActionApproval(step.action, "daily-workflow-reviewer", {
+            scope: "daily-workflow",
+          }),
         ];
       }),
     );

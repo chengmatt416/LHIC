@@ -2,6 +2,7 @@ import type { Locator } from "playwright";
 
 import {
   createSkillTrace,
+  emitStructuredAction,
   skillFailure,
   type SkillContext,
   type SkillResult,
@@ -41,15 +42,18 @@ export async function search(
       return skillFailure(trace, "A search field could not be located.");
     }
     await field.fill(input.query);
+    await emitStructuredAction(trace, "fill");
     const button = await firstMatch([
       context.page.getByRole("button", { name: /search|find/i }),
       context.page.locator('button[type="submit"], input[type="submit"]'),
     ]);
     if (button) {
       await button.click();
+      await emitStructuredAction(trace, "click");
       await trace.emit("search_submitted", { method: "button" });
     } else {
       await field.press("Enter");
+      await emitStructuredAction(trace, "press");
       await trace.emit("search_submitted", { method: "keyboard" });
     }
 

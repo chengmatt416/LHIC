@@ -1,0 +1,10 @@
+# Default review ownership for the repository.
+* @chengmatt416
+
+# Security-sensitive boundaries require explicit maintainer review.
+/packages/security/ @chengmatt416
+/packages/browser/ @chengmatt416
+/packages/verifier/ @chengmatt416
+/apps/mcp-server/ @chengmatt416
+/Dockerfile @chengmatt416
+/.github/ @chengmatt416

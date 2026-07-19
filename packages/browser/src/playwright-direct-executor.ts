@@ -8,6 +8,7 @@ import type {
   ActionMethod,
   BrowserSemanticAction,
   TraceEvent,
+  VerificationResult,
 } from "@lhic/schema";
 import {
   FileApprovalReplayStore,
@@ -18,7 +19,7 @@ import {
   type ActionApprovalValidationOptions,
   type ProductionRuntimeConfig,
 } from "@lhic/security";
-import { appendTraceEvent } from "@lhic/trace";
+import { appendTraceEvent, hashState } from "@lhic/trace";
 import type { Page } from "playwright";
 
 import { resolveTarget, type ResolvedTarget } from "./target-resolver.js";
@@ -74,6 +75,7 @@ export interface NavigationPolicy {
 export interface ProductionExecutorOptions {
   taskId?: string;
   traceFilePath?: string;
+  approvalReplayStore?: ApprovalReplayStore;
   selectorMemory?: PlaywrightDirectExecutorOptions["selectorMemory"];
   resolveHostname?: HostnameResolver;
 }
@@ -98,6 +100,8 @@ export class PlaywrightDirectExecutor {
   private readonly resolveHostname: HostnameResolver;
   private readonly navigationPolicyReady: Promise<unknown>;
   private blockedNavigation: Error | undefined;
+  private lastResolvedTarget:
+    { actionHash: string; memory: ResolvedTarget["memory"] } | undefined;
 
   public constructor(
     private readonly page: Page,
@@ -125,23 +129,35 @@ export class PlaywrightDirectExecutor {
     this.resolveHostname =
       options.resolveHostname ?? resolveHostnameToAddresses;
     this.page.setDefaultTimeout(this.actionTimeoutMs);
-    this.navigationPolicyReady = this.page.route("**/*", async (route) => {
-      if (!route.request().isNavigationRequest()) {
-        await route.fallback();
-        return;
-      }
+    this.navigationPolicyReady = this.page
+      .route("**/*", async (route) => {
+        try {
+          if (!route.request().isNavigationRequest()) {
+            await route.fallback();
+            return;
+          }
 
-      try {
-        await this.validateNavigationTarget(route.request().url());
-        await route.fallback();
-      } catch (error) {
-        this.blockedNavigation =
-          error instanceof Error
-            ? error
-            : new Error("Navigation policy rejected the request.");
-        await route.abort("blockedbyclient");
-      }
-    });
+          try {
+            await this.validateNavigationTarget(route.request().url());
+            await route.fallback();
+          } catch (error) {
+            if (this.page.isClosed()) return;
+            this.blockedNavigation =
+              error instanceof Error
+                ? error
+                : new Error("Navigation policy rejected the request.");
+            await route.abort("blockedbyclient").catch(() => {
+              // The browser may close while a navigation is being rejected.
+            });
+          }
+        } catch {
+          // Playwright can reject a pending route callback during page teardown.
+        }
+      })
+      .catch((error: unknown) => {
+        if (this.page.isClosed()) return;
+        throw error;
+      });
   }
 
   private async waitForStability(): Promise<void> {
@@ -181,6 +197,12 @@ export class PlaywrightDirectExecutor {
       await this.waitForStability();
 
       const resolvedActionTarget = await this.resolveActionTarget(action);
+      this.lastResolvedTarget = resolvedActionTarget
+        ? {
+            actionHash: hashState(action),
+            memory: resolvedActionTarget.memory,
+          }
+        : undefined;
       if (action.type === "click" && resolvedActionTarget?.href) {
         await this.validateNavigationTarget(
           new URL(resolvedActionTarget.href, this.page.url()).toString(),
@@ -228,32 +250,6 @@ export class PlaywrightDirectExecutor {
         throw this.blockedNavigation;
       }
 
-      // Store only the target strategy that produced a successful local action.
-      if (
-        action.target &&
-        resolvedActionTarget &&
-        this.selectorMemory?.remember
-      ) {
-        try {
-          this.selectorMemory.remember(
-            {
-              skillName: action.type,
-              target: action.target,
-              selector: resolvedActionTarget.memory.selector,
-              ...(resolvedActionTarget.memory.role
-                ? { role: resolvedActionTarget.memory.role }
-                : {}),
-              ...(resolvedActionTarget.memory.label
-                ? { label: resolvedActionTarget.memory.label }
-                : {}),
-            },
-            { success: true, evidence: outcome.evidence },
-          );
-        } catch {
-          // ignore memory errors in runtime
-        }
-      }
-
       const result: ActionExecutionResult = {
         success: true,
         method: outcome.method,
@@ -273,7 +269,44 @@ export class PlaywrightDirectExecutor {
             : "Unknown Playwright execution error.",
       };
       await this.trace("action_failed", { action, result }, action.riskLevel);
+      this.lastResolvedTarget = undefined;
       return result;
+    }
+  }
+
+  /**
+   * Persists a selector only after a caller has verified the postcondition for
+   * the exact action that produced the resolved target.
+   */
+  public rememberVerifiedAction(
+    action: BrowserSemanticAction,
+    verification: VerificationResult,
+  ): boolean {
+    const resolved = this.lastResolvedTarget;
+    this.lastResolvedTarget = undefined;
+    if (
+      !action.target ||
+      !resolved ||
+      resolved.actionHash !== hashState(action) ||
+      !verification.success ||
+      verification.evidence.length === 0 ||
+      !this.selectorMemory?.remember
+    ) {
+      return false;
+    }
+    try {
+      return this.selectorMemory.remember(
+        {
+          skillName: action.type,
+          target: action.target,
+          selector: resolved.memory.selector,
+          ...(resolved.memory.role ? { role: resolved.memory.role } : {}),
+          ...(resolved.memory.label ? { label: resolved.memory.label } : {}),
+        },
+        verification,
+      );
+    } catch {
+      return false;
     }
   }
 
@@ -613,13 +646,11 @@ export function createProductionExecutor(
         : {}),
       allowPrivateNetwork: config.allowPrivateNetwork,
     },
-    ...(config.environment === "production"
-      ? {
-          approvalReplayStore: new FileApprovalReplayStore(
-            join(dirname(traceFilePath), "approval-replay"),
-          ),
-        }
-      : {}),
+    approvalReplayStore:
+      options.approvalReplayStore ??
+      new FileApprovalReplayStore(
+        join(dirname(traceFilePath), "approval-replay"),
+      ),
     ...(options.selectorMemory
       ? { selectorMemory: options.selectorMemory }
       : {}),

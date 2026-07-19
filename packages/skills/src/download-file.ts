@@ -8,6 +8,7 @@ import {
 
 import {
   createSkillTrace,
+  emitStructuredAction,
   skillFailure,
   type SkillContext,
   type SkillResult,
@@ -62,11 +63,13 @@ export async function downloadFile(
     const download = await waitForDownload(context.page, input.trigger, {
       ...(input.downloadDir ? { downloadDir: input.downloadDir } : {}),
     });
+    await emitStructuredAction(trace, "download");
     const verification = await context.verifier.verify({
       type: "file",
       description: "Downloaded file exists with expected size and extension.",
       params: {
         filePath: download.filePath,
+        allowedRoot: input.downloadDir ?? "downloads",
         ...(input.expectedExtension
           ? { extension: input.expectedExtension }
           : {}),

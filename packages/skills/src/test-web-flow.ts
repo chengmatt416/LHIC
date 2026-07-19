@@ -192,6 +192,7 @@ export async function testWebFlow(
         );
       }
       evidence.push(...verification.evidence);
+      executor.rememberVerifiedAction(action, verification);
     }
 
     // Save current step progress to the durable store

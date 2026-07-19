@@ -4,7 +4,7 @@
 
 The product has a differentiated architecture for deterministic browser workflows: direct Playwright execution, verifier evidence, redacted traces, local skill memory, and executor-level approval enforcement. This is a product hypothesis, **not** a market SOTA claim.
 
-The internal 50-fixture score measures regression resistance only. It is intentionally excluded from external performance comparisons.
+The internal 60-fixture score measures regression resistance only. It is intentionally excluded from external performance comparisons.
 
 The controlled selector-resilience simulation reports a large improvement over a deliberately limited fixed-selector ablation. It is a useful engineering signal, not an external-agent score; see [market research and benchmark strategy](market-research.md).
 

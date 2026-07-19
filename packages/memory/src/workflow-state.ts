@@ -1,5 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 
+import { decryptText, encryptText } from "@lhic/security";
+
 export interface WorkflowState {
   taskId: string;
   workflowName: string;
@@ -11,8 +13,23 @@ export interface WorkflowState {
   updatedAt: string;
 }
 
+export interface DurableWorkflowStoreOptions {
+  encryptionSecret: string;
+}
+
 export class DurableWorkflowStore {
-  public constructor(private readonly database: DatabaseSync) {
+  private readonly encryptionSecret: string;
+
+  public constructor(
+    private readonly database: DatabaseSync,
+    options: DurableWorkflowStoreOptions,
+  ) {
+    if (!options.encryptionSecret.trim()) {
+      throw new Error(
+        "Durable workflow storage requires an encryption secret.",
+      );
+    }
+    this.encryptionSecret = options.encryptionSecret;
     database.exec(`
       CREATE TABLE IF NOT EXISTS workflow_states (
         task_id TEXT PRIMARY KEY,
@@ -47,10 +64,10 @@ export class DurableWorkflowStore {
         state.taskId,
         state.workflowName,
         state.lastCompletedStep,
-        state.url,
-        state.cookiesJson,
-        state.localStorageJson,
-        state.sessionStorageJson,
+        encryptText(state.url, this.encryptionSecret),
+        encryptText(state.cookiesJson, this.encryptionSecret),
+        encryptText(state.localStorageJson, this.encryptionSecret),
+        encryptText(state.sessionStorageJson, this.encryptionSecret),
         now,
       );
   }
@@ -63,16 +80,29 @@ export class DurableWorkflowStore {
     if (!row) {
       return undefined;
     }
-    return {
-      taskId: row.task_id as string,
-      workflowName: row.workflow_name as string,
-      lastCompletedStep: row.last_completed_step as number,
-      url: row.url as string,
-      cookiesJson: row.cookies_json as string,
-      localStorageJson: row.local_storage_json as string,
-      sessionStorageJson: row.session_storage_json as string,
-      updatedAt: row.updated_at as string,
-    };
+    try {
+      return {
+        taskId: row.task_id as string,
+        workflowName: row.workflow_name as string,
+        lastCompletedStep: row.last_completed_step as number,
+        url: decryptText(row.url as string, this.encryptionSecret),
+        cookiesJson: decryptText(
+          row.cookies_json as string,
+          this.encryptionSecret,
+        ),
+        localStorageJson: decryptText(
+          row.local_storage_json as string,
+          this.encryptionSecret,
+        ),
+        sessionStorageJson: decryptText(
+          row.session_storage_json as string,
+          this.encryptionSecret,
+        ),
+        updatedAt: row.updated_at as string,
+      };
+    } catch {
+      throw new Error("Durable workflow state could not be decrypted.");
+    }
   }
 
   public delete(taskId: string): void {

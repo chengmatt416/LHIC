@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspaceDirectory = resolve(packageDirectory, "..", "..");
+for (const filename of ["LICENSE-MIT", "LICENSE-APACHE"]) {
+  await cp(
+    join(workspaceDirectory, filename),
+    join(packageDirectory, filename),
+  );
+}
 const bundledPackages = [
   "browser",
   "controller",

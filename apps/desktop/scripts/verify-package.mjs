@@ -23,7 +23,9 @@ if (archives.length === 0) {
 }
 
 for (const archive of archives) {
-  const entries = new Set(await listPackage(archive));
+  const entries = new Set(
+    (await listPackage(archive)).map(normalizeArchiveEntry),
+  );
   for (const required of [
     "/dist/main/main/main.js",
     "/dist/main/preload/preload.cjs",
@@ -92,6 +94,10 @@ function isCurrentPlatformArchive(archive) {
         ? `${sep}win-`
         : `${sep}linux-`;
   return archive.includes(marker);
+}
+
+function normalizeArchiveEntry(entry) {
+  return `/${entry.replaceAll("\\", "/").replace(/^\/+/, "")}`;
 }
 
 function isMacArchive(archive) {

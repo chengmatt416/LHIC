@@ -31,5 +31,8 @@ that those earlier components were created from scratch during the event.
 1. Create an immutable release tag after the final verification pass.
 2. Record the official Codex `/feedback` Session ID for the core development
    work; do not use a guessed or documentation-only session.
-3. Add the public demo video URL, Devpost draft URL, and release artifact hash.
-4. Preserve terminal output for the clean-room demo and benchmark runs.
+3. Run `npm run release:checksums` from the repository root (or the desktop
+   workspace) and
+   publish the generated `SHA256SUMS-<version>.txt` beside the installers.
+4. Add the public demo video URL, Devpost draft URL, and release artifact hash.
+5. Preserve terminal output for the clean-room demo and benchmark runs.

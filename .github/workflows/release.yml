@@ -1,0 +1,38 @@
+name: Release CLI
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npm run pw:install
+      - run: npm run ci
+      - name: Verify tag matches the scoped CLI version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync("apps/cli/package.json","utf8")); const tag=process.env.RELEASE_TAG.replace(/^v/,""); if (p.version !== tag) throw new Error(`Tag ${tag} does not match CLI ${p.version}`);'
+      - name: Publish scoped CLI with npm trusted publishing
+        run: npm publish --workspace @pinyencheng/lhic --access public --provenance
+      - name: Publish compatibility entry with npm trusted publishing
+        run: npm publish --workspace lhic --access public --provenance

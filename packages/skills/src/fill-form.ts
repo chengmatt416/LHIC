@@ -2,6 +2,7 @@ import type { Locator } from "playwright";
 
 import {
   createSkillTrace,
+  emitStructuredAction,
   escapeRegExp,
   skillFailure,
   type SkillContext,
@@ -105,6 +106,7 @@ export async function fillForm(
       } else {
         await field.fill(value);
       }
+      await emitStructuredAction(trace, "fill");
       const observedValue = await field.inputValue();
       if (observedValue !== value) {
         await trace.emit("fill_form_verification_failed", { field: key });

@@ -14,7 +14,7 @@ import platform
 import re
 import sys
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, distributions, version
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -220,7 +220,7 @@ def _positive_integer(value: str) -> int:
 
 
 def _utc_now() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 if __name__ == "__main__":

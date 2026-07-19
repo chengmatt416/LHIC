@@ -107,7 +107,12 @@ describe("VerifierEngine", () => {
       engine.verify({
         type: "file",
         description: "download",
-        params: { filePath, extension: ".txt", minSize: 1 },
+        params: {
+          filePath,
+          allowedRoot: tmpdir(),
+          extension: ".txt",
+          minSize: 1,
+        },
       }),
     ).resolves.toMatchObject({ success: true });
     await expect(

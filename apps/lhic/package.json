@@ -14,10 +14,15 @@
     "url": "git+https://github.com/chengmatt416/LHIC.git"
   },
   "type": "module",
+  "scripts": {
+    "prepack": "node ../../scripts/copy-package-licenses.mjs"
+  },
   "files": [
     "bin",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "bin": {
     "lhic": "bin/lhic.js"

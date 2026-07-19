@@ -2,6 +2,10 @@ node_modules/
 **/dist/
 **/*.tsbuildinfo
 .git/
+apps/desktop/release/
+.lhic/
+.wrangler/
+demo-output/
 .env
 .env.*
 traces/

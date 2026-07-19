@@ -182,15 +182,26 @@ describe("action approval", () => {
       {
         now,
         expiresInMs: 1_000,
+        scope: "task-123",
       },
     );
 
-    expect(validateActionApproval(highRiskAction, approval, now)).toMatchObject(
-      {
-        allowed: true,
-        approvalId: approval.approvalId,
-      },
-    );
+    expect(
+      validateActionApproval(highRiskAction, approval, now, {
+        expectedScope: "task-123",
+      }),
+    ).toMatchObject({
+      allowed: true,
+      approvalId: approval.approvalId,
+    });
+    expect(
+      validateActionApproval(highRiskAction, approval, now, {
+        expectedScope: "other-task",
+      }),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("execution scope"),
+    });
     expect(
       validateActionApproval(
         { ...highRiskAction, intent: "delete all accounts" },
@@ -210,6 +221,25 @@ describe("action approval", () => {
     ).toMatchObject({
       allowed: false,
       reason: expect.stringContaining("expired"),
+    });
+  });
+
+  it("does not accept the pending approval challenge as authorization", () => {
+    const now = new Date("2026-07-15T00:00:00.000Z");
+    const challenge = createActionApproval(
+      highRiskAction,
+      "pending-human-approval",
+      {
+        now,
+        expiresInMs: 1_000,
+      },
+    );
+
+    expect(
+      validateActionApproval(highRiskAction, challenge, now),
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("pending approval challenge"),
     });
   });
 

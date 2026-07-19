@@ -217,6 +217,10 @@ export class PublicWebTrainingService {
                 };
             return { execution, verification };
           },
+          rememberVerifiedAction: (action, verification) =>
+            isBrowserSemanticAction(action)
+              ? executor.rememberVerifiedAction(action, verification)
+              : false,
         },
         { source: "public_web", environment: "public_read_only" },
       );

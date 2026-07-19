@@ -1,3 +1,5 @@
+import { createServer, type Server } from "node:http";
+
 import { describe, expect, it, afterEach } from "vitest";
 import { BrowserPool } from "./browser-pool.js";
 
@@ -8,6 +10,71 @@ describe("BrowserPool", () => {
     if (pool) {
       await pool.close();
       pool = null;
+    }
+  });
+
+  it("clears cookies and browser storage before reusing a context", async () => {
+    pool = new BrowserPool({ warmInstances: 1, maxSize: 1 });
+    const server = createServer((_request, response) => {
+      response.setHeader("Content-Type", "text/html");
+      response.end("<title>pool isolation</title>");
+    });
+    await listen(server);
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Test server did not expose a TCP port.");
+    }
+    const url = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const first = await pool.acquirePage();
+      await first.page.goto(url);
+      await first.page.evaluate(async () => {
+        localStorage.setItem("local-secret", "should-not-leak");
+        sessionStorage.setItem("session-secret", "should-not-leak");
+        document.cookie = "cookie-secret=should-not-leak; Path=/";
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("pool-isolation", 1);
+          request.onupgradeneeded = () => {
+            request.result.createObjectStore("secrets");
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        await new Promise<void>((resolve, reject) => {
+          const request = database
+            .transaction("secrets", "readwrite")
+            .objectStore("secrets")
+            .put("should-not-leak", "token");
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+        database.close();
+      });
+      await pool.releasePage(first.context);
+
+      const second = await pool.acquirePage();
+      await second.page.goto(url);
+      const leaked = await second.page.evaluate(async () => {
+        const databaseNames = indexedDB.databases
+          ? (await indexedDB.databases()).map((database) => database.name)
+          : [];
+        return {
+          local: localStorage.getItem("local-secret"),
+          session: sessionStorage.getItem("session-secret"),
+          cookie: document.cookie,
+          databaseNames,
+        };
+      });
+      expect(leaked).toEqual({
+        local: null,
+        session: null,
+        cookie: "",
+        databaseNames: [],
+      });
+      await pool.releasePage(second.context);
+    } finally {
+      await closeServer(server);
     }
   });
 
@@ -59,3 +126,17 @@ describe("BrowserPool", () => {
     expect(isWebdriver).toBeUndefined();
   });
 });
+
+async function listen(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+}
+
+async function closeServer(server: Server): Promise<void> {
+  if (!server.listening) return;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}

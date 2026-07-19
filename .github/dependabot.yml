@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      development-tooling:
+        dependency-type: development
+      runtime-dependencies:
+        dependency-type: production
+  - package-ecosystem: docker
+    directory: "/benchmarks/agentlab"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

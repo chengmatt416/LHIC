@@ -14,7 +14,10 @@ of `browser_plan`, `fill_form`, `download_file`, `login`, `search`, and
 save workflow with post-action verifiers.
 `apps/cli/src/internal-benchmark.ts` runs them in headless Playwright Chromium.
 There is no external website, customer data, remote model call, or competitor
-comparison in this benchmark.
+comparison in this benchmark. Action and model/MCP counters come from the
+redacted JSONL trace, verifier counters wrap the real `VerifierEngine`, and
+false-positive checks inspect an independent fixture ground truth; report
+fields are not hardcoded to the expected Fast Path result.
 
 The selector-resilience simulation compares semantic targeting only with an
 intentionally limited fixed-selector ablation. It is an engineering signal, not

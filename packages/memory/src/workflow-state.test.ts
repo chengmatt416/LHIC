@@ -5,7 +5,9 @@ import { DurableWorkflowStore } from "./workflow-state.js";
 describe("DurableWorkflowStore", () => {
   it("saves, gets, and deletes active workflow states in SQLite database", () => {
     const db = new DatabaseSync(":memory:");
-    const store = new DurableWorkflowStore(db);
+    const store = new DurableWorkflowStore(db, {
+      encryptionSecret: "test-workflow-encryption-secret",
+    });
 
     const testState = {
       taskId: "task-123",
@@ -22,6 +24,14 @@ describe("DurableWorkflowStore", () => {
 
     // Save state
     store.save(testState);
+
+    const storedRow = db
+      .prepare(
+        "SELECT url, cookies_json FROM workflow_states WHERE task_id = ?",
+      )
+      .get("task-123") as { url: string; cookies_json: string };
+    expect(storedRow.url).not.toContain(testState.url);
+    expect(storedRow.cookies_json).not.toContain("xyz");
 
     // Retrieve state
     const retrieved = store.get("task-123");
@@ -41,5 +51,30 @@ describe("DurableWorkflowStore", () => {
     // Delete state
     store.delete("task-123");
     expect(store.get("task-123")).toBeUndefined();
+  });
+
+  it("fails closed when the encryption secret is missing or incorrect", () => {
+    const db = new DatabaseSync(":memory:");
+    expect(
+      () => new DurableWorkflowStore(db, { encryptionSecret: "" }),
+    ).toThrow("encryption secret");
+
+    const store = new DurableWorkflowStore(db, {
+      encryptionSecret: "correct-secret",
+    });
+    store.save({
+      taskId: "task-incorrect-secret",
+      workflowName: "test-flow",
+      lastCompletedStep: 1,
+      url: "https://example.com",
+      cookiesJson: "[]",
+      localStorageJson: "{}",
+      sessionStorageJson: "{}",
+    });
+    expect(() =>
+      new DurableWorkflowStore(db, {
+        encryptionSecret: "wrong-secret",
+      }).get("task-incorrect-secret"),
+    ).toThrow("could not be decrypted");
   });
 });

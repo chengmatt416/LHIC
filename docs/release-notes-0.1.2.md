@@ -28,6 +28,9 @@ Git tag, and GitHub Release all succeed.
   path. Public macOS release assets must pass `spctl` before upload.
 - Documents the safe Fast Path boundary, reproducibility procedure,
   benchmark scope, threat model, Judge Guide, and Devpost evidence gaps.
+- The desktop release command emits a deterministic SHA-256 manifest beside
+  installer artifacts; the CLI installer requires that manifest before it
+  writes a downloaded application to disk.
 
 ## Verified release-candidate evidence
 

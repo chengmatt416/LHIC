@@ -16,14 +16,14 @@ model or MCP server.
 - **Semantic Locator Resilience**: In the included 100-task, five-layout local ablation, verified semantic targeting succeeds on all fixtures while the intentionally limited static-selector baseline succeeds on 20%; this is an 80-percentage-point controlled result, not a general web benchmark.
 - **Security & KMS Controls**:
   - **KmsKeyManager**: Verifies Ed25519 approval keys from local configuration or explicitly configured GCP KMS / HashiCorp Vault. Missing, invalid, or unsupported resolvers fail closed; AWS requires a SigV4-authenticated resolver.
-  - **AES-256-GCM Encryption**: Secure software-based database-level static encryption for sensitive user cookies and sessions.
+  - **AES-256-GCM Encryption**: Secure software-based database-level static encryption for sensitive user cookies and sessions when the deployment supplies an encryption secret.
   - **PII & Credential Guard**: Automatically redacts credentials, passwords, and personally identifiable information from all system traces.
-- **Enterprise Concurrency & Durability**:
-  - **BrowserPool**: Thread-safe Chromium context pooling with pre-warming and state purification.
-  - **Account-level Locking**: Distributed SQL-based queue preventing overlapping executions on identical accounts.
-  - **Durable Workflows**: Resilient workflow execution with step recovery and state-saving.
-- **VNC Screencast Streaming**: CDP-based real-time JPEG screen frame broadcast at configurable frame rates (e.g., 10fps) for remote intervention.
-- **APM Observability**: OpenTelemetry (OTLP) exporting mapping tracking spans to central log systems.
+- **Concurrency & Durability Utilities**:
+  - **BrowserPool**: Chromium context pooling with pre-warming and state purification; callers own its lifecycle.
+  - **Account-level Locking**: A lease-based, encrypted SQLite queue that prevents overlapping executions when an explicit worker integrates it.
+  - **Durable Workflows**: Encrypted workflow state with step recovery; deployments must provide the storage secret and worker lifecycle.
+- **CDP Screencast Streaming**: Real-time JPEG frame broadcast at configurable frame rates; it provides frames, not a complete VNC or remote-input service.
+- **Optional Observability**: Redacted trace JSONL, explicit pruning, and an opt-in OpenTelemetry (OTLP) exporter.
 
 ## 📁 Package Monorepo Structure
 

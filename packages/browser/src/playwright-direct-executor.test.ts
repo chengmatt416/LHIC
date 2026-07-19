@@ -411,16 +411,22 @@ describe("PlaywrightDirectExecutor", () => {
       },
     });
 
+    const action = {
+      type: "fill" as const,
+      intent: "fill query",
+      target: 'input[name="search"]',
+      value: "local-only",
+      methodPreference: ["dom" as const],
+      riskLevel: "low" as const,
+    };
+    const execution = await executor.execute(action);
+    expect(execution).toMatchObject({ success: true, method: "dom" });
     expect(
-      await executor.execute({
-        type: "fill",
-        intent: "fill query",
-        target: 'input[name="search"]',
-        value: "local-only",
-        methodPreference: ["dom"],
-        riskLevel: "low",
+      executor.rememberVerifiedAction(action, {
+        success: true,
+        evidence: ["query retained"],
       }),
-    ).toMatchObject({ success: true, method: "dom" });
+    ).toBe(true);
     expect(remembered).toEqual([
       expect.objectContaining({
         skillName: "fill",
@@ -443,6 +449,43 @@ describe("PlaywrightDirectExecutor", () => {
       }),
     ).toMatchObject({ success: true, method: "dom" });
     expect(await page.locator("#query").inputValue()).toBe("healed-local-only");
+  });
+
+  it("does not learn a selector before a postcondition is verified", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<input id="query" aria-label="Query">');
+    const remembered: string[] = [];
+    const executor = new PlaywrightDirectExecutor(page, {
+      selectorMemory: {
+        find: () => [],
+        remember: (entry) => {
+          remembered.push(entry.selector);
+          return true;
+        },
+      },
+    });
+    const action = {
+      type: "fill" as const,
+      intent: "fill query",
+      target: "#query",
+      value: "safe value",
+      methodPreference: ["dom" as const],
+      riskLevel: "low" as const,
+    };
+    await expect(executor.execute(action)).resolves.toMatchObject({
+      success: true,
+    });
+    expect(remembered).toEqual([]);
+    expect(
+      executor.rememberVerifiedAction(action, {
+        success: false,
+        evidence: [],
+        error: "not verified",
+      }),
+    ).toBe(false);
+    expect(remembered).toEqual([]);
   });
 
   it("enforces approval and navigation policy at the executor boundary", async () => {
@@ -709,6 +752,41 @@ describe("PlaywrightDirectExecutor", () => {
       success: false,
       error: expect.stringContaining("already been used"),
     });
+  });
+
+  it("consumes approvals once even in the local executor boundary", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<button id="delete">Delete account</button>');
+    const directory = await mkdtemp(join(tmpdir(), "lhic-replay-boundary-"));
+    const action = {
+      type: "click" as const,
+      intent: "delete account",
+      target: "#delete",
+      methodPreference: ["dom" as const],
+      riskLevel: "high" as const,
+    };
+    try {
+      const executor = createProductionExecutor(
+        page,
+        parseRuntimeConfig({ LHIC_TRACE_DIRECTORY: directory }),
+        {
+          taskId: "local-replay",
+          traceFilePath: join(directory, "events.jsonl"),
+        },
+      );
+      const approval = createActionApproval(action, "operator@example.test");
+      await expect(executor.execute(action, approval)).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(executor.execute(action, approval)).resolves.toMatchObject({
+        success: false,
+        error: expect.stringContaining("already been used"),
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("fails fast when attempting to click a disabled button", async () => {

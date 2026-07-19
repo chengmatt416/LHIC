@@ -12,6 +12,7 @@ export interface ActionApproval {
   approvalId: string;
   actionHash: string;
   approvedBy: string;
+  scope?: string;
   approvedAt: string;
   expiresAt: string;
   signature?: string;
@@ -20,6 +21,7 @@ export interface ActionApproval {
 export interface ActionApprovalValidationOptions {
   publicKey?: KeyLike;
   requireSignature?: boolean;
+  expectedScope?: string;
   forceConfirmation?: boolean;
   confirmationReason?: string;
   kmsKeyId?: string;
@@ -32,12 +34,15 @@ export interface ApprovalDecision extends RiskDecision {
 export function createActionApproval(
   action: SemanticAction,
   approvedBy: string,
-  options: { now?: Date; expiresInMs?: number } = {},
+  options: { now?: Date; expiresInMs?: number; scope?: string } = {},
 ): ActionApproval {
   const now = options.now ?? new Date();
   const expiresInMs = options.expiresInMs ?? 5 * 60 * 1_000;
   if (!approvedBy.trim()) {
     throw new Error("Action approvals require an approver identifier.");
+  }
+  if (options.scope !== undefined && !options.scope.trim()) {
+    throw new Error("Action approval scope must not be empty.");
   }
   if (
     !Number.isSafeInteger(expiresInMs) ||
@@ -51,6 +56,7 @@ export function createActionApproval(
     approvalId: randomUUID(),
     actionHash: hashState(action),
     approvedBy: approvedBy.trim(),
+    ...(options.scope ? { scope: options.scope.trim() } : {}),
     approvedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + expiresInMs).toISOString(),
   };
@@ -102,6 +108,23 @@ export function validateActionApproval(
       allowed: false,
       requiresConfirmation: true,
       reason: "Action approval is missing an approver identifier.",
+    };
+  }
+  if (approval.approvedBy === "pending-human-approval") {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "A pending approval challenge cannot authorize an action.",
+    };
+  }
+  if (
+    options.expectedScope !== undefined &&
+    approval.scope !== options.expectedScope
+  ) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Action approval does not match the active execution scope.",
     };
   }
   if (approval.actionHash !== hashState(action)) {
@@ -193,6 +216,7 @@ function approvalSignaturePayload(approval: ActionApproval): string {
     approvalId: approval.approvalId,
     actionHash: approval.actionHash,
     approvedBy: approval.approvedBy,
+    ...(approval.scope ? { scope: approval.scope } : {}),
     approvedAt: approval.approvedAt,
     expiresAt: approval.expiresAt,
   });

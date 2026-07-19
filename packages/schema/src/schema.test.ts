@@ -49,6 +49,18 @@ describe("core schema contracts", () => {
       }),
     ).toBe(true);
     expect(
+      isVerificationCondition({
+        type: "file",
+        description: "download exists",
+        params: {
+          filePath: "/tmp/download.txt",
+          allowedRoot: "/tmp",
+          minSize: 1,
+        },
+        timeoutMs: 10_000,
+      }),
+    ).toBe(true);
+    expect(
       isTraceEvent({
         eventId: "event-1",
         taskId: "task-1",
@@ -74,6 +86,21 @@ describe("core schema contracts", () => {
         intent: "continue",
         methodPreference: ["unsupported-method"],
         riskLevel: "low",
+      }),
+    ).toBe(false);
+    expect(
+      isVerificationCondition({
+        type: "dom",
+        description: "invalid state",
+        params: { selector: "#save", state: "nonsense" },
+        timeoutMs: -1,
+      }),
+    ).toBe(false);
+    expect(
+      isVerificationCondition({
+        type: "file",
+        description: "unscoped file",
+        params: { filePath: "/tmp/download.txt" },
       }),
     ).toBe(false);
   });

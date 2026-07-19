@@ -121,6 +121,43 @@ describe("browser plan runner", () => {
     expect(result).toMatchObject({ status: "failed", stepId: "fill-query" });
   });
 
+  it("binds batch approvals to the active execution scope", async () => {
+    const resolved = resolveBrowserPlanVariables(plan, { query: "notebook" });
+    let executions = 0;
+    const approval = createActionApproval(
+      resolved.steps[1]!.action,
+      "operator@example.test",
+      { scope: "different-task" },
+    );
+    const result = await executeBrowserPlan(
+      resolved,
+      {
+        execute: async () => {
+          executions += 1;
+          return {
+            success: true,
+            method: "keyboard" as const,
+            latencyMs: 1,
+            evidence: ["Executed"],
+          };
+        },
+      },
+      { verify: async () => ({ success: true, evidence: ["Verified"] }) },
+      {
+        startAt: 1,
+        approvals: { "submit-search": approval },
+        requireActivationApproval: true,
+        approvalScope: "active-task",
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: "awaiting_approval",
+      stepId: "submit-search",
+    });
+    expect(executions).toBe(0);
+  });
+
   it("requires all declared variables before local execution", () => {
     expect(() => resolveBrowserPlanVariables(plan, {})).toThrow("query");
   });

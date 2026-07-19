@@ -2,6 +2,7 @@ import type { Locator } from "playwright";
 
 import {
   createSkillTrace,
+  emitStructuredAction,
   skillFailure,
   type SkillContext,
   type SkillResult,
@@ -96,8 +97,10 @@ export async function login(
     }
 
     await usernameField.fill(username);
+    await emitStructuredAction(trace, "fill");
     await trace.emit("login_username_filled", {});
     await passwordField.fill(password);
+    await emitStructuredAction(trace, "fill");
     await trace.emit("login_password_filled", {});
     const submit = await findFirst([
       context.page.locator('button[type="submit"], input[type="submit"]'),
@@ -109,6 +112,7 @@ export async function login(
       return skillFailure(trace, "Login submit control was not found.");
     }
     await submit.click();
+    await emitStructuredAction(trace, "click");
     await trace.emit("login_submitted", {});
 
     const condition = input.successText

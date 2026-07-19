@@ -297,6 +297,10 @@ export class MultiPathTaskController {
         this.context.recordFailure(failureReason);
         return { status: "failed", failureReason };
       }
+      this.options.executor.rememberVerifiedAction?.(
+        action,
+        outcome.verification,
+      );
       this.context.recordVerification(outcome.verification.evidence);
       this.context.completeStep(action.intent);
     }

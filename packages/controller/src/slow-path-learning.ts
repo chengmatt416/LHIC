@@ -28,6 +28,10 @@ export interface SlowPathActionOutcome {
 
 export interface SlowPathActionExecutor {
   execute(action: SemanticAction): Promise<SlowPathActionOutcome>;
+  rememberVerifiedAction?(
+    action: SemanticAction,
+    verification: VerificationResult,
+  ): boolean;
 }
 
 export interface SlowPathLearningResult {
@@ -83,6 +87,7 @@ export class SlowPathLearningCoordinator {
       if (!isVerifiedSuccess(outcome)) {
         return { response, outcomes };
       }
+      executor.rememberVerifiedAction?.(action, outcome.verification);
     }
 
     const definition = compileSlowPathSkill(request, actions, outcomes);

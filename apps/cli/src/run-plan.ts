@@ -89,7 +89,9 @@ export async function runBrowserPlanInteractively(
         `Approve ${step.action.type} for ${redactPII(step.action.intent)}? (yes/no)`,
       );
       return approved
-        ? createActionApproval(step.action, "local-cli-user")
+        ? createActionApproval(step.action, "local-cli-user", {
+            scope: taskId,
+          })
         : undefined;
     },
   });
@@ -123,6 +125,7 @@ async function executeResolvedBrowserPlan(
         startAt,
         ...(Object.keys(approvals).length > 0 ? { approvals } : {}),
         requireActivationApproval: true,
+        approvalScope: taskId,
       });
       completedSteps.push(...result.completedSteps);
       if (result.status !== "awaiting_approval" || !options.requestApproval) {

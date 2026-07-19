@@ -17,6 +17,10 @@ export interface BrowserPlanActionExecutor {
     action: BrowserSemanticAction,
     approval?: ActionApproval,
   ): Promise<ActionExecutionResult>;
+  rememberVerifiedAction?(
+    action: BrowserSemanticAction,
+    verification: VerificationResult,
+  ): boolean;
 }
 
 export interface BrowserPlanVerifier {
@@ -37,6 +41,7 @@ export interface BrowserPlanRunOptions {
   /** Demo and MCP batch execution always confirm activation events. */
   requireActivationApproval?: boolean;
   approvedBy?: string;
+  approvalScope?: string;
 }
 
 export type BrowserPlanRunResult =
@@ -98,6 +103,7 @@ export async function executeBrowserPlan(
         createActionApproval(
           step.action,
           options.approvedBy ?? "pending-human-approval",
+          options.approvalScope ? { scope: options.approvalScope } : {},
         );
       const decision = validateActionApproval(
         step.action,
@@ -105,6 +111,9 @@ export async function executeBrowserPlan(
         new Date(),
         {
           forceConfirmation: true,
+          ...(options.approvalScope
+            ? { expectedScope: options.approvalScope }
+            : {}),
           confirmationReason:
             "The batch plan requires human approval for this activation or high-risk action.",
         },
@@ -144,6 +153,7 @@ export async function executeBrowserPlan(
           "The required post-action verifier did not produce evidence.",
       };
     }
+    executor.rememberVerifiedAction?.(step.action, verification);
   }
 
   return {

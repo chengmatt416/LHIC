@@ -170,7 +170,7 @@
               <span class="terminal-dot dot-yellow"></span>
               <span class="terminal-dot dot-green"></span>
             </div>
-            <div class="terminal-title">lhic-cli --version 1.0.0</div>
+            <div class="terminal-title">lhic-cli --version 0.1.2</div>
           </div>
           <div class="terminal-body" id="terminal-body">
             <!-- Typing simulation will insert text here via JS -->
@@ -551,7 +551,8 @@
                   Slow Path Planner
                 </div>
                 <div class="arch-node-desc">
-                  呼叫大模型代理 (如 Claude 介面) 進行步驟拆解與例外修復。
+                  透過 provider-agnostic Slow Path 介面（可選 GPT-5.6 或其他
+                  adapter）進行步驟拆解與例外修復。
                 </div>
               </div>
             </div>
@@ -1208,7 +1209,7 @@ npx @pinyencheng/lhic run action action.json approval.json</code></pre>
       </p>
 
       <div class="benchmarks-section">
-        <!-- 50 Fixture suite info -->
+        <!-- 60 Fixture suite info -->
         <div class="bench-card">
           <h3 class="bench-card-title">
             <svg
@@ -1225,7 +1226,7 @@ npx @pinyencheng/lhic run action action.json approval.json</code></pre>
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            本地回歸測試套件 (50 Fixtures)
+            本地回歸測試套件 (60 Fixtures)
           </h3>
           <p
             style="
@@ -1234,10 +1235,11 @@ npx @pinyencheng/lhic run action action.json approval.json</code></pre>
               margin-bottom: 24px;
             "
           >
-            由 <code>fill_form</code>, <code>download_file</code>,
-            <code>login</code>, <code>search</code>,
-            <code>test_web_flow</code> 各 10 組本地網頁所組成的回歸煙霧測試
-            (Smoke Suite)。下面為系統設定的硬性驗收門檻：
+            由 <code>browser_plan</code>、<code>fill_form</code>,
+            <code>download_file</code>, <code>login</code>,
+            <code>search</code>、 <code>test_web_flow</code> 六個本地 workflow
+            各 10 組本地網頁所組成的 回歸煙霧測試 (Smoke
+            Suite)。下面為系統設定的硬性驗收門檻：
           </p>
 
           <div class="gauge-grid">

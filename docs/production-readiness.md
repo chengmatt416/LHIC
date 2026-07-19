@@ -8,8 +8,24 @@ npm run pw:install
 npm run ci
 LHIC_ENV=production \
   LHIC_ALLOWED_ORIGINS=https://app.example.com \
-  npm run preflight
+npm run preflight
 ```
+
+## Capability maturity
+
+The public surface distinguishes wired runtime controls from utilities that
+still require explicit integration:
+
+| Capability                                                                           | Status                     | Boundary                                                                                                                                                     |
+| ------------------------------------------------------------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fast Path browser execution, approval policy, verifier evidence, and redacted traces | Production path            | Used by CLI, desktop, and MCP browser execution; every deployment must run the matching tests and preflight.                                                 |
+| BrowserPool isolation and CDP screencast                                             | Production-capable utility | Callers must own lifecycle and configure the browser pool for their process. Screencast provides frames, not remote desktop input.                           |
+| Durable workflow state and distributed task queue                                    | Integration-ready          | Sensitive state requires an injected encryption secret; queue workers must renew and complete their leases. No implicit global worker is started by the CLI. |
+| OTLP export, trace pruning, and HTTP control plane                                   | Optional utilities         | Explicitly configure and start these components; they are not silently enabled by the stdio MCP entrypoint.                                                  |
+| External benchmark adapters and release publication                                  | Experimental/release-gated | Local fixtures and package builds are not external benchmark or publication evidence.                                                                        |
+
+Documentation must not describe an integration-ready or optional utility as an
+automatically active production service.
 
 ## Enforced runtime controls
 

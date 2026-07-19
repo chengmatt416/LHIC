@@ -15,6 +15,7 @@ export interface BrowserPoolConfig {
 
 export class BrowserPool {
   private browser: Browser | null = null;
+  private browserLaunch: Promise<Browser> | null = null;
   private readonly contexts: Set<BrowserContext> = new Set();
   private readonly maxSize: number;
   private readonly headless: boolean;
@@ -31,10 +32,21 @@ export class BrowserPool {
   }
 
   private async ensureBrowser(): Promise<Browser> {
-    if (!this.browser) {
-      this.browser = await chromium.launch({ headless: this.headless });
+    if (this.browser) {
+      return this.browser;
     }
-    return this.browser;
+    if (!this.browserLaunch) {
+      this.browserLaunch = chromium
+        .launch({ headless: this.headless })
+        .then((browser) => {
+          this.browser = browser;
+          return browser;
+        })
+        .finally(() => {
+          this.browserLaunch = null;
+        });
+    }
+    return this.browserLaunch;
   }
 
   private getNextProxy(): { server: string } | undefined {
@@ -107,23 +119,7 @@ export class BrowserPool {
    */
   public async releasePage(context: BrowserContext): Promise<void> {
     try {
-      await context.clearCookies();
-      const pages = await context.pages();
-      for (const page of pages) {
-        await page.evaluate(() => {
-          try {
-            localStorage.clear();
-            sessionStorage.clear();
-          } catch {
-            // ignore security error on unique origin (about:blank)
-          }
-        });
-        try {
-          await page.goto("about:blank");
-        } catch {
-          // ignore
-        }
-      }
+      await this.clearContextStorage(context);
 
       if (this.contexts.size < this.maxSize) {
         this.contexts.add(context);
@@ -136,6 +132,67 @@ export class BrowserPool {
       } catch {
         // ignore
       }
+    }
+  }
+
+  private async clearContextStorage(context: BrowserContext): Promise<void> {
+    await context.clearCookies();
+    await context.clearPermissions();
+    const pages = await context.pages();
+    for (const page of pages) {
+      const origin = getWebOrigin(page.url());
+      if (origin) {
+        try {
+          const client = await context.newCDPSession(page);
+          await client.send("Storage.clearDataForOrigin", {
+            origin,
+            storageTypes: "all",
+          });
+          await client.detach();
+        } catch {
+          // Browser implementations without CDP still use the page cleanup below.
+        }
+      }
+      await page
+        .evaluate(async () => {
+          localStorage.clear();
+          sessionStorage.clear();
+          if ("indexedDB" in window && indexedDB.databases) {
+            const databases = await indexedDB.databases();
+            await Promise.all(
+              databases.map(
+                (database) =>
+                  new Promise<void>((resolve) => {
+                    if (!database.name) {
+                      resolve();
+                      return;
+                    }
+                    const request = indexedDB.deleteDatabase(database.name);
+                    request.onsuccess =
+                      request.onerror =
+                      request.onblocked =
+                        () => resolve();
+                  }),
+              ),
+            );
+          }
+          if ("caches" in window) {
+            await Promise.all(
+              (await caches.keys()).map((cacheName) =>
+                caches.delete(cacheName),
+              ),
+            );
+          }
+          if ("serviceWorker" in navigator) {
+            await Promise.all(
+              (await navigator.serviceWorker.getRegistrations()).map(
+                (registration) => registration.unregister(),
+              ),
+            );
+          }
+        })
+        .catch(() => undefined);
+      await page.goto("about:blank").catch(() => undefined);
     }
   }
 
@@ -154,5 +211,16 @@ export class BrowserPool {
 
   public getPoolSize(): number {
     return this.contexts.size;
+  }
+}
+
+function getWebOrigin(url: string): string | undefined {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed.origin
+      : undefined;
+  } catch {
+    return undefined;
   }
 }

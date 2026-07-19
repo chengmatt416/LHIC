@@ -32,6 +32,11 @@ supported notarization credential set, and use:
 npm run package:release --workspace @lhic/desktop
 ```
 
+The release command verifies the packaged application and writes a
+deterministic `SHA256SUMS-<version>.txt` manifest beside the installer assets.
+Publish that manifest with the installers; `lhic install desktop` refuses a
+release that does not provide an exact checksum entry for the selected asset.
+
 The release command requires either `APPLE_API_KEY`, `APPLE_API_KEY_ID`, and
 `APPLE_API_ISSUER`; `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and
 `APPLE_TEAM_ID`; or `APPLE_KEYCHAIN_PROFILE`. It fails before packaging when

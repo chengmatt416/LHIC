@@ -29,7 +29,7 @@ GPT-5.6 is LHIC's explicit Slow Path planner for uncertain work. When enabled, i
 
 For a credential-free, reproducible recording, the shopping-plan input is a deterministic fixture at the Slow Path boundary; it exercises the real SlowPathLearningCoordinator, SkillStore, FastPathRouter, direct executor, and verifier path without claiming a live GPT request in the video.
 
-The 50-fixture figures shown here are controlled local regression measurements, not public-web, market, or SOTA claims. Run the safe local demo without an account or credential using the repository instructions.
+The 60-fixture figures shown here are controlled local regression measurements, not public-web, market, or SOTA claims. Run the safe local demo without an account or credential using the repository instructions.
 
 Voiceover in this video is AI-generated locally with the open-weight Kokoro model. No cloud TTS service, real account, API key, or production website is used in the recorded workflow.
 
