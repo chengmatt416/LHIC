@@ -68,6 +68,7 @@ describe("user-friendly CLI reports", () => {
       databaseFile: doctor.databaseFile,
       preloadedSkills: ["search", "login"],
       mcpHarness: "codex",
+      mcpReady: true,
       mcpConfig: "[mcp_servers.lhic_computer_use]\ncommand = \"node\"\n",
       doctor,
       nextSteps: ["Restart Codex."],
@@ -78,6 +79,30 @@ describe("user-friendly CLI reports", () => {
     expect(output).toContain("Preloaded Skills: search, login");
     expect(output).toContain("[mcp_servers.lhic_computer_use]");
     expect(output).toContain("1. Restart Codex.");
+  });
+
+  it("does not print a misleading MCP configuration before the server is built", () => {
+    const doctor: UserDoctorReport = {
+      ready: true,
+      browserReady: true,
+      desktopReady: false,
+      databaseFile: "/tmp/skills.sqlite",
+      skillCount: 6,
+      items: [],
+    };
+    const report: UserSetupReport = {
+      ready: false,
+      databaseFile: doctor.databaseFile,
+      preloadedSkills: ["search"],
+      mcpHarness: "vscode",
+      mcpReady: false,
+      doctor,
+      nextSteps: ["Run npm run build."],
+    };
+
+    const output = formatSetupReport(report);
+    expect(output).toContain("compiled server was not found");
+    expect(output).not.toContain("lhicComputerUse");
   });
 });
 
