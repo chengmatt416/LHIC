@@ -245,4 +245,29 @@ describe("TaskSourceAdapter", () => {
     expect(body).not.toContain("sk_live_abcdefghijklmnop");
     expect(body).toContain("[REDACTED");
   });
+
+  it("rejects oversized provider responses before parsing a task plan", async () => {
+    const adapter = new TaskSourceAdapter({
+      credentialFor: async () => "key-only-in-test",
+      fetchImplementation: async () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "content-length": String(2 * 1024 * 1024) },
+        }),
+    });
+
+    await expect(
+      adapter.propose(
+        {
+          id: "gemini",
+          kind: "gemini",
+          label: "Gemini",
+          model: "test-model",
+          enabled: true,
+        },
+        plan.goal,
+        process.cwd(),
+      ),
+    ).rejects.toThrow("oversized response");
+  });
 });

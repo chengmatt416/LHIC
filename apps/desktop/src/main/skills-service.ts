@@ -30,6 +30,7 @@ import type {
 import { bakedSharedSkillsConfig } from "./appwrite-public-config.js";
 import { PublicWebTrainingService } from "./public-web-training-service.js";
 import { createZip } from "./zip.js";
+import { ensurePrivateDirectory } from "./private-directory.js";
 
 const defaultDatabaseFile = ".lhic/skills.sqlite";
 
@@ -258,7 +259,7 @@ export class SkillsService {
   private async openRuntime(
     config: SharedSkillsConfig,
   ): Promise<SharedRuntime> {
-    await mkdir(dirname(this.databaseFile), { recursive: true });
+    await ensurePrivateDirectory(dirname(this.databaseFile));
     const database = createMemoryDatabase(this.databaseFile);
     database.exec("PRAGMA journal_mode = WAL;");
     const store = new SharedSkillStore(database);

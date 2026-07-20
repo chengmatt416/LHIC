@@ -38,7 +38,7 @@ permission required by the approved workflow, and see
 
 ## Cleanup
 
-`npm run demo`, browser tests, and benchmarks close the browser and remove their
+`npm run demo -- --safe`, browser tests, and benchmarks close the browser and remove their
 temporary directories. If an interrupted local process remains, stop it before
 starting a new session; never reuse an unknown browser profile or real account
 session for the demo.

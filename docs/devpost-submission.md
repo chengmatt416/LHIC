@@ -89,15 +89,15 @@ signals, but they should not be generalized into public-web or SOTA claims.
 Do not submit until each item below is replaced with a real, publicly
 verifiable value:
 
-| Item                                                                    | Value to provide |
-| ----------------------------------------------------------------------- | ---------------- |
-| Public YouTube video under three minutes, with voiceover                | `REQUIRED`       |
-| Public Devpost project URL                                              | `REQUIRED`       |
-| Published package version and `npx @pinyencheng/lhic demo` evidence     | `REQUIRED`       |
-| Immutable release tag, artifact hash, and release URL                   | `REQUIRED`       |
-| Official core Codex `/feedback` Session ID                              | `REQUIRED`       |
-| Actual GitHub Actions URLs for all three package-smoke runners          | `REQUIRED`       |
-| Eligibility, IP, third-party assets, and current Rules/FAQ confirmation | `REQUIRED`       |
+| Item                                                                       | Value to provide |
+| -------------------------------------------------------------------------- | ---------------- |
+| Public YouTube video under three minutes, with voiceover                   | `REQUIRED`       |
+| Public Devpost project URL                                                 | `REQUIRED`       |
+| Published package version and `npx @pinyencheng/lhic demo --safe` evidence | `REQUIRED`       |
+| Immutable release tag, artifact hash, and release URL                      | `REQUIRED`       |
+| Official core Codex `/feedback` Session ID                                 | `REQUIRED`       |
+| Actual GitHub Actions URLs for all three package-smoke runners             | `REQUIRED`       |
+| Eligibility, IP, third-party assets, and current Rules/FAQ confirmation    | `REQUIRED`       |
 
 See [judge guide](judge-guide.md), [demo script](demo-script.md),
 [GPT-5.6 integration](gpt-5.6-integration.md), and

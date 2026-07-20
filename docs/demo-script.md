@@ -14,7 +14,7 @@ model.
 
 ## 0:35–1:30 — safe local demo
 
-Run `npm run demo` with a large terminal font. Show the successful local
+Run `npm run demo -- --safe` with a large terminal font. Show the successful local
 browser fixture, the verifier evidence count, and the `ask_user` result for a
 destructive intent. State that no account, credential, or external website is
 used.

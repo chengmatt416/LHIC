@@ -9,8 +9,8 @@ official Codex `/feedback` evidence are tracked separately at submission time.
 | 2026-07-16 | Typed intent compilation and execution tracing                                                 | `00e1f27` | Controller, executor, and trace tests                             |
 | 2026-07-16 | Shared-skills registry and CLI/MCP integration                                                 | `b245341` | Shared-skill and MCP tests                                        |
 | 2026-07-16 | Guided interactive CLI setup                                                                   | `6e957e3` | `apps/cli/src/interactive.test.ts`                                |
-| 2026-07-16 | GPT-5.6 structured Slow Path, safe demo, raw benchmark artifact support, and Judge-facing docs | `bafa253` | `npm run demo`, provider tests, and benchmark output              |
-| 2026-07-16 | Package tarball dependency correction for clean-install CLI demo                               | `6d7e213` | Clean temporary install runs `lhic demo`                          |
+| 2026-07-16 | GPT-5.6 structured Slow Path, safe demo, raw benchmark artifact support, and Judge-facing docs | `bafa253` | `npm run demo -- --safe`, provider tests, and benchmark output    |
+| 2026-07-16 | Package tarball dependency correction for clean-install CLI demo                               | `6d7e213` | Clean temporary install runs `lhic demo --safe`                   |
 | 2026-07-16 | Full CI repair and cross-platform packaged-demo smoke configuration                            | `477e1ed` | Local `npm run ci`; Ubuntu/macOS/Windows CI matrix configured     |
 | 2026-07-16 | Submission draft and benchmark-claim hardening                                                 | `720ba64` | Devpost draft; fixed-seed controlled-ablation wording             |
 | 2026-07-16 | Reproducible package smoke command                                                             | `573ab1e` | `npm run package:smoke` with credential-free tarball demo         |
@@ -28,7 +28,8 @@ that those earlier components were created from scratch during the event.
 
 ## Release evidence to add before submission
 
-1. Create an immutable release tag after the final verification pass.
+1. Create the immutable CLI tag `cli-v0.1.2` after the final verification pass;
+   Desktop tags must use a separate namespace.
 2. Record the official Codex `/feedback` Session ID for the core development
    work; do not use a guessed or documentation-only session.
 3. Run `npm run release:checksums` from the repository root (or the desktop

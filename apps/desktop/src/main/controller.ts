@@ -60,7 +60,11 @@ export class DesktopController {
   }
 
   public async dashboard(): Promise<DashboardSnapshot> {
-    await Promise.all([this.tasks.initialize(), this.securityConfiguration()]);
+    const [, , browser] = await Promise.all([
+      this.tasks.initialize(),
+      this.securityConfiguration(),
+      this.tasks.browserReadiness(),
+    ]);
     const [skills, sharedLibrary, mcp] = await Promise.all([
       this.skills.list(),
       this.skills.status(),
@@ -71,6 +75,8 @@ export class DesktopController {
         workspaceRoot: this.workspaceRoot,
         fastPathModelFree: true,
         runningJobs: this.games.runningCount(),
+        browserReady: browser.ready,
+        browserReadinessMessage: browser.message,
       },
       skills,
       sharedLibrary,
@@ -127,8 +133,8 @@ export class DesktopController {
     return this.tasks.execute(commandId);
   }
 
-  public cancelTask(commandId: string): void {
-    this.tasks.cancel(commandId);
+  public cancelTask(commandId: string): Promise<void> {
+    return this.tasks.cancel(commandId);
   }
 
   public syncSkills(): Promise<CommandEvent> {

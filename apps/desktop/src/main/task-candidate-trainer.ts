@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { createMemoryDatabase, SkillStore } from "@lhic/memory";
 import type { BrowserExecutionPlan } from "@lhic/schema";
 import { hashState, redactPII } from "@lhic/trace";
+import { ensurePrivateDirectory } from "./private-directory.js";
 
 /**
  * Records only a verified, local Slow Path browser plan as a candidate. A
@@ -17,7 +17,7 @@ export async function recordTaskCandidate(
   plan: BrowserExecutionPlan,
 ): Promise<{ name: string; verifiedRunCount: number }> {
   const databaseFile = resolve(workspaceRoot, ".lhic/skills.sqlite");
-  await mkdir(dirname(databaseFile), { recursive: true });
+  await ensurePrivateDirectory(dirname(databaseFile));
   const database = createMemoryDatabase(databaseFile);
   try {
     const store = new SkillStore(database);

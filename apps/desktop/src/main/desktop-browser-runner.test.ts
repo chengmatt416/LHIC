@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DesktopBrowserRunner,
   requiresInteractiveApproval,
   summarizePlan,
 } from "./desktop-browser-runner.js";
 
 describe("DesktopBrowserRunner policy", () => {
+  it("reports browser runtime readiness with an actionable message", async () => {
+    const readiness = await new DesktopBrowserRunner(process.cwd()).readiness();
+
+    expect(readiness.executablePath).toMatch(/chromium|chrome/i);
+    expect(readiness.message).toContain(
+      readiness.ready ? "ready" : "not installed",
+    );
+  });
+
   it("requires explicit approval for activation, download, high-risk, and unknown-risk browser actions", () => {
     expect(
       requiresInteractiveApproval({

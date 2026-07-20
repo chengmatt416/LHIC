@@ -56,7 +56,7 @@ npm run package:published-smoke -- 0.1.2
 npm run package:published-alias-smoke -- 0.1.2
 ```
 
-Then create an immutable `v0.1.2` Git tag and GitHub Release using these notes,
-record the release URL and package integrity, and add those facts to the Devpost
+Then create an immutable `cli-v0.1.2` Git tag and publish both npm packages using these notes,
+record the npm package URLs and integrity, and add those facts to the Devpost
 submission. Do not claim that the previously published `0.1.1` supports
 `lhic demo`; it does not.

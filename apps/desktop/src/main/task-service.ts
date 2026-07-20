@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import { isBrowserExecutionPlan, isExecutionProfile } from "@lhic/schema";
+import {
+  isBrowserExecutionPlan,
+  isDesktopExecutionPlan,
+  isExecutionProfile,
+} from "@lhic/schema";
 import { TaskBudgetTracker } from "@lhic/controller";
 
 import type {
@@ -14,6 +18,7 @@ import { validateTaskSourceConfig } from "../shared/policy.js";
 import {
   DesktopBrowserRunner,
   summarizePlan,
+  type BrowserReadiness,
   type BrowserRunResult,
 } from "./desktop-browser-runner.js";
 import {
@@ -28,18 +33,22 @@ import {
   type TaskExecutionPlan,
 } from "./task-source-adapter.js";
 import { recordTaskCandidate } from "./task-candidate-trainer.js";
+import { TaskJournalStore } from "./task-journal-store.js";
 import { TaskSourceStore } from "./task-source-store.js";
 
 interface PendingTask {
   goal: string;
+  startUrl?: string;
   source?: TaskSourceConfig;
   phase: "source" | "execution";
   plan?: TaskExecutionPlan;
   budget?: TaskBudgetTracker;
+  providerAbort?: AbortController | undefined;
 }
 
 interface TaskServiceOptions {
   sourceStore?: Pick<TaskSourceStore, "load" | "save">;
+  journalStore?: Pick<TaskJournalStore, "load" | "save">;
   sourceBudget?: () => TaskBudgetTracker;
 }
 
@@ -57,7 +66,9 @@ export class TaskService {
   private readonly browserRunner: DesktopBrowserRunner;
   private readonly globalRunner: DesktopGlobalRunner;
   private readonly sourceStore: Pick<TaskSourceStore, "load" | "save">;
+  private readonly journalStore: Pick<TaskJournalStore, "load" | "save">;
   private readonly sourceBudgetOverride: (() => TaskBudgetTracker) | undefined;
+  private persistence: Promise<void> = Promise.resolve();
   private slowPathProfile: "fast_only" | "balanced" | "deliberative" =
     "balanced";
   private initialization: Promise<void> | undefined;
@@ -75,6 +86,8 @@ export class TaskService {
     this.globalRunner = new DesktopGlobalRunner(workspaceRoot);
     this.sourceStore =
       options.sourceStore ?? new TaskSourceStore(workspaceRoot);
+    this.journalStore =
+      options.journalStore ?? new TaskJournalStore(workspaceRoot);
     this.sourceBudgetOverride = options.sourceBudget;
     for (const kind of taskSourceKinds) {
       const source = defaultSource(kind);
@@ -96,7 +109,10 @@ export class TaskService {
   }
 
   public async initialize(): Promise<void> {
-    this.initialization ??= this.loadConfiguredSources();
+    this.initialization ??= Promise.all([
+      this.loadConfiguredSources(),
+      this.loadJournal(),
+    ]).then(() => undefined);
     return this.initialization;
   }
 
@@ -132,7 +148,12 @@ export class TaskService {
         "A task goal between 1 and 12000 characters is required.",
       );
     }
-    const plan = compileLocalFastPath(input);
+    const startUrl = normalizeStartUrl(input.startUrl);
+    const normalizedInput = {
+      ...input,
+      ...(startUrl ? { startUrl } : {}),
+    };
+    const plan = compileLocalFastPath(normalizedInput);
     if (plan) {
       const event: CommandEvent = {
         commandId: randomUUID(),
@@ -152,6 +173,7 @@ export class TaskService {
         phase: "execution",
         plan,
       });
+      this.queuePersist();
       return event;
     }
     const source = input.sourceId
@@ -183,10 +205,12 @@ export class TaskService {
     this.update(event);
     this.pending.set(commandId, {
       goal: input.goal,
+      ...(startUrl ? { startUrl } : {}),
       source,
       phase: "source",
       budget: this.createSourceBudget(),
     });
+    this.queuePersist();
     return event;
   }
 
@@ -240,11 +264,24 @@ export class TaskService {
     });
     try {
       const startedAt = performance.now();
+      const providerAbort = new AbortController();
+      pending.providerAbort = providerAbort;
       const plan = await this.sourcesAdapter.propose(
         pending.source!,
         pending.goal,
         this.workspaceRoot,
+        {
+          signal: providerAbort.signal,
+          ...(pending.startUrl ? { startUrl: pending.startUrl } : {}),
+        },
       );
+      if (
+        providerAbort.signal.aborted ||
+        this.require(commandId).status === "cancelled"
+      ) {
+        return this.require(commandId);
+      }
+      pending.providerAbort = undefined;
       pending.budget?.recordSlowPathLatency(performance.now() - startedAt);
       const budgetEvidence = pending.budget
         ? `Slow Path budget remaining: ${pending.budget.snapshot().remaining.maxSlowPathCalls} provider call(s), ${pending.budget.snapshot().remaining.maxSlowPathInputChars} input characters.`
@@ -267,8 +304,16 @@ export class TaskService {
       };
       this.pending.set(commandId, { ...pending, phase: "execution", plan });
       this.update(proposed);
+      this.queuePersist();
       return proposed;
     } catch (error) {
+      if (
+        pending.providerAbort?.signal.aborted ||
+        this.require(commandId).status === "cancelled"
+      ) {
+        return this.require(commandId);
+      }
+      pending.providerAbort = undefined;
       const failed: CommandEvent = {
         ...event,
         status: "failed",
@@ -295,33 +340,51 @@ export class TaskService {
       );
     }
     const plan = pending.plan;
-    return isBrowserExecutionPlan(plan)
-      ? this.recordBrowserResult(
-          commandId,
-          await this.browserRunner.execute(commandId, plan),
-        )
-      : this.recordGlobalResult(
-          commandId,
-          this.globalRunner.execute(commandId, plan),
-        );
+    try {
+      return isBrowserExecutionPlan(plan)
+        ? this.recordBrowserResult(
+            commandId,
+            await this.browserRunner.execute(commandId, plan),
+          )
+        : this.recordGlobalResult(
+            commandId,
+            this.globalRunner.execute(commandId, plan),
+          );
+    } catch (error) {
+      // Cancellation owns the terminal state. A browser close or provider
+      // teardown can reject an in-flight operation after cancel() has already
+      // published the cancelled event; never let that rejection resurrect it.
+      if (this.require(commandId).status === "cancelled") {
+        return this.require(commandId);
+      }
+      throw error;
+    }
   }
 
-  public cancel(commandId: string): void {
+  public async cancel(commandId: string): Promise<void> {
     const event = this.require(commandId);
+    const pending = this.pending.get(commandId);
+    pending?.providerAbort?.abort();
     this.update({
       ...event,
       status: "cancelled",
       message: "Task cancelled before execution.",
     });
     this.pending.delete(commandId);
-    void this.browserRunner.cancel(commandId);
+    await this.browserRunner.cancel(commandId);
     this.globalRunner.cancel(commandId);
+    this.queuePersist();
+    await this.persistence;
   }
 
   public recentEvents(limit = 8): CommandEvent[] {
     return [...this.events.values()]
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
       .slice(0, limit);
+  }
+
+  public browserReadiness(): Promise<BrowserReadiness> {
+    return this.browserRunner.readiness();
   }
 
   public subscribe(listener: (event: CommandEvent) => void): () => void {
@@ -349,11 +412,63 @@ export class TaskService {
     };
     this.update(blocked);
     this.pending.delete(commandId);
+    this.queuePersist();
     return blocked;
   }
 
   public close(): Promise<void> {
-    return this.browserRunner.close();
+    return this.browserRunner.close().then(() => this.persistence);
+  }
+
+  private async loadJournal(): Promise<void> {
+    const snapshot = await this.journalStore.load();
+    for (const event of snapshot.events) {
+      this.events.set(event.commandId, event);
+    }
+    for (const persisted of snapshot.pending) {
+      const event = this.events.get(persisted.commandId);
+      const source = persisted.source
+        ? safeTaskSource(persisted.source)
+        : undefined;
+      const startUrl = safeStartUrl(persisted.startUrl);
+      const plan =
+        persisted.plan && validTaskPlan(persisted.plan)
+          ? persisted.plan
+          : undefined;
+      if (
+        !event ||
+        (persisted.source && !source) ||
+        (persisted.startUrl && !startUrl)
+      )
+        continue;
+      if (
+        persisted.phase === "source" &&
+        source &&
+        event.status === "awaiting_approval"
+      ) {
+        this.pending.set(persisted.commandId, {
+          goal: persisted.goal,
+          ...(startUrl ? { startUrl } : {}),
+          source,
+          phase: "source",
+          budget: this.createSourceBudget(),
+        });
+        continue;
+      }
+      if (
+        persisted.phase === "execution" &&
+        plan &&
+        event.status === "proposed"
+      ) {
+        this.pending.set(persisted.commandId, {
+          goal: persisted.goal,
+          ...(startUrl ? { startUrl } : {}),
+          ...(source ? { source } : {}),
+          phase: "execution",
+          plan,
+        });
+      }
+    }
   }
 
   private async loadConfiguredSources(): Promise<void> {
@@ -388,6 +503,7 @@ export class TaskService {
     result: BrowserRunResult,
   ): CommandEvent {
     const existing = this.require(commandId);
+    if (existing.status === "cancelled") return existing;
     const pending = this.pending.get(commandId);
     const candidateEvidence =
       result.status === "completed" &&
@@ -422,6 +538,7 @@ export class TaskService {
     }
     if (result.status === "completed" || result.status === "failed") {
       this.pending.delete(commandId);
+      this.queuePersist();
     }
     return event;
   }
@@ -431,6 +548,7 @@ export class TaskService {
     result: GlobalRunResult,
   ): CommandEvent {
     const existing = this.require(commandId);
+    if (existing.status === "cancelled") return existing;
     const event: CommandEvent = {
       ...existing,
       status: result.status,
@@ -442,6 +560,7 @@ export class TaskService {
     this.update(event);
     if (result.status === "completed" || result.status === "failed") {
       this.pending.delete(commandId);
+      this.queuePersist();
     }
     return event;
   }
@@ -465,6 +584,24 @@ export class TaskService {
     };
     this.events.set(event.commandId, snapshot);
     for (const listener of this.listeners) listener(snapshot);
+    this.queuePersist();
+  }
+
+  private queuePersist(): void {
+    const snapshot = {
+      events: [...this.events.values()],
+      pending: [...this.pending.entries()].map(([commandId, pending]) => ({
+        commandId,
+        goal: pending.goal,
+        ...(pending.startUrl ? { startUrl: pending.startUrl } : {}),
+        ...(pending.source ? { source: pending.source } : {}),
+        phase: pending.phase,
+        ...(pending.plan ? { plan: pending.plan } : {}),
+      })),
+    };
+    this.persistence = this.persistence
+      .then(() => this.journalStore.save(snapshot))
+      .catch(() => undefined);
   }
 }
 
@@ -483,6 +620,46 @@ function safeError(error: unknown): string {
       "[REDACTED_TOKEN]",
     )
     .slice(0, 1_000);
+}
+
+function safeTaskSource(value: TaskSourceConfig): TaskSourceConfig | undefined {
+  try {
+    return validateTaskSourceConfig(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function validTaskPlan(value: unknown): value is TaskExecutionPlan {
+  return isBrowserExecutionPlan(value) || isDesktopExecutionPlan(value);
+}
+
+function normalizeStartUrl(value: string | undefined): string | undefined {
+  if (!value?.trim()) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("The task start URL must be an absolute HTTP(S) URL.");
+  }
+  if (
+    (url.protocol !== "https:" && url.protocol !== "http:") ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      "The task start URL must use HTTP(S) without embedded credentials.",
+    );
+  }
+  return url.toString();
+}
+
+function safeStartUrl(value: string | undefined): string | undefined {
+  try {
+    return normalizeStartUrl(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function defaultSource(kind: TaskSourceKind): TaskSourceConfig {

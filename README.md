@@ -9,7 +9,7 @@ ambiguous Slow Path planning through a strict, redacted schema; LHIC validates,
 executes, verifies, and audits actions locally. The Fast Path never calls a
 model or MCP server.
 
-## 🚀 Key Features
+## Key Features
 
 - **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Each Fast Path action has **zero LLM calls** and therefore incurs no LLM-token cost; latency and success claims are reported only from the included controlled benchmarks.
 - **Global Desktop Control**: Executes approved native actions across macOS, Windows, and Linux: focus or launch apps, type, press hotkeys, and click. Every desktop action requires a matching human approval and a post-action window or process verifier.
@@ -43,7 +43,7 @@ model or MCP server.
 - `apps/desktop`: Electron Control Center.
 - `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint and HTTP API Control Plane.
 
-## 🛠️ CLI Commands & Usage
+## CLI Commands & Usage
 
 ### Quick start
 
@@ -59,7 +59,7 @@ Run the credential-free local Judge Demo. It executes a real browser fixture,
 verifies the result, and shows that a destructive intent is approval-gated:
 
 ```bash
-npm run demo
+npm run demo -- --safe
 ```
 
 The npm registry contains `@pinyencheng/lhic@0.1.1`, but that release predates
@@ -73,7 +73,9 @@ platform permissions described in the [global control guide](docs/global-control
 
 To include a real GPT-5.6 Slow Path planning request in the demo, set an API
 key only in the process environment. The provider sends a redacted request,
-uses `store: false`, and remains disabled unless explicitly enabled:
+uses `store: false`, and remains disabled unless explicitly enabled. This is
+the interactive learning path; the credential-free Judge Demo above must keep
+using `--safe`:
 
 ```bash
 OPENAI_SLOW_PATH_ENABLED=true OPENAI_API_KEY=... npm run demo
@@ -113,7 +115,10 @@ the same full CLI without a global install:
 npx lhic preflight
 ```
 
-Install the native Control Center for the current operating system and
+The native Control Center is still a development build. Do not use the desktop
+installer as Build Week release evidence until a platform package and matching
+SHA-256 manifest have passed the desktop release workflow. When that gate is
+green, install the native Control Center for the current operating system and
 architecture with a SHA-256-verified GitHub Release asset. macOS installs to
 `~/Applications`, Linux installs a user-local AppImage and launcher, and
 Windows runs the release NSIS installer:

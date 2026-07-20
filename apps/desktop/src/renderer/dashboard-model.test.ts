@@ -9,6 +9,8 @@ const snapshot: DashboardSnapshot = {
     workspaceRoot: "/workspace",
     fastPathModelFree: true,
     runningJobs: 0,
+    browserReady: true,
+    browserReadinessMessage: "Browser ready",
   },
   skills: [],
   sharedLibrary: {

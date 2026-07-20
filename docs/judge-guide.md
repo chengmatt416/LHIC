@@ -8,7 +8,7 @@ key.
 ```bash
 npm ci
 npm run pw:install
-npm run demo
+npm run demo -- --safe
 ```
 
 Expected result: JSON reports `passed: true`, a verified local browser fixture,

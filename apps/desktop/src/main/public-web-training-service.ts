@@ -24,6 +24,7 @@ import type {
   PublicWebTrainingRequest,
   TrainingJob,
 } from "../shared/contracts.js";
+import { ensurePrivateDirectory } from "./private-directory.js";
 
 interface PublicWebTrainingServiceOptions {
   run?: (
@@ -117,7 +118,7 @@ export class PublicWebTrainingService {
       "traces",
       `public-web-${scenario.id}-${jobId}.jsonl`,
     );
-    await mkdir(dirname(databaseFile), { recursive: true });
+    await ensurePrivateDirectory(dirname(databaseFile));
     await mkdir(dirname(traceFile), { recursive: true });
     const database = createMemoryDatabase(databaseFile);
     let observer: BrowserStateObserver | undefined;

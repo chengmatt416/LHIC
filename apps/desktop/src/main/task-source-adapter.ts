@@ -14,6 +14,7 @@ import type { TaskSourceConfig } from "../shared/contracts.js";
 import { spawnProcess, type ProcessResult } from "./process-runner.js";
 
 const providerTimeoutMs = 60_000;
+const providerResponseMaxBytes = 1_048_576;
 
 export type TaskExecutionPlan = BrowserExecutionPlan | DesktopExecutionPlan;
 
@@ -23,7 +24,7 @@ export interface TaskSourceAdapterOptions {
   runProcess?: (
     executable: string,
     argumentsList: readonly string[],
-    options: { cwd: string },
+    options: { cwd: string; signal?: AbortSignal },
   ) => Promise<ProcessResult>;
 }
 
@@ -50,9 +51,15 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     goal: string,
     workspaceRoot: string,
+    options: { signal?: AbortSignal; startUrl?: string } = {},
   ): Promise<TaskExecutionPlan> {
-    const prompt = planningPrompt(goal);
-    const raw = await this.request(source, prompt, workspaceRoot);
+    const prompt = planningPrompt(goal, options.startUrl, options.signal);
+    const raw = await this.request(
+      source,
+      prompt,
+      workspaceRoot,
+      options.signal,
+    );
     return parsePlan(raw);
   }
 
@@ -109,19 +116,20 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     prompt: string,
     workspaceRoot: string,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     switch (source.kind) {
       case "codex-cli":
-        return this.codex(source, prompt, workspaceRoot);
+        return this.codex(source, prompt, workspaceRoot, signal);
       case "antigravity-cli":
-        return this.antigravity(source, prompt, workspaceRoot);
+        return this.antigravity(source, prompt, workspaceRoot, signal);
       case "claude-code-cli":
-        return this.claudeCode(source, prompt, workspaceRoot);
+        return this.claudeCode(source, prompt, workspaceRoot, signal);
       case "openai-responses":
       case "openai-compatible":
       case "gemini":
       case "anthropic-messages":
-        return this.httpProvider(source, prompt);
+        return this.httpProvider(source, prompt, signal);
     }
   }
 
@@ -129,6 +137,7 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     prompt: string,
     workspaceRoot: string,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const directory = await mkdtemp(join(tmpdir(), "lhic-codex-plan-"));
     const schemaPath = join(directory, "task-plan.schema.json");
@@ -153,7 +162,7 @@ export class TaskSourceAdapter {
           ...(source.model ? ["--model", source.model] : []),
           prompt,
         ],
-        { cwd: workspaceRoot },
+        processOptions(workspaceRoot, signal),
       );
       assertSuccessfulCliResult("Codex CLI", result);
       return JSON.parse(await readFile(outputPath, "utf8")) as unknown;
@@ -166,6 +175,7 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     prompt: string,
     workspaceRoot: string,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const result = await this.runProcess(
       "agy",
@@ -176,7 +186,7 @@ export class TaskSourceAdapter {
         ...(source.model ? ["--model", source.model] : []),
         prompt,
       ],
-      { cwd: workspaceRoot },
+      processOptions(workspaceRoot, signal),
     );
     assertSuccessfulCliResult("Antigravity CLI", result);
     return parseJsonText(result.stdout, "Antigravity CLI");
@@ -186,6 +196,7 @@ export class TaskSourceAdapter {
     source: TaskSourceConfig,
     prompt: string,
     workspaceRoot: string,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const result = await this.runProcess(
       "claude",
@@ -201,7 +212,7 @@ export class TaskSourceAdapter {
         ...(source.model ? ["--model", source.model] : []),
         prompt,
       ],
-      { cwd: workspaceRoot },
+      processOptions(workspaceRoot, signal),
     );
     assertSuccessfulCliResult("Claude Code", result);
     const envelope = parseJsonText(result.stdout, "Claude Code");
@@ -214,6 +225,7 @@ export class TaskSourceAdapter {
   private async httpProvider(
     source: TaskSourceConfig,
     prompt: string,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const credentialId = source.credentialId ?? source.id;
     const credential = await this.options.credentialFor(credentialId);
@@ -229,19 +241,38 @@ export class TaskSourceAdapter {
         method: "POST",
         headers: request.headers,
         body: JSON.stringify(request.body),
-        signal: AbortSignal.timeout(providerTimeoutMs),
+        redirect: "error",
+        signal: requestSignal(signal),
       });
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw new Error("Slow Path request cancelled.");
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new Error(`${source.label} timed out.`);
+      }
       throw new Error(`${source.label} could not be reached.`);
     }
     if (!response.ok) {
       throw new Error(`${source.label} returned HTTP ${response.status}.`);
+    }
+    const contentLength = Number(response.headers.get("content-length"));
+    if (
+      Number.isFinite(contentLength) &&
+      contentLength > providerResponseMaxBytes
+    ) {
+      throw new Error(`${source.label} returned an oversized response.`);
     }
     let responseBody: unknown;
     try {
       responseBody = await response.json();
     } catch {
       throw new Error(`${source.label} did not return JSON.`);
+    }
+    const serializedResponse = JSON.stringify(responseBody);
+    if (
+      serializedResponse !== undefined &&
+      Buffer.byteLength(serializedResponse, "utf8") > providerResponseMaxBytes
+    ) {
+      throw new Error(`${source.label} returned an oversized response.`);
     }
     const text = extractProviderText(
       source.kind,
@@ -397,8 +428,27 @@ function extractProviderText(
   return undefined;
 }
 
-function planningPrompt(goal: string): string {
-  return `${structuredSystemInstruction}\nTask: ${JSON.stringify(redactPII(goal))}`;
+function planningPrompt(
+  goal: string,
+  startUrl?: string,
+  signal?: AbortSignal,
+): string {
+  if (signal?.aborted) throw new Error("Slow Path request cancelled.");
+  return `${structuredSystemInstruction}\nTask: ${JSON.stringify(redactPII(goal))}${
+    startUrl ? `\nStarting URL: ${JSON.stringify(startUrl)}` : ""
+  }`;
+}
+
+function processOptions(
+  workspaceRoot: string,
+  signal?: AbortSignal,
+): { cwd: string; signal?: AbortSignal } {
+  return { cwd: workspaceRoot, ...(signal ? { signal } : {}) };
+}
+
+function requestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(providerTimeoutMs);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
 const structuredSystemInstruction = [

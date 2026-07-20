@@ -16,7 +16,7 @@ npm ci
 npm run pw:install
 npm run typecheck
 npm test
-npm run demo
+npm run demo -- --safe
 npm run bench:internal
 npm run package:smoke
 npm run check:docs
@@ -32,7 +32,7 @@ write the key to a file or include it in test fixtures.
 GitHub Actions runs the tarball equivalent of the published package on Ubuntu,
 macOS, and Windows for every pull request and push to `main`. Each job packs
 the CLI, installs it in a new temporary directory, installs that package's
-Chromium, and requires `lhic demo` to report `passed: true` with the GPT Slow
+Chromium, and requires `lhic demo --safe` to report `passed: true` with the GPT Slow
 Path disabled. This is cross-platform package evidence, not evidence that a
 specific npm publication is available.
 
@@ -51,15 +51,16 @@ process.
 ## Evidence to record before submission
 
 The registry's `@pinyencheng/lhic@0.1.1` release predates the current demo and
-does not support `lhic demo`. After publishing the current version, run:
+does not support `lhic demo`. After publishing from the immutable
+`cli-v0.1.2` tag, run:
 
 ```bash
 npm run package:published-smoke -- 0.1.2
 ```
 
 This command uses an empty npm cache, a temporary non-repository directory, a
-dedicated Playwright browser cache, and `npx @pinyencheng/lhic@0.1.2 demo` with
-OpenAI credentials removed. For every environment, record the OS release, Node
+dedicated Playwright browser cache, and `npx @pinyencheng/lhic@0.1.2 demo --safe`
+with OpenAI credentials removed. For every environment, record the OS release, Node
 version, Playwright version, browser revision, exact commit SHA, command
 output, start/end time, and any failure. A clean-room three-platform matrix and
 a published-package smoke test are still required before claiming cross-platform

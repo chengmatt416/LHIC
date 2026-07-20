@@ -79,70 +79,87 @@ export function createDashboardOverview(
   );
   const blockedTask = activeTasks.find((event) => event.status === "blocked");
 
-  const priority: DashboardPriority = pendingApproval
-    ? taskPriority(
-        "Review pending approval",
-        "A guarded task is paused at the human approval gate.",
-        "Open approval gate",
-        "awaiting_approval",
-      )
-    : proposedTask
+  const priority: DashboardPriority = !snapshot.runtime.browserReady
+    ? {
+        title: "Install the local browser runtime",
+        detail: snapshot.runtime.browserReadinessMessage,
+        actionLabel: "Open Task Console",
+        destination: "tasks",
+        status: "blocked",
+      }
+    : pendingApproval
       ? taskPriority(
-          "Review validated plan",
-          "A task plan is ready for its local execution approval.",
-          "Open task plan",
-          "proposed",
+          "Review pending approval",
+          "A guarded task is paused at the human approval gate.",
+          "Open approval gate",
+          "awaiting_approval",
         )
-      : runningTask
+      : proposedTask
         ? taskPriority(
-            "Monitor active task",
-            "A local task is currently running with verifier evidence enabled.",
-            "Open task console",
-            "running",
+            "Review validated plan",
+            "A task plan is ready for its local execution approval.",
+            "Open task plan",
+            "proposed",
           )
-        : blockedTask
+        : runningTask
           ? taskPriority(
-              "Resolve blocked task",
-              "Inspect the policy or configuration reason before retrying.",
-              "Inspect task",
-              "blocked",
+              "Monitor active task",
+              "A local task is currently running with verifier evidence enabled.",
+              "Open task console",
+              "running",
             )
-          : snapshot.runtime.runningJobs > 0
-            ? {
-                title: "Monitor local training",
-                detail: `${snapshot.runtime.runningJobs} local training job${snapshot.runtime.runningJobs === 1 ? " is" : "s are"} active.`,
-                actionLabel: "Open Game Lab",
-                destination: "game",
-                status: "running",
-              }
-            : enabledSourceCount === 0 && fastPathSkillCount === 0
+          : blockedTask
+            ? taskPriority(
+                "Resolve blocked task",
+                "Inspect the policy or configuration reason before retrying.",
+                "Inspect task",
+                "blocked",
+              )
+            : snapshot.runtime.runningJobs > 0
               ? {
-                  title: "Prepare the first execution path",
-                  detail:
-                    "No verified Fast Path Skill or enabled planner is available yet.",
-                  actionLabel: "Configure planner",
-                  destination: "tasks",
-                  status: "blocked",
+                  title: "Monitor local training",
+                  detail: `${snapshot.runtime.runningJobs} local training job${snapshot.runtime.runningJobs === 1 ? " is" : "s are"} active.`,
+                  actionLabel: "Open Game Lab",
+                  destination: "game",
+                  status: "running",
                 }
-              : fastPathSkillCount === 0
+              : enabledSourceCount === 0 && fastPathSkillCount === 0
                 ? {
-                    title: "Build a reusable Fast Path",
+                    title: "Prepare the first execution path",
                     detail:
-                      "Train a browser Skill locally to add a deterministic route.",
-                    actionLabel: "Open Skill Depot",
-                    destination: "skills",
-                    status: "ready",
-                  }
-                : {
-                    title: "Start a guarded task",
-                    detail:
-                      "LHIC will try a verified local Skill before any approved Slow Path proposal.",
-                    actionLabel: "Open Task Console",
+                      "No verified Fast Path Skill or enabled planner is available yet.",
+                    actionLabel: "Configure planner",
                     destination: "tasks",
-                    status: "ready",
-                  };
+                    status: "blocked",
+                  }
+                : fastPathSkillCount === 0
+                  ? {
+                      title: "Build a reusable Fast Path",
+                      detail:
+                        "Train a browser Skill locally to add a deterministic route.",
+                      actionLabel: "Open Skill Depot",
+                      destination: "skills",
+                      status: "ready",
+                    }
+                  : {
+                      title: "Start a guarded task",
+                      detail:
+                        "LHIC will try a verified local Skill before any approved Slow Path proposal.",
+                      actionLabel: "Open Task Console",
+                      destination: "tasks",
+                      status: "ready",
+                    };
 
   const readiness: DashboardReadinessItem[] = [
+    {
+      id: "browser",
+      label: "Browser runtime",
+      detail: snapshot.runtime.browserReady
+        ? "Playwright Chromium is ready."
+        : snapshot.runtime.browserReadinessMessage,
+      state: snapshot.runtime.browserReady ? "ready" : "attention",
+      destination: "tasks",
+    },
     {
       id: "skills",
       label: "Fast Path",

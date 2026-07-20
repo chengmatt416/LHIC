@@ -2,7 +2,7 @@ name: Release CLI
 
 on:
   push:
-    tags: ["v*.*.*"]
+    tags: ["cli-v*.*.*"]
 
 permissions:
   contents: read
@@ -26,13 +26,41 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run pw:install
-      - run: npm run ci
-      - name: Verify tag matches the scoped CLI version
+      - name: Resolve CLI release version
+        id: release-version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          node -e 'const fs=require("node:fs"); const p=JSON.parse(fs.readFileSync("apps/cli/package.json","utf8")); const tag=process.env.RELEASE_TAG.replace(/^v/,""); if (p.version !== tag) throw new Error(`Tag ${tag} does not match CLI ${p.version}`);'
+        run: echo "version=${RELEASE_TAG#cli-v}" >> "$GITHUB_OUTPUT"
+      - name: Verify CLI release tag and manifest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run check:cli-release-tag
+      - run: npm run ci
+      - run: npm run package:smoke
+      - run: npm run package:alias-smoke
       - name: Publish scoped CLI with npm trusted publishing
         run: npm publish --workspace @pinyencheng/lhic --access public --provenance
       - name: Publish compatibility entry with npm trusted publishing
         run: npm publish --workspace lhic --access public --provenance
+      - name: Wait for the scoped package to become visible
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          for attempt in $(seq 1 24); do
+            published_core="$(npm view "@pinyencheng/lhic@$RELEASE_VERSION" version --registry=https://registry.npmjs.org 2>/dev/null || true)"
+            published_alias="$(npm view "lhic@$RELEASE_VERSION" version --registry=https://registry.npmjs.org 2>/dev/null || true)"
+            if [ "$published_core" = "$RELEASE_VERSION" ] && [ "$published_alias" = "$RELEASE_VERSION" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Timed out waiting for the CLI packages at version $RELEASE_VERSION on npm." >&2
+          exit 1
+      - name: Verify the published scoped package
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: npm run package:published-smoke -- "$RELEASE_VERSION"
+      - name: Verify the published compatibility package
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: npm run package:published-alias-smoke -- "$RELEASE_VERSION"

@@ -1,8 +1,9 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import type { TaskSourceConfig } from "../shared/contracts.js";
 import { validateTaskSourceConfig } from "../shared/policy.js";
+import { ensurePrivateDirectory } from "./private-directory.js";
 
 const configName = ".lhic/task-sources.json";
 
@@ -39,7 +40,7 @@ export class TaskSourceStore {
 
   public async save(sources: readonly TaskSourceConfig[]): Promise<void> {
     const content = `${JSON.stringify(sources, null, 2)}\n`;
-    await mkdir(dirname(this.path), { recursive: true });
+    await ensurePrivateDirectory(dirname(this.path));
     const temporary = `${this.path}.${process.pid}.tmp`;
     await writeFile(temporary, content, { encoding: "utf8", mode: 0o600 });
     await rename(temporary, this.path);

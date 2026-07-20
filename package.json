@@ -39,6 +39,7 @@
     "package:published-smoke": "node scripts/published-package-smoke.mjs",
     "package:published-alias-smoke": "node scripts/published-alias-smoke.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
+    "check:cli-release-tag": "node scripts/check-cli-release-tag.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "release:checksums": "npm run release:checksums --workspace @lhic/desktop",
     "check:release-versions": "node scripts/check-release-versions.mjs",

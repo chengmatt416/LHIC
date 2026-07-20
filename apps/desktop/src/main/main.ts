@@ -1,5 +1,12 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain as electronIpcMain,
+  session,
+  shell,
+} from "electron";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type {
   GameProfile,
@@ -16,10 +23,25 @@ import type {
 } from "../shared/contracts.js";
 import { validateCustomGameProfile } from "../shared/policy.js";
 import { DesktopController } from "./controller.js";
+import {
+  isAllowedExternalUrl,
+  isTrustedRendererUrl,
+  type RendererNavigationPolicy,
+} from "./window-security.js";
 import { resolveDesktopWorkspaceRoot } from "./workspace-root.js";
 
 let controller: DesktopController;
 let isQuitting = false;
+const rendererNavigationPolicy: RendererNavigationPolicy = {
+  rendererFileUrl: pathToFileURL(
+    join(import.meta.dirname, "../../renderer/index.html"),
+  ).toString(),
+  ...(process.env.LHIC_DESKTOP_DEV_SERVER
+    ? { devServerUrl: process.env.LHIC_DESKTOP_DEV_SERVER }
+    : {}),
+};
+
+const ipcMain = { handle: registerSecureIpcHandler };
 
 async function createWindow(): Promise<void> {
   const window = new BrowserWindow({
@@ -42,11 +64,13 @@ async function createWindow(): Promise<void> {
   });
   window.once("closed", unsubscribeProgress);
   window.webContents.setWindowOpenHandler(({ url }) => {
-    void openExternalUrl(url);
+    if (isAllowedExternalUrl(url)) {
+      void openExternalUrl(url).catch(() => undefined);
+    }
     return { action: "deny" };
   });
   window.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith("file:") && !url.startsWith("http://127.0.0.1:"))
+    if (!isTrustedRendererUrl(url, rendererNavigationPolicy))
       event.preventDefault();
   });
   window.once("ready-to-show", () => window.show());
@@ -58,6 +82,22 @@ async function createWindow(): Promise<void> {
       join(import.meta.dirname, "../../renderer/index.html"),
     );
   }
+}
+
+function registerSecureIpcHandler<Args extends unknown[], Result>(
+  channel: string,
+  handler: (
+    event: Electron.IpcMainInvokeEvent,
+    ...args: Args
+  ) => Result | Promise<Result>,
+): void {
+  electronIpcMain.handle(channel, (event, ...args) => {
+    const senderUrl = event.senderFrame?.url ?? event.sender.getURL();
+    if (!isTrustedRendererUrl(senderUrl, rendererNavigationPolicy)) {
+      throw new Error("Untrusted renderer cannot invoke desktop capabilities.");
+    }
+    return handler(event, ...(args as Args));
+  });
 }
 
 function registerIpc(): void {
@@ -314,6 +354,10 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(async () => {
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => callback(false),
+  );
+  session.defaultSession.setPermissionCheckHandler(() => false);
   controller = new DesktopController(
     resolveDesktopWorkspaceRoot({
       cwd: process.cwd(),
@@ -455,7 +499,7 @@ async function openExternalUrl(value: string): Promise<void> {
   } catch {
     throw new Error("External navigation URL is invalid.");
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
+  if (!isAllowedExternalUrl(url.toString())) {
     throw new Error("Only HTTP(S) links may be opened externally.");
   }
   await shell.openExternal(url.toString());

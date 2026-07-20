@@ -32,6 +32,14 @@ type Section =
   | "judge"
   | "admin";
 
+const resumableTaskStatuses = new Set<CommandEvent["status"]>([
+  "queued",
+  "running",
+  "awaiting_approval",
+  "proposed",
+  "blocked",
+]);
+
 const sections: Array<{ id: Section; label: string; mark: string }> = [
   { id: "dashboard", label: "Overview", mark: "01" },
   { id: "skills", label: "Skill Depot", mark: "02" },
@@ -41,6 +49,12 @@ const sections: Array<{ id: Section; label: string; mark: string }> = [
   { id: "security", label: "Security", mark: "06" },
   { id: "judge", label: "Judge Center", mark: "07" },
   { id: "admin", label: "Admin", mark: "08" },
+];
+
+const navGroups: Array<{ label: string; items: Section[] }> = [
+  { label: "Monitor", items: ["dashboard", "tasks"] },
+  { label: "Build & connect", items: ["skills", "mcp", "game"] },
+  { label: "Governance", items: ["security", "judge", "admin"] },
 ];
 
 export function App(): JSX.Element {
@@ -91,44 +105,65 @@ export function App(): JSX.Element {
         </div>
         <div className="rail-rule" />
         <nav>
-          {sections.map((item) => (
-            <button
-              key={item.id}
-              className={section === item.id ? "nav-item active" : "nav-item"}
-              onClick={() => setSection(item.id)}
-              aria-current={section === item.id ? "page" : undefined}
-            >
-              <span>{item.mark}</span>
-              {item.label}
-            </button>
+          {navGroups.map((group) => (
+            <div className="nav-group" key={group.label}>
+              <span className="nav-group-label">{group.label}</span>
+              {group.items.map((id) => {
+                const item = sections.find((candidate) => candidate.id === id);
+                if (!item) return null;
+                return (
+                  <button
+                    key={item.id}
+                    className={
+                      section === item.id ? "nav-item active" : "nav-item"
+                    }
+                    onClick={() => setSection(item.id)}
+                    aria-current={section === item.id ? "page" : undefined}
+                  >
+                    <span>{item.mark}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </nav>
         <div className="rail-footer">
-          <span className="lamp" />
-          LOCAL FIRST
-          <br />
+          <div className="rail-status">
+            <span className="lamp" />
+            <span>LOCAL FIRST</span>
+          </div>
           <small>FAST PATH // MODEL-FREE</small>
         </div>
       </aside>
       <section className="content">
         <header className="topbar">
-          <div>
+          <div className="topbar-heading">
             <span className="eyebrow">LOCAL HUMAN INTENT CONTROLLER</span>
             <h1>{sections.find((item) => item.id === section)?.label}</h1>
           </div>
-          <div className="statusline">
-            <span className="lamp" />
-            GUARDED RUNTIME{" "}
+          <div className="topbar-actions">
             <button
-              className="icon-button"
-              onClick={() => void refresh()}
-              title="Refresh runtime state"
+              className="button primary topbar-action"
+              onClick={() => setSection("tasks")}
             >
-              ↻
+              + New guarded task
             </button>
+            <div className="statusline">
+              <span className="lamp" />
+              <span>GUARDED RUNTIME</span>
+              <button
+                className="icon-button"
+                onClick={() => void refresh()}
+                title="Refresh runtime state"
+              >
+                ↻
+              </button>
+            </div>
           </div>
         </header>
         <div className="notice" role="status">
+          <span className="notice-dot" aria-hidden="true" />
           {notice}
         </div>
         {!snapshot ? (
@@ -631,7 +666,12 @@ function Tasks({
   const [startUrl, setStartUrl] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [sourceConfig, setSourceConfig] = useState<TaskSourceConfig>();
-  const [event, setEvent] = useState<CommandEvent>();
+  const [event, setEvent] = useState<CommandEvent | undefined>(
+    () =>
+      snapshot.recentEvents.find((candidate) =>
+        resumableTaskStatuses.has(candidate.status),
+      ) ?? snapshot.recentEvents[0],
+  );
   const [approvalJson, setApprovalJson] = useState("");
   useEffect(
     () =>
@@ -674,6 +714,21 @@ function Tasks({
       const result = await window.lhic.tasks.execute(event.commandId);
       setEvent(result);
       setNotice(result.message);
+      await refresh();
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+  const cancel = async () => {
+    if (!event) return;
+    try {
+      await window.lhic.tasks.cancel(event.commandId);
+      setEvent({
+        ...event,
+        status: "cancelled",
+        message: "Task cancelled before execution.",
+      });
+      setNotice("Task cancelled before execution.");
       await refresh();
     } catch (error) {
       setNotice(message(error));
@@ -888,12 +943,13 @@ function Tasks({
                   Approve pending step
                 </button>
               )}
-              <button
-                className="button ghost"
-                onClick={() => void window.lhic.tasks.cancel(event.commandId)}
-              >
-                Cancel
-              </button>
+              {!["completed", "failed", "cancelled", "blocked"].includes(
+                event.status,
+              ) && (
+                <button className="button ghost" onClick={() => void cancel()}>
+                  Cancel
+                </button>
+              )}
             </div>
           </>
         ) : (

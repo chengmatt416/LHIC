@@ -27,12 +27,12 @@ try {
     "install",
     "chromium",
   ]);
-  const { stdout } = await runNpx(["--yes", packageSpec, "demo"]);
+  const { stdout } = await runNpx(["--yes", packageSpec, "demo", "--safe"]);
   const report = JSON.parse(stdout);
 
   if (!report.passed || report.gpt56?.enabled) {
     throw new Error(
-      "Published safe demo did not pass with the GPT Slow Path disabled.",
+      "Published credential-free safe demo did not pass with the GPT Slow Path disabled.",
     );
   }
 

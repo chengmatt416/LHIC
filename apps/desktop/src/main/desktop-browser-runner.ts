@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import {
@@ -29,6 +30,12 @@ export interface BrowserRunResult {
   proposal: TaskProposalSummary;
 }
 
+export interface BrowserReadiness {
+  ready: boolean;
+  executablePath: string;
+  message: string;
+}
+
 interface BrowserSession {
   browser: Browser;
   page: Page;
@@ -49,6 +56,25 @@ export class DesktopBrowserRunner {
 
   public constructor(private readonly workspaceRoot: string) {}
 
+  public async readiness(): Promise<BrowserReadiness> {
+    const executablePath = chromium.executablePath();
+    try {
+      await access(executablePath);
+      return {
+        ready: true,
+        executablePath,
+        message: "Playwright Chromium is ready for local browser tasks.",
+      };
+    } catch {
+      return {
+        ready: false,
+        executablePath,
+        message:
+          "Playwright Chromium is not installed. Run `lhic install cli` or `npx playwright install chromium`, then retry.",
+      };
+    }
+  }
+
   public async execute(
     commandId: string,
     plan: BrowserExecutionPlan,
@@ -63,6 +89,8 @@ export class DesktopBrowserRunner {
         "This task already has an active browser execution session.",
       );
     }
+    const readiness = await this.readiness();
+    if (!readiness.ready) throw new Error(readiness.message);
     const browser = await chromium.launch({ headless: false });
     const page = await browser.newPage();
     const networkObserver = new ConsoleNetworkObserver(page);

@@ -1,8 +1,13 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { TaskBudgetTracker } from "@lhic/controller";
 
 import { TaskService } from "./task-service.js";
+import { TaskJournalStore } from "./task-journal-store.js";
 
 describe("TaskService", () => {
   it("keeps a Fast Path admission model-free", async () => {
@@ -92,6 +97,7 @@ describe("TaskService", () => {
       } as never,
       {
         sourceStore: { load: async () => [], save: async () => undefined },
+        journalStore: emptyJournalStore(),
         sourceBudget: () =>
           new TaskBudgetTracker("balanced", {
             budget: { maxSlowPathCalls: 0 },
@@ -140,6 +146,125 @@ describe("TaskService", () => {
     expect(result.message).toContain("Slow Path call budget");
     expect(proposalCalls).toBe(0);
   });
+
+  it("persists a pending provider proposal so it can be resumed after restart", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-task-journal-test-"));
+    const journal = new TaskJournalStore(directory);
+    try {
+      const service = new TaskService(
+        directory,
+        { get: async () => undefined } as never,
+        { propose: async () => validPlan } as never,
+        {
+          sourceStore: { load: async () => [], save: async () => undefined },
+          journalStore: journal,
+        },
+      );
+      await service.configure({
+        id: "openai",
+        kind: "openai-responses",
+        label: "OpenAI",
+        model: "test-model",
+        enabled: true,
+      });
+      const pending = await service.start({
+        goal: "plan a difficult browser task",
+        sourceId: "openai",
+      });
+      await service.close();
+
+      const restored = new TaskService(
+        directory,
+        { get: async () => undefined } as never,
+        { propose: async () => validPlan } as never,
+        {
+          sourceStore: { load: async () => [], save: async () => undefined },
+          journalStore: journal,
+        },
+      );
+      await restored.initialize();
+      expect(restored.recentEvents()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            commandId: pending.commandId,
+            status: "awaiting_approval",
+          }),
+        ]),
+      );
+      await expect(restored.approve(pending.commandId)).resolves.toMatchObject({
+        status: "proposed",
+      });
+      await restored.close();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("passes the user's start URL into Slow Path planning", async () => {
+    let receivedStartUrl: string | undefined;
+    const service = new TaskService(
+      process.cwd(),
+      { get: async () => undefined } as never,
+      {
+        propose: async (_source, _goal, _workspaceRoot, options) => {
+          receivedStartUrl = options?.startUrl;
+          return validPlan;
+        },
+      } as never,
+      {
+        sourceStore: { load: async () => [], save: async () => undefined },
+        journalStore: emptyJournalStore(),
+      },
+    );
+    await service.configure({
+      id: "openai",
+      kind: "openai-responses",
+      label: "OpenAI",
+      model: "test-model",
+      enabled: true,
+    });
+    const pending = await service.start({
+      goal: "plan a difficult browser task",
+      sourceId: "openai",
+      startUrl: "https://docs.example.test/start",
+    });
+    await service.approve(pending.commandId);
+    expect(receivedStartUrl).toBe("https://docs.example.test/start");
+  });
+
+  it("keeps a cancelled provider task cancelled after the provider returns", async () => {
+    let resolveProposal: ((value: typeof validPlan) => void) | undefined;
+    const service = new TaskService(
+      process.cwd(),
+      { get: async () => undefined } as never,
+      {
+        propose: async () =>
+          new Promise<typeof validPlan>((resolve) => {
+            resolveProposal = resolve;
+          }),
+      } as never,
+      {
+        sourceStore: { load: async () => [], save: async () => undefined },
+        journalStore: emptyJournalStore(),
+      },
+    );
+    await service.configure({
+      id: "openai",
+      kind: "openai-responses",
+      label: "OpenAI",
+      model: "test-model",
+      enabled: true,
+    });
+    const pending = await service.start({
+      goal: "plan a difficult browser task",
+      sourceId: "openai",
+    });
+    const approval = service.approve(pending.commandId);
+    await new Promise((resolve) => setImmediate(resolve));
+    await service.cancel(pending.commandId);
+    resolveProposal?.(validPlan);
+    await expect(approval).resolves.toMatchObject({ status: "cancelled" });
+  });
 });
 
 function createService(propose: () => Promise<typeof validPlan>): TaskService {
@@ -147,8 +272,18 @@ function createService(propose: () => Promise<typeof validPlan>): TaskService {
     process.cwd(),
     { get: async () => undefined } as never,
     { propose } as never,
-    { sourceStore: { load: async () => [], save: async () => undefined } },
+    {
+      sourceStore: { load: async () => [], save: async () => undefined },
+      journalStore: emptyJournalStore(),
+    },
   );
+}
+
+function emptyJournalStore() {
+  return {
+    load: async () => ({ events: [], pending: [] }),
+    save: async () => undefined,
+  };
 }
 
 const validPlan = {

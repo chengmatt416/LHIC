@@ -379,6 +379,8 @@ export interface DashboardSnapshot {
     workspaceRoot: string;
     fastPathModelFree: true;
     runningJobs: number;
+    browserReady: boolean;
+    browserReadinessMessage: string;
   };
   skills: SkillSummary[];
   sharedLibrary: SharedLibraryStatus;

@@ -31,8 +31,10 @@ entry when a persistent global install is not wanted:
 npx lhic preflight
 ```
 
-Download and install the SHA-256-verified desktop application from the latest
-GitHub Release:
+The native desktop package remains a development build until its platform
+release workflow publishes matching installers and a SHA-256 manifest. After
+that gate is green, download and install the SHA-256-verified desktop
+application from the latest GitHub Release:
 
 ```bash
 npx @pinyencheng/lhic install desktop
