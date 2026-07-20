@@ -21,7 +21,7 @@
   },
   "type": "module",
   "exports": {
-    ".": "./dist/main.js",
+    ".": "./dist/entry.js",
     "./dist/*": "./dist/*"
   },
   "files": [
@@ -32,7 +32,7 @@
     "LICENSE-APACHE"
   ],
   "bin": {
-    "lhic": "dist/main.js"
+    "lhic": "dist/entry.js"
   },
   "scripts": {
     "build": "tsc -b",

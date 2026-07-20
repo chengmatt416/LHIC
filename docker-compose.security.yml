@@ -33,7 +33,7 @@ services:
       - source: lhic_approval_public_key
         target: lhic_approval_public_key
     security_opt:
-      - seccomp=./chrome-seccomp.json
+      - no-new-privileges:true
     deploy:
       resources:
         limits:

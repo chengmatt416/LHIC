@@ -59,7 +59,10 @@ for (const packageName of bundledPackages) {
 
 await removeTestArtifacts(join(packageDirectory, "dist"));
 await removeTestArtifacts(bundleDirectory);
-await chmod(join(packageDirectory, "dist", "main.js"), 0o755);
+await Promise.all([
+  chmod(join(packageDirectory, "dist", "main.js"), 0o755),
+  chmod(join(packageDirectory, "dist", "entry.js"), 0o755),
+]);
 
 async function removeTestArtifacts(directory) {
   const entries = await readdir(directory, { withFileTypes: true }).catch(
