@@ -66,7 +66,17 @@ jobs:
       - run: npm ci
       - run: npm run package:smoke
       - run: npm run package:alias-smoke
-      - run: npm run desktop:package
+      - name: Run desktop package
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run desktop:package 2>&1 | tee desktop-package.log
+      - name: Upload desktop package failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-package-${{ runner.os }}
+          path: desktop-package.log
 
   container-preflight:
     name: Container production preflight
@@ -81,9 +91,17 @@ jobs:
       - name: Build and run the production Compose preflight
         env:
           LHIC_ALLOWED_ORIGINS: https://app.example.com
-        run: >-
-          docker compose -f docker-compose.security.yml up --build
-          --abort-on-container-exit --exit-code-from lhic-agent
+        run: |
+          set -o pipefail
+          docker compose -f docker-compose.security.yml up --build \
+            --abort-on-container-exit --exit-code-from lhic-agent 2>&1 \
+            | tee container-preflight.log
+      - name: Upload container preflight failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-preflight
+          path: container-preflight.log
       - name: Remove test containers and trace data
         if: always()
         env:
