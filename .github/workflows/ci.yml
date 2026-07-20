@@ -95,9 +95,13 @@ jobs:
           LHIC_ALLOWED_ORIGINS: https://app.example.com
         run: |
           set -o pipefail
-          docker compose -f docker-compose.security.yml up --build \
-            --abort-on-container-exit --exit-code-from lhic-agent 2>&1 \
+          docker compose -f docker-compose.security.yml build 2>&1 \
             | tee container-preflight.log
+          docker compose -f docker-compose.security.yml run --rm \
+            trace-storage-init 2>&1 | tee -a container-preflight.log
+          docker compose -f docker-compose.security.yml up --no-build --no-deps \
+            --abort-on-container-exit --exit-code-from lhic-agent lhic-agent \
+            2>&1 | tee -a container-preflight.log
       - name: Upload container preflight failure log
         if: failure()
         uses: actions/upload-artifact@v4
