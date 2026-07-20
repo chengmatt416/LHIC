@@ -4,8 +4,50 @@ LHIC is a local-first controller for deterministic browser and global desktop
 actions. It runs browser Fast Path actions directly through Playwright and
 controls macOS, Windows, and Linux desktops through native OS APIs.
 
-Run `lhic` with no arguments to choose a command interactively. The CLI also
-guides terminal users through required values omitted from `shared enable`,
+## Beginner workflow
+
+After installing the CLI, start with one command:
+
+```bash
+lhic setup
+```
+
+`setup` initializes local Skill memory, runs the browser/runtime checks, and
+prints a reviewed Codex MCP configuration. Select a different supported client
+when needed:
+
+```bash
+lhic setup claude-code
+lhic setup vscode
+lhic setup antigravity
+```
+
+The MCP configuration is emitted only when the compiled local MCP server exists
+at `apps/mcp-server/dist/index.js`. If it has not been built, setup explains the
+exact build step instead of printing a configuration that cannot start.
+
+When something does not work, run:
+
+```bash
+lhic doctor
+```
+
+The report separates required browser-runtime failures from optional global
+desktop support and gives a concrete repair command for Node.js, Chromium,
+trace storage, runtime policy, network checks, and platform permissions.
+
+Inspect what LHIC has learned without opening SQLite manually:
+
+```bash
+lhic skills
+```
+
+The output shows every local Skill lifecycle, success and failure counters, and
+the next verified milestone. Candidate Skills show progress toward three
+independent runs and the separate holdout requirement.
+
+Run `lhic` with no arguments to choose a legacy command interactively. The CLI
+also guides terminal users through required values omitted from `shared enable`,
 `shared login`, `mcp config`, `run action`, benchmark readiness/evidence, and
 trace inspection. Fully specified commands remain non-interactive for scripts
 and CI.
@@ -23,12 +65,12 @@ npx @pinyencheng/lhic install cli
 ```
 
 On macOS and Linux the command registers `~/.local/bin/lhic` in the active
-zsh/bash interactive shell configuration; open a new terminal before using `lhic` directly. `npx`
-always uses a temporary package directory, so use the public compatibility
-entry when a persistent global install is not wanted:
+zsh/bash interactive shell configuration; open a new terminal before using
+`lhic` directly. `npx` always uses a temporary package directory, so use the
+public compatibility entry when a persistent global install is not wanted:
 
 ```bash
-npx lhic preflight
+npx lhic doctor
 ```
 
 The native desktop package remains a development build until its platform
@@ -66,12 +108,12 @@ npx @pinyencheng/lhic demo --endpoint https://models.example.com/v1/responses
 ```
 
 The CLI stores the selected provider key in the operating-system Keychain,
-opens a fresh Chromium profile on a public HTTPS website, and first runs a
-Slow Path task. Slow Path sends a redacted observation to the selected model
-for every step, then verifies each local action. After a verified task is
-learned locally, enter a similar prompt: Fast Path performs one planning-model
-request and executes the returned complete browser plan locally without model
-calls during execution. Click, key-press, and download actions pause for human
+opens a fresh Chromium profile on a public HTTPS website, and first runs a Slow
+Path task. Slow Path sends a redacted observation to the selected model for
+every step, then verifies each local action. After a verified task is learned
+locally, enter a similar prompt: Fast Path performs one planning-model request
+and executes the returned complete browser plan locally without model calls
+during execution. Click, key-press, and download actions pause for human
 approval. The first local similarity lookup downloads the embedding model once
 and caches it locally.
 
@@ -98,11 +140,11 @@ npx @pinyencheng/lhic gui
 The Demo tab drives the same API-key, provider, bounded Slow Path, and
 candidate-learning flow in a separate visible Chromium window. A candidate
 requires three independent verified runs plus an offline holdout before it can
-enter Fast Path. The MCP tab generates a
-client-specific local stdio configuration for Codex, Claude Code, VS Code, or
-Antigravity; review and paste it into the selected client yourself. It never
-rewrites MCP settings. Use `lhic gui mcp --no-open` to print a local GUI URL
-without launching the default browser.
+enter Fast Path. The MCP tab generates a client-specific local stdio
+configuration for Codex, Claude Code, VS Code, or Antigravity; review and paste
+it into the selected client yourself. It never rewrites MCP settings. Use
+`lhic gui mcp --no-open` to print a local GUI URL without launching the default
+browser.
 
 ```bash
 npx @pinyencheng/lhic global doctor
