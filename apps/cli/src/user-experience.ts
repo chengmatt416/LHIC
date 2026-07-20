@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   createMemoryDatabase,
@@ -46,7 +46,8 @@ export interface UserSetupReport {
   databaseFile: string;
   preloadedSkills: string[];
   mcpHarness: McpHarness;
-  mcpConfig: string;
+  mcpReady: boolean;
+  mcpConfig?: string;
   doctor: UserDoctorReport;
   nextSteps: string[];
 }
@@ -144,25 +145,49 @@ export async function runUserSetup(
   const databaseFile = options.databaseFile ?? defaultMemoryDatabasePath;
   const runtime = await startLocalRuntime(databaseFile);
   const doctor = await runUserDoctor(runtime.databaseFile);
-  const workspaceRoot = options.workspaceRoot ?? process.cwd();
+  const workspaceRoot = resolve(options.workspaceRoot ?? process.cwd());
+  const mcpEntrypoint = join(
+    workspaceRoot,
+    "apps",
+    "mcp-server",
+    "dist",
+    "index.js",
+  );
+  let mcpReady = true;
+  try {
+    await access(mcpEntrypoint);
+  } catch {
+    mcpReady = false;
+  }
 
-  return {
-    ready: doctor.browserReady,
-    databaseFile: runtime.databaseFile,
-    preloadedSkills: runtime.preloadedSkills,
-    mcpHarness: options.harness,
-    mcpConfig: renderMcpHarnessConfig(options.harness, workspaceRoot),
-    doctor,
-    nextSteps: doctor.browserReady
+  const nextSteps = !doctor.browserReady
+    ? [
+        "Apply the fixes listed by `lhic doctor`.",
+        "Run `lhic setup` again after the failed checks are resolved.",
+      ]
+    : !mcpReady
       ? [
+          `Build the MCP server first: run \`npm run build\` in ${workspaceRoot}.`,
+          "Re-run `lhic setup` after apps/mcp-server/dist/index.js exists.",
+          "You can still use `lhic demo`, `lhic gui`, and local plans without MCP.",
+        ]
+      : [
           "Review and add the generated MCP configuration to your client.",
           "Restart the MCP client and verify that `lhic_runtime_status` is available.",
           "Run `lhic skills` at any time to inspect local learning progress.",
-        ]
-      : [
-          "Apply the fixes listed by `lhic doctor`.",
-          "Run `lhic setup` again after the failed checks are resolved.",
-        ],
+        ];
+
+  return {
+    ready: doctor.browserReady && mcpReady,
+    databaseFile: runtime.databaseFile,
+    preloadedSkills: runtime.preloadedSkills,
+    mcpHarness: options.harness,
+    mcpReady,
+    ...(mcpReady
+      ? { mcpConfig: renderMcpHarnessConfig(options.harness, workspaceRoot) }
+      : {}),
+    doctor,
+    nextSteps,
   };
 }
 
@@ -191,7 +216,7 @@ export async function listSkillProgress(
     const candidates = database
       .prepare(
         `
-          SELECT name, verified_run_count, holdout_passed, promoted_at
+          SELECT name, verified_run_count, holdout_passed
           FROM candidate_skills
           WHERE promoted_at IS NULL
           ORDER BY name ASC
@@ -201,7 +226,6 @@ export async function listSkillProgress(
       name: string;
       verified_run_count: number;
       holdout_passed: number;
-      promoted_at: string | null;
     }>;
 
     return [
@@ -252,9 +276,10 @@ export function formatSetupReport(report: UserSetupReport): string {
     `Preloaded Skills: ${report.preloadedSkills.join(", ")}`,
     `MCP client: ${report.mcpHarness}`,
     "",
-    "MCP configuration (review before applying):",
-    report.mcpConfig.trimEnd(),
-    "",
+    report.mcpConfig
+      ? "MCP configuration (review before applying):"
+      : "MCP configuration is not available because the compiled server was not found.",
+    ...(report.mcpConfig ? [report.mcpConfig.trimEnd(), ""] : [""]),
     "Next steps:",
     ...report.nextSteps.map((step, index) => `${index + 1}. ${step}`),
     "",
@@ -277,13 +302,12 @@ export function formatSkillProgress(items: SkillProgressItem[]): string {
 
 function doctorItemForPreflightCheck(check: PreflightCheck): DoctorItem {
   const warningOnly = check.name === "dns-integrity";
+  const fix = check.passed ? undefined : fixForPreflightCheck(check.name);
   return {
     name: check.name,
     status: check.passed ? "pass" : warningOnly ? "warn" : "fail",
     detail: check.detail,
-    ...(!check.passed && fixForPreflightCheck(check.name)
-      ? { fix: fixForPreflightCheck(check.name) }
-      : {}),
+    ...(fix ? { fix } : {}),
   };
 }
 
@@ -329,7 +353,8 @@ function lifecycleProgress(
     case "trusted":
       return {
         progress: `${successes} verified successes`,
-        nextStep: "Trusted Fast Path Skill; continue monitoring verifier failures.",
+        nextStep:
+          "Trusted Fast Path Skill; continue monitoring verifier failures.",
       };
   }
 }
