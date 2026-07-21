@@ -126,6 +126,42 @@ export interface McpProbeResult {
   message: string;
 }
 
+export interface DemoDirectorPreflight {
+  codexMcp: McpProbeResult;
+  codexApplicationAvailable: boolean;
+  challengeApplicationAvailable: boolean;
+  screenRecorderAvailable: boolean;
+  signingCertificateSha256: string;
+  scenarioReady: boolean;
+  codexModel: string;
+  codexApplicationLabel: string;
+  messages: string[];
+}
+
+export interface DemoCodexDispatchRequest {
+  approvedBy: string;
+}
+
+export interface DemoDirectorResult {
+  status: "completed" | "failed";
+  durationMs: number;
+  evidence: string[];
+  error?: string;
+}
+
+export interface DemoRecordingStatus {
+  recording: boolean;
+  startedAt?: string;
+  outputPath?: string;
+}
+
+export interface DemoCandidateStatus {
+  name: string;
+  verifiedRunCount: number;
+  holdoutPassed: boolean;
+  promoted: boolean;
+}
+
 export interface TrainingJob {
   id: string;
   kind:
@@ -161,7 +197,12 @@ export interface PublicWebTrainingRequest {
 export interface GameTrainingRequest {
   core: "2d" | "3d";
   action: "setup" | "lease" | "record" | "fit" | "evaluate" | "play";
-  profileId: "star-trooper" | "nemesis" | "epic-shooter-3d" | "custom";
+  profileId:
+    | "star-trooper"
+    | "challenge-2026"
+    | "nemesis"
+    | "epic-shooter-3d"
+    | "custom";
   customProfile?: GameProfile;
   windowTitle?: string;
   captureRegion?: { x: number; y: number; width: number; height: number };
@@ -429,6 +470,20 @@ export interface DesktopApi {
       client: McpClientKind,
       workspaceRoot: string,
     ): Promise<McpProbeResult>;
+  };
+  demo: {
+    preflight(): Promise<DemoDirectorPreflight>;
+    dispatchCodex(input: DemoCodexDispatchRequest): Promise<DemoDirectorResult>;
+    approveCodexPermission(approvedBy: string): Promise<DemoDirectorResult>;
+    startFastPath(): Promise<CommandEvent>;
+    focusLhic(): Promise<DemoDirectorResult>;
+    launchChallenge(): Promise<DemoDirectorResult>;
+    candidates(): Promise<DemoCandidateStatus[]>;
+    startRecording(): Promise<DemoRecordingStatus>;
+    stopRecording(): Promise<DemoRecordingStatus>;
+    recordingStatus(): Promise<DemoRecordingStatus>;
+    startTimer(kind: "slow" | "fast"): Promise<void>;
+    stopTimer(): Promise<void>;
   };
   game: {
     inspectRuntime(): Promise<GameTrainingEnvironment>;

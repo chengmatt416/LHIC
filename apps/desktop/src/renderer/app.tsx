@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 
 import type {
   CommandEvent,
@@ -21,8 +21,10 @@ import {
   createDashboardOverview,
   type DashboardDestination,
 } from "./dashboard-model.js";
+import { DemoDirector } from "./demo-director.js";
 
 type Section =
+  | "demo"
   | "dashboard"
   | "skills"
   | "tasks"
@@ -41,6 +43,7 @@ const resumableTaskStatuses = new Set<CommandEvent["status"]>([
 ]);
 
 const sections: Array<{ id: Section; label: string; mark: string }> = [
+  { id: "demo", label: "Demo Director", mark: "00" },
   { id: "dashboard", label: "Overview", mark: "01" },
   { id: "skills", label: "Skill Depot", mark: "02" },
   { id: "tasks", label: "Task Console", mark: "03" },
@@ -52,13 +55,18 @@ const sections: Array<{ id: Section; label: string; mark: string }> = [
 ];
 
 const navGroups: Array<{ label: string; items: Section[] }> = [
+  { label: "Present", items: ["demo"] },
   { label: "Monitor", items: ["dashboard", "tasks"] },
   { label: "Build & connect", items: ["skills", "mcp", "game"] },
   { label: "Governance", items: ["security", "judge", "admin"] },
 ];
 
 export function App(): JSX.Element {
-  const [section, setSection] = useState<Section>("dashboard");
+  const [section, setSection] = useState<Section>(() =>
+    new URLSearchParams(window.location.search).get("demo") === "1"
+      ? "demo"
+      : "dashboard",
+  );
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>();
   const [notice, setNotice] = useState(
     "Initializing the local control surface…",
@@ -92,6 +100,10 @@ export function App(): JSX.Element {
       }),
     [],
   );
+
+  if (section === "demo") {
+    return <DemoDirector setNotice={setNotice} />;
+  }
 
   return (
     <main className="shell">
@@ -196,6 +208,8 @@ function Panel({
   navigate: (section: Section) => void;
 }): JSX.Element {
   switch (section) {
+    case "demo":
+      return <></>;
     case "dashboard":
       return <Dashboard snapshot={snapshot} navigate={navigate} />;
     case "skills":
@@ -889,6 +903,13 @@ function Tasks({
               />
               Enable this bounded Slow Path source
             </label>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <KeychainApiKeyVault
+                credentialId={sourceConfig.credentialId ?? sourceConfig.id}
+                setNotice={setNotice}
+                compact
+              />
+            </div>
           </div>
           <div className="actions">
             <button className="button" onClick={() => void saveSource()}>
@@ -1360,7 +1381,10 @@ function Game({
             >
               <option value="custom">Experimental custom profile</option>
               {training.core === "2d" ? (
-                <option value="star-trooper">Star Trooper</option>
+                <>
+                  <option value="challenge-2026">Challenge 2026</option>
+                  <option value="star-trooper">Star Trooper</option>
+                </>
               ) : (
                 <>
                   <option value="epic-shooter-3d">Epic Shooter 3D</option>
@@ -1677,40 +1701,231 @@ function gameResourceLabel(
   }
 }
 
+function KeychainApiKeyVault({
+  credentialId,
+  setNotice,
+  compact = false,
+}: {
+  credentialId: string;
+  setNotice: (value: string) => void;
+  compact?: boolean;
+}): JSX.Element {
+  const [secret, setSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [present, setPresent] = useState<boolean | undefined>();
+  const [saving, setSaving] = useState(false);
+
+  const check = useCallback(async () => {
+    const targetId = credentialId.trim();
+    if (!targetId) return;
+    try {
+      const isPresent = await window.lhic.credentials.has(targetId);
+      setPresent(isPresent);
+    } catch {
+      setPresent(false);
+    }
+  }, [credentialId]);
+
+  useEffect(() => {
+    void check();
+  }, [check, credentialId]);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) {
+        setSecret(text.trim());
+        setNotice(`API key pasted from clipboard for "${credentialId}".`);
+      } else {
+        setNotice("Clipboard is empty.");
+      }
+    } catch {
+      setNotice(
+        "Unable to access system clipboard automatically. Please paste using Cmd+V or Ctrl+V.",
+      );
+    }
+  };
+
+  const saveToKeychain = async () => {
+    const targetId = credentialId.trim();
+    if (!targetId) {
+      setNotice("Credential ID is required.");
+      return;
+    }
+    if (!secret.trim()) {
+      setNotice("Please enter or paste an API key before saving.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await window.lhic.credentials.set(targetId, secret.trim());
+      setSecret("");
+      setShowSecret(false);
+      await check();
+      setNotice(
+        `API key for "${targetId}" saved safely to OS keychain. Plaintext wiped from app memory.`,
+      );
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeFromKeychain = async () => {
+    const targetId = credentialId.trim();
+    if (!targetId) return;
+    try {
+      await window.lhic.credentials.remove(targetId);
+      await check();
+      setNotice(`Credential "${targetId}" removed from OS keychain.`);
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: "12px",
+        padding: compact ? "12px" : "16px",
+        borderRadius: "8px",
+        border: "1px solid var(--border-color)",
+        backgroundColor: "var(--bg-surface-raised)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "10px",
+          gap: "8px",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontWeight: 600, fontSize: "13px" }}>
+          🔑 OS Keychain API Key Vault ({credentialId || "unspecified"})
+        </span>
+        {present !== undefined && (
+          <span
+            style={{
+              padding: "2px 8px",
+              borderRadius: "10px",
+              fontSize: "11px",
+              fontWeight: 600,
+              backgroundColor: present
+                ? "var(--color-success-bg)"
+                : "var(--color-warning-bg)",
+              color: present ? "var(--color-success)" : "var(--color-warning)",
+              border: `1px solid ${
+                present ? "var(--color-success)" : "var(--color-warning)"
+              }`,
+            }}
+          >
+            {present ? "🔒 Stored in Keychain" : "⚠️ Not Configured"}
+          </span>
+        )}
+      </div>
+
+      <div
+        className="form-row"
+        style={{
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ position: "relative", flex: "1 1 240px" }}>
+          <input
+            type={showSecret ? "text" : "password"}
+            placeholder="Paste API key here (e.g. sk-...)"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            autoComplete="off"
+            style={{ width: "100%", paddingRight: "36px" }}
+          />
+          <button
+            type="button"
+            className="button"
+            onClick={() => setShowSecret(!showSecret)}
+            title={showSecret ? "Hide secret" : "Show secret"}
+            style={{
+              position: "absolute",
+              right: "4px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "2px 6px",
+              fontSize: "13px",
+            }}
+          >
+            {showSecret ? "🙈" : "👁️"}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="button"
+          onClick={() => void pasteFromClipboard()}
+          title="Paste API Key directly from Clipboard"
+        >
+          📋 Paste API Key
+        </button>
+
+        <button
+          type="button"
+          className="button primary"
+          onClick={() => void saveToKeychain()}
+          disabled={saving || !secret.trim()}
+        >
+          {saving ? "Saving..." : "Save to Keychain"}
+        </button>
+
+        {present && (
+          <button
+            type="button"
+            className="button"
+            onClick={() => void removeFromKeychain()}
+            title="Remove from OS Keychain"
+            style={{ color: "var(--color-error)" }}
+          >
+            Remove Key
+          </button>
+        )}
+      </div>
+      <p className="muted" style={{ fontSize: "11px", marginTop: "8px" }}>
+        Credentials are stored directly in your operating-system Keychain (macOS
+        Keychain Access, Windows Credential Manager, Linux Secret Service).
+        Plaintext values are never logged, saved on disk, or included in
+        telemetry.
+      </p>
+    </div>
+  );
+}
+
 function Security({
   setNotice,
 }: {
   setNotice: (value: string) => void;
 }): JSX.Element {
-  const [id, setId] = useState("openai-responses");
-  const [secret, setSecret] = useState("");
-  const [present, setPresent] = useState<boolean>();
+  const [selectedId, setSelectedId] = useState("openai-responses");
+  const [customId, setCustomId] = useState("");
   const [configuration, setConfiguration] =
     useState<Awaited<ReturnType<typeof window.lhic.security.configuration>>>();
+
+  const activeId = selectedId === "custom" ? customId : selectedId;
+
   useEffect(() => {
     void window.lhic.security
       .configuration()
       .then(setConfiguration)
       .catch((error: unknown) => setNotice(message(error)));
   }, [setNotice]);
-  const save = async () => {
-    try {
-      await window.lhic.credentials.set(id, secret);
-      setSecret("");
-      setNotice(
-        "Credential stored in the operating-system keychain. It was not added to application state or traces.",
-      );
-    } catch (error) {
-      setNotice(message(error));
-    }
-  };
-  const check = async () => {
-    try {
-      setPresent(await window.lhic.credentials.has(id));
-    } catch (error) {
-      setNotice(message(error));
-    }
-  };
+
   const configureSlowPathProfile = async (
     slowPathProfile: "fast_only" | "balanced" | "deliberative",
   ) => {
@@ -1724,36 +1939,49 @@ function Security({
       setNotice(message(error));
     }
   };
+
   return (
     <div className="stack">
       <section className="panel">
         <PanelTitle code="KEYCHAIN/06" title="Local provider credentials" />
-        <div className="form-row">
+        <p className="muted">
+          Paste API keys directly to store them in your OS Keychain safely.
+          Credentials are used only by optional Slow Path planners and are never
+          written to disk or logs.
+        </p>
+        <div className="form-row" style={{ marginTop: "12px" }}>
           <label>
-            Credential id
-            <input value={id} onChange={(event) => setId(event.target.value)} />
+            Provider / Credential ID
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              <option value="openai-responses">
+                OpenAI (openai-responses)
+              </option>
+              <option value="anthropic-messages">
+                Anthropic (anthropic-messages)
+              </option>
+              <option value="gemini">Gemini (gemini)</option>
+              <option value="openai-compatible">
+                OpenAI-Compatible (openai-compatible)
+              </option>
+              <option value="custom">Custom ID...</option>
+            </select>
           </label>
-          <label>
-            Secret
-            <input
-              type="password"
-              value={secret}
-              onChange={(event) => setSecret(event.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <button className="button primary" onClick={() => void save()}>
-            Store locally
-          </button>
-          <button className="button" onClick={() => void check()}>
-            Check
-          </button>
+          {selectedId === "custom" && (
+            <label>
+              Custom Credential ID
+              <input
+                value={customId}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="e.g. my-custom-planner"
+              />
+            </label>
+          )}
         </div>
-        {present !== undefined && (
-          <p className="muted">
-            Keychain entry: {present ? "present" : "not configured"}
-          </p>
-        )}
+
+        <KeychainApiKeyVault credentialId={activeId} setNotice={setNotice} />
       </section>
       <section className="panel">
         <PanelTitle code="POLICY/06" title="Execution safety profile" />

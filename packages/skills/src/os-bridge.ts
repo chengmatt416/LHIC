@@ -103,7 +103,7 @@ export class GlobalComputerExecutor {
       };
     }
     const startedAt = performance.now();
-    const method = methodForGlobalAction(action.type);
+    const method = methodForGlobalAction(action);
     await this.trace(
       "global_action_started",
       {
@@ -670,12 +670,14 @@ function linuxHotkey(value: string): string {
   return modifierPrefix ? `${modifierPrefix}+${normalizedKey}` : normalizedKey;
 }
 
-function methodForGlobalAction(
-  type: GlobalComputerAction["type"],
-): ActionMethod {
-  switch (type) {
+function methodForGlobalAction(action: GlobalComputerAction): ActionMethod {
+  switch (action.type) {
     case "os_click":
-      return "mouse";
+      return action.methodPreference.includes("accessibility") &&
+        action.target &&
+        action.application
+        ? "accessibility"
+        : "mouse";
     case "os_type":
     case "os_press":
       return "keyboard";
@@ -750,16 +752,26 @@ const macAccessibilityClickScript = `on run argv
   tell application "System Events"
     tell process (item 1 of argv)
       set targetElement to missing value
+      set requestedTarget to item 2 of argv
+      set requestedRole to ""
+      if requestedTarget starts with "role:" then
+        set requestedRole to text 6 thru -1 of requestedTarget
+      end if
       repeat with win in windows
         try
-          if exists (first UI element of win whose name is (item 2 of argv) or title is (item 2 of argv) or description is (item 2 of argv)) then
-            set targetElement to (first UI element of win whose name is (item 2 of argv) or title is (item 2 of argv) or description is (item 2 of argv))
-            exit repeat
+          if requestedRole is "" then
+            if exists (first UI element of win whose name is requestedTarget or title is requestedTarget or description is requestedTarget) then
+              set targetElement to (first UI element of win whose name is requestedTarget or title is requestedTarget or description is requestedTarget)
+              exit repeat
+            end if
           end if
           set allElements to entire contents of win
           repeat with el in allElements
             try
-              if (name of el is (item 2 of argv)) or (title of el is (item 2 of argv)) or (description of el is (item 2 of argv)) then
+              if requestedRole is not "" and role of el is requestedRole then
+                set targetElement to el
+                exit repeat
+              else if requestedRole is "" and ((name of el is requestedTarget) or (title of el is requestedTarget) or (description of el is requestedTarget)) then
                 set targetElement to el
                 exit repeat
               end if
@@ -771,7 +783,7 @@ const macAccessibilityClickScript = `on run argv
       if targetElement is not missing value then
         click targetElement
       else
-        error "Accessibility element " & (item 2 of argv) & " not found"
+        error "Accessibility element " & requestedTarget & " not found"
       end if
     end tell
   end tell

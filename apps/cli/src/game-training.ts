@@ -17,8 +17,10 @@ import {
   readGameDatasetManifest,
   readGamePolicyArtifact,
   readRegisteredLocalGameTarget,
+  readRegisteredNativeGameTarget,
   readRegisteredRemoteGameTarget,
   registerLocalGameTarget,
+  registerNativeGameTarget,
   registerRemoteGameTarget,
   runPythonDesktopWorker,
   runPythonTraining,
@@ -218,6 +220,19 @@ async function setupTarget(
       target: registration,
     };
   }
+  if (profile.targetOrigin?.kind === "native") {
+    const registration = await registerNativeGameTarget(
+      profile,
+      optionString(options, "--source"),
+      root,
+    );
+    return {
+      command: "setup",
+      core: profile.core,
+      profile: profile.id,
+      target: registration,
+    };
+  }
   const source = requiredOption(options, "--source");
   const registration = await registerLocalGameTarget(profile, source, root);
   return {
@@ -349,6 +364,8 @@ async function recordDesktopDataset(
   }
   if (profile.targetOrigin?.kind === "remote") {
     await readRegisteredRemoteGameTarget(profile, root);
+  } else if (profile.targetOrigin?.kind === "native") {
+    await readRegisteredNativeGameTarget(profile, root);
   } else {
     await readRegisteredLocalGameTarget(profile, root);
   }
@@ -779,11 +796,15 @@ async function playDesktopPolicy(
       frameSpec: frameSpecFor(profile.core),
     },
   );
-  const isRemoteTarget = profile.targetOrigin?.kind === "remote";
-  if (isRemoteTarget) await readRegisteredRemoteGameTarget(profile, root);
-  const localTarget = isRemoteTarget
-    ? undefined
-    : await readRegisteredLocalGameTarget(profile, root);
+  const targetKind = profile.targetOrigin?.kind ?? "local";
+  if (targetKind === "remote")
+    await readRegisteredRemoteGameTarget(profile, root);
+  if (targetKind === "native")
+    await readRegisteredNativeGameTarget(profile, root);
+  const localTarget =
+    targetKind === "local"
+      ? await readRegisteredLocalGameTarget(profile, root)
+      : undefined;
   const windowTitle = requiredOption(options, "--window-title");
   const captureRegion = parseCaptureRegion(requiredOption(options, "--region"));
   const lease = await readDesktopLease(requiredOption(options, "--lease"));
@@ -1092,6 +1113,9 @@ async function openBrowserGameTarget(
   profile: GameTargetProfile,
   root: string,
 ): Promise<BrowserGameTarget> {
+  if (profile.targetOrigin?.kind === "native") {
+    throw new Error(`${profile.id} is a desktop-only native game target.`);
+  }
   if (profile.targetOrigin?.kind === "remote") {
     const target = await readRegisteredRemoteGameTarget(profile, root);
     return {

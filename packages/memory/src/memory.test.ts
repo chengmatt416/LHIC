@@ -107,6 +107,12 @@ describe("SQLite skill memory", () => {
       promoted: false,
       definition: { value: "[REDACTED_EMAIL]" },
     });
+    expect(store.listCandidates()).toEqual([
+      expect.objectContaining({
+        name: "candidate-search",
+        verifiedRunCount: 3,
+      }),
+    ]);
     expect(store.promoteCandidate("candidate-search")).toBeUndefined();
 
     const candidate = store.getCandidate("candidate-search");

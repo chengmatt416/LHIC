@@ -10,7 +10,7 @@ export default tseslint.config(
       "demo-output/**",
       "playwright-report/**",
       "test-results/**",
-      ".lhic/**",
+      "**/.lhic/**",
     ],
   },
   js.configs.recommended,

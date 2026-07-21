@@ -3,10 +3,11 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   ActionExecutionResult,
+  BrowserSemanticAction,
   BrowserExecutionPlan,
   NormalizedUIState,
   SemanticAction,
@@ -17,6 +18,7 @@ import {
   callComputerUseTool,
   createComputerUseServer,
   createMcpRuntime,
+  macHumanApprovalScript,
   SerializedComputerUseSession,
   type ComputerUseActionResult,
   type ComputerUsePlanResult,
@@ -285,6 +287,39 @@ describe("LHIC computer-use MCP server", () => {
     expect(session.action).toBeUndefined();
   });
 
+  it("prompts and resumes a direct high-risk action in the same MCP call", async () => {
+    const session = new FakeComputerUseSession();
+    const action: BrowserSemanticAction = {
+      type: "click",
+      intent: "confirm checkout",
+      target: "Confirm order",
+      methodPreference: ["dom"],
+      riskLevel: "high",
+    };
+    const prompt = vi.fn(
+      async (_action: BrowserSemanticAction, challenge: ActionApproval) => ({
+        ...challenge,
+        approvedBy: "demo-human",
+      }),
+    );
+
+    const response = await callComputerUseTool(
+      session,
+      "lhic_browser_act",
+      { action },
+      undefined,
+      prompt,
+    );
+
+    expect(response.isError).not.toBe(true);
+    expect(prompt).toHaveBeenCalledWith(
+      action,
+      expect.objectContaining({ approvedBy: "pending-human-approval" }),
+      "direct-action",
+    );
+    expect(session.approval).toMatchObject({ approvedBy: "demo-human" });
+  });
+
   it("passes a complete Fast Path plan to the batch boundary and resumes only with approval", async () => {
     const session = new FakeComputerUseSession();
     const plan: BrowserExecutionPlan = {
@@ -335,6 +370,74 @@ describe("LHIC computer-use MCP server", () => {
       result: { status: "completed" },
     });
     expect(session.resumedApproval).toEqual(approval);
+  });
+
+  it("keeps one MCP plan call pending until the human permission resolves", async () => {
+    const session = new FakeComputerUseSession();
+    const plan: BrowserExecutionPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Submit checkout",
+      requiredVariables: [],
+      steps: [
+        {
+          id: "submit-checkout",
+          action: {
+            type: "click",
+            intent: "submit the checkout for human confirmation",
+            target: "Submit order",
+            methodPreference: ["dom"],
+            riskLevel: "high",
+          },
+          verification: {
+            type: "dom",
+            description: "order confirmation",
+            params: { selector: "[data-order-confirmation]" },
+          },
+        },
+      ],
+    };
+    let approve: (() => void) | undefined;
+    const prompt = vi.fn(
+      async (_action: BrowserSemanticAction, challenge: ActionApproval) =>
+        new Promise<ActionApproval>((resolveApproval) => {
+          approve = () =>
+            resolveApproval({
+              ...challenge,
+              approvedBy: "demo-human",
+            });
+        }),
+    );
+    let settled = false;
+    const execution = callComputerUseTool(
+      session,
+      "lhic_browser_execute_plan",
+      { plan },
+      undefined,
+      prompt,
+    ).finally(() => {
+      settled = true;
+    });
+
+    await new Promise((resolveTurn) => setImmediate(resolveTurn));
+    expect(settled).toBe(false);
+    expect(prompt).toHaveBeenCalledWith(
+      plan.steps[0]!.action,
+      expect.objectContaining({ approvedBy: "pending-human-approval" }),
+      "submit-checkout",
+    );
+
+    approve?.();
+    await expect(execution).resolves.toMatchObject({
+      structuredContent: { result: { status: "completed" } },
+    });
+    expect(session.resumedApproval).toMatchObject({
+      approvedBy: "demo-human",
+    });
+  });
+
+  it("defines an explicit approve or deny macOS permission dialog", () => {
+    expect(macHumanApprovalScript).toContain('buttons {"Deny", "Approve"}');
+    expect(macHumanApprovalScript).not.toContain("giving up after");
   });
 
   it("records a fully verified MCP plan as a local parameterized candidate Skill", async () => {

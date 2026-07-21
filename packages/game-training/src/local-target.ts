@@ -38,6 +38,14 @@ export interface RegisteredRemoteGameTarget {
   registeredAt: string;
 }
 
+export interface RegisteredNativeGameTarget {
+  schemaVersion: "native-game-target-v1";
+  profileId: string;
+  core: "2d" | "3d";
+  applicationPath: string;
+  registeredAt: string;
+}
+
 export async function registerLocalGameTarget(
   profile: GameTargetProfile,
   sourceDirectory: string,
@@ -158,6 +166,76 @@ export async function readRegisteredRemoteGameTarget(
     throw new Error("Registered remote game target is invalid.");
   }
   return value as RegisteredRemoteGameTarget;
+}
+
+export async function registerNativeGameTarget(
+  profile: GameTargetProfile,
+  applicationPath: string | undefined,
+  root?: string,
+): Promise<RegisteredNativeGameTarget> {
+  const expected = profile.targetOrigin;
+  if (expected?.kind !== "native") {
+    throw new Error(`${profile.id} is not an approved native game target.`);
+  }
+  if (process.platform !== "darwin") {
+    throw new Error("Native .app game targets are supported only on macOS.");
+  }
+  const resolvedApplication = resolve(applicationPath ?? expected.path ?? "");
+  const applicationStats = await stat(resolvedApplication).catch(
+    () => undefined,
+  );
+  if (
+    !applicationStats?.isDirectory() ||
+    extname(resolvedApplication) !== ".app"
+  ) {
+    throw new Error(
+      "Native game target must be an existing macOS .app bundle.",
+    );
+  }
+  const paths = gameTrainingPaths(profile.core, root);
+  const target: RegisteredNativeGameTarget = {
+    schemaVersion: "native-game-target-v1",
+    profileId: profile.id,
+    core: profile.core,
+    applicationPath: resolvedApplication,
+    registeredAt: new Date().toISOString(),
+  };
+  await mkdir(paths.targetsRoot, { recursive: true });
+  await writeFile(
+    join(paths.targetsRoot, `${profile.id}.json`),
+    `${JSON.stringify(target, null, 2)}\n`,
+    "utf8",
+  );
+  return target;
+}
+
+export async function readRegisteredNativeGameTarget(
+  profile: GameTargetProfile,
+  root?: string,
+): Promise<RegisteredNativeGameTarget> {
+  const paths = gameTrainingPaths(profile.core, root);
+  const value = JSON.parse(
+    await readFile(join(paths.targetsRoot, `${profile.id}.json`), "utf8"),
+  ) as Partial<RegisteredNativeGameTarget>;
+  if (
+    value.schemaVersion !== "native-game-target-v1" ||
+    value.profileId !== profile.id ||
+    value.core !== profile.core ||
+    typeof value.applicationPath !== "string" ||
+    profile.targetOrigin?.kind !== "native"
+  ) {
+    throw new Error("Registered native game target is invalid.");
+  }
+  const applicationStats = await stat(value.applicationPath).catch(
+    () => undefined,
+  );
+  if (
+    !applicationStats?.isDirectory() ||
+    extname(value.applicationPath) !== ".app"
+  ) {
+    throw new Error("Registered native game target is unavailable.");
+  }
+  return value as RegisteredNativeGameTarget;
 }
 
 export async function startLocalGameTargetServer(

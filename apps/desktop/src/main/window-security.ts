@@ -1,6 +1,7 @@
 export interface RendererNavigationPolicy {
   rendererFileUrl: string;
   devServerUrl?: string;
+  allowedSearches?: readonly string[];
 }
 
 export function isTrustedRendererUrl(
@@ -15,11 +16,15 @@ export function isTrustedRendererUrl(
   }
 
   const renderer = parseUrl(policy.rendererFileUrl);
+  const allowedSearches = new Set([
+    renderer?.search ?? "",
+    ...(policy.allowedSearches ?? []),
+  ]);
   if (
     renderer &&
     candidate.protocol === "file:" &&
     candidate.pathname === renderer.pathname &&
-    candidate.search === renderer.search
+    allowedSearches.has(candidate.search)
   ) {
     return true;
   }
@@ -28,7 +33,8 @@ export function isTrustedRendererUrl(
   return Boolean(
     devServer &&
     candidate.origin === devServer.origin &&
-    candidate.pathname === devServer.pathname,
+    candidate.pathname === devServer.pathname &&
+    allowedSearches.has(candidate.search),
   );
 }
 

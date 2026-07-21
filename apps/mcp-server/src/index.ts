@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -41,6 +43,8 @@ import {
   type NormalizedUIState,
 } from "@lhic/schema";
 import {
+  createActionApproval,
+  evaluateRisk,
   parseRuntimeConfig,
   type ActionApproval,
   type ProductionRuntimeConfig,
@@ -50,6 +54,7 @@ import { redactPII } from "@lhic/trace";
 import { VerifierEngine } from "@lhic/verifier";
 
 const MCP_SERVER_VERSION = "0.1.0";
+const execFileAsync = promisify(execFile);
 const directComputerActionTypes = new Set<BrowserSemanticAction["type"]>([
   "navigate",
   "click",
@@ -126,6 +131,12 @@ export interface McpRuntime {
 export interface McpRuntimeOptions {
   embeddingEngine?: LocalEmbeddingEngine;
 }
+
+export type HumanApprovalPrompt = (
+  action: BrowserSemanticAction,
+  challenge: ActionApproval,
+  stepId: string,
+) => Promise<ActionApproval | undefined>;
 
 export async function createMcpRuntime(
   databaseFile = process.env.LHIC_MEMORY_DATABASE ?? ".lhic/skills.sqlite",
@@ -780,7 +791,7 @@ export function createComputerUseServer(
     {
       capabilities: { tools: {} },
       instructions:
-        "Use LHIC for browser computer use. Observe before and after each action. All browser actions must be SemanticActions executed with lhic_browser_act; high- and unknown-risk actions require a human approval.",
+        "Use LHIC for browser computer use. Observe before and after each action. All browser actions must be SemanticActions executed with lhic_browser_act; high- and unknown-risk actions require a human approval. On macOS, an approval-gated tool call remains pending while LHIC shows its native permission dialog. Wait for that same call to return; do not summarize, close the browser, or end the task while human input is pending.",
     },
   );
 
@@ -793,6 +804,7 @@ export function createComputerUseServer(
       request.params.name,
       request.params.arguments,
       runtime,
+      process.platform === "darwin" ? requestMacHumanApproval : undefined,
     ),
   );
 
@@ -804,6 +816,7 @@ export async function callComputerUseTool(
   name: string,
   args: Record<string, unknown> | undefined,
   runtime?: McpRuntime,
+  humanApprovalPrompt?: HumanApprovalPrompt,
 ): Promise<CallToolResult> {
   try {
     switch (name) {
@@ -831,7 +844,22 @@ export async function callComputerUseTool(
         if (approval !== undefined && !isActionApproval(approval)) {
           return toolError("approval must be a valid ActionApproval.");
         }
-        const result = await session.act(action, approval);
+        let resolvedApproval = approval;
+        if (
+          resolvedApproval === undefined &&
+          evaluateRisk(action).requiresConfirmation &&
+          humanApprovalPrompt
+        ) {
+          resolvedApproval = await humanApprovalPrompt(
+            action,
+            createActionApproval(action, "pending-human-approval"),
+            "direct-action",
+          );
+          if (!resolvedApproval) {
+            return toolError("The human operator denied the browser action.");
+          }
+        }
+        const result = await session.act(action, resolvedApproval);
         return toolResult(result, !result.result.success);
       }
       case "lhic_browser_execute_plan": {
@@ -849,14 +877,40 @@ export async function callComputerUseTool(
         const initialState = runtime
           ? (await session.observe()).state
           : undefined;
-        const result = await session.executePlan(plan);
-        const learning = await captureMcpPlanLearning(
+        let result = await session.executePlan(plan);
+        let learning = await captureMcpPlanLearning(
           session,
           runtime,
           result,
           initialState,
           plan,
         );
+        while (
+          result.result.status === "awaiting_approval" &&
+          humanApprovalPrompt
+        ) {
+          if (!session.resumePlan) {
+            return toolError(
+              "This browser session cannot resume after human approval.",
+            );
+          }
+          const step = plan.steps[result.result.nextStepIndex];
+          if (!step) {
+            return toolError("The pending approval step is unavailable.");
+          }
+          const approval = await humanApprovalPrompt(
+            step.action,
+            result.result.approval,
+            step.id,
+          );
+          if (!approval) {
+            return toolError(
+              `The human operator denied browser-plan step ${step.id}.`,
+            );
+          }
+          result = await session.resumePlan(approval);
+          learning = await captureMcpPlanLearning(session, runtime, result);
+        }
         return toolResult(
           learning ? { ...result, learning } : result,
           result.result.status === "failed",
@@ -904,6 +958,44 @@ export async function callComputerUseTool(
     return toolError(error instanceof Error ? error.message : String(error));
   }
 }
+
+export async function requestMacHumanApproval(
+  action: BrowserSemanticAction,
+  challenge: ActionApproval,
+  stepId: string,
+): Promise<ActionApproval | undefined> {
+  const safeIntent = redactPII(action.intent)
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, 180);
+  const message = [
+    `Step: ${stepId}`,
+    `Action: ${action.type}`,
+    `Risk: ${action.riskLevel}`,
+    `Intent: ${safeIntent}`,
+    "",
+    "LHIC will execute and verify this exact action only after approval.",
+  ].join("\n");
+  const result = await execFileAsync(
+    "/usr/bin/osascript",
+    ["-e", macHumanApprovalScript, "--", message],
+    { maxBuffer: 64 * 1024 },
+  );
+  if (String(result.stdout).trim() !== "Approve") return undefined;
+  const now = new Date();
+  return {
+    ...challenge,
+    approvalId: randomUUID(),
+    approvedBy: "local-demo-operator",
+    approvedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 5 * 60_000).toISOString(),
+  };
+}
+
+export const macHumanApprovalScript = `on run argv
+  set approvalMessage to item 1 of argv
+  set response to display dialog approvalMessage with title "LHIC Human Permission" with icon caution buttons {"Deny", "Approve"} default button "Approve"
+  return button returned of response
+end run`;
 
 async function captureMcpPlanLearning(
   session: ComputerUseSession,

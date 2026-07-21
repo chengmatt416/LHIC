@@ -45,7 +45,7 @@ export interface GameProfileStartInput {
 }
 
 export interface GameTargetOriginPolicy {
-  kind: "local" | "remote";
+  kind: "local" | "remote" | "native";
   /**
    * The browser entry point for a remote target. Local targets derive their
    * URL from the registered static server instead.
@@ -53,6 +53,8 @@ export interface GameTargetOriginPolicy {
   url?: string;
   /** Exact origins the browser runner may load for this profile. */
   allowedOrigins?: readonly string[];
+  /** Default native application bundle used by a desktop-only profile. */
+  path?: string;
   /** Remote targets do not receive the local seeded RNG preload. */
   supportsInjectedSeed: boolean;
 }

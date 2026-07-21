@@ -180,6 +180,27 @@ describe("GameService", () => {
     ).toThrow("active workspace");
   });
 
+  it("uses the built-in native Challenge 2026 target without a browser source", () => {
+    const profile = getGameTargetProfile("challenge-2026");
+    expect(
+      createEmbeddedGameTrainingArguments(
+        {
+          core: "2d",
+          action: "setup",
+          profileId: "challenge-2026",
+        },
+        profile,
+        "/workspace",
+      ),
+    ).toEqual([
+      "2d",
+      "setup",
+      "challenge-2026",
+      "--root",
+      "/workspace/.lhic/game-training",
+    ]);
+  });
+
   it("prepares the local Python environment only after an explicit Game Lab request", async () => {
     const inspectRuntime = vi.fn().mockResolvedValue({
       python: "/workspace/.lhic/game-training/venv/bin/python",

@@ -18,6 +18,7 @@ describe("McpService", () => {
     const preview = await service.preview("codex", root);
     expect(preview.changed).toBe(true);
     expect(preview.after).toContain("[mcp_servers.lhic-computer-use]");
+    expect(preview.after).toContain("tool_timeout_sec = 900");
 
     await expect(service.apply("codex", root, "missing-token")).rejects.toThrow(
       "confirmation",
@@ -50,6 +51,39 @@ describe("McpService", () => {
     await expect(
       service.apply("codex", root, preview.confirmationToken),
     ).rejects.toThrow("changed after review");
+  });
+
+  it("repairs an existing Codex registration for a stale workspace", async () => {
+    const root = await mkdtemp(join(tmpdir(), "lhic-desktop-mcp-"));
+    const home = join(root, "home");
+    await mkdir(join(home, ".codex"), { recursive: true });
+    const config = join(home, ".codex/config.toml");
+    await writeFile(
+      config,
+      [
+        'model = "gpt"',
+        "",
+        "[mcp_servers.lhic-computer-use]",
+        'command = "node"',
+        'args = ["/stale/apps/mcp-server/dist/index.js"]',
+        'cwd = "/stale"',
+        "",
+        "[features]",
+        "apps = true",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    const service = new McpService(root, home);
+
+    const preview = await service.preview("codex", root);
+
+    expect(preview.changed).toBe(true);
+    expect(preview.after).toContain(
+      join(root, "apps/mcp-server/dist/index.js"),
+    );
+    expect(preview.after).toContain("[features]\napps = true");
+    expect(preview.after).not.toContain("/stale/apps/mcp-server");
   });
 
   it("uses the installed OpenClaw command contract in its immutable preview", async () => {
@@ -86,6 +120,31 @@ describe("McpService", () => {
       message: "[REDACTED_TOKEN]",
     });
     expect(invocations).toEqual([["openclaw", "mcp", "list"]]);
+  });
+
+  it("returns a terminal status when an MCP health command hangs", async () => {
+    const root = await mkdtemp(join(tmpdir(), "lhic-desktop-mcp-"));
+    const service = new McpService(root, join(root, "home"), {
+      probeTimeoutMs: 5,
+      runProcess: (_executable, _argumentsList, options) =>
+        new Promise((resolve) => {
+          options.signal?.addEventListener(
+            "abort",
+            () =>
+              resolve({
+                exitCode: 1,
+                stdout: "",
+                stderr: "Process cancelled.",
+              }),
+            { once: true },
+          );
+        }),
+    });
+
+    await expect(service.probe("openclaw", root)).resolves.toMatchObject({
+      status: "failed",
+      message: expect.stringContaining("timed out"),
+    });
   });
 
   it("accepts only declarative, workspace-contained custom MCP adapters", async () => {

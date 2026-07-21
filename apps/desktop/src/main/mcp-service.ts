@@ -27,13 +27,15 @@ export interface McpServiceOptions {
   runProcess?: (
     executable: string,
     argumentsList: readonly string[],
-    options: { cwd: string },
+    options: { cwd: string; signal?: AbortSignal },
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  probeTimeoutMs?: number;
 }
 
 export class McpService {
   private readonly confirmations = new Map<string, PendingMcpConfirmation>();
   private readonly runProcess: NonNullable<McpServiceOptions["runProcess"]>;
+  private readonly probeTimeoutMs: number;
 
   public constructor(
     private readonly workspaceRoot: string,
@@ -44,6 +46,7 @@ export class McpService {
       options.runProcess ??
       ((executable, argumentsList, processOptions) =>
         spawnProcess(executable, argumentsList, processOptions).completed);
+    this.probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
   }
 
   public async list(): Promise<McpClientAdapter[]> {
@@ -144,35 +147,77 @@ export class McpService {
     client: McpClientKind,
     workspaceRoot: string,
   ): Promise<McpProbeResult> {
-    const adapter = await this.adapter(client);
-    if (adapter.configurationError) throw new Error(adapter.configurationError);
-    const command = healthCommandFor(adapter);
-    if (!command) {
+    try {
+      const adapter = await this.adapter(client);
+      if (adapter.configurationError) {
+        throw new Error(adapter.configurationError);
+      }
+      const command = healthCommandFor(adapter);
+      if (!command) {
+        return {
+          status: "manual",
+          message:
+            "Restart the detected client, then confirm lhic-computer-use in its MCP status view.",
+        };
+      }
+      const [executable, ...argumentsList] = command;
+      const abortController = new AbortController();
+      let timedOut = false;
+      let timeout: NodeJS.Timeout | undefined;
+      const timeoutResult = new Promise<{
+        exitCode: number;
+        stdout: string;
+        stderr: string;
+      }>((resolveTimeout) => {
+        timeout = setTimeout(() => {
+          timedOut = true;
+          abortController.abort();
+          resolveTimeout({ exitCode: 124, stdout: "", stderr: "" });
+        }, this.probeTimeoutMs);
+        timeout.unref();
+      });
+      const result = await Promise.race([
+        this.runProcess(executable!, argumentsList, {
+          cwd: resolve(workspaceRoot),
+          signal: abortController.signal,
+        }),
+        timeoutResult,
+      ]).finally(() => {
+        if (timeout) clearTimeout(timeout);
+      });
+      const commandText = command.join(" ");
+      if (timedOut) {
+        return {
+          status: "failed",
+          command: commandText,
+          message:
+            "The MCP health check timed out. Restart the client and confirm lhic-computer-use in its MCP status view.",
+        };
+      }
+      if (result.exitCode !== 0) {
+        return {
+          status: "failed",
+          command: commandText,
+          message: redactDiagnostic(
+            result.stderr || result.stdout || "The MCP health command failed.",
+          ),
+        };
+      }
       return {
-        status: "manual",
-        message:
-          "Restart the detected client, then confirm lhic-computer-use in its MCP status view.",
+        status: "passed",
+        command: commandText,
+        message: "The MCP health command completed successfully.",
       };
-    }
-    const [executable, ...argumentsList] = command;
-    const result = await this.runProcess(executable!, argumentsList, {
-      cwd: resolve(workspaceRoot),
-    });
-    const commandText = command.join(" ");
-    if (result.exitCode !== 0) {
+    } catch (error) {
       return {
         status: "failed",
-        command: commandText,
         message: redactDiagnostic(
-          result.stderr || result.stdout || "The MCP health command failed.",
+          error instanceof Error
+            ? error.message
+            : "The MCP health check could not run.",
         ),
       };
     }
-    return {
-      status: "passed",
-      command: commandText,
-      message: "The MCP health command completed successfully.",
-    };
   }
 
   private async createPreview(
@@ -236,7 +281,7 @@ async function adapterDescriptor(
       return {
         id: client,
         label: "Codex",
-        executable: "codex",
+        executable: await resolveCodexExecutable(),
         configPath: resolve(home, ".codex/config.toml"),
         format: "toml",
       };
@@ -436,9 +481,18 @@ function renderConfig(
     adapter.serverCollectionKey ??
     (client === "codex" ? "mcp_servers" : "mcpServers");
   if (configFormat === "toml") {
-    const section = `[${serverCollectionKey}.${server.name}]\ncommand = "node"\nargs = [${server.args.map((argument) => JSON.stringify(argument)).join(", ")}]\ncwd = ${JSON.stringify(server.cwd)}\nstartup_timeout_sec = 20\ntool_timeout_sec = 45\ndefault_tools_approval_mode = "prompt"\n`;
-    if (before.includes(`[${serverCollectionKey}.${server.name}]`))
-      return before;
+    const section = `[${serverCollectionKey}.${server.name}]\ncommand = "node"\nargs = [${server.args.map((argument) => JSON.stringify(argument)).join(", ")}]\ncwd = ${JSON.stringify(server.cwd)}\nstartup_timeout_sec = 20\ntool_timeout_sec = 900\ndefault_tools_approval_mode = "prompt"\n`;
+    const sectionHeader = `[${serverCollectionKey}.${server.name}]`;
+    const sectionStart = before.indexOf(sectionHeader);
+    if (sectionStart >= 0) {
+      const remaining = before.slice(sectionStart + sectionHeader.length);
+      const nextSectionOffset = remaining.search(/\n\[[^\]]+\]/);
+      const sectionEnd =
+        nextSectionOffset < 0
+          ? before.length
+          : sectionStart + sectionHeader.length + nextSectionOffset + 1;
+      return `${before.slice(0, sectionStart)}${section}${before.slice(sectionEnd)}`;
+    }
     return `${before.trimEnd()}\n\n${section}`;
   }
   if (configFormat === "json") {
@@ -490,7 +544,13 @@ function healthCheckFor(adapter: McpClientAdapter): string {
 function healthCommandFor(adapter: McpClientAdapter): string[] | undefined {
   if (adapter.healthCommand) return [...adapter.healthCommand];
   if (adapter.id === "codex")
-    return ["codex", "mcp", "get", "lhic-computer-use", "--json"];
+    return [
+      adapter.executable ?? "codex",
+      "mcp",
+      "get",
+      "lhic-computer-use",
+      "--json",
+    ];
   if (adapter.id === "openclaw") return ["openclaw", "mcp", "list"];
   if (adapter.id === "hermes")
     return ["hermes", "mcp", "test", "lhic-computer-use"];
@@ -524,6 +584,16 @@ async function executableExists(executable: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function resolveCodexExecutable(): Promise<string> {
+  for (const candidate of [
+    "/Applications/Codex.app/Contents/Resources/codex",
+    "/Applications/ChatGPT.app/Contents/Resources/codex",
+  ]) {
+    if (await exists(candidate)) return candidate;
+  }
+  return "codex";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      }
+      html,
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+      }
+      .timer {
+        box-sizing: border-box;
+        width: 328px;
+        margin: 8px;
+        padding: 13px 17px 14px;
+        border: 1px solid color-mix(in srgb, var(--accent) 68%, white 12%);
+        border-radius: 14px;
+        background: rgba(4, 13, 22, 0.92);
+        box-shadow: 0 16px 44px rgba(0, 0, 0, 0.48);
+        backdrop-filter: blur(16px);
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+      }
+      .live::before {
+        content: "●";
+        margin-right: 7px;
+      }
+      .value {
+        margin-top: 5px;
+        color: #f5fbff;
+        font-size: 32px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.025em;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="timer">
+      <div class="header">
+        <span id="label">PATH TIMER</span>
+        <span class="live">LIVE</span>
+      </div>
+      <div class="value" id="value">00:00.00</div>
+    </main>
+    <script>
+      const query = new URLSearchParams(location.search);
+      const startedAt = Number(query.get("startedAt")) || Date.now();
+      const label = query.get("label") || "PATH TIMER";
+      const accent = query.get("accent") || "#71e3bc";
+      document.documentElement.style.setProperty("--accent", accent);
+      document.getElementById("label").textContent = label;
+      const value = document.getElementById("value");
+      const render = () => {
+        const elapsed = Math.max(0, Date.now() - startedAt);
+        const minutes = Math.floor(elapsed / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+        const hundredths = Math.floor((elapsed % 1000) / 10);
+        value.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(hundredths).padStart(2, "0")}`;
+      };
+      render();
+      setInterval(render, 20);
+    </script>
+  </body>
+</html>

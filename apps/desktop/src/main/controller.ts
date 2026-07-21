@@ -7,6 +7,11 @@ import type {
   AdminSecretMetadata,
   AdminSkillReview,
   DemoApiKeyMetadata,
+  DemoCandidateStatus,
+  DemoCodexDispatchRequest,
+  DemoDirectorPreflight,
+  DemoDirectorResult,
+  DemoRecordingStatus,
   DashboardSnapshot,
   GameProfile,
   GameTrainingEnvironment,
@@ -30,6 +35,7 @@ import type {
 import { DesktopCredentialStore } from "./keyring.js";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { GameService } from "./game-service.js";
+import { DemoDirectorService } from "./demo-director-service.js";
 import { McpService } from "./mcp-service.js";
 import { SkillsService } from "./skills-service.js";
 import { SecuritySettingsStore } from "./security-settings-store.js";
@@ -43,11 +49,15 @@ export class DesktopController {
   private readonly mcp: McpService;
   private readonly controlPlane: ControlPlaneClient;
   private readonly securitySettings: SecuritySettingsStore;
+  private readonly demoDirector: DemoDirectorService;
   private securityInitialization: Promise<SecurityConfiguration> | undefined;
 
   public constructor(
     private readonly workspaceRoot: string,
-    options: { openExternal?: (url: string) => Promise<void> } = {},
+    options: {
+      openExternal?: (url: string) => Promise<void>;
+      focusLhicWindow?: () => boolean;
+    } = {},
   ) {
     this.tasks = new TaskService(workspaceRoot, this.credentials);
     this.skills = new SkillsService(workspaceRoot);
@@ -57,6 +67,102 @@ export class DesktopController {
       judgeTokenStore: this.credentials,
     });
     this.securitySettings = new SecuritySettingsStore(workspaceRoot);
+    this.demoDirector = new DemoDirectorService(
+      workspaceRoot,
+      options.focusLhicWindow ?? (() => false),
+    );
+  }
+
+  public async demoPreflight(): Promise<DemoDirectorPreflight> {
+    const codexMcp = await this.probeMcp("codex", this.workspaceRoot);
+    const messages = [
+      codexMcp.message,
+      this.demoDirector.challengeAvailable()
+        ? "Challenge2026.app found."
+        : "Challenge2026.app is missing.",
+      this.demoDirector.scenarioReady()
+        ? "Sandbox demo identities are ready for this process."
+        : "Private demo identities are missing from the launch environment.",
+      "Fast Path will launch inside LHIC with zero LLM and zero MCP calls.",
+    ];
+    return {
+      codexMcp,
+      codexApplicationAvailable: this.demoDirector.codexAvailable(),
+      challengeApplicationAvailable: this.demoDirector.challengeAvailable(),
+      screenRecorderAvailable: this.demoDirector.recorderAvailable(),
+      signingCertificateSha256: this.demoDirector.signingCertificateSha256(),
+      scenarioReady: this.demoDirector.scenarioReady(),
+      codexModel: this.demoDirector.codexModel(),
+      codexApplicationLabel: this.demoDirector.codexApplicationLabel(),
+      messages,
+    };
+  }
+
+  public async dispatchDemoCodex(
+    input: DemoCodexDispatchRequest,
+  ): Promise<DemoDirectorResult> {
+    const preview = await this.mcp.preview("codex", this.workspaceRoot);
+    if (preview.changed) {
+      await this.mcp.apply(
+        "codex",
+        this.workspaceRoot,
+        preview.confirmationToken,
+      );
+    }
+    const result = await this.demoDirector.dispatchCodex(input);
+    return {
+      ...result,
+      evidence: [
+        `Codex CLI MCP registration ${preview.changed ? "installed" : "verified"}: lhic-computer-use.`,
+        ...result.evidence,
+      ],
+    };
+  }
+
+  public approveDemoCodexPermission(
+    approvedBy: string,
+  ): Promise<DemoDirectorResult> {
+    return this.demoDirector.approveCodexPermission(approvedBy);
+  }
+
+  public async startDemoFastPath(): Promise<CommandEvent> {
+    await this.demoDirector.showFastPathTerminal();
+    const focusTimer = setTimeout(
+      () => void this.demoDirector.focusTerminal().catch(() => undefined),
+      1_500,
+    );
+    focusTimer.unref();
+    const event = await this.tasks.start({
+      goal: this.demoDirector.fastGoal(),
+      startUrl: "https://vendor.techtools.qzz.io/",
+    });
+    return event.status === "proposed"
+      ? this.tasks.execute(event.commandId)
+      : event;
+  }
+
+  public focusDemoLhic(): DemoDirectorResult {
+    return this.demoDirector.focusLhic();
+  }
+
+  public launchDemoChallenge(): Promise<DemoDirectorResult> {
+    return this.demoDirector.launchChallenge();
+  }
+
+  public demoCandidates(): Promise<DemoCandidateStatus[]> {
+    return this.demoDirector.candidates();
+  }
+
+  public startDemoRecording(): Promise<DemoRecordingStatus> {
+    return this.demoDirector.startRecording();
+  }
+
+  public stopDemoRecording(): Promise<DemoRecordingStatus> {
+    return this.demoDirector.stopRecording();
+  }
+
+  public demoRecordingStatus(): DemoRecordingStatus {
+    return this.demoDirector.recordingStatus();
   }
 
   public async dashboard(): Promise<DashboardSnapshot> {
@@ -349,8 +455,9 @@ export class DesktopController {
     this.games.cancel(id);
   }
 
-  public close(): Promise<void> {
-    return this.tasks.close();
+  public async close(): Promise<void> {
+    await this.demoDirector.stopRecording();
+    await this.tasks.close();
   }
 
   private async loadSecurityConfiguration(): Promise<SecurityConfiguration> {

@@ -78,7 +78,7 @@ command = "node"
 args = ["/absolute/path/to/ComputerIntent/apps/mcp-server/dist/index.js"]
 cwd = "/absolute/path/to/ComputerIntent"
 startup_timeout_sec = 20
-tool_timeout_sec = 45
+tool_timeout_sec = 900 # permits an operator to answer LHIC's blocking approval dialog
 default_tools_approval_mode = "prompt"
 ```
 

@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   ipcMain as electronIpcMain,
+  screen,
   session,
   shell,
 } from "electron";
@@ -11,6 +12,7 @@ import { pathToFileURL } from "node:url";
 import type {
   GameProfile,
   GameTrainingRequest,
+  DemoCodexDispatchRequest,
   JudgeDemoAsset,
   McpClientKind,
   SharedLibraryConnection,
@@ -32,10 +34,13 @@ import { resolveDesktopWorkspaceRoot } from "./workspace-root.js";
 
 let controller: DesktopController;
 let isQuitting = false;
+let mainWindow: BrowserWindow | undefined;
+let timerOverlay: BrowserWindow | undefined;
 const rendererNavigationPolicy: RendererNavigationPolicy = {
   rendererFileUrl: pathToFileURL(
     join(import.meta.dirname, "../../renderer/index.html"),
   ).toString(),
+  allowedSearches: ["", "?demo=1"],
   ...(process.env.LHIC_DESKTOP_DEV_SERVER
     ? { devServerUrl: process.env.LHIC_DESKTOP_DEV_SERVER }
     : {}),
@@ -44,12 +49,15 @@ const rendererNavigationPolicy: RendererNavigationPolicy = {
 const ipcMain = { handle: registerSecureIpcHandler };
 
 async function createWindow(): Promise<void> {
+  const demoMode = process.env.LHIC_DESKTOP_DEMO === "1";
   const window = new BrowserWindow({
     width: 1440,
     height: 940,
     minWidth: 1080,
     minHeight: 720,
     show: false,
+    fullscreen: demoMode,
+    backgroundColor: "#071827",
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -57,12 +65,19 @@ async function createWindow(): Promise<void> {
       preload: join(import.meta.dirname, "../preload/preload.cjs"),
     },
   });
+  mainWindow = window;
   const unsubscribeProgress = controller.subscribeProgress((event) => {
     if (!window.isDestroyed()) {
       window.webContents.send("lhic:progress", event);
     }
   });
-  window.once("closed", unsubscribeProgress);
+  window.once("closed", () => {
+    unsubscribeProgress();
+    if (mainWindow === window) {
+      mainWindow = undefined;
+      hideTimerOverlay();
+    }
+  });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) {
       void openExternalUrl(url).catch(() => undefined);
@@ -76,10 +91,11 @@ async function createWindow(): Promise<void> {
   window.once("ready-to-show", () => window.show());
   const devServer = process.env.LHIC_DESKTOP_DEV_SERVER;
   if (devServer) {
-    await window.loadURL(devServer);
+    await window.loadURL(demoMode ? `${devServer}?demo=1` : devServer);
   } else {
     await window.loadFile(
       join(import.meta.dirname, "../../renderer/index.html"),
+      demoMode ? { query: { demo: "1" } } : undefined,
     );
   }
 }
@@ -191,6 +207,38 @@ function registerIpc(): void {
         requiredString(confirmationToken, "MCP confirmation token"),
       ),
   );
+  ipcMain.handle("lhic:demo:preflight", () => controller.demoPreflight());
+  ipcMain.handle("lhic:demo:dispatch-codex", (_event, input: unknown) =>
+    controller.dispatchDemoCodex(requiredDemoCodexDispatch(input)),
+  );
+  ipcMain.handle(
+    "lhic:demo:approve-codex-permission",
+    (_event, approvedBy: string) =>
+      controller.approveDemoCodexPermission(
+        requiredString(approvedBy, "demo approver"),
+      ),
+  );
+  ipcMain.handle("lhic:demo:start-fast-path", () =>
+    controller.startDemoFastPath(),
+  );
+  ipcMain.handle("lhic:demo:focus-lhic", () => controller.focusDemoLhic());
+  ipcMain.handle("lhic:demo:launch-challenge", () =>
+    controller.launchDemoChallenge(),
+  );
+  ipcMain.handle("lhic:demo:candidates", () => controller.demoCandidates());
+  ipcMain.handle("lhic:demo:recording:start", () =>
+    controller.startDemoRecording(),
+  );
+  ipcMain.handle("lhic:demo:recording:stop", () =>
+    controller.stopDemoRecording(),
+  );
+  ipcMain.handle("lhic:demo:recording:status", () =>
+    controller.demoRecordingStatus(),
+  );
+  ipcMain.handle("lhic:demo:timer:start", (_event, kind: unknown) =>
+    showTimerOverlay(requiredDemoTimerKind(kind)),
+  );
+  ipcMain.handle("lhic:demo:timer:stop", () => hideTimerOverlay());
   ipcMain.handle("lhic:game:validate", (_event, profile: GameProfile) =>
     controller.validateGame(profile),
   );
@@ -353,6 +401,57 @@ function registerIpc(): void {
   );
 }
 
+async function showTimerOverlay(kind: "slow" | "fast"): Promise<void> {
+  hideTimerOverlay();
+  const workArea = screen.getPrimaryDisplay().workArea;
+  const width = 344;
+  const height = 104;
+  const overlay = new BrowserWindow({
+    width,
+    height,
+    x: workArea.x + workArea.width - width - 18,
+    y: workArea.y + 18,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    focusable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  timerOverlay = overlay;
+  overlay.setAlwaysOnTop(true, "screen-saver");
+  overlay.setIgnoreMouseEvents(true, { forward: true });
+  overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlay.once("closed", () => {
+    if (timerOverlay === overlay) timerOverlay = undefined;
+  });
+  await overlay.loadFile(
+    join(import.meta.dirname, "../../renderer/timer-overlay.html"),
+    {
+      query: {
+        label: kind === "slow" ? "SLOW PATH · CODEX + MCP" : "FAST PATH · LOCAL",
+        accent: kind === "slow" ? "#ffb457" : "#71e3bc",
+        startedAt: String(Date.now()),
+      },
+    },
+  );
+  if (!overlay.isDestroyed()) overlay.showInactive();
+}
+
+function hideTimerOverlay(): void {
+  const overlay = timerOverlay;
+  timerOverlay = undefined;
+  if (overlay && !overlay.isDestroyed()) overlay.destroy();
+}
+
 app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler(
     (_webContents, _permission, callback) => callback(false),
@@ -365,7 +464,15 @@ app.whenReady().then(async () => {
       isPackaged: app.isPackaged,
       userData: app.getPath("userData"),
     }),
-    { openExternal: openExternalUrl },
+    {
+      openExternal: openExternalUrl,
+      focusLhicWindow: () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        mainWindow.show();
+        mainWindow.focus();
+        return mainWindow.isFocused();
+      },
+    },
   );
   registerIpc();
   await createWindow();
@@ -390,6 +497,13 @@ function requiredString(value: unknown, name: string): string {
     throw new Error(`${name} is invalid.`);
   }
   return value;
+}
+
+function requiredDemoCodexDispatch(value: unknown): DemoCodexDispatchRequest {
+  const input = requiredRecord(value, "Codex demo dispatch");
+  return {
+    approvedBy: requiredString(input.approvedBy, "demo approver"),
+  };
 }
 
 function requiredRecord(value: unknown, name: string): Record<string, unknown> {
@@ -739,6 +853,11 @@ function requiredMcpClient(value: unknown): McpClientKind {
     return value as McpClientKind;
   }
   throw new Error("MCP client is unsupported.");
+}
+
+function requiredDemoTimerKind(value: unknown): "slow" | "fast" {
+  if (value === "slow" || value === "fast") return value;
+  throw new Error("Demo timer kind is unsupported.");
 }
 
 function requiredTaskSource(value: unknown): TaskSourceConfig {

@@ -42,6 +42,22 @@ contextBridge.exposeInMainWorld("lhic", {
     probe: (client, workspaceRoot) =>
       ipcRenderer.invoke("lhic:mcp:probe", client, workspaceRoot),
   },
+  demo: {
+    preflight: () => ipcRenderer.invoke("lhic:demo:preflight"),
+    dispatchCodex: (input) =>
+      ipcRenderer.invoke("lhic:demo:dispatch-codex", input),
+    approveCodexPermission: (approvedBy) =>
+      ipcRenderer.invoke("lhic:demo:approve-codex-permission", approvedBy),
+    startFastPath: () => ipcRenderer.invoke("lhic:demo:start-fast-path"),
+    focusLhic: () => ipcRenderer.invoke("lhic:demo:focus-lhic"),
+    launchChallenge: () => ipcRenderer.invoke("lhic:demo:launch-challenge"),
+    candidates: () => ipcRenderer.invoke("lhic:demo:candidates"),
+    startRecording: () => ipcRenderer.invoke("lhic:demo:recording:start"),
+    stopRecording: () => ipcRenderer.invoke("lhic:demo:recording:stop"),
+    recordingStatus: () => ipcRenderer.invoke("lhic:demo:recording:status"),
+    startTimer: (kind) => ipcRenderer.invoke("lhic:demo:timer:start", kind),
+    stopTimer: () => ipcRenderer.invoke("lhic:demo:timer:stop"),
+  },
   game: {
     inspectRuntime: () => ipcRenderer.invoke("lhic:game:inspect-runtime"),
     prepareRuntime: () => ipcRenderer.invoke("lhic:game:prepare-runtime"),

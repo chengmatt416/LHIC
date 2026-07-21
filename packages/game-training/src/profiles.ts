@@ -23,6 +23,27 @@ export const gameTargetProfiles: readonly GameTargetProfile[] = [
     targetOrigin: { kind: "local", supportsInjectedSeed: true },
   },
   {
+    id: "challenge-2026",
+    core: "2d",
+    title: "Challenge 2026",
+    sourceRepository:
+      "https://hackmd.io/@NDWuVyohSDi-klZ4DgcUuQ/ry1gjR4Gze/%2FUNEbyYlCQ6i5Xyy6atAWqg",
+    supportedSurfaces: ["desktop"],
+    viewport: { width: 1280, height: 720 },
+    control: {
+      allowedKeys: ["KeyW", "KeyA", "KeyS", "KeyD", "Space"],
+      allowPrimaryClick: false,
+      aimMode: "none",
+    },
+    telemetry: {},
+    frameRate: 20,
+    targetOrigin: {
+      kind: "native",
+      path: "/Applications/Launcher.app/Contents/Resources/GameBuilds/Challenge2026.app",
+      supportsInjectedSeed: false,
+    },
+  },
+  {
     id: "nemesis",
     core: "3d",
     title: "Nemesis",

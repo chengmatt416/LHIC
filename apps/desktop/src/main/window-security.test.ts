@@ -9,6 +9,7 @@ const policy = {
   rendererFileUrl:
     "file:///Applications/LHIC%20Control%20Center/resources/app/dist/renderer/index.html",
   devServerUrl: "http://127.0.0.1:4173/",
+  allowedSearches: ["", "?demo=1"],
 };
 
 describe("desktop renderer navigation policy", () => {
@@ -17,6 +18,18 @@ describe("desktop renderer navigation policy", () => {
     expect(isTrustedRendererUrl(`${policy.rendererFileUrl}#task`, policy)).toBe(
       true,
     );
+    expect(
+      isTrustedRendererUrl(`${policy.rendererFileUrl}?demo=1`, policy),
+    ).toBe(true);
+    expect(
+      isTrustedRendererUrl("http://127.0.0.1:4173/?demo=1", policy),
+    ).toBe(true);
+    expect(
+      isTrustedRendererUrl(`${policy.rendererFileUrl}?demo=2`, policy),
+    ).toBe(false);
+    expect(
+      isTrustedRendererUrl(`${policy.rendererFileUrl}?demo=1&admin=1`, policy),
+    ).toBe(false);
     expect(isTrustedRendererUrl("file:///tmp/evil.html", policy)).toBe(false);
     expect(isTrustedRendererUrl("http://127.0.0.1:4174/", policy)).toBe(false);
     expect(isTrustedRendererUrl("http://localhost:4173/", policy)).toBe(false);

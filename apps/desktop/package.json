@@ -12,10 +12,11 @@
   "type": "module",
   "main": "./dist/main/main/main.js",
   "scripts": {
-    "build:runtime": "npm run build --workspace @pinyencheng/lhic && tsc -b ../../packages/schema ../../packages/trace ../../packages/memory ../../packages/security ../../packages/browser ../../packages/verifier ../../packages/controller ../../packages/skills ../../packages/shared-skills ../../packages/game-training --pretty false",
+    "build:runtime": "npm run build --workspace @pinyencheng/lhic && tsc -b ../../packages/schema ../../packages/trace ../../packages/memory ../../packages/security ../../packages/browser ../../packages/verifier ../../packages/controller ../../packages/skills ../../packages/shared-skills ../../packages/game-training ../mcp-server --pretty false",
     "build": "npm run build:runtime && tsc -p tsconfig.main.json && node scripts/copy-preload.mjs && vite build",
     "dev": "vite --host 127.0.0.1",
     "dev:desktop": "npm run build && electron .",
+    "demo:director": "npm run build && LHIC_DESKTOP_DEMO=1 LHIC_WORKSPACE_ROOT=../.. electron .",
     "start": "electron .",
     "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs",
     "release:checksums": "node ../../scripts/generate-sha256-manifest.mjs release",

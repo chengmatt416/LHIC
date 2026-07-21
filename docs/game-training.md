@@ -5,10 +5,10 @@ MCP, online multiplayer, score submission, or skill sharing. Local targets are
 the default; the explicit `epic-shooter-3d` profile is an allowlisted,
 browser-hosted single-player exception requested for FPS training and demos.
 
-| Core | Local target                                                         | Policy input           | Controls                                                           |
-| ---- | -------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------ |
-| `2d` | future permitted 2D profiles                                         | two 128x128 RGB frames | eight-way WASD movement, Space fire, optional bounded absolute aim |
-| `3d` | [Epic Shooter 3D](https://www.epicshooter3d.com/) single-player mode | four 96x96 RGB frames  | held WASD, primary-fire, 7x7 bounded relative look                 |
+| Core | Local target                                                         | Policy input           | Controls                                                             |
+| ---- | -------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| `2d` | Challenge 2026 and other permitted 2D profiles                       | two 128x128 RGB frames | eight-way WASD movement, Space action, optional bounded absolute aim |
+| `3d` | [Epic Shooter 3D](https://www.epicshooter3d.com/) single-player mode | four 96x96 RGB frames  | held WASD, primary-fire, 7x7 bounded relative look                   |
 
 The 2D core remains available but Star Trooper is not used for training or
 demonstration. Nemesis remains an optional separately obtained GPLv3 local
@@ -52,6 +52,27 @@ contains `index.html`, for example:
 ```sh
 lhic train game 3d setup nemesis --source /path/to/Nemesis
 ```
+
+### Challenge 2026 native demo
+
+Challenge 2026 is an approved desktop-only 2D profile. It uses only W, A, S,
+D, and Space, requires a target-bound lease and exact focused window, and never
+sends frames or input to an LLM, MCP server, or network service. Register the
+downloaded macOS bundle before recording or playback:
+
+```sh
+lhic train game 2d setup challenge-2026 \
+  --source /Applications/Launcher.app/Contents/Resources/GameBuilds/Challenge2026.app
+lhic train game 2d lease challenge-2026 \
+  --window-title "Challenge2026" --region 100,100,1280,720 \
+  --approved-by local-operator --output /tmp/challenge-2026-lease.json
+```
+
+Use the exact active-window title and measured content rectangle from your Mac.
+The game documentation states that player movement uses W/A/S/D and Space; the
+in-game agent API places traps separately. The LHIC action-speed demo should
+therefore show local player movement playback, not claim that LHIC authored or
+operated the game's trap agent.
 
 ## Record, train, and evaluate
 

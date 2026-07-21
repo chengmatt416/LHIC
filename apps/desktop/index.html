@@ -8,10 +8,36 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none';"
     />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #071827;
+      }
+      .startup-fallback {
+        min-height: 100vh;
+        display: grid;
+        place-content: center;
+        gap: 12px;
+        color: #f3f7f8;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        text-align: center;
+      }
+      .startup-fallback b {
+        color: #71e3bc;
+        letter-spacing: 0.12em;
+      }
+    </style>
     <title>LHIC Control Center</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="startup-fallback">
+        <b>LHIC / DEMO DIRECTOR</b>
+        <span>Loading the local presentation surface…</span>
+      </div>
+    </div>
     <script type="module" src="/src/renderer/main.tsx"></script>
   </body>
 </html>

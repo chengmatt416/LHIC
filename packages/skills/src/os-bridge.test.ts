@@ -138,6 +138,35 @@ describe("GlobalComputerExecutor", () => {
     expect(runner.commands[0]).toMatchObject({ file: "osascript" });
   });
 
+  it("uses an exact accessibility target instead of coordinates when available", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "click the approved model button",
+      target: "Model",
+      application: "TextEdit",
+      methodPreference: ["accessibility"],
+      riskLevel: "medium",
+      x: 0,
+      y: 0,
+      verifier: { type: "active_window", application: "TextEdit" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+
+    expect(result).toMatchObject({ success: true, method: "accessibility" });
+    expect(runner.commands[0]).toMatchObject({
+      file: "osascript",
+      args: expect.arrayContaining(["TextEdit", "Model"]),
+    });
+    expect(runner.commands[0]?.args).not.toContain("0");
+  });
+
   it("verifies a launched Linux application is running", async () => {
     const action: GlobalComputerAction = {
       scope: "os",
@@ -210,6 +239,25 @@ describe("GlobalComputerExecutor", () => {
     expect(command.args[1]).toContain("tell process (item 1 of argv)");
     expect(command.args[3]).toBe("Safari");
     expect(command.args[4]).toBe("Submit");
+  });
+
+  it("supports semantic macOS accessibility role targets", () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "focus the prompt composer",
+      methodPreference: ["accessibility"],
+      riskLevel: "medium",
+      application: "ChatGPT",
+      target: "role:AXTextArea",
+      verifier: { type: "active_window", application: "ChatGPT" },
+    };
+
+    const command = buildGlobalComputerCommand(action, "darwin");
+
+    expect(command.args[1]).toContain('requestedTarget starts with "role:"');
+    expect(command.args[1]).toContain("role of el is requestedRole");
+    expect(command.args[4]).toBe("role:AXTextArea");
   });
 
   it("dispatches accessibility clicks on Windows", () => {

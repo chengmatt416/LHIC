@@ -32,6 +32,7 @@ import { spawnProcess, type SpawnedProcess } from "./process-runner.js";
 
 const supportedProfileIds = new Set([
   "star-trooper",
+  "challenge-2026",
   "nemesis",
   "epic-shooter-3d",
 ]);
@@ -474,6 +475,12 @@ export function createEmbeddedGameTrainingArguments(
   switch (input.action) {
     case "setup":
       if (profile.targetOrigin?.kind === "local") {
+        argumentsList.push(
+          "--source",
+          requiredWorkspacePath(input.resourcePath, workspaceRoot),
+        );
+      }
+      if (profile.targetOrigin?.kind === "native" && input.resourcePath) {
         argumentsList.push(
           "--source",
           requiredWorkspacePath(input.resourcePath, workspaceRoot),

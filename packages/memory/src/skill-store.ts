@@ -320,6 +320,13 @@ export class SkillStore {
     return row ? mapCandidateSkillRow(row) : undefined;
   }
 
+  public listCandidates(): CandidateSkillRecord[] {
+    const rows = this.database
+      .prepare("SELECT * FROM candidate_skills ORDER BY rowid DESC")
+      .all() as unknown as CandidateSkillRow[];
+    return rows.map(mapCandidateSkillRow);
+  }
+
   /**
    * Records a separately evaluated holdout. Promotion rejects a holdout that
    * reuses a candidate run's UI fingerprint or targets a different definition.

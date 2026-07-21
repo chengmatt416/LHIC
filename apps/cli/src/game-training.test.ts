@@ -93,6 +93,38 @@ describe("game-training CLI", () => {
     ).rejects.toThrow("3d target");
   });
 
+  it("registers Challenge 2026 as a desktop-only native 2D target", async () => {
+    const root = await mkdtemp(join(tmpdir(), "lhic-challenge-game-cli-"));
+    const application = join(root, "Challenge2026.app");
+    await mkdir(application);
+
+    await expect(
+      runGameTrainingCommand([
+        "2d",
+        "setup",
+        "challenge-2026",
+        "--source",
+        application,
+        "--root",
+        join(root, "runtime"),
+      ]),
+    ).resolves.toMatchObject({
+      core: "2d",
+      profile: "challenge-2026",
+      target: { schemaVersion: "native-game-target-v1" },
+    });
+
+    await expect(
+      runGameTrainingCommand([
+        "2d",
+        "record",
+        "challenge-2026",
+        "--surface",
+        "browser",
+      ]),
+    ).rejects.toThrow("desktop-only native game target");
+  });
+
   it("permits a lease for the existing interactive remote FPS window", async () => {
     const root = await mkdtemp(join(tmpdir(), "lhic-remote-game-lease-"));
     const leasePath = join(root, "lease.json");
