@@ -30,7 +30,7 @@ describe("DemoTerminalService", () => {
     expect(codexTerminalScript).toContain("/usr/bin/mktemp -t lhic-codex-prompt");
     expect(codexTerminalScript).toContain("$(/bin/cat ");
     expect(codexTerminalScript).toContain("/bin/rm -f ");
-    expect(codexTerminalScript).toContain('\\\"$taskPrompt\\\"');
+    expect(codexTerminalScript).toContain('\\"$taskPrompt\\"');
     expect(codexTerminalScript).not.toContain("quoted form of taskPrompt");
   });
 

@@ -74,8 +74,8 @@ export const codexTerminalScript = `on run argv
     do shell script "/bin/rm -f " & quoted form of promptPath
     error errorMessage
   end try
-  set promptLoader to "taskPrompt=\\\"$(/bin/cat " & quoted form of promptPath & ")\\\" && /bin/rm -f " & quoted form of promptPath
-  set shellCommand to promptLoader & " && cd " & quoted form of workspaceRoot & " && clear && exec " & quoted form of codexExecutable & " --model " & quoted form of codexModel & " --config " & quoted form of effortOverride & " --dangerously-bypass-approvals-and-sandbox --no-alt-screen -C " & quoted form of workspaceRoot & " \\\"$taskPrompt\\\""
+  set promptLoader to "taskPrompt=\\"$(/bin/cat " & quoted form of promptPath & ")\\" && /bin/rm -f " & quoted form of promptPath
+  set shellCommand to promptLoader & " && cd " & quoted form of workspaceRoot & " && clear && exec " & quoted form of codexExecutable & " --model " & quoted form of codexModel & " --config " & quoted form of effortOverride & " --dangerously-bypass-approvals-and-sandbox --no-alt-screen -C " & quoted form of workspaceRoot & " \\"$taskPrompt\\""
   tell application "Finder" to set screenBounds to bounds of window of desktop
   tell application "Terminal"
     activate
