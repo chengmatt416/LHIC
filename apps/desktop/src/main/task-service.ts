@@ -141,6 +141,7 @@ export class TaskService {
     goal: string;
     startUrl?: string;
     sourceId?: string;
+    fastOnly?: boolean;
   }): Promise<CommandEvent> {
     await this.initialize();
     if (!input.goal.trim() || input.goal.length > 12_000) {
@@ -174,6 +175,21 @@ export class TaskService {
         plan,
       });
       this.queuePersist();
+      return event;
+    }
+    if (input.fastOnly) {
+      const event: CommandEvent = {
+        commandId: randomUUID(),
+        status: "blocked",
+        message:
+          "Fast Path stopped because no matching deterministic local Skill was available. Slow Path fallback is disabled for this run.",
+        createdAt: new Date().toISOString(),
+        evidence: [
+          "Fast-only admission made zero LLM calls and zero MCP calls.",
+          "No provider approval request was created.",
+        ],
+      };
+      this.update(event);
       return event;
     }
     const source = input.sourceId

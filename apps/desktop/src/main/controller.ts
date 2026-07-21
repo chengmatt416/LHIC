@@ -9,8 +9,10 @@ import type {
   DemoApiKeyMetadata,
   DemoCandidateStatus,
   DemoCodexDispatchRequest,
+  DemoCodexRunStatus,
   DemoDirectorPreflight,
   DemoDirectorResult,
+  DemoRecordingClipResult,
   DemoRecordingStatus,
   DashboardSnapshot,
   GameProfile,
@@ -125,20 +127,24 @@ export class DesktopController {
     return this.demoDirector.approveCodexPermission(approvedBy);
   }
 
+  public demoCodexRunStatus(): Promise<DemoCodexRunStatus> {
+    return this.demoDirector.codexRunStatus();
+  }
+
   public async startDemoFastPath(): Promise<CommandEvent> {
-    await this.demoDirector.showFastPathTerminal();
+    const event = await this.tasks.start({
+      goal: this.demoDirector.fastGoal(),
+      startUrl: "https://vendor.techtools.qzz.io/",
+      fastOnly: true,
+    });
+    if (event.status !== "proposed") return event;
+    await this.demoDirector.showFastPathTerminal(event.commandId);
     const focusTimer = setTimeout(
       () => void this.demoDirector.focusTerminal().catch(() => undefined),
       1_500,
     );
     focusTimer.unref();
-    const event = await this.tasks.start({
-      goal: this.demoDirector.fastGoal(),
-      startUrl: "https://vendor.techtools.qzz.io/",
-    });
-    return event.status === "proposed"
-      ? this.tasks.execute(event.commandId)
-      : event;
+    return this.tasks.execute(event.commandId);
   }
 
   public focusDemoLhic(): DemoDirectorResult {
@@ -159,6 +165,10 @@ export class DesktopController {
 
   public stopDemoRecording(): Promise<DemoRecordingStatus> {
     return this.demoDirector.stopRecording();
+  }
+
+  public saveDemoRecordingClip(): Promise<DemoRecordingClipResult> {
+    return this.demoDirector.saveRecordingClip();
   }
 
   public demoRecordingStatus(): DemoRecordingStatus {

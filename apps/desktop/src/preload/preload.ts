@@ -44,6 +44,7 @@ const api: DesktopApi = {
     preflight: () => ipcRenderer.invoke("lhic:demo:preflight"),
     dispatchCodex: (input) =>
       ipcRenderer.invoke("lhic:demo:dispatch-codex", input),
+    codexRunStatus: () => ipcRenderer.invoke("lhic:demo:codex-run-status"),
     approveCodexPermission: (approvedBy) =>
       ipcRenderer.invoke("lhic:demo:approve-codex-permission", approvedBy),
     startFastPath: () => ipcRenderer.invoke("lhic:demo:start-fast-path"),
@@ -51,6 +52,8 @@ const api: DesktopApi = {
     launchChallenge: () => ipcRenderer.invoke("lhic:demo:launch-challenge"),
     candidates: () => ipcRenderer.invoke("lhic:demo:candidates"),
     startRecording: () => ipcRenderer.invoke("lhic:demo:recording:start"),
+    saveRecordingClip: () =>
+      ipcRenderer.invoke("lhic:demo:recording:save-clip"),
     stopRecording: () => ipcRenderer.invoke("lhic:demo:recording:stop"),
     recordingStatus: () => ipcRenderer.invoke("lhic:demo:recording:status"),
     startTimer: (kind) => ipcRenderer.invoke("lhic:demo:timer:start", kind),

@@ -84,6 +84,34 @@ describe("TaskService", () => {
     expect(pending.message).toContain("OpenAI may receive");
   });
 
+  it("never creates a provider request for explicit Fast Path admission", async () => {
+    let proposalCalls = 0;
+    const service = createService(async () => {
+      proposalCalls += 1;
+      return validPlan;
+    });
+    await service.configure({
+      id: "openai",
+      kind: "openai-responses",
+      label: "OpenAI",
+      model: "test-model",
+      enabled: true,
+    });
+
+    const result = await service.start({
+      goal: "Run an unavailable learned workflow",
+      startUrl: "https://vendor.techtools.qzz.io/",
+      fastOnly: true,
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.message).toContain("Slow Path fallback is disabled");
+    expect(result.evidence).toContain(
+      "No provider approval request was created.",
+    );
+    expect(proposalCalls).toBe(0);
+  });
+
   it("blocks a Slow Path provider before sending a request when its budget is exhausted", async () => {
     let proposalCalls = 0;
     const service = new TaskService(

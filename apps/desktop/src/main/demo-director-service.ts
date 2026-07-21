@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createHash, generateKeyPairSync } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import { createMemoryDatabase, SkillStore } from "@lhic/memory";
@@ -12,7 +13,9 @@ import { GlobalComputerExecutor } from "@lhic/skills";
 import type {
   DemoCandidateStatus,
   DemoCodexDispatchRequest,
+  DemoCodexRunStatus,
   DemoDirectorResult,
+  DemoRecordingClipResult,
   DemoRecordingStatus,
 } from "../shared/contracts.js";
 import { DemoTerminalService } from "./demo-terminal-service.js";
@@ -20,6 +23,7 @@ import { ensurePrivateDirectory } from "./private-directory.js";
 
 const challengeApplication =
   "/Applications/Launcher.app/Contents/Resources/GameBuilds/Challenge2026.app";
+const vendorOrigin = "https://vendor.techtools.qzz.io";
 
 export class DemoDirectorService {
   private readonly signingKeys = generateKeyPairSync("ed25519");
@@ -135,6 +139,10 @@ export class DemoDirectorService {
     }
   }
 
+  public codexRunStatus(): Promise<DemoCodexRunStatus> {
+    return this.terminal.codexRunStatus();
+  }
+
   public focusLhic(): DemoDirectorResult {
     const startedAt = performance.now();
     const focused = this.focusLhicWindow();
@@ -143,8 +151,8 @@ export class DemoDirectorService {
       : failed(startedAt, [], "The LHIC control window could not be focused.");
   }
 
-  public async showFastPathTerminal(): Promise<void> {
-    await this.terminal.launchFastPathMonitor();
+  public async showFastPathTerminal(commandId: string): Promise<void> {
+    await this.terminal.launchFastPathMonitor(commandId);
   }
 
   public async focusTerminal(): Promise<void> {
@@ -203,12 +211,17 @@ export class DemoDirectorService {
     await ensurePrivateDirectory(dirname(databasePath));
     const database = createMemoryDatabase(databasePath);
     try {
-      return new SkillStore(database).listCandidates().map((candidate) => ({
-        name: candidate.name,
-        verifiedRunCount: candidate.verifiedRunCount,
-        holdoutPassed: candidate.holdoutPassed,
-        promoted: candidate.promoted,
-      }));
+      return new SkillStore(database)
+        .listCandidates()
+        .filter((candidate) =>
+          isVendorCandidateDefinition(candidate.definition),
+        )
+        .map((candidate) => ({
+          name: candidate.name,
+          verifiedRunCount: candidate.verifiedRunCount,
+          holdoutPassed: candidate.holdoutPassed,
+          promoted: candidate.promoted,
+        }));
     } finally {
       database.close();
     }
@@ -219,7 +232,7 @@ export class DemoDirectorService {
     if (!this.recorderAvailable()) {
       throw new Error("The macOS screen recorder is unavailable.");
     }
-    const directory = resolve(this.workspaceRoot, ".lhic/demo-recordings");
+    const directory = demoRecordingDirectory();
     await mkdir(directory, { recursive: true, mode: 0o700 });
     const outputPath = join(directory, `lhic-demo-${fileTimestamp()}.mov`);
     const startedAt = new Date().toISOString();
@@ -258,6 +271,20 @@ export class DemoDirectorService {
     return this.recording;
   }
 
+  public async saveRecordingClip(): Promise<DemoRecordingClipResult> {
+    if (!this.recorder || !this.recording.recording) {
+      throw new Error(
+        "A recording must be running before a clip can be saved.",
+      );
+    }
+    const stopped = await this.stopRecording();
+    if (!stopped.outputPath) {
+      throw new Error("The completed recording clip has no output path.");
+    }
+    const recording = await this.startRecording();
+    return { savedClipPath: stopped.outputPath, recording };
+  }
+
   public recordingStatus(): DemoRecordingStatus {
     return this.recording;
   }
@@ -269,7 +296,34 @@ export class DemoDirectorService {
       );
     }
   }
+}
 
+export function demoRecordingDirectory(homeDirectory = homedir()): string {
+  return resolve(homeDirectory, "Downloads");
+}
+
+export function isVendorCandidateDefinition(
+  definition: Record<string, unknown>,
+): boolean {
+  if (definition.origin === vendorOrigin) return true;
+  const plan = definition.plan;
+  if (!plan || typeof plan !== "object") {
+    return false;
+  }
+  const steps = (plan as Record<string, unknown>).steps;
+  if (!Array.isArray(steps)) return false;
+  return steps.some((step: unknown) => {
+    if (!step || typeof step !== "object") return false;
+    const action = (step as Record<string, unknown>).action;
+    if (!action || typeof action !== "object") return false;
+    const target = (action as Record<string, unknown>).target;
+    if (typeof target !== "string") return false;
+    try {
+      return new URL(target).origin === vendorOrigin;
+    } catch {
+      return false;
+    }
+  });
 }
 
 interface DemoScenario {
@@ -292,13 +346,12 @@ function loadScenario(environment: NodeJS.ProcessEnv): DemoScenario {
     slowEmployee: environment.LHIC_DEMO_SLOW_EMPLOYEE?.trim() || "LHICTEST",
     slowManager: environment.LHIC_DEMO_SLOW_MANAGER?.trim() || "LHICMANAGER",
     fastEmployee: environment.LHIC_DEMO_FAST_EMPLOYEE?.trim() || "LHICTEST2",
-    fastManager:
-      environment.LHIC_DEMO_FAST_MANAGER?.trim() || "LHICMANAGER2",
+    fastManager: environment.LHIC_DEMO_FAST_MANAGER?.trim() || "LHICMANAGER2",
   };
 }
 
 function slowPrompt(scenario: DemoScenario): string {
-  return `Use only the connected LHIC MCP tools for every computer action. Do not use Codex computer-use or direct browser-control abilities. Open https://vendor.techtools.qzz.io/. Order Test3 ×1 and Test2 ×2 using employee number ${scenario.slowEmployee}. Add a 進貨支出 on /finance using manager employee number ${scenario.slowManager}, and increase Test stock to 20. When LHIC opens its native human-permission dialog, keep the current MCP tool call pending and wait for the operator; do not summarize, close the browser, or end the task. After approval, continue the remaining finance and stock steps. Let LHIC produce verifier evidence after each action and record the completed Slow Path as a candidate only; do not bypass the three-run and unseen-UI holdout promotion gates.`;
+  return `Use only the connected LHIC MCP tools for every computer action. Do not use Codex computer-use or direct browser-control abilities. Submit the complete workflow through lhic_browser_execute_plan so LHIC can retain one verifier-backed candidate after every step succeeds. Open https://vendor.techtools.qzz.io/. Order Test3 ×1 and Test2 ×2 using employee number ${scenario.slowEmployee}. Add a 進貨支出 on /finance using manager employee number ${scenario.slowManager}, and increase Test stock to 20. When LHIC opens its native human-permission dialog, keep the current MCP tool call pending and wait for the operator; do not summarize, close the browser, or end the task. After approval, continue the remaining finance and stock steps. Let LHIC produce verifier evidence after each action and record the completed Slow Path as a candidate only; do not bypass the three-run and unseen-UI holdout promotion gates.`;
 }
 
 function completed(startedAt: number, evidence: string[]): DemoDirectorResult {

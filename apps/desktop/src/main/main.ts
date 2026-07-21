@@ -211,6 +211,9 @@ function registerIpc(): void {
   ipcMain.handle("lhic:demo:dispatch-codex", (_event, input: unknown) =>
     controller.dispatchDemoCodex(requiredDemoCodexDispatch(input)),
   );
+  ipcMain.handle("lhic:demo:codex-run-status", () =>
+    controller.demoCodexRunStatus(),
+  );
   ipcMain.handle(
     "lhic:demo:approve-codex-permission",
     (_event, approvedBy: string) =>
@@ -228,6 +231,9 @@ function registerIpc(): void {
   ipcMain.handle("lhic:demo:candidates", () => controller.demoCandidates());
   ipcMain.handle("lhic:demo:recording:start", () =>
     controller.startDemoRecording(),
+  );
+  ipcMain.handle("lhic:demo:recording:save-clip", () =>
+    controller.saveDemoRecordingClip(),
   );
   ipcMain.handle("lhic:demo:recording:stop", () =>
     controller.stopDemoRecording(),
@@ -437,7 +443,8 @@ async function showTimerOverlay(kind: "slow" | "fast"): Promise<void> {
     join(import.meta.dirname, "../../renderer/timer-overlay.html"),
     {
       query: {
-        label: kind === "slow" ? "SLOW PATH · CODEX + MCP" : "FAST PATH · LOCAL",
+        label:
+          kind === "slow" ? "SLOW PATH · CODEX + MCP" : "FAST PATH · LOCAL",
         accent: kind === "slow" ? "#ffb457" : "#71e3bc",
         startedAt: String(Date.now()),
       },

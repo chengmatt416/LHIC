@@ -25,6 +25,15 @@ test-only `LHICTEST`, `LHICMANAGER`, `LHICTEST2`, and `LHICMANAGER2`
 identities. Optional `LHIC_DEMO_SLOW_EMPLOYEE`, `LHIC_DEMO_SLOW_MANAGER`,
 `LHIC_DEMO_FAST_EMPLOYEE`, and `LHIC_DEMO_FAST_MANAGER` launch overrides stay
 in process memory and are not rendered in the UI or evidence feed.
+The finished timestamped `.mov` recording is saved directly in the current
+macOS user's `Downloads` folder.
+
+The presenter controls remain available during the session. **Save clip**
+finalizes the current `.mov` in Downloads and immediately starts a new segment,
+so an important section can be retained without ending the presentation. The
+**Jump** selector moves directly to a presentation checkpoint while recording
+continues. Jumping changes only the presentation view; it does not cancel an
+active browser, Codex, or game process.
 
 The Codex CLI model can be overridden without changing code:
 
@@ -43,7 +52,7 @@ Before the live presentation:
    workspace and sandbox identities documented here.
 3. Confirm Codex reports the LHIC MCP server as connected. Signed Plan repairs
    the local registration before launching the CLI when necessary.
-5. Prepare a verifier-approved Challenge 2026 policy artifact at the configured
+4. Prepare a verifier-approved Challenge 2026 policy artifact at the configured
    local 3D demo path.
 
 Employee identifiers are read from the launch environment into main-process
@@ -52,25 +61,31 @@ Use test-only identities.
 
 ## Stage controls
 
-| Stage           | `Space` result                                                      |
-| --------------- | ------------------------------------------------------------------- |
-| Slide 1         | Show slide 2; recording is already running                           |
-| Slide 2         | Show live MCP connection proof                                      |
-| MCP proof       | Open the signed Codex-dispatch approval screen                      |
-| Signed plan     | Launch Codex CLI with Luna medium and focus its Terminal frame       |
-| Slow execution  | Codex prompts are bypassed; LHIC action-policy gates remain active    |
-| Slow completion | Press Space again after the task finishes to show learning          |
-| Learning        | Advances only when the local candidate is genuinely promoted        |
-| Fast ready      | Starts model-free LHIC and focuses its Terminal evidence monitor     |
-| Fast permission | Approves the currently pending LHIC action                          |
-| Comparison      | Show slide 3                                                        |
-| Slide 3         | Launch Challenge 2026 and the configured Game Lab policy            |
-| Game            | Return to slide 4 automatically when playback finishes              |
-| Slide 4         | Stop recording                                                      |
+| Stage           | `Space` result                                                     |
+| --------------- | ------------------------------------------------------------------ |
+| Slide 1         | Show slide 2; recording is already running                         |
+| Slide 2         | Show live MCP connection proof                                     |
+| MCP proof       | Open the signed Codex-dispatch approval screen                     |
+| Signed plan     | Launch Codex CLI with Luna medium and focus its Terminal frame     |
+| Slow execution  | Codex prompts are bypassed; LHIC action-policy gates remain active |
+| Slow completion | Press Space again after the task finishes to show learning         |
+| Learning        | Advances only when the local candidate is genuinely promoted       |
+| Fast ready      | Starts model-free LHIC and focuses its Terminal evidence monitor   |
+| Fast permission | Approves the currently pending LHIC action                         |
+| Comparison      | Show slide 3                                                       |
+| Slide 3         | Launch Challenge 2026 and the configured Game Lab policy           |
+| Game            | Return to slide 4 automatically when playback finishes             |
+| Slide 4         | Stop recording                                                     |
 
 The game owns keyboard focus while it runs. Demo Director returns to slide 4
 automatically when the Game Lab playback job completes, avoiding a global
 `Space` hook that could interfere with game input.
+
+Fast Path admission fails closed. If no promoted vendor Skill matches, LHIC
+does not select a configured Slow Path provider and does not open the Terminal
+monitor. When a local plan is admitted, the monitor filters the task journal by
+that exact command ID so stale provider events cannot appear in the Fast Path
+frame.
 
 ## Evidence shown to judges
 

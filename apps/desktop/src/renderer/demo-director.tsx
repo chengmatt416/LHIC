@@ -10,6 +10,7 @@ import {
 import type {
   CommandEvent,
   DemoCandidateStatus,
+  DemoCodexRunStatus,
   DemoDirectorPreflight,
   DemoRecordingStatus,
   DesktopProgressEvent,
@@ -18,6 +19,7 @@ import {
   advanceDemoStage,
   elapsedMs,
   initialDemoDirectorState,
+  type DemoStage,
   type DemoDirectorState,
 } from "./demo-director-model.js";
 
@@ -40,15 +42,20 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
   const [recording, setRecording] = useState<DemoRecordingStatus>({
     recording: false,
   });
+  const [savedClips, setSavedClips] = useState<string[]>([]);
+  const [savingClip, setSavingClip] = useState(false);
   const [candidates, setCandidates] = useState<DemoCandidateStatus[]>([]);
-  const baselineCandidates = useRef(new Map<string, number>());
   const recordingStartRequested = useRef(false);
-  const permissionMisses = useRef(0);
+  const completionReported = useRef(false);
+  const statusPollPending = useRef(false);
   const approver = "demo-operator";
   const gameArtifact =
     ".lhic/game-training/3d/skills/epic-shooter-stability-v1/artifact.json";
   const [evidence, setEvidence] = useState<string[]>([]);
   const [slowComplete, setSlowComplete] = useState(false);
+  const [codexStatus, setCodexStatus] = useState<DemoCodexRunStatus>({
+    status: "idle",
+  });
   const [fastEvent, setFastEvent] = useState<CommandEvent>();
   const [, setClock] = useState(0);
 
@@ -59,16 +66,38 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
   const refreshCandidates = useCallback(async () => {
     const next = await window.lhic.demo.candidates();
     setCandidates(next);
-    if (
-      next.some(
-        (candidate) =>
-          candidate.verifiedRunCount >
-          (baselineCandidates.current.get(candidate.name) ?? 0),
-      )
-    ) {
-      setSlowComplete(true);
-    }
   }, []);
+
+  const refreshCodexStatus = useCallback(async () => {
+    if (statusPollPending.current) return;
+    statusPollPending.current = true;
+    try {
+      const next = await window.lhic.demo.codexRunStatus();
+      setCodexStatus(next);
+      if (next.status === "completed" && !completionReported.current) {
+        completionReported.current = true;
+        setSlowComplete(true);
+        setDirector((state) => ({
+          ...state,
+          slow: { ...state.slow, completedAt: Date.now() },
+        }));
+        await window.lhic.demo.stopTimer();
+        await window.lhic.demo.focusLhic();
+        setNotice(
+          "Codex MCP session exited successfully. Press Space to confirm completion and open learning.",
+        );
+      } else if (next.status === "failed" && !completionReported.current) {
+        completionReported.current = true;
+        await window.lhic.demo.stopTimer();
+        await window.lhic.demo.focusLhic();
+        setNotice(
+          `Codex CLI exited with status ${next.exitCode ?? "unknown"}. Review Terminal before continuing.`,
+        );
+      }
+    } finally {
+      statusPollPending.current = false;
+    }
+  }, [setNotice]);
 
   useEffect(() => {
     if (recordingStartRequested.current) return;
@@ -76,15 +105,7 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
     void Promise.all([
       window.lhic.demo.preflight().then(setPreflight),
       window.lhic.demo.startRecording().then(setRecording),
-      window.lhic.demo.candidates().then((initial) => {
-        setCandidates(initial);
-        baselineCandidates.current = new Map(
-          initial.map((candidate) => [
-            candidate.name,
-            candidate.verifiedRunCount,
-          ]),
-        );
-      }),
+      window.lhic.demo.candidates().then(setCandidates),
     ]).catch((error: unknown) => setNotice(message(error)));
   }, [setNotice]);
 
@@ -94,9 +115,12 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
       if (["slow-live", "learning"].includes(director.stage)) {
         void refreshCandidates().catch(() => undefined);
       }
+      if (director.stage === "slow-live") {
+        void refreshCodexStatus().catch(() => undefined);
+      }
     }, 500);
     return () => window.clearInterval(interval);
-  }, [director.stage, refreshCandidates]);
+  }, [director.stage, refreshCandidates, refreshCodexStatus]);
 
   useEffect(
     () =>
@@ -148,23 +172,7 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
       return;
     }
     if (stage === "slow-live") {
-      if (slowComplete || permissionMisses.current > 0) {
-        await markSlowComplete();
-        return;
-      }
-      const result = await window.lhic.demo.approveCodexPermission(approver);
-      setEvidence((current) => [...current.slice(-10), ...result.evidence]);
-      if (result.status === "completed") {
-        permissionMisses.current = 0;
-        setNotice(
-          "Terminal focused. Codex CLI permission bypass remains active.",
-        );
-      } else {
-        permissionMisses.current += 1;
-        setNotice(
-          "No visible permission was found. If the Slow Path is complete, press Space once more to open learning.",
-        );
-      }
+      await markSlowComplete();
       return;
     }
     if (stage === "fast-ready") {
@@ -212,7 +220,7 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
         const stopped = await window.lhic.demo.stopRecording();
         setRecording(stopped);
         setNotice(
-          `Recording saved to ${stopped.outputPath ?? "the demo folder"}.`,
+          `Recording saved to ${stopped.outputPath ?? "the Downloads folder"}.`,
         );
       }
       setDirector((state) => advanceDemoStage(state));
@@ -254,6 +262,9 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
       stage: "slow-live",
       slow: { startedAt: Date.now() },
     }));
+    completionReported.current = false;
+    setSlowComplete(false);
+    setCodexStatus({ status: "running" });
     try {
       await window.lhic.demo.startTimer("slow");
       const result = await window.lhic.demo.dispatchCodex({
@@ -279,6 +290,10 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
   const markSlowComplete = async () => {
     await window.lhic.demo.stopTimer();
     setSlowComplete(true);
+    setEvidence((current) => [
+      ...current.slice(-10),
+      "Human operator confirmed the Slow Path demonstration is complete.",
+    ]);
     setDirector((state) => ({
       ...state,
       stage: "learning",
@@ -317,6 +332,37 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
     }
   }
 
+  async function saveCurrentClip(): Promise<void> {
+    if (!recording.recording || savingClip) return;
+    setSavingClip(true);
+    try {
+      const result = await window.lhic.demo.saveRecordingClip();
+      setSavedClips((current) => [...current, result.savedClipPath]);
+      setRecording(result.recording);
+      setNotice(
+        `Clip saved to ${result.savedClipPath}. Recording continued in a new segment.`,
+      );
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setSavingClip(false);
+    }
+  }
+
+  async function jumpToSection(stage: DemoStage): Promise<void> {
+    if (stage === "fast-ready" && !fastEligible) {
+      setNotice(
+        "Fast Path remains locked until the vendor Skill has real promotion evidence.",
+      );
+      return;
+    }
+    await window.lhic.demo.stopTimer().catch(() => undefined);
+    setDirector((state) => ({ ...state, stage }));
+    setNotice(
+      "Presentation section changed. Recording continues; active automation was not cancelled.",
+    );
+  }
+
   if (director.stage.startsWith("slide-")) {
     const slide = director.stage.at(-1);
     return (
@@ -325,7 +371,13 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
           src={`./demo/slide-${slide}.png`}
           alt={`Presentation slide ${slide}`}
         />
-        <DemoHud stage={director.stage} recording={recording} />
+        <DemoHud
+          stage={director.stage}
+          recording={recording}
+          savingClip={savingClip}
+          onSaveClip={saveCurrentClip}
+          onJump={jumpToSection}
+        />
       </section>
     );
   }
@@ -334,8 +386,12 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
     return (
       <section className="demo-director demo-complete">
         <span className="demo-kicker">DEMO COMPLETE</span>
-        <h2>Recording stopped and evidence retained locally.</h2>
-        <p>{recording.outputPath ?? "No recording output was created."}</p>
+        <h2>Recording stopped and saved to Downloads.</h2>
+        {[...savedClips, recording.outputPath]
+          .filter((path): path is string => Boolean(path))
+          .map((path) => (
+            <p key={path}>{path}</p>
+          ))}
       </section>
     );
   }
@@ -354,6 +410,13 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
             {recording.recording ? "● REC" : "NOT RECORDING"}
           </span>
           <span className="demo-badge">SPACE · NEXT</span>
+          <PresenterControls
+            stage={director.stage}
+            recording={recording}
+            savingClip={savingClip}
+            onSaveClip={saveCurrentClip}
+            onJump={jumpToSection}
+          />
         </div>
       </header>
 
@@ -407,7 +470,8 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
                 <b>1</b> Verify LHIC MCP in Codex CLI
               </p>
               <p>
-                <b>2</b> Launch {preflight?.codexModel ?? "gpt-5.6-luna"} · medium
+                <b>2</b> Launch {preflight?.codexModel ?? "gpt-5.6-luna"} ·
+                medium
               </p>
               <p>
                 <b>3</b> Submit the approved Slow Path prompt
@@ -452,12 +516,17 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
             />
             <p className="demo-callout">
               Codex runs in Terminal without desktop Accessibility selectors.
-              Codex confirmation prompts are bypassed. If Terminal loses focus,
-              return here and press Space to focus it again.
+              Codex confirmation prompts are bypassed. LHIC watches the real CLI
+              exit status and marks this portal complete automatically.
             </p>
-            <p className="space-instruction">
-              SPACE · FOCUS CODEX CLI / CONFIRM COMPLETION
+            <p
+              className={`demo-hero-status ${codexStatus.status === "completed" ? "passed" : "manual"}`}
+            >
+              {codexStatus.status === "completed"
+                ? "SESSION COMPLETED"
+                : codexStatus.status.toUpperCase()}
             </p>
+            <p className="space-instruction">SPACE · MARK SLOW PATH COMPLETE</p>
           </DemoCard>
         </div>
       )}
@@ -489,9 +558,9 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
         <DemoCard title="Model-free replay is armed" code="FAST PATH">
           <p className="demo-hero-status passed">0 LLM · 0 MCP</p>
           <p>
-            Press Space to start the similar task directly in LHIC and focus
-            its live Terminal evidence monitor. Codex remains outside the Fast
-            Path execution path.
+            Press Space to start the similar task directly in LHIC and focus its
+            live Terminal evidence monitor. Codex remains outside the Fast Path
+            execution path.
           </p>
         </DemoCard>
       )}
@@ -553,13 +622,26 @@ export function DemoDirector({ setNotice }: DemoDirectorProps): JSX.Element {
 function DemoHud({
   stage,
   recording,
+  savingClip,
+  onSaveClip,
+  onJump,
 }: {
-  stage: string;
+  stage: DemoStage;
   recording: DemoRecordingStatus;
+  savingClip: boolean;
+  onSaveClip: () => Promise<void>;
+  onJump: (stage: DemoStage) => Promise<void>;
 }): JSX.Element {
   return (
     <div className="demo-hud">
       <span>{recording.recording ? "● RECORDING" : "RECORDING OFF"}</span>
+      <PresenterControls
+        stage={stage}
+        recording={recording}
+        savingClip={savingClip}
+        onSaveClip={onSaveClip}
+        onJump={onJump}
+      />
       <span>
         {stage === "slide-1"
           ? "SPACE · NEXT"
@@ -569,6 +651,65 @@ function DemoHud({
       </span>
     </div>
   );
+}
+
+const sectionOptions: Array<{ stage: DemoStage; label: string }> = [
+  { stage: "slide-1", label: "Slide 1" },
+  { stage: "slide-2", label: "Slide 2" },
+  { stage: "mcp-link", label: "MCP proof" },
+  { stage: "slow-approval", label: "Slow Path" },
+  { stage: "learning", label: "Learning" },
+  { stage: "fast-ready", label: "Fast Path" },
+  { stage: "comparison", label: "Comparison" },
+  { stage: "slide-3", label: "Slide 3 / Game" },
+  { stage: "slide-4", label: "Slide 4 / Finish" },
+];
+
+function PresenterControls({
+  stage,
+  recording,
+  savingClip,
+  onSaveClip,
+  onJump,
+}: {
+  stage: DemoStage;
+  recording: DemoRecordingStatus;
+  savingClip: boolean;
+  onSaveClip: () => Promise<void>;
+  onJump: (stage: DemoStage) => Promise<void>;
+}): JSX.Element {
+  return (
+    <div className="presenter-controls">
+      <button
+        type="button"
+        disabled={!recording.recording || savingClip}
+        onClick={() => void onSaveClip()}
+      >
+        {savingClip ? "SAVING…" : "SAVE CLIP"}
+      </button>
+      <label>
+        <span>JUMP</span>
+        <select
+          value={sectionForStage(stage)}
+          onChange={(event) => void onJump(event.target.value as DemoStage)}
+        >
+          {sectionOptions.map((section) => (
+            <option key={section.stage} value={section.stage}>
+              {section.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+function sectionForStage(stage: DemoStage): DemoStage {
+  if (stage === "slow-live") return "slow-approval";
+  if (stage === "fast-live") return "fast-ready";
+  if (stage === "game") return "slide-3";
+  if (stage === "complete") return "slide-4";
+  return stage;
 }
 
 function DemoCard({

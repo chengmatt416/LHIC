@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DemoDirectorService } from "./demo-director-service.js";
+import {
+  demoRecordingDirectory,
+  DemoDirectorService,
+  isVendorCandidateDefinition,
+} from "./demo-director-service.js";
 
 describe("DemoDirectorService scenario configuration", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -32,5 +36,34 @@ describe("DemoDirectorService scenario configuration", () => {
     expect(service.fastGoal()).toContain("LHICTEST2");
     expect(service.fastGoal()).toContain("LHICMANAGER2");
     expect(service.codexModel()).toBe("gpt-5.6-luna");
+  });
+
+  it("saves demo recordings in the current user's Downloads folder", () => {
+    expect(demoRecordingDirectory("/Users/demo-user")).toBe(
+      "/Users/demo-user/Downloads",
+    );
+  });
+
+  it("refuses to split a clip when recording has not started", async () => {
+    const service = new DemoDirectorService("/tmp/lhic-demo", () => true);
+
+    await expect(service.saveRecordingClip()).rejects.toThrow(
+      "A recording must be running",
+    );
+  });
+
+  it("does not unlock the vendor Fast Path with an unrelated promoted Skill", () => {
+    expect(
+      isVendorCandidateDefinition({
+        compiler: "demo-learned-skill-v1",
+        origin: "https://github.com",
+      }),
+    ).toBe(false);
+    expect(
+      isVendorCandidateDefinition({
+        compiler: "demo-learned-skill-v1",
+        origin: "https://vendor.techtools.qzz.io",
+      }),
+    ).toBe(true);
   });
 });

@@ -149,10 +149,20 @@ export interface DemoDirectorResult {
   error?: string;
 }
 
+export interface DemoCodexRunStatus {
+  status: "idle" | "running" | "completed" | "failed";
+  exitCode?: number;
+}
+
 export interface DemoRecordingStatus {
   recording: boolean;
   startedAt?: string;
   outputPath?: string;
+}
+
+export interface DemoRecordingClipResult {
+  savedClipPath: string;
+  recording: DemoRecordingStatus;
 }
 
 export interface DemoCandidateStatus {
@@ -474,12 +484,14 @@ export interface DesktopApi {
   demo: {
     preflight(): Promise<DemoDirectorPreflight>;
     dispatchCodex(input: DemoCodexDispatchRequest): Promise<DemoDirectorResult>;
+    codexRunStatus(): Promise<DemoCodexRunStatus>;
     approveCodexPermission(approvedBy: string): Promise<DemoDirectorResult>;
     startFastPath(): Promise<CommandEvent>;
     focusLhic(): Promise<DemoDirectorResult>;
     launchChallenge(): Promise<DemoDirectorResult>;
     candidates(): Promise<DemoCandidateStatus[]>;
     startRecording(): Promise<DemoRecordingStatus>;
+    saveRecordingClip(): Promise<DemoRecordingClipResult>;
     stopRecording(): Promise<DemoRecordingStatus>;
     recordingStatus(): Promise<DemoRecordingStatus>;
     startTimer(kind: "slow" | "fast"): Promise<void>;

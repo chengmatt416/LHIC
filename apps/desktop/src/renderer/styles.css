@@ -127,6 +127,45 @@ body {
   cursor: pointer;
 }
 
+.presenter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 700 0.66rem/1 var(--font-mono);
+  letter-spacing: 0.06em;
+}
+
+.presenter-controls button,
+.presenter-controls select {
+  min-height: 34px;
+  border: 1px solid var(--border-hover);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: var(--text-primary);
+  background: rgba(14, 22, 31, 0.94);
+  font: inherit;
+  cursor: pointer;
+}
+
+.presenter-controls button {
+  color: #07110e;
+  border-color: transparent;
+  background: var(--accent);
+  font-weight: 800;
+}
+
+.presenter-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.presenter-controls label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+}
+
 .demo-header {
   max-width: 1500px;
   margin: 0 auto 36px;
@@ -151,6 +190,9 @@ body {
 
 .demo-header-badges {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 10px;
 }
 

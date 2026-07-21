@@ -9,6 +9,27 @@ ambiguous Slow Path planning through a strict, redacted schema; LHIC validates,
 executes, verifies, and audits actions locally. The Fast Path never calls a
 model or MCP server.
 
+## How Codex and GPT-5.6 were used
+
+This project uses the two systems at different boundaries. **Codex** was the
+development collaborator: it helped turn the maintainer's product direction,
+architecture, threat model, and acceptance decisions into TypeScript modules,
+Playwright/browser flows, desktop-control paths, tests, benchmark tooling,
+debugging fixes, release checks, and documentation. The maintainer remained the
+author of the product decisions and reviewed and accepted the resulting
+changes. The verifiable Build Week timeline is in the
+[build-week changelog](docs/build-week-changelog.md), with the broader
+[Codex collaboration record](docs/codex-usage.md).
+
+**GPT-5.6** is an optional runtime component, not the execution authority. In
+the Slow Path it proposes a next step for ambiguous browser tasks from a
+redacted goal, UI state, and trace context. LHIC then validates the structured
+proposal, applies policy and approval gates, executes it locally, and requires
+verifier evidence. It is deliberately absent from Fast Path execution,
+benchmark baselines, and local game-training loops. See the
+[GPT-5.6 integration guide](docs/gpt-5.6-integration.md) for the exact
+contract, redaction boundary, and fail-closed behavior.
+
 ## Key Features
 
 - **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Each Fast Path action has **zero LLM calls** and therefore incurs no LLM-token cost; latency and success claims are reported only from the included controlled benchmarks.
