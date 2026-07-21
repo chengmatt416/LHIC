@@ -1,6 +1,7 @@
 export interface DemoCommandOptions {
   safe: boolean;
   viewable: boolean;
+  terminal: boolean;
   endpoint?: string;
 }
 
@@ -9,6 +10,7 @@ export function parseDemoCommandOptions(
 ): DemoCommandOptions {
   let safe = false;
   let viewable = false;
+  let terminal = false;
   let endpoint: string | undefined;
 
   for (let index = 0; index < argumentsList.length; index += 1) {
@@ -23,6 +25,11 @@ export function parseDemoCommandOptions(
       viewable = true;
       continue;
     }
+    if (argument === "--terminal") {
+      if (terminal) throw new Error("demo accepts --terminal only once.");
+      terminal = true;
+      continue;
+    }
     if (argument === "--endpoint") {
       if (endpoint !== undefined)
         throw new Error("demo accepts --endpoint only once.");
@@ -35,12 +42,20 @@ export function parseDemoCommandOptions(
       continue;
     }
     throw new Error(
-      `Unknown demo option ${argument}. Use --safe, --viewable, or --endpoint <URL>.`,
+      `Unknown demo option ${argument}. Use --safe, --viewable, --terminal, or --endpoint <URL>.`,
     );
   }
 
   if (safe && endpoint !== undefined) {
     throw new Error("demo --safe does not use a model endpoint.");
   }
-  return { safe, viewable, ...(endpoint === undefined ? {} : { endpoint }) };
+  if (safe && terminal) {
+    throw new Error("demo --safe cannot use --terminal.");
+  }
+  return {
+    safe,
+    viewable,
+    terminal,
+    ...(endpoint === undefined ? {} : { endpoint }),
+  };
 }

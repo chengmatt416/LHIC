@@ -13,6 +13,7 @@ describe("demo command options", () => {
     ).toEqual({
       safe: false,
       viewable: true,
+      terminal: false,
       endpoint: "https://models.example.test/v1/responses",
     });
   });
@@ -21,6 +22,7 @@ describe("demo command options", () => {
     expect(parseDemoCommandOptions(["--safe", "--view"])).toEqual({
       safe: true,
       viewable: true,
+      terminal: false,
     });
   });
 
@@ -38,5 +40,16 @@ describe("demo command options", () => {
     expect(() => parseDemoCommandOptions(["--other"])).toThrow(
       "Unknown demo option",
     );
+    expect(() => parseDemoCommandOptions(["--safe", "--terminal"])).toThrow(
+      "cannot use --terminal",
+    );
+  });
+
+  it("keeps the terminal flow available explicitly", () => {
+    expect(parseDemoCommandOptions(["--terminal"])).toEqual({
+      safe: false,
+      viewable: false,
+      terminal: true,
+    });
   });
 });

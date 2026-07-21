@@ -22,9 +22,10 @@ describe("GUI companion", () => {
     const token = new URL(companion.url).searchParams.get("token")!;
 
     expect(openedUrl).toBe(companion.url);
-    await expect(
-      fetch(companion.url).then((response) => response.text()),
-    ).resolves.toContain("MCP Link Companion");
+    const portal = await fetch(companion.url).then((response) => response.text());
+    expect(portal).toContain("MCP Link Companion");
+    expect(portal).toContain("Task to demonstrate");
+    expect(portal).toContain("Start demonstration");
     const unauthorized = await fetch(apiUrl(companion, "/api/mcp/config"), {
       method: "POST",
     });

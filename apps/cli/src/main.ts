@@ -94,6 +94,12 @@ async function runCommand(
   }
   if (command === "demo") {
     const demoOptions = parseDemoCommandOptions(argumentsList.slice(1));
+    if (!demoOptions.safe && !demoOptions.terminal) {
+      const companion = await startGuiCompanion({ initialTab: "demo" });
+      console.log(`LHIC demonstration portal: ${companion.url}`);
+      console.log("Keep this terminal open while using the local portal.");
+      return;
+    }
     if (!demoOptions.safe) {
       await runInteractiveDemo(prompter, {
         ...(demoOptions.endpoint === undefined

@@ -87,16 +87,22 @@ AppImage and launcher, and Windows launches the release NSIS installer.
 
 ## Interactive learning demo
 
-Run the complete visible-browser demo with one provider API key and model:
+Start the local demonstration portal with one command:
+
+```bash
+npx lhic demo
+```
+
+The portal lets you enter the browser task to demonstrate, its public HTTPS
+website, and the provider credentials/model to use. It opens a visible browser
+for the task, stores the provider key only in the operating-system Keychain,
+and keeps the portal on loopback. Use the scoped package if you prefer it:
 
 ```bash
 npx @pinyencheng/lhic demo
 ```
 
-Running `lhic` without arguments exposes the same Demo choices in the terminal
-menu: Learning or Safe mode, Safe browser visibility, and an optional Learning
-endpoint. The menu emits the equivalent command-line options, so both forms
-remain interchangeable.
+Use `lhic demo --terminal` for the original terminal-guided learning flow.
 
 To use a provider-compatible custom structured-output endpoint, pass it on the
 command line or enter it when prompted. HTTPS is required, except for an HTTP
@@ -104,7 +110,7 @@ loopback endpoint such as a local model server. Custom endpoint keys use a
 separate Keychain entry from the provider default.
 
 ```bash
-npx @pinyencheng/lhic demo --endpoint https://models.example.com/v1/responses
+npx lhic demo --terminal --endpoint https://models.example.com/v1/responses
 ```
 
 The CLI stores the selected provider key in the operating-system Keychain,
