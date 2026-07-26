@@ -63,3 +63,4 @@ jobs:
           git add --all
           git commit -m "fix(xtf): satisfy lint without weakening validation"
           git push origin HEAD:xtf/lhic-learnloop
+# Triggered after enabling the push event.
