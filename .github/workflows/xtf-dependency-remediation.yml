@@ -1,18 +1,19 @@
-name: XTF dependency install diagnostics
+name: XTF one-shot production dependency remediation
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CI: true
 
 jobs:
-  diagnose-install:
+  remediate:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,8 +22,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: npm ci
-      - name: Prepare reviewed security manifests
+      - name: Apply the reviewed minimum security remediation
         run: |
           git fetch --depth=1 origin 5a9096824245251dde43fea4921e71fc02f1499f
           git show 5a9096824245251dde43fea4921e71fc02f1499f:.github/workflows/xtf-dependency-remediation.yml > /tmp/original-remediation.yml
@@ -55,51 +59,64 @@ jobs:
           root["dependencies"]["tar"] = "7.5.22"
           overrides = root.setdefault("overrides", {})
           overrides.pop("@hono/node-server", None)
+          overrides.pop("@modelcontextprotocol/sdk@1.29.0", None)
           overrides["fast-uri"] = "$fast-uri"
           overrides["tar"] = "$tar"
-          overrides["@modelcontextprotocol/sdk@1.29.0"] = {
-              "@hono/node-server": "2.0.11"
-          }
           root_path.write_text(json.dumps(root, indent=2) + "\n")
           PY
-      - name: Capture pinned lockfile and install results
-        shell: bash
+          npm install --package-lock-only
+          npm ci
+      - run: npm run pw:install
+      - name: Validate full repository and production dependency boundary
         run: |
-          mkdir -p install-diagnostics
-          cp package.json install-diagnostics/root-package.json
-          cp apps/mcp-server/package.json install-diagnostics/mcp-server-package.json
-          cp packages/controller/package.json install-diagnostics/controller-package.json
-
-          set +e
-          npm install --package-lock-only > install-diagnostics/package-lock.log 2>&1
-          lock_status=$?
-          echo "$lock_status" > install-diagnostics/package-lock.status
-          if [ -f package-lock.json ]; then
-            cp package-lock.json install-diagnostics/package-lock.json
-          fi
-
-          if [ "$lock_status" -eq 0 ]; then
-            npm ci > install-diagnostics/npm-ci.log 2>&1
-            ci_status=$?
-          else
-            echo "npm ci skipped because package-lock generation failed." > install-diagnostics/npm-ci.log
-            ci_status=99
-          fi
-          echo "$ci_status" > install-diagnostics/npm-ci.status
-          if [ "$ci_status" -eq 0 ]; then
-            npm audit --omit=dev --json > install-diagnostics/audit.json
-            audit_status=$?
-          else
-            echo '{"error":"audit skipped"}' > install-diagnostics/audit.json
-            audit_status=99
-          fi
-          echo "$audit_status" > install-diagnostics/audit.status
-          set -e
-          printf 'lock=%s ci=%s audit=%s\n' "$lock_status" "$ci_status" "$audit_status"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: xtf-dependency-install-diagnostics
-          path: install-diagnostics
-          if-no-files-found: error
-          retention-days: 1
+          npx prettier --write \
+            package.json \
+            apps/mcp-server/package.json \
+            apps/mcp-server/src/index.ts \
+            apps/cli/src/interactive-demo.ts \
+            packages/controller/package.json \
+            packages/controller/src/demo-learning.ts \
+            packages/controller/src/demo-learning.test.ts
+          npm run format:check
+          npm run typecheck
+          npm test
+          npm run lint
+          npm run build
+          npm run bench:internal
+          npm run bench:learnloop
+          npm run preflight
+          npm run audit:prod
+          npm audit --omit=dev --json > /tmp/production-audit.json || true
+          node <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/production-audit.json', 'utf8'));
+          const counts = report.metadata?.vulnerabilities ?? {};
+          if ((counts.high ?? 0) !== 0 || (counts.critical ?? 0) !== 0) {
+            throw new Error(`Production audit still has high=${counts.high ?? 0}, critical=${counts.critical ?? 0}.`);
+          }
+          console.log(JSON.stringify(counts));
+          NODE
+          npm run check:docs
+          npm run check:release-versions
+          npm run scan:secrets
+          npm run package:smoke
+          npm run package:alias-smoke
+          PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests
+          python packages/game-training/python/test_worker.py
+          python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
+      - name: Commit validated code and lockfile only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            package.json \
+            package-lock.json \
+            packages/controller/package.json \
+            packages/controller/src/demo-learning.ts \
+            packages/controller/src/demo-learning.test.ts \
+            apps/cli/src/interactive-demo.ts \
+            apps/mcp-server/package.json \
+            apps/mcp-server/src/index.ts
+          git commit -m "security(xtf): remove vulnerable production dependency chains"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
