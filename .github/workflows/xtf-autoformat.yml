@@ -21,15 +21,29 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Bind corrections to the actual base prediction
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'packages/controller/src/human-intent-learnloop.ts';
+          let source = fs.readFileSync(file, 'utf8');
+          const before = `    assertCorrection(input);\n    const now = normalizedTimestamp(input.recordedAt);`;
+          const after = `    assertCorrection(input);\n    const observedPrediction = predictIntent(input.intent, input.uiState);\n    if (observedPrediction.predictedIntent !== input.predictedStage) {\n      throw new Error(\n        "LearnLoop correction provenance does not match the current base prediction.",\n      );\n    }\n    const now = normalizedTimestamp(input.recordedAt);`;
+          if (!source.includes(before)) {
+            throw new Error('Expected correction insertion point was not found.');
+          }
+          source = source.replace(before, after);
+          fs.writeFileSync(file, source);
+          NODE
       - run: npm run format
-      - name: Commit formatting only when required
+      - name: Commit hardening and formatting only when required
         run: |
           if git diff --quiet; then
-            echo "No formatting changes required."
+            echo "No changes required."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
-          git commit -m "style(xtf): apply repository formatting"
+          git commit -m "fix(xtf): bind corrections to base predictions"
           git push origin HEAD:xtf/lhic-learnloop
