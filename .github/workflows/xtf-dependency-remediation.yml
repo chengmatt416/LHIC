@@ -43,8 +43,23 @@ jobs:
           Path("/tmp/apply-remediation.py").write_text(script)
           PY
           python /tmp/apply-remediation.py
-          SAFE_TAR_VERSION="$(npm view tar version)"
-          npm pkg set "overrides.tar=${SAFE_TAR_VERSION}"
+          python <<'PY'
+          import json
+          from pathlib import Path
+
+          mcp_path = Path("apps/mcp-server/package.json")
+          mcp = json.loads(mcp_path.read_text())
+          mcp["dependencies"]["@modelcontextprotocol/sdk"] = "1.29.0"
+          mcp_path.write_text(json.dumps(mcp, indent=2) + "\n")
+
+          root_path = Path("package.json")
+          root = json.loads(root_path.read_text())
+          root["dependencies"]["fast-uri"] = "3.1.4"
+          root.setdefault("overrides", {})["fast-uri"] = "$fast-uri"
+          root["overrides"]["@hono/node-server"] = "2.0.11"
+          root["overrides"]["tar"] = "7.5.22"
+          root_path.write_text(json.dumps(root, indent=2) + "\n")
+          PY
           npm install --package-lock-only
           npm ci
       - run: npm run pw:install
