@@ -3,6 +3,7 @@ import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import {
+  BrowserStateObserver,
   ConsoleNetworkObserver,
   createProductionExecutor,
   type PlaywrightDirectExecutor,
@@ -11,6 +12,7 @@ import {
   isBrowserExecutionPlan,
   type BrowserExecutionPlan,
   type BrowserSemanticAction,
+  type NormalizedUIState,
 } from "@lhic/schema";
 import {
   createActionApproval,
@@ -24,7 +26,12 @@ import { chromium, type Browser, type Page } from "playwright";
 import type { TaskApproval, TaskProposalSummary } from "../shared/contracts.js";
 
 export interface BrowserRunResult {
-  status: "awaiting_approval" | "completed" | "failed" | "cancelled";
+  status:
+    | "awaiting_approval"
+    | "blocked"
+    | "completed"
+    | "failed"
+    | "cancelled";
   message: string;
   evidence: string[];
   proposal: TaskProposalSummary;
@@ -35,6 +42,21 @@ export interface BrowserReadiness {
   executablePath: string;
   message: string;
 }
+
+export interface BrowserIntentAdmissionResult {
+  allowed: boolean;
+  message: string;
+  evidence: string[];
+}
+
+/**
+ * A local, fail-closed decision made from the live normalized browser state.
+ * The callback never receives the Playwright page, executor, verifier, or any
+ * provider handle.
+ */
+export type BrowserIntentAdmission = (
+  uiState: NormalizedUIState,
+) => BrowserIntentAdmissionResult | Promise<BrowserIntentAdmissionResult>;
 
 interface BrowserSession {
   browser: Browser;
@@ -78,6 +100,7 @@ export class DesktopBrowserRunner {
   public async execute(
     commandId: string,
     plan: BrowserExecutionPlan,
+    admission?: BrowserIntentAdmission,
   ): Promise<BrowserRunResult> {
     if (!isBrowserExecutionPlan(plan)) {
       throw new Error(
@@ -110,6 +133,16 @@ export class DesktopBrowserRunner {
       evidence: ["Browser execution session opened locally."],
     };
     this.sessions.set(commandId, session);
+
+    if (admission) {
+      const blocked = await this.prepareLiveIntentAdmission(
+        commandId,
+        session,
+        networkObserver,
+        admission,
+      );
+      if (blocked) return blocked;
+    }
     return this.run(commandId);
   }
 
@@ -167,6 +200,87 @@ export class DesktopBrowserRunner {
     await Promise.all([...this.sessions.keys()].map((id) => this.cancel(id)));
   }
 
+  private async prepareLiveIntentAdmission(
+    commandId: string,
+    session: BrowserSession,
+    networkObserver: ConsoleNetworkObserver,
+    admission: BrowserIntentAdmission,
+  ): Promise<BrowserRunResult | undefined> {
+    const observationStep = session.plan.steps[0];
+    if (
+      !observationStep ||
+      observationStep.action.type !== "navigate" ||
+      observationStep.action.riskLevel !== "low" ||
+      requiresInteractiveApproval(observationStep.action) ||
+      !isHttpTarget(observationStep.action.target)
+    ) {
+      return this.finishBlocked(
+        commandId,
+        session,
+        "Human-intent admission requires one fixed low-risk HTTP(S) navigation step before live UI observation.",
+        ["No mutable browser action was executed."],
+      );
+    }
+
+    const navigation = await session.executor.execute(observationStep.action);
+    if (!navigation.success) {
+      return this.finishFailure(
+        commandId,
+        session,
+        navigation.error ?? "The observation page could not be opened.",
+      );
+    }
+    const navigationVerification = await session.verifier.verify(
+      observationStep.verification,
+    );
+    if (
+      !navigationVerification.success ||
+      navigationVerification.evidence.length === 0
+    ) {
+      return this.finishFailure(
+        commandId,
+        session,
+        navigationVerification.error ??
+          "The observation navigation produced no verifier evidence.",
+      );
+    }
+    session.executor.rememberVerifiedAction(
+      observationStep.action,
+      navigationVerification,
+    );
+    session.nextStepIndex = 1;
+    session.evidence.push(
+      "A fixed low-risk navigation opened the observation page; no fill, press, click, download, or elevated-risk action ran before Human Intent admission.",
+      ...navigation.evidence,
+      ...navigationVerification.evidence,
+    );
+
+    const observer = new BrowserStateObserver(session.page, networkObserver);
+    const uiState = await observer.observe();
+    let decision: BrowserIntentAdmissionResult;
+    try {
+      decision = await admission(uiState);
+    } catch {
+      return this.finishBlocked(
+        commandId,
+        session,
+        "Human-intent admission failed closed before mutable task actions.",
+        ["The local admission callback raised an error."],
+      );
+    }
+    session.evidence.push(...decision.evidence);
+    if (!decision.allowed) {
+      return this.finishBlocked(
+        commandId,
+        session,
+        decision.message,
+        ["Human Intent admission denied the deterministic plan."],
+      );
+    }
+    session.evidence.push(decision.message);
+    return undefined;
+  }
+
   private async run(commandId: string): Promise<BrowserRunResult> {
     const session = this.require(commandId);
     while (session.nextStepIndex < session.plan.steps.length) {
@@ -215,6 +329,22 @@ export class DesktopBrowserRunner {
       evidence: [...session.evidence],
       proposal: summarizePlan(session.plan),
     };
+  }
+
+  private async finishBlocked(
+    commandId: string,
+    session: BrowserSession,
+    message: string,
+    evidence: string[] = [],
+  ): Promise<BrowserRunResult> {
+    const result: BrowserRunResult = {
+      status: "blocked",
+      message,
+      evidence: [...session.evidence, ...evidence],
+      proposal: summarizePlan(session.plan),
+    };
+    await this.cancel(commandId);
+    return result;
   }
 
   private async finishFailure(
@@ -276,4 +406,14 @@ export function summarizePlan(plan: BrowserExecutionPlan): TaskProposalSummary {
 
 export function createTaskId(): string {
   return randomUUID();
+}
+
+function isHttpTarget(target: unknown): target is string {
+  if (typeof target !== "string") return false;
+  try {
+    const url = new URL(target);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
