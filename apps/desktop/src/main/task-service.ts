@@ -4,6 +4,7 @@ import {
   isBrowserExecutionPlan,
   isDesktopExecutionPlan,
   isExecutionProfile,
+  type BrowserExecutionPlan,
 } from "@lhic/schema";
 import { TaskBudgetTracker } from "@lhic/controller";
 
@@ -18,6 +19,7 @@ import { validateTaskSourceConfig } from "../shared/policy.js";
 import {
   DesktopBrowserRunner,
   summarizePlan,
+  type BrowserIntentAdmission,
   type BrowserReadiness,
   type BrowserRunResult,
 } from "./desktop-browser-runner.js";
@@ -27,6 +29,7 @@ import {
   type GlobalRunResult,
 } from "./desktop-global-runner.js";
 import { compileLocalFastPath } from "./fast-path-planner.js";
+import { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";
 import type { DesktopCredentialStore } from "./keyring.js";
 import {
   TaskSourceAdapter,
@@ -46,10 +49,17 @@ interface PendingTask {
   providerAbort?: AbortController | undefined;
 }
 
+type BrowserRunnerPort = Pick<
+  DesktopBrowserRunner,
+  "readiness" | "execute" | "approve" | "cancel" | "close"
+>;
+
 interface TaskServiceOptions {
   sourceStore?: Pick<TaskSourceStore, "load" | "save">;
   journalStore?: Pick<TaskJournalStore, "load" | "save">;
   sourceBudget?: () => TaskBudgetTracker;
+  browserRunner?: BrowserRunnerPort;
+  humanIntentAdmission?: Pick<DesktopHumanIntentAdmission, "evaluate">;
 }
 
 /**
@@ -63,7 +73,11 @@ export class TaskService {
   private readonly sources = new Map<string, TaskSourceConfig>();
   private readonly pending = new Map<string, PendingTask>();
   private readonly sourcesAdapter: TaskSourceAdapter;
-  private readonly browserRunner: DesktopBrowserRunner;
+  private readonly browserRunner: BrowserRunnerPort;
+  private readonly humanIntentAdmission: Pick<
+    DesktopHumanIntentAdmission,
+    "evaluate"
+  >;
   private readonly globalRunner: DesktopGlobalRunner;
   private readonly sourceStore: Pick<TaskSourceStore, "load" | "save">;
   private readonly journalStore: Pick<TaskJournalStore, "load" | "save">;
@@ -82,7 +96,10 @@ export class TaskService {
     this.sourcesAdapter =
       sourcesAdapter ??
       new TaskSourceAdapter({ credentialFor: (id) => credentials.get(id) });
-    this.browserRunner = new DesktopBrowserRunner(workspaceRoot);
+    this.browserRunner =
+      options.browserRunner ?? new DesktopBrowserRunner(workspaceRoot);
+    this.humanIntentAdmission =
+      options.humanIntentAdmission ?? new DesktopHumanIntentAdmission();
     this.globalRunner = new DesktopGlobalRunner(workspaceRoot);
     this.sourceStore =
       options.sourceStore ?? new TaskSourceStore(workspaceRoot);
@@ -360,7 +377,11 @@ export class TaskService {
       return isBrowserExecutionPlan(plan)
         ? this.recordBrowserResult(
             commandId,
-            await this.browserRunner.execute(commandId, plan),
+            await this.browserRunner.execute(
+              commandId,
+              plan,
+              this.localHumanIntentAdmission(commandId, pending, plan),
+            ),
           )
         : this.recordGlobalResult(
             commandId,
@@ -514,6 +535,27 @@ export class TaskService {
     );
   }
 
+  private localHumanIntentAdmission(
+    commandId: string,
+    pending: PendingTask,
+    plan: BrowserExecutionPlan,
+  ): BrowserIntentAdmission | undefined {
+    if (pending.source) return undefined;
+    return (uiState) => {
+      const decision = this.humanIntentAdmission.evaluate(
+        commandId,
+        pending.goal,
+        plan,
+        uiState,
+      );
+      return {
+        allowed: decision.allowed,
+        message: decision.message,
+        evidence: [...decision.evidence],
+      };
+    };
+  }
+
   private recordBrowserResult(
     commandId: string,
     result: BrowserRunResult,
@@ -552,7 +594,11 @@ export class TaskService {
         pending.plan,
       ).catch(() => undefined);
     }
-    if (result.status === "completed" || result.status === "failed") {
+    if (
+      result.status === "completed" ||
+      result.status === "failed" ||
+      result.status === "blocked"
+    ) {
       this.pending.delete(commandId);
       this.queuePersist();
     }
