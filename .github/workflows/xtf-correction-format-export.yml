@@ -1,0 +1,38 @@
+name: XTF correction formatting export
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  format-export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: >-
+          npx prettier --write
+          packages/controller/src/trusted-correction-ingestion.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          packages/controller/src/index.ts
+          .github/workflows/xtf-learnloop.yml
+      - run: |
+          mkdir -p formatted/packages/controller/src formatted/.github/workflows
+          cp packages/controller/src/trusted-correction-ingestion.ts formatted/packages/controller/src/
+          cp packages/controller/src/trusted-correction-ingestion.test.ts formatted/packages/controller/src/
+          cp packages/controller/src/index.ts formatted/packages/controller/src/
+          cp .github/workflows/xtf-learnloop.yml formatted/.github/workflows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-correction-formatted
+          path: formatted
+          retention-days: 1
