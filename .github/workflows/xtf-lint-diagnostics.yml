@@ -1,0 +1,37 @@
+name: XTF temporary lint diagnostics
+
+on:
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  lint-log:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Capture complete ESLint output
+        shell: bash
+        run: |
+          set +e
+          npm run lint > lint-output.log 2>&1
+          status=$?
+          echo "$status" > lint-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-lint-diagnostics
+          path: |
+            lint-output.log
+            lint-exit-code.txt
+          retention-days: 1
