@@ -1,38 +1,52 @@
-name: XTF temporary full test diagnostics
+name: XTF one-shot platform test remediation
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches: [xtf/lhic-learnloop]
 
 permissions:
-  contents: read
-
-env:
-  CI: true
+  contents: write
 
 jobs:
-  test-log:
+  patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - name: Preserve macOS-only runtime policy and correct cross-platform tests
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const sharedPath = 'packages/game-training/src/game-training.test.ts';
+          let shared = fs.readFileSync(sharedPath, 'utf8');
+          const sharedBefore = `    await registerNativeGameTarget(profile, application, join(root, "runtime"));\n\n    await expect(\n      readRegisteredNativeGameTarget(profile, join(root, "runtime")),\n    ).resolves.toMatchObject({\n      schemaVersion: "native-game-target-v1",\n      profileId: "challenge-2026",\n      core: "2d",\n      applicationPath: application,\n    });`;
+          const sharedAfter = `    if (process.platform !== "darwin") {\n      await expect(\n        registerNativeGameTarget(profile, application, join(root, "runtime")),\n      ).rejects.toThrow("only on macOS");\n      return;\n    }\n\n    await registerNativeGameTarget(profile, application, join(root, "runtime"));\n\n    await expect(\n      readRegisteredNativeGameTarget(profile, join(root, "runtime")),\n    ).resolves.toMatchObject({\n      schemaVersion: "native-game-target-v1",\n      profileId: "challenge-2026",\n      core: "2d",\n      applicationPath: application,\n    });`;
+          if (!shared.includes(sharedBefore)) throw new Error('Shared game test block not found.');
+          shared = shared.replace(sharedBefore, sharedAfter);
+          fs.writeFileSync(sharedPath, shared);
+
+          const cliPath = 'apps/cli/src/game-training.test.ts';
+          let cli = fs.readFileSync(cliPath, 'utf8');
+          const cliBefore = `    await expect(\n      runGameTrainingCommand([\n        "2d",\n        "setup",\n        "challenge-2026",\n        "--source",\n        application,\n        "--root",\n        join(root, "runtime"),\n      ]),\n    ).resolves.toMatchObject({\n      core: "2d",\n      profile: "challenge-2026",\n      target: { schemaVersion: "native-game-target-v1" },\n    });\n\n    await expect(\n      runGameTrainingCommand([\n        "2d",\n        "record",\n        "challenge-2026",\n        "--surface",\n        "browser",\n      ]),\n    ).rejects.toThrow("desktop-only native game target");`;
+          const cliAfter = `    const setup = () =>\n      runGameTrainingCommand([\n        "2d",\n        "setup",\n        "challenge-2026",\n        "--source",\n        application,\n        "--root",\n        join(root, "runtime"),\n      ]);\n\n    if (process.platform !== "darwin") {\n      await expect(setup()).rejects.toThrow("only on macOS");\n      return;\n    }\n\n    await expect(setup()).resolves.toMatchObject({\n      core: "2d",\n      profile: "challenge-2026",\n      target: { schemaVersion: "native-game-target-v1" },\n    });\n\n    await expect(\n      runGameTrainingCommand([\n        "2d",\n        "record",\n        "challenge-2026",\n        "--surface",\n        "browser",\n      ]),\n    ).rejects.toThrow("desktop-only native game target");`;
+          if (!cli.includes(cliBefore)) throw new Error('CLI game test block not found.');
+          cli = cli.replace(cliBefore, cliAfter);
+          fs.writeFileSync(cliPath, cli);
+          NODE
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run pw:install
-      - name: Capture complete CI-equivalent Vitest output
-        shell: bash
+      - run: npm run format
+      - name: Remove this one-shot workflow and commit
         run: |
-          set +e
-          npm test > full-test-output.log 2>&1
-          status=$?
-          echo "$status" > full-test-exit-code.txt
-          exit 0
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtf-full-vitest-diagnostics
-          path: |
-            full-test-output.log
-            full-test-exit-code.txt
-          retention-days: 1
+          git rm .github/workflows/xtf-full-test-debug.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "test(xtf): make macOS native-target tests platform-correct"
+          git push origin HEAD:xtf/lhic-learnloop
