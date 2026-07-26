@@ -20,6 +20,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx eslint --fix packages/controller/src/trusted-correction-ingestion.ts
+      - run: npx prettier --write packages/controller/src/trusted-correction-ingestion.ts
       - run: npm run format:check
       - run: npm run typecheck
       - run: >-
