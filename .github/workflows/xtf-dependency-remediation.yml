@@ -1,4 +1,4 @@
-name: XTF dependency remediation diagnostics
+name: XTF dependency install diagnostics
 
 on:
   pull_request:
@@ -11,9 +11,8 @@ env:
   CI: true
 
 jobs:
-  diagnose:
+  diagnose-install:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,11 +21,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - run: npm ci
-      - name: Reapply the exact reviewed candidate patch
+      - name: Prepare reviewed security manifests
         run: |
           git fetch --depth=1 origin 5a9096824245251dde43fea4921e71fc02f1499f
           git show 5a9096824245251dde43fea4921e71fc02f1499f:.github/workflows/xtf-dependency-remediation.yml > /tmp/original-remediation.yml
@@ -60,59 +56,38 @@ jobs:
           root["overrides"]["tar"] = "7.5.22"
           root_path.write_text(json.dumps(root, indent=2) + "\n")
           PY
-          rm -rf node_modules package-lock.json
-          npm install --package-lock-only
-          npm ci
-      - run: npm run pw:install
-      - name: Capture each validation gate independently
+      - name: Capture clean lockfile and install results
         shell: bash
         run: |
-          mkdir -p dependency-diagnostics
+          mkdir -p install-diagnostics
+          cp package.json install-diagnostics/root-package.json
+          cp apps/mcp-server/package.json install-diagnostics/mcp-server-package.json
+          cp packages/controller/package.json install-diagnostics/controller-package.json
+          rm -rf node_modules package-lock.json
+
           set +e
-          npm run format > dependency-diagnostics/format.log 2>&1
-          echo "$?" > dependency-diagnostics/format.status
+          npm install --package-lock-only > install-diagnostics/package-lock.log 2>&1
+          lock_status=$?
+          echo "$lock_status" > install-diagnostics/package-lock.status
+          if [ -f package-lock.json ]; then
+            cp package-lock.json install-diagnostics/package-lock.json
+          fi
+
+          if [ "$lock_status" -eq 0 ]; then
+            npm ci > install-diagnostics/npm-ci.log 2>&1
+            ci_status=$?
+          else
+            echo "npm ci skipped because package-lock generation failed." > install-diagnostics/npm-ci.log
+            ci_status=99
+          fi
+          echo "$ci_status" > install-diagnostics/npm-ci.status
           set -e
-
-          run_check() {
-            local name="$1"
-            shift
-            set +e
-            "$@" > "dependency-diagnostics/${name}.log" 2>&1
-            local status=$?
-            set -e
-            echo "$status" > "dependency-diagnostics/${name}.status"
-          }
-
-          run_check format-check npm run format:check
-          run_check typecheck npm run typecheck
-          run_check tests npm test
-          run_check lint npm run lint
-          run_check build npm run build
-          run_check bench-internal npm run bench:internal
-          run_check bench-learnloop npm run bench:learnloop
-          run_check preflight npm run preflight
-          run_check audit npm run audit:prod
-          run_check docs npm run check:docs
-          run_check release-versions npm run check:release-versions
-          run_check secrets npm run scan:secrets
-          run_check agentlab bash -lc 'PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests'
-          run_check game-training-python python packages/game-training/python/test_worker.py
-          run_check python-compile python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
-
-          git diff --binary > dependency-diagnostics/candidate.patch
-          cp package.json dependency-diagnostics/root-package.json
-          cp package-lock.json dependency-diagnostics/package-lock.json
-          cp packages/controller/package.json dependency-diagnostics/controller-package.json
-          cp apps/mcp-server/package.json dependency-diagnostics/mcp-server-package.json
-          for status_file in dependency-diagnostics/*.status; do
-            printf '%s=' "$(basename "$status_file" .status)"
-            cat "$status_file"
-          done | sort > dependency-diagnostics/summary.txt
-          cat dependency-diagnostics/summary.txt
+          cat install-diagnostics/package-lock.status
+          cat install-diagnostics/npm-ci.status
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: xtf-dependency-remediation-diagnostics
-          path: dependency-diagnostics
+          name: xtf-dependency-install-diagnostics
+          path: install-diagnostics
           if-no-files-found: error
           retention-days: 1
