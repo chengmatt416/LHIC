@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  BrowserExecutionPlan,
-  NormalizedUIState,
-} from "@lhic/schema";
+import type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";
 
 import {
   summarizePlan,
@@ -108,9 +105,7 @@ describe("TaskService prediction-first browser wiring", () => {
     });
     expect(awaitingProviderApproval.status).toBe("awaiting_approval");
 
-    const proposed = await service.approve(
-      awaitingProviderApproval.commandId,
-    );
+    const proposed = await service.approve(awaitingProviderApproval.commandId);
     expect(proposed.status).toBe("proposed");
 
     const completed = await service.execute(proposed.commandId);
@@ -142,7 +137,8 @@ function createService(options: {
       if (!admission) {
         return {
           status: "completed",
-          message: "Slow Path plan completed under its existing approval gates.",
+          message:
+            "Slow Path plan completed under its existing approval gates.",
           evidence: ["Slow Path plan did not receive LearnLoop admission."],
           proposal: summarizePlan(plan),
         };

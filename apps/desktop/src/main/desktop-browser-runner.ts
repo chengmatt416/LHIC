@@ -27,11 +27,7 @@ import type { TaskApproval, TaskProposalSummary } from "../shared/contracts.js";
 
 export interface BrowserRunResult {
   status:
-    | "awaiting_approval"
-    | "blocked"
-    | "completed"
-    | "failed"
-    | "cancelled";
+    "awaiting_approval" | "blocked" | "completed" | "failed" | "cancelled";
   message: string;
   evidence: string[];
   proposal: TaskProposalSummary;
@@ -270,12 +266,9 @@ export class DesktopBrowserRunner {
     }
     session.evidence.push(...decision.evidence);
     if (!decision.allowed) {
-      return this.finishBlocked(
-        commandId,
-        session,
-        decision.message,
-        ["Human Intent admission denied the deterministic plan."],
-      );
+      return this.finishBlocked(commandId, session, decision.message, [
+        "Human Intent admission denied the deterministic plan.",
+      ]);
     }
     session.evidence.push(decision.message);
     return undefined;
