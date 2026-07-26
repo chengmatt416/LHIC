@@ -54,12 +54,13 @@ jobs:
 
           root_path = Path("package.json")
           root = json.loads(root_path.read_text())
-          root["dependencies"]["fast-uri"] = "3.1.4"
-          root.setdefault("overrides", {})["fast-uri"] = "$fast-uri"
+          root["dependencies"].pop("fast-uri", None)
+          root.setdefault("overrides", {})["fast-uri"] = "3.1.4"
           root["overrides"]["@hono/node-server"] = "2.0.11"
           root["overrides"]["tar"] = "7.5.22"
           root_path.write_text(json.dumps(root, indent=2) + "\n")
           PY
+          rm -rf node_modules package-lock.json
           npm install --package-lock-only
           npm ci
       - run: npm run pw:install
