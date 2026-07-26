@@ -1,0 +1,32 @@
+name: XTF one-shot review document formatter
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write docs/xtf-adversarial-review.md
+      - run: npm run format:check
+      - name: Remove one-shot workflow and commit
+        run: |
+          git rm .github/workflows/xtf-doc-format.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "style(xtf): format adversarial review evidence"
+          git push origin HEAD:xtf/lhic-learnloop
