@@ -60,6 +60,7 @@ jobs:
           PY
           python /tmp/production-correction-ingress.py
           python <<'PY'
+          import re
           from pathlib import Path
 
           replay = Path("packages/controller/src/correction-replay-store.ts")
@@ -68,52 +69,56 @@ jobs:
           if source.count(marker) != 1:
               raise RuntimeError("Temporary InMemory scope marker was not preserved exactly once.")
           source = source.replace(marker, "", 1)
-          before = '''      this.pruneExpiredMarkers(this.approvalDirectory, this.now().getTime());
-                return this.markerCount(this.approvalDirectory);
-          '''
-          after = '''      const nowMs = this.now().getTime();
-                this.pruneExpiredMarkers(this.approvalDirectory, nowMs);
-                this.pruneExpiredMarkers(this.nonceDirectory, nowMs);
-                return this.markerCount(this.approvalDirectory);
-          '''
-          if source.count(before) != 1:
+          count_pattern = re.compile(
+              r"(?m)^      this\.pruneExpiredMarkers\(this\.approvalDirectory, this\.now\(\)\.getTime\(\)\);\n      return this\.markerCount\(this\.approvalDirectory\);$"
+          )
+          source, count = count_pattern.subn(
+              "      const nowMs = this.now().getTime();\n"
+              "      this.pruneExpiredMarkers(this.approvalDirectory, nowMs);\n"
+              "      this.pruneExpiredMarkers(this.nonceDirectory, nowMs);\n"
+              "      return this.markerCount(this.approvalDirectory);",
+              source,
+          )
+          if count != 1:
               raise RuntimeError("Expected one replay count pruning block.")
-          replay.write_text(source.replace(before, after, 1))
+          replay.write_text(source)
 
+          canonical = '''    const intent: UserIntent = {
+              goal: "Search for release notes",
+              constraints: {},
+              riskLevel: "low",
+              requiresConfirmation: false,
+              missingInformation: [],
+            };
+          '''
           for path_string in [
               "apps/desktop/src/main/correction-ingestion-runtime.test.ts",
               "apps/desktop/src/main/correction-submission-validation.test.ts",
           ]:
               path = Path(path_string)
               test_source = path.read_text()
-              legacy = '''    const intent: UserIntent = {
-                schemaVersion: "user-intent-v1",
-                raw: "Search for release notes",
-                normalizedGoal: "Search for release notes",
-                constraints: [],
-                requestedOutputs: [],
-                riskHints: [],
-                source: "desktop",
-              };
-          '''
-              canonical = '''    const intent: UserIntent = {
-                goal: "Search for release notes",
-                constraints: {},
-                riskLevel: "low",
-                requiresConfirmation: false,
-                missingInformation: [],
-              };
-          '''
-              if test_source.count(legacy) != 1:
-                  raise RuntimeError(f"Expected one legacy UserIntent fixture in {path_string}.")
-              path.write_text(test_source.replace(legacy, canonical, 1))
+              start_token = "    const intent: UserIntent = {\n"
+              if test_source.count(start_token) != 1:
+                  raise RuntimeError(f"Expected one UserIntent fixture in {path_string}.")
+              start_index = test_source.index(start_token)
+              end_token = "    };\n"
+              end_index = test_source.index(end_token, start_index) + len(end_token)
+              legacy = test_source[start_index:end_index]
+              if "normalizedGoal" not in legacy:
+                  raise RuntimeError(f"Expected the legacy normalizedGoal fixture in {path_string}.")
+              path.write_text(
+                  test_source[:start_index] + canonical + test_source[end_index:]
+              )
 
           main = Path("apps/desktop/src/main/main.ts")
-          main_source = main.read_text()
-          unused = "  HumanIntentCorrectionSubmission,\n"
-          if main_source.count(unused) != 1:
+          main_source, count = re.subn(
+              r"(?m)^\s*HumanIntentCorrectionSubmission,\n",
+              "",
+              main.read_text(),
+          )
+          if count != 1:
               raise RuntimeError("Expected one unused correction submission import.")
-          main.write_text(main_source.replace(unused, "", 1))
+          main.write_text(main_source)
           PY
       - name: Format changed files
         run: |
