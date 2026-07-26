@@ -1,0 +1,53 @@
+name: XTF LearnLoop research gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/controller/src/human-intent-learnloop*"
+      - "packages/controller/src/prediction-first-human-intent-controller*"
+      - "apps/cli/src/learnloop-benchmark*"
+      - "apps/cli/src/entry.ts"
+      - "XTF-LEARNLOOP.md"
+      - "docs/xtf-adversarial-review.md"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  research-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test prediction-first and LearnLoop invariants
+        run: >-
+          npx vitest run
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/prediction-first-human-intent-controller.test.ts
+          apps/cli/src/learnloop-benchmark.test.ts
+      - name: Produce immutable LearnLoop benchmark report
+        run: npm run bench:learnloop -- --output artifacts/learnloop-report.json
+      - name: Print benchmark report
+        run: cat artifacts/learnloop-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-learnloop-report
+          path: artifacts/learnloop-report.json
+          if-no-files-found: error
+          retention-days: 30
