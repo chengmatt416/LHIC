@@ -8,6 +8,9 @@ on:
       - "packages/controller/src/prediction-first-human-intent-controller*"
       - "apps/cli/src/learnloop-benchmark*"
       - "apps/cli/src/entry.ts"
+      - "apps/desktop/src/main/desktop-browser-runner.ts"
+      - "apps/desktop/src/main/prediction-first-browser-admission*"
+      - "apps/desktop/src/main/task-service*"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
       - "package.json"
@@ -41,6 +44,8 @@ jobs:
           packages/controller/src/human-intent-learnloop.test.ts
           packages/controller/src/prediction-first-human-intent-controller.test.ts
           apps/cli/src/learnloop-benchmark.test.ts
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
       - name: Produce immutable LearnLoop benchmark report
         run: npm run bench:learnloop -- --output artifacts/learnloop-report.json
       - name: Print benchmark report
