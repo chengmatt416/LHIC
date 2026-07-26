@@ -18,7 +18,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: xtf/lhic-learnloop
-          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -29,11 +28,12 @@ jobs:
       - run: npm ci
       - name: Reapply the exact reviewed candidate patch
         run: |
-          git show HEAD^:.github/workflows/xtf-dependency-remediation.yml > /tmp/previous-remediation.yml
+          git fetch --depth=1 origin 5a9096824245251dde43fea4921e71fc02f1499f
+          git show 5a9096824245251dde43fea4921e71fc02f1499f:.github/workflows/xtf-dependency-remediation.yml > /tmp/original-remediation.yml
           python <<'PY'
           from pathlib import Path
 
-          lines = Path("/tmp/previous-remediation.yml").read_text().splitlines()
+          lines = Path("/tmp/original-remediation.yml").read_text().splitlines()
           start = next(i for i, line in enumerate(lines) if "python <<'PY'" in line) + 1
           end = next(i for i in range(start, len(lines)) if lines[i].strip() == "PY")
           script = "\n".join(
