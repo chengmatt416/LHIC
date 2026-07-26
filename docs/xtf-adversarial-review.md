@@ -96,3 +96,5 @@ A second independent pass found two additional high-severity issues:
 2. **Mutation before rejected validation:** an invalid conflicting validation event could quarantine existing rules before throwing. Quarantine now occurs only after validation-only rejection checks complete, and a regression test proves rejected calls leave state unchanged.
 
 The signed snapshot schema is now v3 and rejects missing or inconsistent scope bindings. Older research snapshots are not silently trusted.
+
+3. **Re-signed semantic forgery:** HMAC integrity alone did not reject an active rule with insufficient evidence or a stage-to-skill mismatch when the envelope was re-signed by a compromised or misconfigured trusted process. Import now validates stage transitions, fixed skill binding, bounded tokens, and configured evidence minima before replacing live state.

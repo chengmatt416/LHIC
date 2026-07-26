@@ -422,7 +422,12 @@ export class HumanIntentLearnLoop {
     if (!timingSafeEqual(expected, actual)) {
       throw new Error("LearnLoop snapshot integrity verification failed.");
     }
-    assertSnapshot(envelope.snapshot, this.maximumRules);
+    assertSnapshot(
+      envelope.snapshot,
+      this.maximumRules,
+      this.minimumTrainingEvidence,
+      this.minimumValidationEvidence,
+    );
     const staged = new Map<string, LearnLoopRule>();
     for (const rule of envelope.snapshot.rules) {
       staged.set(rule.id, cloneRule(rule));
@@ -829,6 +834,8 @@ function assertOutcome(input: AppliedPredictionOutcome): void {
 function assertSnapshot(
   snapshot: LearnLoopSnapshot,
   maximumRules: number,
+  minimumTrainingEvidence: number,
+  minimumValidationEvidence: number,
 ): void {
   if (
     snapshot.schemaVersion !== "lhic-learnloop-v3" ||
@@ -839,7 +846,7 @@ function assertSnapshot(
   }
   const ids = new Set<string>();
   for (const rule of snapshot.rules) {
-    assertRule(rule);
+    assertRule(rule, minimumTrainingEvidence, minimumValidationEvidence);
     if (ids.has(rule.id)) {
       throw new Error("LearnLoop snapshot contains duplicate rule IDs.");
     }
@@ -847,7 +854,11 @@ function assertSnapshot(
   }
 }
 
-function assertRule(rule: LearnLoopRule): void {
+function assertRule(
+  rule: LearnLoopRule,
+  minimumTrainingEvidence: number,
+  minimumValidationEvidence: number,
+): void {
   if (
     !rule.id.trim() ||
     !/^[a-f0-9]{64}$/.test(rule.contextKey) ||
@@ -855,11 +866,24 @@ function assertRule(rule: LearnLoopRule): void {
     rule.contextKey !== hashState([rule.scopeSha256, ...rule.featureTokens]) ||
     !controllerStages.has(rule.fromStage) ||
     !controllerStages.has(rule.toStage) ||
+    rule.fromStage === rule.toStage ||
+    !skillForStage[rule.toStage] ||
+    rule.skillName !== skillForStage[rule.toStage] ||
     !["candidate", "active", "quarantined", "revoked"].includes(rule.status) ||
     !Number.isSafeInteger(rule.failureCount) ||
     rule.failureCount < 0 ||
     rule.featureTokens.length > 128 ||
     !allUnique(rule.featureTokens) ||
+    rule.featureTokens.some(
+      (token) =>
+        typeof token !== "string" ||
+        token.length === 0 ||
+        token.length > 128 ||
+        /[\u0000-\u001f\u007f]/.test(token),
+    ) ||
+    (rule.status === "active" &&
+      (rule.trainingTaskHashes.length < minimumTrainingEvidence ||
+        rule.validationUiFingerprints.length < minimumValidationEvidence)) ||
     !allHashes(rule.trainingTaskHashes) ||
     !allHashes(rule.trainingUiFingerprints) ||
     !allHashes(rule.validationUiFingerprints) ||

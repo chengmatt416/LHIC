@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import type { NormalizedUIState, UserIntent } from "@lhic/schema";
@@ -227,6 +229,31 @@ describe("HumanIntentLearnLoop", () => {
     expect(() => restored.importSignedSnapshot(tampered, key)).toThrow(
       "integrity verification failed",
     );
+  });
+
+  it("rejects re-signed snapshots with forged active evidence or skill bindings", () => {
+    const loop = new HumanIntentLearnLoop();
+    trainAndValidateSearchRule(loop);
+    const key = "0123456789abcdef0123456789abcdef";
+    const signed = loop.exportSignedSnapshot(key);
+
+    const wrongSkill = structuredClone(signed);
+    wrongSkill.snapshot.rules[0]!.skillName = "download_file";
+    wrongSkill.hmacSha256 = createHmac("sha256", key)
+      .update(JSON.stringify(wrongSkill.snapshot))
+      .digest("hex");
+    expect(() =>
+      new HumanIntentLearnLoop().importSignedSnapshot(wrongSkill, key),
+    ).toThrow("invalid rule");
+
+    const weakEvidence = structuredClone(signed);
+    weakEvidence.snapshot.rules[0]!.trainingTaskHashes = [];
+    weakEvidence.hmacSha256 = createHmac("sha256", key)
+      .update(JSON.stringify(weakEvidence.snapshot))
+      .digest("hex");
+    expect(() =>
+      new HumanIntentLearnLoop().importSignedSnapshot(weakEvidence, key),
+    ).toThrow("invalid rule");
   });
 
   it("supports explicit revocation without silently evicting active rules", () => {
