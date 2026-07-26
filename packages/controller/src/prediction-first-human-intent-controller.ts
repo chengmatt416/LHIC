@@ -1,13 +1,13 @@
 import type { NormalizedUIState, UserIntent } from "@lhic/schema";
 
-import {
+import type {
   FastPathRouter,
-  type ResolvedRoute,
-  type RouteDecision,
+  ResolvedRoute,
+  RouteDecision,
 } from "./fast-path-router.js";
-import {
+import type {
+  HumanIntentDecision,
   HumanIntentLearnLoop,
-  type HumanIntentDecision,
 } from "./human-intent-learnloop.js";
 import { predictIntent } from "./predictor.js";
 import { classifyStage } from "./stage-classifier.js";

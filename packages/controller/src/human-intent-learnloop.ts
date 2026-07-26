@@ -879,7 +879,7 @@ function assertRule(
         typeof token !== "string" ||
         token.length === 0 ||
         token.length > 128 ||
-        /[\u0000-\u001f\u007f]/.test(token),
+        hasControlCharacter(token),
     ) ||
     (rule.status === "active" &&
       (rule.trainingTaskHashes.length < minimumTrainingEvidence ||
@@ -951,6 +951,16 @@ function cloneRule(rule: LearnLoopRule): LearnLoopRule {
     validationUiFingerprints: [...rule.validationUiFingerprints],
     successfulOutcomeHashes: [...rule.successfulOutcomeHashes],
   };
+}
+
+function hasControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint !== undefined && (codePoint <= 31 || codePoint === 127)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function allUnique(values: readonly string[]): boolean {
