@@ -1,4 +1,4 @@
-name: XTF production correction ingress v3 diagnostic
+name: XTF production correction ingress v4 diagnostic
 
 on:
   pull_request:
@@ -14,12 +14,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: xtf/lhic-learnloop
-      - name: Run uniquely scoped patch without committing
+      - name: Run normalized patch without committing
         shell: bash
         run: |
-          git fetch --depth=1 origin 32f9325638e3e47a803adfe4498f3dd4bb81e6b1
-          git show 32f9325638e3e47a803adfe4498f3dd4bb81e6b1:.github/workflows/xtf-production-correction-ingress.yml > /tmp/original-ingress.yml
-          python <<'PY'
+          set +e
+          (
+            git fetch --depth=1 origin 32f9325638e3e47a803adfe4498f3dd4bb81e6b1
+            git show 32f9325638e3e47a803adfe4498f3dd4bb81e6b1:.github/workflows/xtf-production-correction-ingress.yml > /tmp/original-ingress.yml
+            python <<'PY'
           from pathlib import Path
 
           workflow = Path("/tmp/original-ingress.yml").read_text().splitlines()
@@ -29,6 +31,22 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end]
           ) + "\n"
+
+          bad = ''''''  public executeTask(commandId: string): Promise<CommandEvent> {
+              return this.tasks.execute(commandId);
+            }
+
+            public cancelTask(commandId: string): Promise<void> {
+          ''''''
+          good = ''''''  public executeTask(commandId: string): Promise<CommandEvent> {
+            return this.tasks.execute(commandId);
+          }
+
+          public cancelTask(commandId: string): Promise<void> {
+          ''''''
+          if script.count(bad) != 1:
+              raise RuntimeError("Expected one over-indented controller patch anchor.")
+          script = script.replace(bad, good, 1)
           Path("/tmp/production-correction-ingress.py").write_text(script)
 
           replay = Path("packages/controller/src/correction-replay-store.ts")
@@ -38,34 +56,16 @@ jobs:
               raise RuntimeError("Expected matching reservation fields in both replay stores.")
           marker = "  private readonly now: () => Date;\n  // XTF_TEMP_IN_MEMORY_SCOPE\n  private readonly maximumReservations: number;\n"
           replay.write_text(source.replace(needle, marker, 1))
-
-          controller = Path("apps/desktop/src/main/controller.ts")
-          source = controller.read_text()
-          actual = '''  public executeTask(commandId: string): Promise<CommandEvent> {
-            return this.tasks.execute(commandId);
-          }
-
-          public cancelTask(commandId: string): Promise<void> {
-          '''
-          expected = '''  public executeTask(commandId: string): Promise<CommandEvent> {
-              return this.tasks.execute(commandId);
-            }
-
-            public cancelTask(commandId: string): Promise<void> {
-          '''
-          if source.count(actual) != 1:
-              raise RuntimeError("Expected the canonical controller execute/cancel block once.")
-          controller.write_text(source.replace(actual, expected, 1))
           PY
-          set +e
-          python /tmp/production-correction-ingress.py > correction-ingress.log 2>&1
+            python /tmp/production-correction-ingress.py
+          ) > correction-ingress.log 2>&1
           status=$?
-          set -e
           echo "$status" > correction-ingress.status
+          exit 0
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: xtf-production-correction-v3-diagnostic
+          name: xtf-production-correction-v4-diagnostic
           path: |
             correction-ingress.log
             correction-ingress.status
