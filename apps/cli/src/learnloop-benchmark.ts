@@ -411,7 +411,14 @@ function formIntent(): UserIntent {
 function ambiguousWorkspaceState(variant: number): NormalizedUIState {
   const extras =
     variant % 2 === 0
-      ? [{ id: `help-${variant}`, role: "link", label: "Help", source: "dom" as const }]
+      ? [
+          {
+            id: `help-${variant}`,
+            role: "link",
+            label: "Help",
+            source: "dom" as const,
+          },
+        ]
       : [];
   return {
     surface: "browser",

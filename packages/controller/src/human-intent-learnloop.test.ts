@@ -170,7 +170,10 @@ describe("HumanIntentLearnLoop", () => {
       riskLevel: "high",
       requiresConfirmation: true,
     };
-    const riskyState = { ...ambiguousState, capturedAt: "2026-07-26T01:00:00Z" };
+    const riskyState = {
+      ...ambiguousState,
+      capturedAt: "2026-07-26T01:00:00Z",
+    };
     for (const id of ["risk-1", "risk-2", "risk-3"]) {
       loop.recordCorrection(
         correction(id, "training", riskyState, { intent: riskyIntent }),

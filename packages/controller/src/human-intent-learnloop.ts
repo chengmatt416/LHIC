@@ -13,21 +13,13 @@ import type {
 import { hashState } from "@lhic/trace";
 
 import { predictIntent, type IntentPrediction } from "./predictor.js";
-import {
-  classifyStage,
-  type ControllerStage,
-} from "./stage-classifier.js";
+import { classifyStage, type ControllerStage } from "./stage-classifier.js";
 
 export type HumanIntentAdmission =
-  | "execute_fast"
-  | "require_confirmation"
-  | "defer_to_slow_path";
+  "execute_fast" | "require_confirmation" | "defer_to_slow_path";
 
 export type LearnLoopRuleStatus =
-  | "candidate"
-  | "active"
-  | "quarantined"
-  | "revoked";
+  "candidate" | "active" | "quarantined" | "revoked";
 
 export type CorrectionEvidenceSplit = "training" | "validation";
 
@@ -335,9 +327,7 @@ export class HumanIntentLearnLoop {
       trainingTaskHashes: [...trainingTaskHashes].sort(),
       trainingUiFingerprints: [...trainingUiFingerprints].sort(),
       validationUiFingerprints: [...validationUiFingerprints].sort(),
-      successfulOutcomeHashes: [
-        ...(existing?.successfulOutcomeHashes ?? []),
-      ],
+      successfulOutcomeHashes: [...(existing?.successfulOutcomeHashes ?? [])],
       failureCount: existing?.failureCount ?? 0,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
@@ -354,9 +344,7 @@ export class HumanIntentLearnLoop {
     assertOutcome(input);
     const now = normalizedTimestamp(input.recordedAt);
     const outcomeHash = hashState(input.taskId);
-    const successfulOutcomeHashes = new Set(
-      existing.successfulOutcomeHashes,
-    );
+    const successfulOutcomeHashes = new Set(existing.successfulOutcomeHashes);
     if (input.success) successfulOutcomeHashes.add(outcomeHash);
     const failureCount = existing.failureCount + (input.success ? 0 : 1);
     const updated: LearnLoopRule = {
@@ -451,9 +439,7 @@ export class HumanIntentLearnLoop {
           score >= this.similarityThreshold,
       )
       .sort((left, right) => right.similarity - left.similarity);
-    const conflict = related.some(
-      ({ rule }) => rule.status === "quarantined",
-    );
+    const conflict = related.some(({ rule }) => rule.status === "quarantined");
     const active = related.filter(({ rule }) => rule.status === "active");
     const top = active[0];
     const closeAlternative = active.find(
@@ -567,7 +553,9 @@ export class HumanIntentLearnLoop {
     const previous = this.sessions.get(sessionId);
     this.sessions.set(sessionId, {
       intentFingerprint,
-      stages: [...(previous?.stages ?? []), prediction.predictedIntent].slice(-4),
+      stages: [...(previous?.stages ?? []), prediction.predictedIntent].slice(
+        -4,
+      ),
       confidence: prediction.confidence,
       updatedAt: Date.now(),
     });
@@ -612,7 +600,10 @@ function admitPrediction(
       reason: "Intent drift was detected before execution.",
     };
   }
-  if (!prediction.skillName || prediction.confidence < options.fastPathThreshold) {
+  if (
+    !prediction.skillName ||
+    prediction.confidence < options.fastPathThreshold
+  ) {
     return {
       admission: "defer_to_slow_path",
       reason:
@@ -632,9 +623,7 @@ function contextFeatures(
 ): ContextFeatures {
   const objects = state.objects.slice(0, 256);
   const roles = [
-    ...new Set(
-      objects.map((object) => safeRole(object.role)).filter(isString),
-    ),
+    ...new Set(objects.map((object) => safeRole(object.role)).filter(isString)),
   ].sort();
   const labelHints = [
     ...new Set(
@@ -778,7 +767,9 @@ function assertProvenance(provenance: CorrectionProvenance): void {
     !provenance.verifierVersion.trim() ||
     provenance.verifierVersion.length > 128
   ) {
-    throw new Error("LearnLoop correction provenance requires a verifier version.");
+    throw new Error(
+      "LearnLoop correction provenance requires a verifier version.",
+    );
   }
   if (provenance.split !== "training" && provenance.split !== "validation") {
     throw new Error("LearnLoop correction evidence split is invalid.");
@@ -790,8 +781,13 @@ function assertOutcome(input: AppliedPredictionOutcome): void {
     throw new Error("LearnLoop outcomes require a bounded task ID.");
   }
   if (input.success) {
-    if (!input.verification.success || input.verification.evidence.length === 0) {
-      throw new Error("Successful outcomes require successful verifier evidence.");
+    if (
+      !input.verification.success ||
+      input.verification.evidence.length === 0
+    ) {
+      throw new Error(
+        "Successful outcomes require successful verifier evidence.",
+      );
     }
   } else if (
     input.verification.success ||
@@ -828,9 +824,7 @@ function assertRule(rule: LearnLoopRule): void {
     !/^[a-f0-9]{64}$/.test(rule.contextKey) ||
     !controllerStages.has(rule.fromStage) ||
     !controllerStages.has(rule.toStage) ||
-    !["candidate", "active", "quarantined", "revoked"].includes(
-      rule.status,
-    ) ||
+    !["candidate", "active", "quarantined", "revoked"].includes(rule.status) ||
     !Number.isSafeInteger(rule.failureCount) ||
     rule.failureCount < 0 ||
     rule.featureTokens.length > 128 ||
@@ -862,9 +856,12 @@ function assertNoActiveConflicts(
       if (
         left.fromStage === right.fromStage &&
         left.toStage !== right.toStage &&
-        similarity(left.featureTokens, right.featureTokens) >= similarityThreshold
+        similarity(left.featureTokens, right.featureTokens) >=
+          similarityThreshold
       ) {
-        throw new Error("LearnLoop snapshot contains conflicting active rules.");
+        throw new Error(
+          "LearnLoop snapshot contains conflicting active rules.",
+        );
       }
     }
   }
@@ -884,7 +881,9 @@ function assertIntegrityKey(integrityKey: BinaryLike): void {
     ? integrityKey.length
     : Buffer.byteLength(integrityKey);
   if (length < 32) {
-    throw new Error("LearnLoop snapshot integrity keys require at least 32 bytes.");
+    throw new Error(
+      "LearnLoop snapshot integrity keys require at least 32 bytes.",
+    );
   }
 }
 
@@ -904,7 +903,9 @@ function allUnique(values: readonly string[]): boolean {
 }
 
 function allHashes(values: readonly string[]): boolean {
-  return allUnique(values) && values.every((value) => /^[a-f0-9]{64}$/.test(value));
+  return (
+    allUnique(values) && values.every((value) => /^[a-f0-9]{64}$/.test(value))
+  );
 }
 
 function normalizedTimestamp(value = new Date().toISOString()): string {

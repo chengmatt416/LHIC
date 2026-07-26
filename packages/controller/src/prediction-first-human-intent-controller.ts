@@ -36,11 +36,7 @@ export class PredictionFirstHumanIntentController {
     const humanIntent = this.learnLoop
       ? this.learnLoop.decide(sessionId, intent, uiState)
       : baselineHumanIntentDecision(intent, uiState);
-    const resolved = this.router.route(
-      humanIntent.prediction,
-      intent,
-      uiState,
-    );
+    const resolved = this.router.route(humanIntent.prediction, intent, uiState);
     return {
       humanIntent,
       route: {
@@ -87,10 +83,7 @@ function applyHumanIntentGate(
   routerDecision: RouteDecision,
   humanIntent: HumanIntentDecision,
 ): RouteDecision {
-  if (
-    routerDecision.path === "blocked" ||
-    routerDecision.path === "ask_user"
-  ) {
+  if (routerDecision.path === "blocked" || routerDecision.path === "ask_user") {
     return routerDecision;
   }
   if (humanIntent.admission === "require_confirmation") {

@@ -21,9 +21,9 @@ describe("desktop renderer navigation policy", () => {
     expect(
       isTrustedRendererUrl(`${policy.rendererFileUrl}?demo=1`, policy),
     ).toBe(true);
-    expect(
-      isTrustedRendererUrl("http://127.0.0.1:4173/?demo=1", policy),
-    ).toBe(true);
+    expect(isTrustedRendererUrl("http://127.0.0.1:4173/?demo=1", policy)).toBe(
+      true,
+    );
     expect(
       isTrustedRendererUrl(`${policy.rendererFileUrl}?demo=2`, policy),
     ).toBe(false);

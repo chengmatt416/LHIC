@@ -108,7 +108,11 @@ describe("PredictionFirstHumanIntentController", () => {
       verification: { success: true, evidence: ["verified"] },
     });
 
-    const result = controller.route("drift-route", searchIntent, ambiguousState);
+    const result = controller.route(
+      "drift-route",
+      searchIntent,
+      ambiguousState,
+    );
     expect(result.humanIntent.drift.detected).toBe(true);
     expect(result.route.decision.path).toBe("ask_user");
   });
