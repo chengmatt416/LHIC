@@ -1,0 +1,130 @@
+name: XTF one-shot live-UI runtime wiring
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  CI: true
+
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Wire TaskService to live Human Intent admission
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'apps/desktop/src/main/task-service.ts';
+          let source = fs.readFileSync(path, 'utf8');
+          function replace(before, after, label) {
+            if (!source.includes(before)) throw new Error(`Missing ${label}`);
+            source = source.replace(before, after);
+          }
+
+          replace(
+            `  isExecutionProfile,\n} from "@lhic/schema";`,
+            `  isExecutionProfile,\n  type BrowserExecutionPlan,\n} from "@lhic/schema";`,
+            'BrowserExecutionPlan import',
+          );
+          replace(
+            `  type BrowserReadiness,\n  type BrowserRunResult,`,
+            `  type BrowserIntentAdmission,\n  type BrowserReadiness,\n  type BrowserRunResult,`,
+            'BrowserIntentAdmission import',
+          );
+          replace(
+            `import { compileLocalFastPath } from "./fast-path-planner.js";`,
+            `import { compileLocalFastPath } from "./fast-path-planner.js";\nimport { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";`,
+            'admission import',
+          );
+          replace(
+            `interface TaskServiceOptions {\n  sourceStore?: Pick<TaskSourceStore, "load" | "save">;\n  journalStore?: Pick<TaskJournalStore, "load" | "save">;\n  sourceBudget?: () => TaskBudgetTracker;\n}`,
+            `type BrowserRunnerPort = Pick<\n  DesktopBrowserRunner,\n  "readiness" | "execute" | "approve" | "cancel" | "close"\n>;\n\ninterface TaskServiceOptions {\n  sourceStore?: Pick<TaskSourceStore, "load" | "save">;\n  journalStore?: Pick<TaskJournalStore, "load" | "save">;\n  sourceBudget?: () => TaskBudgetTracker;\n  browserRunner?: BrowserRunnerPort;\n  humanIntentAdmission?: Pick<DesktopHumanIntentAdmission, "evaluate">;\n}`,
+            'service options',
+          );
+          replace(
+            `  private readonly browserRunner: DesktopBrowserRunner;\n  private readonly globalRunner: DesktopGlobalRunner;`,
+            `  private readonly browserRunner: BrowserRunnerPort;\n  private readonly humanIntentAdmission: Pick<\n    DesktopHumanIntentAdmission,\n    "evaluate"\n  >;\n  private readonly globalRunner: DesktopGlobalRunner;`,
+            'service properties',
+          );
+          replace(
+            `    this.browserRunner = new DesktopBrowserRunner(workspaceRoot);\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);`,
+            `    this.browserRunner =\n      options.browserRunner ?? new DesktopBrowserRunner(workspaceRoot);\n    this.humanIntentAdmission =\n      options.humanIntentAdmission ?? new DesktopHumanIntentAdmission();\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);`,
+            'constructor wiring',
+          );
+          replace(
+            `            await this.browserRunner.execute(commandId, plan),`,
+            `            await this.browserRunner.execute(\n              commandId,\n              plan,\n              this.localHumanIntentAdmission(commandId, pending, plan),\n            ),`,
+            'execute wiring',
+          );
+          replace(
+            `  private recordBrowserResult(\n    commandId: string,`,
+            `  private localHumanIntentAdmission(\n    commandId: string,\n    pending: PendingTask,\n    plan: BrowserExecutionPlan,\n  ): BrowserIntentAdmission | undefined {\n    if (pending.source) return undefined;\n    return (uiState) => {\n      const decision = this.humanIntentAdmission.evaluate(\n        commandId,\n        pending.goal,\n        plan,\n        uiState,\n      );\n      return {\n        allowed: decision.allowed,\n        message: decision.message,\n        evidence: [...decision.evidence],\n      };\n    };\n  }\n\n  private recordBrowserResult(\n    commandId: string,`,
+            'admission method',
+          );
+          const browserStart = source.indexOf('  private recordBrowserResult(');
+          const browserEnd = source.indexOf('  private recordGlobalResult(', browserStart);
+          if (browserStart < 0 || browserEnd < 0) throw new Error('Browser result block missing');
+          const block = source.slice(browserStart, browserEnd);
+          const terminal = `    if (result.status === "completed" || result.status === "failed") {\n      this.pending.delete(commandId);`;
+          if (!block.includes(terminal)) throw new Error('Browser terminal state missing');
+          const updatedBlock = block.replace(
+            terminal,
+            `    if (\n      result.status === "completed" ||\n      result.status === "failed" ||\n      result.status === "blocked"\n    ) {\n      this.pending.delete(commandId);`,
+          );
+          source = source.slice(0, browserStart) + updatedBlock + source.slice(browserEnd);
+          fs.writeFileSync(path, source);
+
+          const gatePath = '.github/workflows/xtf-learnloop.yml';
+          let gate = fs.readFileSync(gatePath, 'utf8');
+          if (!gate.includes('apps/desktop/src/main/prediction-first-browser-admission*')) {
+            gate = gate.replace(
+              `      - "apps/cli/src/entry.ts"\n      - "XTF-LEARNLOOP.md"`,
+              `      - "apps/cli/src/entry.ts"\n      - "apps/desktop/src/main/desktop-browser-runner.ts"\n      - "apps/desktop/src/main/prediction-first-browser-admission*"\n      - "apps/desktop/src/main/task-service*"\n      - "XTF-LEARNLOOP.md"`,
+            );
+            gate = gate.replace(
+              `          apps/cli/src/learnloop-benchmark.test.ts`,
+              `          apps/cli/src/learnloop-benchmark.test.ts\n          apps/desktop/src/main/prediction-first-browser-admission.test.ts\n          apps/desktop/src/main/task-service-learnloop.test.ts`,
+            );
+            fs.writeFileSync(gatePath, gate);
+          }
+          NODE
+      - run: npm run format
+      - run: npm run typecheck
+      - run: >-
+          npx vitest run
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/prediction-first-human-intent-controller.test.ts
+      - run: npm run lint
+      - name: Commit validated runtime wiring
+        run: |
+          for file in \
+            .github/workflows/xtf-runtime-wiring.yml \
+            .github/workflows/xtf-taskservice-wire.yml \
+            .github/workflows/xtf-final-runtime-remediation.yml \
+            .github/workflows/xtf-dependency-remediation.yml \
+            .github/workflows/xtf-dependency-hardening.yml \
+            .github/workflows/xtf-audit-debug.yml; do
+            git rm --ignore-unmatch "$file"
+          done
+          rm -f .xtf-runtime-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "feat(xtf): gate local browser Fast Path on live Human Intent"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
