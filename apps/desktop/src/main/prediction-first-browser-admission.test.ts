@@ -1,6 +1,19 @@
+import { generateKeyPairSync } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
-import type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";
+import {
+  HumanIntentLearnLoop,
+  TrustedHumanIntentCorrectionIngestion,
+  createSignedHumanIntentCorrectionApproval,
+  type HumanIntentCorrectionBinding,
+} from "@lhic/controller";
+import type {
+  BrowserExecutionPlan,
+  NormalizedUIState,
+  UserIntent,
+} from "@lhic/schema";
+import { hashState } from "@lhic/trace";
 
 import { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";
 
@@ -81,6 +94,39 @@ const searchState: NormalizedUIState = {
   capturedAt: "2026-07-27T00:00:00.000Z",
 };
 
+const ambiguousSearchState: NormalizedUIState = {
+  ...searchState,
+  objects: [
+    ...searchState.objects,
+    {
+      id: "email",
+      role: "textbox",
+      label: "Email",
+      enabled: true,
+      source: "dom",
+      selector: "#email",
+    },
+    {
+      id: "password",
+      role: "textbox",
+      label: "Password",
+      enabled: true,
+      source: "dom",
+      selector: "#password",
+    },
+  ],
+};
+
+const searchIntent: UserIntent = {
+  goal: "Search for release notes",
+  constraints: {},
+  riskLevel: "low",
+  requiresConfirmation: false,
+  missingInformation: [],
+};
+
+const correctionTime = new Date("2026-07-27T00:00:01.000Z");
+
 describe("DesktopHumanIntentAdmission", () => {
   it("admits a live-UI prediction only when the router reproduces the exact built-in plan", () => {
     const decision = new DesktopHumanIntentAdmission().evaluate(
@@ -123,36 +169,139 @@ describe("DesktopHumanIntentAdmission", () => {
   });
 
   it("blocks an ambiguous low-confidence UI instead of executing optimistically", () => {
-    const ambiguousState: NormalizedUIState = {
-      ...searchState,
-      objects: [
-        ...searchState.objects,
-        {
-          id: "email",
-          role: "textbox",
-          label: "Email",
-          enabled: true,
-          source: "dom",
-          selector: "#email",
-        },
-        {
-          id: "password",
-          role: "textbox",
-          label: "Password",
-          enabled: true,
-          source: "dom",
-          selector: "#password",
-        },
-      ],
-    };
     const decision = new DesktopHumanIntentAdmission().evaluate(
       "task-ambiguous",
       "Search for release notes",
       searchPlan,
-      ambiguousState,
+      ambiguousSearchState,
     );
 
     expect(decision.allowed).toBe(false);
     expect(decision.route.route.decision.path).toBe("slow");
   });
+
+  it("applies signed corrections to the exact LearnLoop used for runtime admission", () => {
+    const keyPair = generateKeyPairSync("ed25519");
+    const learnLoop = new HumanIntentLearnLoop({
+      minimumTrainingEvidence: 2,
+      minimumValidationEvidence: 1,
+    });
+    const ingestion = new TrustedHumanIntentCorrectionIngestion({
+      publicKey: keyPair.publicKey,
+      now: () => correctionTime,
+    });
+    const admission = new DesktopHumanIntentAdmission({
+      learnLoop,
+      correctionIngestion: ingestion,
+    });
+
+    expect(
+      admission.evaluate(
+        "before-corrections",
+        searchIntent.goal,
+        searchPlan,
+        ambiguousSearchState,
+      ).allowed,
+    ).toBe(false);
+
+    for (const taskId of ["desktop-training-1", "desktop-training-2"]) {
+      ingestSignedCorrection(
+        admission,
+        correctionBinding(taskId, "training", ambiguousSearchState),
+        keyPair.privateKey,
+      );
+    }
+    const validationState: NormalizedUIState = {
+      ...ambiguousSearchState,
+      objects: [
+        ...ambiguousSearchState.objects,
+        {
+          id: "help",
+          role: "button",
+          label: "Help",
+          enabled: true,
+          source: "dom",
+          selector: "#help",
+        },
+      ],
+    };
+    const active = ingestSignedCorrection(
+      admission,
+      correctionBinding("desktop-validation", "validation", validationState),
+      keyPair.privateKey,
+    );
+    expect(active.status).toBe("active");
+
+    const decision = admission.evaluate(
+      "after-corrections",
+      searchIntent.goal,
+      searchPlan,
+      ambiguousSearchState,
+    );
+    expect(decision.route.humanIntent.basePrediction.predictedIntent).toBe(
+      "login",
+    );
+    expect(decision.route.humanIntent.prediction.predictedIntent).toBe(
+      "search",
+    );
+    expect(decision.route.humanIntent.appliedRuleIds).toEqual([active.id]);
+    expect(decision.allowed).toBe(true);
+  });
+
+  it("keeps correction ingestion disabled unless a trusted verifier is explicitly configured", () => {
+    const admission = new DesktopHumanIntentAdmission();
+    const binding = correctionBinding(
+      "not-configured",
+      "training",
+      ambiguousSearchState,
+    );
+    const keyPair = generateKeyPairSync("ed25519");
+    const approval = createSignedHumanIntentCorrectionApproval(
+      binding,
+      "reviewer",
+      keyPair.privateKey,
+      { now: correctionTime },
+    );
+
+    expect(() => admission.ingestCorrection(binding, approval)).toThrow(
+      "not configured",
+    );
+  });
 });
+
+function correctionBinding(
+  taskId: string,
+  split: "training" | "validation",
+  uiState: NormalizedUIState,
+): HumanIntentCorrectionBinding {
+  return {
+    taskId,
+    traceSha256: hashState({ taskId, kind: "desktop-trace" }),
+    verifierVersion: "desktop-verifier-v1",
+    split,
+    intent: searchIntent,
+    uiState,
+    predictedStage: "login",
+    correctedStage: "search",
+    verification: {
+      success: true,
+      evidence: ["The requested search result was verified."],
+    },
+  };
+}
+
+function ingestSignedCorrection(
+  admission: DesktopHumanIntentAdmission,
+  binding: HumanIntentCorrectionBinding,
+  privateKey: Parameters<
+    typeof createSignedHumanIntentCorrectionApproval
+  >[2],
+) {
+  const approval = createSignedHumanIntentCorrectionApproval(
+    binding,
+    "desktop-reviewer",
+    privateKey,
+    { now: correctionTime },
+  );
+  return admission.ingestCorrection(binding, approval);
+}
