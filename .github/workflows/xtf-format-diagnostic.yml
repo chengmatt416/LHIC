@@ -1,0 +1,37 @@
+name: XTF temporary formatting diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  format-log:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Capture complete Prettier output
+        shell: bash
+        run: |
+          set +e
+          npm run format:check > format-output.log 2>&1
+          status=$?
+          echo "$status" > format-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-format-diagnostics
+          path: |
+            format-output.log
+            format-exit-code.txt
+          retention-days: 1
