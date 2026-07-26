@@ -19,22 +19,44 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Reproduce the validated production patch
+      - name: Reproduce the normalized production patch
         shell: bash
         run: |
-          git fetch --depth=1 origin 4db5af93084eb4fb276056e2b12cdb83e7c5aa4c
-          git show 4db5af93084eb4fb276056e2b12cdb83e7c5aa4c:.github/workflows/xtf-production-correction-ingress-v2.yml > /tmp/validation.yml
+          git fetch --depth=1 origin 32f9325638e3e47a803adfe4498f3dd4bb81e6b1
+          git show 32f9325638e3e47a803adfe4498f3dd4bb81e6b1:.github/workflows/xtf-production-correction-ingress.yml > /tmp/original-ingress.yml
           python <<'PY'
           from pathlib import Path
 
-          workflow = Path("/tmp/validation.yml").read_text().splitlines()
+          workflow = Path("/tmp/original-ingress.yml").read_text().splitlines()
           start = next(i for i, line in enumerate(workflow) if "python <<'PY'" in line) + 1
           end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == "PY")
           script = "\n".join(
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end]
           ) + "\n"
+          replacements = [
+              (
+                  "'''  public executeTask(commandId: string): Promise<CommandEvent> {\n      return this.tasks.execute(commandId);\n    }\n\n    public cancelTask(commandId: string): Promise<void> {\n'''",
+                  "'''  public executeTask(commandId: string): Promise<CommandEvent> {\n    return this.tasks.execute(commandId);\n  }\n\n  public cancelTask(commandId: string): Promise<void> {\n'''",
+              ),
+              (
+                  "'''  ipcMain.handle(\"lhic:task:cancel\", (_event, commandId: string) =>\n      controller.cancelTask(requiredString(commandId, \"command id\")),\n    );\n'''",
+                  "'''  ipcMain.handle(\"lhic:task:cancel\", (_event, commandId: string) =>\n    controller.cancelTask(requiredString(commandId, \"command id\")),\n  );\n'''",
+              ),
+          ]
+          for bad, good in replacements:
+              if script.count(bad) != 1:
+                  raise RuntimeError("Expected one normalized production patch anchor.")
+              script = script.replace(bad, good, 1)
           Path("/tmp/production-correction-ingress.py").write_text(script)
+
+          replay = Path("packages/controller/src/correction-replay-store.ts")
+          source = replay.read_text()
+          needle = "  private readonly now: () => Date;\n  private readonly maximumReservations: number;\n"
+          if source.count(needle) != 2:
+              raise RuntimeError("Expected matching reservation fields in both replay stores.")
+          marker = "  private readonly now: () => Date;\n  // XTF_TEMP_IN_MEMORY_SCOPE\n  private readonly maximumReservations: number;\n"
+          replay.write_text(source.replace(needle, marker, 1))
           PY
           python /tmp/production-correction-ingress.py
           python <<'PY'
