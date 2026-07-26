@@ -107,8 +107,7 @@ function readBoundedRegularPublicKeyFile(filePath: string): string {
     );
   }
 
-  const noFollowFlag =
-    process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  const noFollowFlag = process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
   let descriptor: number;
   try {
     descriptor = openSync(filePath, constants.O_RDONLY | noFollowFlag);

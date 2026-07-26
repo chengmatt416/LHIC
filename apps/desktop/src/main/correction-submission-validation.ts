@@ -93,10 +93,14 @@ function assertJsonComplexity(value: unknown): void {
     if (!current) break;
     nodes += 1;
     if (nodes > maximumJsonNodes) {
-      throw new Error("Human Intent correction submission has too many values.");
+      throw new Error(
+        "Human Intent correction submission has too many values.",
+      );
     }
     if (current.depth > maximumJsonDepth) {
-      throw new Error("Human Intent correction submission is nested too deeply.");
+      throw new Error(
+        "Human Intent correction submission is nested too deeply.",
+      );
     }
     if (!current.value || typeof current.value !== "object") continue;
     const children = Array.isArray(current.value)
@@ -136,7 +140,10 @@ function validateIntent(value: unknown): void {
   if (Object.keys(constraints).length > 64) {
     throw new Error("correction intent constraints contain too many fields.");
   }
-  if (typeof intent.riskLevel !== "string" || !riskLevels.has(intent.riskLevel)) {
+  if (
+    typeof intent.riskLevel !== "string" ||
+    !riskLevels.has(intent.riskLevel)
+  ) {
     throw new Error("correction intent risk level is invalid.");
   }
   if (typeof intent.requiresConfirmation !== "boolean") {
@@ -157,7 +164,16 @@ function validateUiState(value: unknown): void {
   const uiState = requiredRecord(value, "correction UI state");
   assertAllowedKeys(
     uiState,
-    ["surface", "app", "url", "title", "screenType", "objects", "signals", "capturedAt"],
+    [
+      "surface",
+      "app",
+      "url",
+      "title",
+      "screenType",
+      "objects",
+      "signals",
+      "capturedAt",
+    ],
     "correction UI state",
   );
   if (typeof uiState.surface !== "string" || !uiSurfaces.has(uiState.surface)) {
@@ -189,14 +205,29 @@ function validateUiObject(value: unknown): void {
   const object = requiredRecord(value, "correction UI object");
   assertAllowedKeys(
     object,
-    ["id", "role", "label", "value", "enabled", "focused", "source", "selector", "ref", "bbox"],
+    [
+      "id",
+      "role",
+      "label",
+      "value",
+      "enabled",
+      "focused",
+      "source",
+      "selector",
+      "ref",
+      "bbox",
+    ],
     "correction UI object",
   );
   requiredBoundedString(object.id, "correction UI object ID", 512);
   optionalBoundedString(object.role, "correction UI object role", 64);
   optionalBoundedString(object.label, "correction UI object label", 1_024);
   optionalBoundedString(object.value, "correction UI object value", 4_096);
-  optionalBoundedString(object.selector, "correction UI object selector", 1_024);
+  optionalBoundedString(
+    object.selector,
+    "correction UI object selector",
+    1_024,
+  );
   optionalBoundedString(object.ref, "correction UI object reference", 512);
   if (
     typeof object.source !== "string" ||
