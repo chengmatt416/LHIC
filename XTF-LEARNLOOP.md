@@ -48,6 +48,12 @@ confirm / Slow Path      existing FastPathRouter
 
 The final `FastPathRouter`, action risk evaluator, approval verifier, replay protection, and execution verifier remain authoritative. `HumanIntentLearnLoop` only returns an admission recommendation and an adjusted known stage; it does not execute anything.
 
+## Current integration boundary
+
+`PredictionFirstHumanIntentController` is exported from `@lhic/controller` and is exercised by the dedicated benchmark and invariant tests. It combines the existing predictor, optional LearnLoop calibration, the AI-02 drift gate, `FastPathRouter`, and Fast Path plan resolution.
+
+The production Desktop `TaskService` is **not yet LearnLoop-aware**. It attempts to compile a local plan before a live normalized UI state has been observed, while the research controller requires both the human goal and current UI state. A production integration must therefore occur after browser observation and must obtain correction confirmation and verifier provenance from LHIC's existing signed approval and verification path. The branch does not claim that desktop task execution currently uses LearnLoop.
+
 ## Safety invariants
 
 - Prediction runs before learning on every request.
@@ -55,8 +61,9 @@ The final `FastPathRouter`, action risk evaluator, approval verifier, replay pro
 - A learned rule cannot change `riskLevel`, `requiresConfirmation`, action policy, approval state, or verifier requirements.
 - High-risk and unknown-risk intents always require confirmation.
 - Conflicting corrections are quarantined rather than resolved by recency.
-- Learned rules are bounded, revocable, and local.
-- Context memory stores a hash of coarse semantic features and constraint shape, not the raw goal, UI text, credentials, or constraint values.
+- Learned rules are bounded, revocable, local, and scoped to a hashed browser origin or bounded non-browser app/screen context.
+- Context memory stores hashes and coarse semantic features, not the raw goal, UI text, credentials, origin, app name, or constraint values.
+- Imported snapshots must pass both HMAC integrity verification and semantic validation of scope, stage-to-skill binding, feature bounds, and promotion evidence.
 - The Fast Path still requires a known deterministic skill and the existing confidence threshold.
 - The benchmark performs zero model calls and zero network calls.
 
@@ -99,17 +106,23 @@ The benchmark has a fixed training set and a separate synthetic holdout set. It 
 - It does not claim that synthetic fixtures represent real-world users.
 - It does not claim mechanistic interpretability of a neural model. The AI-02 integration is a behavioral intent-drift microscope: it exposes and tests changes in prediction, confidence, conflicts, and oscillation.
 - It does not claim that hash-only context is anonymous against every dictionary attack.
+- It does not claim that the current Desktop `TaskService` is LearnLoop-integrated.
 - It does not allow LearnLoop to bypass the existing three-run and holdout promotion rules for executable Skills.
 
 ## Required next evidence for the XTF paper
 
 Before submission, the synthetic regression must be supplemented with a preregistered, consented study using realistic but non-sensitive tasks. Training and evaluation users, UI variants, and task IDs should be separated. Report confidence intervals, all exclusions, negative results, calibration curves, and per-domain failure cases. Do not present the included fixture percentages as general-world performance.
 
+Before presenting a desktop end-to-end demo as research evidence, wire the research controller after live UI observation, bind `confirmedByUser` and verifier evidence to the existing signed runtime records, and test that failures feed back into rule quarantine without weakening any execution gate.
+
 ## Files added by this branch
 
 - `packages/controller/src/human-intent-learnloop.ts`
 - `packages/controller/src/human-intent-learnloop.test.ts`
+- `packages/controller/src/prediction-first-human-intent-controller.ts`
+- `packages/controller/src/prediction-first-human-intent-controller.test.ts`
 - `apps/cli/src/learnloop-benchmark.ts`
 - `apps/cli/src/learnloop-benchmark.test.ts`
+- `.github/workflows/xtf-learnloop.yml`
 - `XTF-LEARNLOOP.md`
-- `docs/xtf-adversarial-review.md` after the hostile review and remediation pass
+- `docs/xtf-adversarial-review.md`
