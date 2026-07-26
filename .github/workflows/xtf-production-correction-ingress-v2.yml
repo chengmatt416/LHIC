@@ -1,0 +1,112 @@
+name: XTF production correction ingress v2
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply reviewed correction ingress with unique File-store scope
+        shell: bash
+        run: |
+          git fetch --depth=1 origin 32f9325638e3e47a803adfe4498f3dd4bb81e6b1
+          git show 32f9325638e3e47a803adfe4498f3dd4bb81e6b1:.github/workflows/xtf-production-correction-ingress.yml > /tmp/original-ingress.yml
+          python <<'PY'
+          from pathlib import Path
+
+          workflow = Path("/tmp/original-ingress.yml").read_text().splitlines()
+          start = next(i for i, line in enumerate(workflow) if "python <<'PY'" in line) + 1
+          end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == "PY")
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in workflow[start:end]
+          ) + "\n"
+          Path("/tmp/production-correction-ingress.py").write_text(script)
+
+          path = Path("packages/controller/src/correction-replay-store.ts")
+          source = path.read_text()
+          needle = '''  private readonly now: () => Date;
+          private readonly maximumReservations: number;
+          '''
+          if source.count(needle) != 2:
+              raise RuntimeError("Expected matching reservation fields in both replay stores.")
+          marker = '''  private readonly now: () => Date;
+          // XTF_TEMP_IN_MEMORY_SCOPE
+          private readonly maximumReservations: number;
+          '''
+          path.write_text(source.replace(needle, marker, 1))
+          PY
+          python /tmp/production-correction-ingress.py
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path("packages/controller/src/correction-replay-store.ts")
+          source = path.read_text()
+          marker = "  // XTF_TEMP_IN_MEMORY_SCOPE\n"
+          if source.count(marker) != 1:
+              raise RuntimeError("Temporary InMemory scope marker was not preserved exactly once.")
+          path.write_text(source.replace(marker, "", 1))
+          PY
+      - name: Format changed files
+        run: >-
+          npx prettier --write
+          packages/controller/src/correction-replay-store.ts
+          packages/controller/src/correction-replay-store.test.ts
+          apps/desktop/src/main/correction-ingestion-runtime.ts
+          apps/desktop/src/main/correction-ingestion-runtime.test.ts
+          apps/desktop/src/main/correction-submission-validation.ts
+          apps/desktop/src/main/correction-submission-validation.test.ts
+          apps/desktop/src/main/task-service-correction-ingestion.test.ts
+          apps/desktop/src/main/task-service.ts
+          apps/desktop/src/main/controller.ts
+          apps/desktop/src/main/main.ts
+          apps/desktop/src/preload/preload.ts
+          apps/desktop/src/shared/contracts.ts
+          .env.example
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Run correction boundary tests
+        run: >-
+          npx vitest run
+          packages/controller/src/correction-replay-store.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          apps/desktop/src/main/correction-ingestion-runtime.test.ts
+          apps/desktop/src/main/correction-submission-validation.test.ts
+          apps/desktop/src/main/task-service-correction-ingestion.test.ts
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+      - run: npm run lint
+      - name: Commit validated production ingress
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            packages/controller/src/correction-replay-store.ts \
+            packages/controller/src/correction-replay-store.test.ts \
+            apps/desktop/src/main/correction-ingestion-runtime.ts \
+            apps/desktop/src/main/correction-ingestion-runtime.test.ts \
+            apps/desktop/src/main/correction-submission-validation.ts \
+            apps/desktop/src/main/correction-submission-validation.test.ts \
+            apps/desktop/src/main/task-service-correction-ingestion.test.ts \
+            apps/desktop/src/main/task-service.ts \
+            apps/desktop/src/main/controller.ts \
+            apps/desktop/src/main/main.ts \
+            apps/desktop/src/preload/preload.ts \
+            apps/desktop/src/shared/contracts.ts \
+            .env.example
+          git commit -m "feat(xtf): wire signed corrections into Desktop LearnLoop"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
