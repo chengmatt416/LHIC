@@ -140,7 +140,10 @@ describe("Human Intent correction replay stores", () => {
           "f".repeat(64),
         ),
       ),
-    ).toMatchObject({ allowed: false, reason: expect.stringContaining("full") });
+    ).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("full"),
+    });
   });
 });
 

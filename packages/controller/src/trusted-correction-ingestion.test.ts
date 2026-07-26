@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedUIState, UserIntent } from "@lhic/schema";
 import { hashState } from "@lhic/trace";
 
+import { InMemoryHumanIntentCorrectionReplayStore } from "./correction-replay-store.js";
 import { HumanIntentLearnLoop } from "./human-intent-learnloop.js";
 import {
   TrustedHumanIntentCorrectionIngestion,
@@ -286,9 +287,11 @@ function ingestionGate(
     isApprovalRevoked?: (approvalId: string) => boolean;
   } = {},
 ): TrustedHumanIntentCorrectionIngestion {
+  const now = overrides.now ?? (() => ingestionTime);
   return new TrustedHumanIntentCorrectionIngestion({
     publicKey: keyPair.publicKey,
-    now: overrides.now ?? (() => ingestionTime),
+    replayStore: new InMemoryHumanIntentCorrectionReplayStore({ now }),
+    now,
     ...(overrides.isApprovalRevoked
       ? { isApprovalRevoked: overrides.isApprovalRevoked }
       : {}),

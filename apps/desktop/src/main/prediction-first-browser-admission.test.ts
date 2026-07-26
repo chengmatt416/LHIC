@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   HumanIntentLearnLoop,
+  InMemoryHumanIntentCorrectionReplayStore,
   TrustedHumanIntentCorrectionIngestion,
   createSignedHumanIntentCorrectionApproval,
   type HumanIntentCorrectionBinding,
@@ -186,9 +187,13 @@ describe("DesktopHumanIntentAdmission", () => {
       minimumTrainingEvidence: 2,
       minimumValidationEvidence: 1,
     });
+    const correctionNow = () => correctionTime;
     const ingestion = new TrustedHumanIntentCorrectionIngestion({
       publicKey: keyPair.publicKey,
-      now: () => correctionTime,
+      replayStore: new InMemoryHumanIntentCorrectionReplayStore({
+        now: correctionNow,
+      }),
+      now: correctionNow,
     });
     const admission = new DesktopHumanIntentAdmission({
       learnLoop,

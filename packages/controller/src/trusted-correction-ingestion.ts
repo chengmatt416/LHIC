@@ -13,6 +13,7 @@ import type {
 } from "@lhic/schema";
 import { hashState } from "@lhic/trace";
 
+import type { HumanIntentCorrectionReplayStore } from "./correction-replay-store.js";
 import type { HumanIntentLearnLoop } from "./human-intent-learnloop.js";
 import {
   type CorrectionEvidenceSplit,
@@ -100,8 +101,8 @@ export interface CreateCorrectionApprovalOptions {
 
 export interface TrustedCorrectionIngestionOptions {
   publicKey: KeyLike;
+  replayStore: HumanIntentCorrectionReplayStore;
   now?: () => Date;
-  maximumConsumedApprovals?: number;
   isApprovalRevoked?: (approvalId: string) => boolean;
 }
 
@@ -192,21 +193,12 @@ export function createSignedHumanIntentCorrectionApproval(
  */
 export class TrustedHumanIntentCorrectionIngestion {
   private readonly now: () => Date;
-  private readonly maximumConsumedApprovals: number;
   private readonly isApprovalRevoked: (approvalId: string) => boolean;
-  private readonly consumedApprovalIds = new Map<string, number>();
-  private readonly consumedNonces = new Map<string, number>();
 
   public constructor(
     private readonly options: TrustedCorrectionIngestionOptions,
   ) {
     this.now = options.now ?? (() => new Date());
-    this.maximumConsumedApprovals = boundedInteger(
-      options.maximumConsumedApprovals ?? 4_096,
-      1,
-      100_000,
-      "maximumConsumedApprovals",
-    );
     this.isApprovalRevoked = options.isApprovalRevoked ?? (() => false);
   }
 
@@ -222,8 +214,6 @@ export class TrustedHumanIntentCorrectionIngestion {
       this.options.publicKey,
       now,
     );
-    this.pruneExpired(now.getTime());
-
     let revoked = true;
     try {
       revoked = this.isApprovalRevoked(validated.claim.approvalId);
@@ -235,27 +225,20 @@ export class TrustedHumanIntentCorrectionIngestion {
     if (revoked) {
       throw new Error("Human Intent correction approval has been revoked.");
     }
-    if (this.consumedApprovalIds.has(validated.claim.approvalId)) {
-      throw new Error("Human Intent correction approval replay was rejected.");
-    }
-    if (this.consumedNonces.has(validated.claim.nonce)) {
-      throw new Error(
-        "Human Intent correction approval nonce replay was rejected.",
-      );
-    }
-
     assertClaimMatchesBinding(validated.claim, binding);
-    if (this.consumedApprovalIds.size >= this.maximumConsumedApprovals) {
+    let replayDecision;
+    try {
+      replayDecision = this.options.replayStore.reserve({
+        approvalId: validated.claim.approvalId,
+        nonce: validated.claim.nonce,
+        expiresAt: validated.claim.expiresAt,
+      });
+    } catch {
       throw new Error(
-        "Human Intent correction replay cache is full of unexpired approvals.",
+        "Human Intent correction replay protection could not reserve this approval.",
       );
     }
-
-    this.consumedApprovalIds.set(
-      validated.claim.approvalId,
-      validated.expiresAtMs,
-    );
-    this.consumedNonces.set(validated.claim.nonce, validated.expiresAtMs);
+    if (!replayDecision.allowed) throw new Error(replayDecision.reason);
 
     return learnLoop.recordCorrection({
       provenance: {
@@ -276,16 +259,12 @@ export class TrustedHumanIntentCorrectionIngestion {
   }
 
   public consumedApprovalCount(): number {
-    this.pruneExpired(this.now().getTime());
-    return this.consumedApprovalIds.size;
-  }
-
-  private pruneExpired(nowMs: number): void {
-    for (const [approvalId, expiresAt] of this.consumedApprovalIds) {
-      if (expiresAt <= nowMs) this.consumedApprovalIds.delete(approvalId);
-    }
-    for (const [nonce, expiresAt] of this.consumedNonces) {
-      if (expiresAt <= nowMs) this.consumedNonces.delete(nonce);
+    try {
+      return this.options.replayStore.count();
+    } catch {
+      throw new Error(
+        "Human Intent correction replay protection could not read its reservation count.",
+      );
     }
   }
 }
@@ -530,18 +509,4 @@ function hasControlCharacter(value: string): boolean {
     }
   }
   return false;
-}
-
-function boundedInteger(
-  value: number,
-  minimum: number,
-  maximum: number,
-  name: string,
-): number {
-  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
-    throw new Error(
-      `${name} must be an integer from ${minimum} through ${maximum}.`,
-    );
-  }
-  return value;
 }

@@ -37,9 +37,7 @@ export interface InMemoryCorrectionReplayStoreOptions {
 }
 
 /** Intended for tests and explicitly ephemeral single-process experiments. */
-export class InMemoryHumanIntentCorrectionReplayStore
-  implements HumanIntentCorrectionReplayStore
-{
+export class InMemoryHumanIntentCorrectionReplayStore implements HumanIntentCorrectionReplayStore {
   private readonly now: () => Date;
   private readonly maximumReservations: number;
   private readonly approvalIds = new Map<string, number>();
@@ -64,7 +62,9 @@ export class InMemoryHumanIntentCorrectionReplayStore
       return deny("Human Intent correction approval replay was rejected.");
     }
     if (this.nonces.has(reservation.nonce)) {
-      return deny("Human Intent correction approval nonce replay was rejected.");
+      return deny(
+        "Human Intent correction approval nonce replay was rejected.",
+      );
     }
     if (this.approvalIds.size >= this.maximumReservations) {
       return deny(
@@ -102,9 +102,7 @@ export interface FileCorrectionReplayStoreOptions {
  * nonce is atomically reserved with an `wx` marker before LearnLoop mutation.
  * A partial write or malformed marker is preserved to fail closed.
  */
-export class FileHumanIntentCorrectionReplayStore
-  implements HumanIntentCorrectionReplayStore
-{
+export class FileHumanIntentCorrectionReplayStore implements HumanIntentCorrectionReplayStore {
   private readonly root: string;
   private readonly approvalDirectory: string;
   private readonly nonceDirectory: string;
@@ -139,7 +137,9 @@ export class FileHumanIntentCorrectionReplayStore
       this.prepareDirectories();
       this.pruneExpiredMarkers(this.approvalDirectory, now.getTime());
       this.pruneExpiredMarkers(this.nonceDirectory, now.getTime());
-      if (this.markerCount(this.approvalDirectory) >= this.maximumReservations) {
+      if (
+        this.markerCount(this.approvalDirectory) >= this.maximumReservations
+      ) {
         return deny(
           "Human Intent correction replay store is full of unexpired approvals.",
         );
