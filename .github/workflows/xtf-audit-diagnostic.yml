@@ -1,0 +1,39 @@
+name: XTF temporary production audit diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Capture production audit JSON
+        run: |
+          set +e
+          npm audit --omit=dev --json > production-audit.json
+          status=$?
+          echo "$status" > production-audit-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-production-audit
+          path: |
+            production-audit.json
+            production-audit-exit-code.txt
+          if-no-files-found: error
+          retention-days: 1
