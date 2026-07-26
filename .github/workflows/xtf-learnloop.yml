@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "packages/controller/src/human-intent-learnloop*"
+      - "packages/controller/src/trusted-correction-ingestion*"
       - "packages/controller/src/prediction-first-human-intent-controller*"
       - "apps/cli/src/learnloop-benchmark*"
       - "apps/cli/src/entry.ts"
@@ -42,6 +43,7 @@ jobs:
         run: >-
           npx vitest run
           packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
           packages/controller/src/prediction-first-human-intent-controller.test.ts
           apps/cli/src/learnloop-benchmark.test.ts
           apps/desktop/src/main/prediction-first-browser-admission.test.ts
