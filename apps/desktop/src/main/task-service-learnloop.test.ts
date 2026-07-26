@@ -1,17 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import type { NormalizedUIState } from "@lhic/schema";
+import type {
+  BrowserExecutionPlan,
+  NormalizedUIState,
+} from "@lhic/schema";
 
 import {
   summarizePlan,
   type BrowserIntentAdmission,
   type BrowserRunResult,
 } from "./desktop-browser-runner.js";
+import { compileLocalFastPath } from "./fast-path-planner.js";
 import { TaskService } from "./task-service.js";
 
+const startUrl = "https://docs.example.test/search";
 const searchState: NormalizedUIState = {
   surface: "browser",
-  url: "https://docs.example.test/search",
+  url: startUrl,
   title: "Documentation search",
   objects: [
     {
@@ -30,12 +35,15 @@ const searchState: NormalizedUIState = {
 describe("TaskService prediction-first browser wiring", () => {
   it("evaluates live UI before completing a local Fast Path", async () => {
     let admissionObserved = false;
-    const service = createService(searchState, () => {
-      admissionObserved = true;
+    const service = createService({
+      uiState: searchState,
+      onAdmission: () => {
+        admissionObserved = true;
+      },
     });
     const proposed = await service.start({
       goal: "Search for release notes",
-      startUrl: "https://docs.example.test/search",
+      startUrl,
     });
 
     const completed = await service.execute(proposed.commandId);
@@ -47,7 +55,7 @@ describe("TaskService prediction-first browser wiring", () => {
     );
   });
 
-  it("propagates a fail-closed Human Intent decision as blocked", async () => {
+  it("propagates a fail-closed Human Intent decision and clears the pending plan", async () => {
     const ambiguousState: NormalizedUIState = {
       ...searchState,
       objects: [
@@ -70,23 +78,56 @@ describe("TaskService prediction-first browser wiring", () => {
         },
       ],
     };
-    const service = createService(ambiguousState);
+    const service = createService({ uiState: ambiguousState });
     const proposed = await service.start({
       goal: "Search for release notes",
-      startUrl: "https://docs.example.test/search",
+      startUrl,
     });
 
     const blocked = await service.execute(proposed.commandId);
 
     expect(blocked.status).toBe("blocked");
     expect(blocked.message).toContain("Human-intent admission blocked");
+    await expect(service.execute(proposed.commandId)).rejects.toThrow(
+      "validated browser-plan-v1",
+    );
+  });
+
+  it("does not apply LearnLoop admission to a Slow Path browser plan", async () => {
+    let admissionObserved = false;
+    const service = createService({
+      uiState: searchState,
+      enableSlowPath: true,
+      onAdmission: () => {
+        admissionObserved = true;
+      },
+    });
+    const awaitingProviderApproval = await service.start({
+      goal: "Perform an unsupported custom browser workflow",
+      sourceId: "codex-cli",
+    });
+    expect(awaitingProviderApproval.status).toBe("awaiting_approval");
+
+    const proposed = await service.approve(
+      awaitingProviderApproval.commandId,
+    );
+    expect(proposed.status).toBe("proposed");
+
+    const completed = await service.execute(proposed.commandId);
+
+    expect(completed.status).toBe("completed");
+    expect(admissionObserved).toBe(false);
+    expect(completed.evidence).toContain(
+      "Slow Path plan did not receive LearnLoop admission.",
+    );
   });
 });
 
-function createService(
-  uiState: NormalizedUIState,
-  onAdmission?: () => void,
-): TaskService {
+function createService(options: {
+  uiState: NormalizedUIState;
+  onAdmission?: () => void;
+  enableSlowPath?: boolean;
+}): TaskService {
   const browserRunner = {
     readiness: async () => ({
       ready: true,
@@ -95,12 +136,19 @@ function createService(
     }),
     execute: async (
       _commandId: string,
-      plan: Parameters<BrowserIntentAdmission>[2],
+      plan: BrowserExecutionPlan,
       admission?: BrowserIntentAdmission,
     ): Promise<BrowserRunResult> => {
-      expect(admission).toBeDefined();
-      onAdmission?.();
-      const decision = await admission!(uiState);
+      if (!admission) {
+        return {
+          status: "completed",
+          message: "Slow Path plan completed under its existing approval gates.",
+          evidence: ["Slow Path plan did not receive LearnLoop admission."],
+          proposal: summarizePlan(plan),
+        };
+      }
+      options.onAdmission?.();
+      const decision = await admission(options.uiState);
       return {
         status: decision.allowed ? "completed" : "blocked",
         message: decision.message,
@@ -114,21 +162,38 @@ function createService(
     cancel: async () => undefined,
     close: async () => undefined,
   };
+  const slowPathPlan = compileLocalFastPath({
+    goal: "Search for release notes",
+    startUrl,
+  });
+  if (!slowPathPlan) throw new Error("Expected local search fixture plan.");
   return new TaskService(
     process.cwd(),
     { get: async () => undefined } as never,
-    { propose: async () => neverPlan() } as never,
+    {
+      propose: async () => slowPathPlan,
+      discoverCliSources: async () => [],
+    } as never,
     {
       browserRunner,
-      sourceStore: { load: async () => [], save: async () => undefined },
+      sourceStore: {
+        load: async () =>
+          options.enableSlowPath
+            ? [
+                {
+                  id: "codex-cli",
+                  kind: "codex-cli" as const,
+                  label: "Codex CLI",
+                  enabled: true,
+                },
+              ]
+            : [],
+        save: async () => undefined,
+      },
       journalStore: {
         load: async () => ({ events: [], pending: [] }),
         save: async () => undefined,
       },
     },
   );
-}
-
-function neverPlan(): never {
-  throw new Error("Slow Path must not be invoked by this test.");
 }
