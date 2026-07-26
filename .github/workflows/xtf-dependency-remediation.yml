@@ -50,20 +50,25 @@ jobs:
 
           root_path = Path("package.json")
           root = json.loads(root_path.read_text())
-          root["dependencies"].pop("fast-uri", None)
-          root.setdefault("overrides", {})["fast-uri"] = "3.1.4"
-          root["overrides"]["@hono/node-server"] = "2.0.11"
-          root["overrides"]["tar"] = "7.5.22"
+          pins = {
+              "fast-uri": "3.1.4",
+              "@hono/node-server": "2.0.11",
+              "tar": "7.5.22",
+          }
+          root["dependencies"].update(pins)
+          overrides = root.setdefault("overrides", {})
+          overrides["fast-uri"] = "$fast-uri"
+          overrides["@hono/node-server"] = "$@hono/node-server"
+          overrides["tar"] = "$tar"
           root_path.write_text(json.dumps(root, indent=2) + "\n")
           PY
-      - name: Capture clean lockfile and install results
+      - name: Capture pinned lockfile and install results
         shell: bash
         run: |
           mkdir -p install-diagnostics
           cp package.json install-diagnostics/root-package.json
           cp apps/mcp-server/package.json install-diagnostics/mcp-server-package.json
           cp packages/controller/package.json install-diagnostics/controller-package.json
-          rm -rf node_modules package-lock.json
 
           set +e
           npm install --package-lock-only > install-diagnostics/package-lock.log 2>&1
@@ -81,9 +86,16 @@ jobs:
             ci_status=99
           fi
           echo "$ci_status" > install-diagnostics/npm-ci.status
+          if [ "$ci_status" -eq 0 ]; then
+            npm audit --omit=dev --json > install-diagnostics/audit.json
+            audit_status=$?
+          else
+            echo '{"error":"audit skipped"}' > install-diagnostics/audit.json
+            audit_status=99
+          fi
+          echo "$audit_status" > install-diagnostics/audit.status
           set -e
-          cat install-diagnostics/package-lock.status
-          cat install-diagnostics/npm-ci.status
+          printf 'lock=%s ci=%s audit=%s\n' "$lock_status" "$ci_status" "$audit_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
