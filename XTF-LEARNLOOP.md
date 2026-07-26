@@ -126,3 +126,7 @@ Before presenting a desktop end-to-end demo as research evidence, wire the resea
 - `.github/workflows/xtf-learnloop.yml`
 - `XTF-LEARNLOOP.md`
 - `docs/xtf-adversarial-review.md`
+
+## Final validation policy
+
+A result is accepted only when the dedicated LearnLoop research gate and the repository-wide CI both pass on the same non-temporary branch commit. Results from an earlier commit, a skipped step, an `action_required` run, or a diagnostic workflow are supporting evidence only and cannot be reported as the final repository status.
