@@ -3,7 +3,11 @@ import {
   HumanIntentLearnLoop,
   PredictionFirstHumanIntentController,
   parseUserIntent,
+  type HumanIntentCorrectionBinding,
+  type LearnLoopRule,
   type PredictionFirstRouteResult,
+  type SignedHumanIntentCorrectionApproval,
+  type TrustedHumanIntentCorrectionIngestion,
 } from "@lhic/controller";
 import type {
   BrowserExecutionPlan,
@@ -21,6 +25,10 @@ export interface DesktopHumanIntentAdmissionDecision {
 export interface DesktopHumanIntentAdmissionOptions {
   learnLoop?: HumanIntentLearnLoop;
   controller?: PredictionFirstHumanIntentController;
+  correctionIngestion?: Pick<
+    TrustedHumanIntentCorrectionIngestion,
+    "ingest"
+  >;
 }
 
 /**
@@ -30,13 +38,26 @@ export interface DesktopHumanIntentAdmissionOptions {
  * the same built-in skill and action fingerprints before execution continues.
  */
 export class DesktopHumanIntentAdmission {
+  private readonly learnLoop: HumanIntentLearnLoop;
   private readonly controller: PredictionFirstHumanIntentController;
+  private readonly correctionIngestion:
+    | Pick<TrustedHumanIntentCorrectionIngestion, "ingest">
+    | undefined;
 
   public constructor(options: DesktopHumanIntentAdmissionOptions = {}) {
-    const learnLoop = options.learnLoop ?? new HumanIntentLearnLoop();
+    if (options.controller && options.correctionIngestion) {
+      throw new Error(
+        "Trusted correction ingestion requires the admission-owned LearnLoop; an externally supplied controller cannot prove that shared binding.",
+      );
+    }
+    this.learnLoop = options.learnLoop ?? new HumanIntentLearnLoop();
     this.controller =
       options.controller ??
-      new PredictionFirstHumanIntentController(new FastPathRouter(), learnLoop);
+      new PredictionFirstHumanIntentController(
+        new FastPathRouter(),
+        this.learnLoop,
+      );
+    this.correctionIngestion = options.correctionIngestion;
   }
 
   public evaluate(
@@ -85,6 +106,27 @@ export class DesktopHumanIntentAdmission {
       evidence,
       route,
     };
+  }
+
+  /**
+   * Applies one externally signed, verifier-bound correction to the exact
+   * LearnLoop used by evaluate(). No correction is accepted unless a trusted
+   * ingestion boundary was explicitly injected at construction time.
+   */
+  public ingestCorrection(
+    binding: HumanIntentCorrectionBinding,
+    approval: SignedHumanIntentCorrectionApproval,
+  ): LearnLoopRule {
+    if (!this.correctionIngestion) {
+      throw new Error(
+        "Trusted Human Intent correction ingestion is not configured for this Desktop runtime.",
+      );
+    }
+    return this.correctionIngestion.ingest(
+      this.learnLoop,
+      binding,
+      approval,
+    );
   }
 }
 
