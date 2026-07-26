@@ -1,5 +1,10 @@
 import { generateKeyPairSync } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -76,6 +81,20 @@ describe("Desktop Human Intent correction runtime", () => {
       LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE: keyFile,
     });
     expect(runtime.configured).toBe(true);
+  });
+
+  it("rejects a public-key symlink", () => {
+    if (process.platform === "win32") return;
+    const workspace = temporaryDirectory();
+    const keyFile = join(workspace, "correction-public.pem");
+    const keyLink = join(workspace, "correction-public-link.pem");
+    writeFileSync(keyFile, publicKey, { mode: 0o600 });
+    symlinkSync(keyFile, keyLink);
+    expect(() =>
+      createDesktopHumanIntentCorrectionRuntime(workspace, {
+        LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE: keyLink,
+      }),
+    ).toThrow("not a symlink");
   });
 
   it("rejects ambiguous, invalid, and relative configuration", () => {
