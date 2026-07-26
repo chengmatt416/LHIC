@@ -1,0 +1,38 @@
+name: XTF correction lint diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Capture lint output
+        shell: bash
+        run: |
+          mkdir -p lint-diagnostic
+          set +e
+          npx eslint \
+            packages/controller/src/trusted-correction-ingestion.ts \
+            packages/controller/src/trusted-correction-ingestion.test.ts \
+            > lint-diagnostic/lint.log 2>&1
+          echo "$?" > lint-diagnostic/lint.status
+          set -e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xtf-correction-lint
+          path: lint-diagnostic
+          retention-days: 1
