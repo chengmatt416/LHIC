@@ -112,19 +112,11 @@ jobs:
       - run: npm run lint
       - name: Commit validated runtime wiring
         run: |
-          for file in \
-            .github/workflows/xtf-runtime-wiring.yml \
-            .github/workflows/xtf-taskservice-wire.yml \
-            .github/workflows/xtf-final-runtime-remediation.yml \
-            .github/workflows/xtf-dependency-remediation.yml \
-            .github/workflows/xtf-dependency-hardening.yml \
-            .github/workflows/xtf-audit-debug.yml; do
-            git rm --ignore-unmatch "$file"
-          done
-          rm -f .xtf-runtime-trigger
+          git rm .github/workflows/xtf-runtime-wiring.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --all
           git commit -m "feat(xtf): gate local browser Fast Path on live Human Intent"
           git pull --rebase origin xtf/lhic-learnloop
           git push origin HEAD:xtf/lhic-learnloop
+# Final trigger after all competing temporary workflows were removed.
