@@ -1,0 +1,262 @@
+name: XTF one-shot runtime and dependency remediation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  CI: true
+
+jobs:
+  remediate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Remove vulnerable ML supply chain and complete live-UI runtime wiring
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function read(path) {
+            return fs.readFileSync(path, 'utf8');
+          }
+          function write(path, content) {
+            fs.writeFileSync(path, content);
+          }
+          function replace(path, before, after) {
+            const source = read(path);
+            if (!source.includes(before)) {
+              throw new Error(`Patch target missing in ${path}: ${before.slice(0, 100)}`);
+            }
+            write(path, source.replace(before, after));
+          }
+
+          // Replace the network-downloading native Transformers embedding chain
+          // with bounded dependency-free local feature hashing. Preserve the old
+          // class as a deprecated API alias so existing callers do not break.
+          const learningPath = 'packages/controller/src/demo-learning.ts';
+          let learning = read(learningPath);
+          learning = learning.replace('const embeddingModel = "Xenova/all-MiniLM-L6-v2";\n', 'const embeddingDimensions = 256;\n');
+          const classStart = learning.indexOf('/** Lazily downloads once, then uses a locally cached transformer model. */');
+          const classEnd = learning.indexOf('export async function learnDemoSkill', classStart);
+          if (classStart < 0 || classEnd < 0) throw new Error('Embedding class block not found.');
+          const replacement = `/**\n * Dependency-free, deterministic local feature hashing. It performs no model\n * download, native addon load, network call, or dynamic code execution.\n */\nexport class LocalFeatureHashEmbeddingEngine implements LocalEmbeddingEngine {\n  public async embed(input: string): Promise<number[]> {\n    return featureHashEmbedding(input);\n  }\n}\n\n/** @deprecated Use LocalFeatureHashEmbeddingEngine. */\nexport class TransformersEmbeddingEngine extends LocalFeatureHashEmbeddingEngine {}\n\n`;
+          learning = learning.slice(0, classStart) + replacement + learning.slice(classEnd);
+          const helperAnchor = 'function cosineSimilarity(\n';
+          const helper = `function featureHashEmbedding(input: string): number[] {\n  const normalized = redactPII(input)\n    .normalize("NFKC")\n    .toLowerCase()\n    .slice(0, 8_192);\n  const tokens = normalized.match(/[\\p{L}\\p{N}]+/gu) ?? [];\n  const features: string[] = [];\n  for (let index = 0; index < tokens.length; index += 1) {\n    const token = tokens[index]!;\n    features.push(\`token:\${token}\`);\n    if (token.length >= 3) {\n      for (let offset = 0; offset <= token.length - 3; offset += 1) {\n        features.push(\`tri:\${token.slice(offset, offset + 3)}\`);\n      }\n    }\n    const next = tokens[index + 1];\n    if (next) features.push(\`pair:\${token}:\${next}\`);\n  }\n  const vector = Array<number>(embeddingDimensions).fill(0);\n  for (const feature of features.slice(0, 2_048)) {\n    const primary = fnv1a(feature);\n    const secondary = fnv1a(\`sign:\${feature}\`);\n    vector[primary % embeddingDimensions]! += (secondary & 1) === 0 ? 1 : -1;\n  }\n  const magnitude = Math.sqrt(\n    vector.reduce((sum, value) => sum + value * value, 0),\n  );\n  return magnitude === 0 ? vector : vector.map((value) => value / magnitude);\n}\n\nfunction fnv1a(value: string): number {\n  let hash = 0x811c9dc5;\n  for (const character of value) {\n    hash ^= character.codePointAt(0) ?? 0;\n    hash = Math.imul(hash, 0x01000193);\n  }\n  return hash >>> 0;\n}\n\n`;
+          if (!learning.includes(helperAnchor)) throw new Error('Embedding helper anchor not found.');
+          learning = learning.replace(helperAnchor, helper + helperAnchor);
+          write(learningPath, learning);
+
+          for (const path of ['apps/cli/src/interactive-demo.ts', 'apps/mcp-server/src/index.ts']) {
+            let source = read(path);
+            source = source
+              .replaceAll('TransformersEmbeddingEngine', 'LocalFeatureHashEmbeddingEngine');
+            write(path, source);
+          }
+
+          const controllerPackagePath = 'packages/controller/package.json';
+          const controllerPackage = JSON.parse(read(controllerPackagePath));
+          delete controllerPackage.dependencies['@huggingface/transformers'];
+          write(controllerPackagePath, `${JSON.stringify(controllerPackage, null, 2)}\n`);
+
+          // Fix the SemanticAction union without unsafe casts.
+          replace(
+            'apps/desktop/src/main/prediction-first-browser-admission.ts',
+            '    value: typeof action.value === "string" ? action.value : "",',
+            '    value:\n      "value" in action && typeof action.value === "string" ? action.value : "",',
+          );
+
+          // Desktop browser runner: observe live UI after verified navigation and
+          // before the first non-navigation action, then fail closed on denial.
+          const runnerPath = 'apps/desktop/src/main/desktop-browser-runner.ts';
+          replace(
+            runnerPath,
+            'import {\n  ConsoleNetworkObserver,',
+            'import {\n  BrowserStateObserver,\n  ConsoleNetworkObserver,',
+          );
+          replace(
+            runnerPath,
+            '  type BrowserExecutionPlan,\n  type BrowserSemanticAction,',
+            '  type BrowserExecutionPlan,\n  type BrowserSemanticAction,\n  type NormalizedUIState,',
+          );
+          replace(
+            runnerPath,
+            '  status: "awaiting_approval" | "completed" | "failed" | "cancelled";',
+            '  status:\n    | "awaiting_approval"\n    | "blocked"\n    | "completed"\n    | "failed"\n    | "cancelled";',
+          );
+          replace(
+            runnerPath,
+            'export interface BrowserReadiness {\n  ready: boolean;\n  executablePath: string;\n  message: string;\n}\n',
+            `export interface BrowserReadiness {\n  ready: boolean;\n  executablePath: string;\n  message: string;\n}\n\nexport interface BrowserIntentAdmissionDecision {\n  allowed: boolean;\n  message: string;\n  evidence: string[];\n}\n\nexport type BrowserIntentAdmission = (\n  state: NormalizedUIState,\n) =>\n  | BrowserIntentAdmissionDecision\n  | Promise<BrowserIntentAdmissionDecision>;\n\nexport interface DesktopBrowserRunnerLike {\n  readiness(): Promise<BrowserReadiness>;\n  execute(\n    commandId: string,\n    plan: BrowserExecutionPlan,\n    admission?: BrowserIntentAdmission,\n  ): Promise<BrowserRunResult>;\n  approve(\n    commandId: string,\n    suppliedApproval?: TaskApproval,\n  ): Promise<BrowserRunResult>;\n  cancel(commandId: string): Promise<void>;\n  close(): Promise<void>;\n}\n`,
+          );
+          replace(
+            runnerPath,
+            '  verifier: VerifierEngine;\n  plan: BrowserExecutionPlan;',
+            '  verifier: VerifierEngine;\n  observer: BrowserStateObserver;\n  admission?: BrowserIntentAdmission;\n  admissionChecked: boolean;\n  plan: BrowserExecutionPlan;',
+          );
+          replace(
+            runnerPath,
+            '  public async execute(\n    commandId: string,\n    plan: BrowserExecutionPlan,\n  ): Promise<BrowserRunResult> {',
+            '  public async execute(\n    commandId: string,\n    plan: BrowserExecutionPlan,\n    admission?: BrowserIntentAdmission,\n  ): Promise<BrowserRunResult> {',
+          );
+          replace(
+            runnerPath,
+            '    const networkObserver = new ConsoleNetworkObserver(page);\n    const runtimeConfig = parseRuntimeConfig({',
+            '    const networkObserver = new ConsoleNetworkObserver(page);\n    const observer = new BrowserStateObserver(page, networkObserver);\n    const runtimeConfig = parseRuntimeConfig({',
+          );
+          replace(
+            runnerPath,
+            '      verifier: new VerifierEngine({ page, networkObserver }),\n      plan,',
+            '      verifier: new VerifierEngine({ page, networkObserver }),\n      observer,\n      ...(admission ? { admission } : {}),\n      admissionChecked: false,\n      plan,',
+          );
+          replace(
+            runnerPath,
+            '      const step = session.plan.steps[session.nextStepIndex]!;\n      if (requiresInteractiveApproval(step.action)) {',
+            `      const step = session.plan.steps[session.nextStepIndex]!;\n      if (step.action.type !== "navigate") {\n        const admissionResult = await this.checkAdmission(commandId, session);\n        if (admissionResult) return admissionResult;\n      }\n      if (requiresInteractiveApproval(step.action)) {`,
+          );
+          replace(
+            runnerPath,
+            '    const result: BrowserRunResult = {\n      status: "completed",',
+            `    const admissionResult = await this.checkAdmission(commandId, session);\n    if (admissionResult) return admissionResult;\n    const result: BrowserRunResult = {\n      status: "completed",`,
+          );
+          replace(
+            runnerPath,
+            '  private async finishFailure(\n',
+            `  private async checkAdmission(\n    commandId: string,\n    session: BrowserSession,\n  ): Promise<BrowserRunResult | undefined> {\n    if (!session.admission || session.admissionChecked) return undefined;\n    session.admissionChecked = true;\n    try {\n      const decision = await session.admission(await session.observer.observe());\n      session.evidence.push(...decision.evidence);\n      if (decision.allowed) return undefined;\n      return this.finishBlocked(commandId, session, decision.message);\n    } catch {\n      return this.finishBlocked(\n        commandId,\n        session,\n        "Human-intent admission failed closed before task execution.",\n      );\n    }\n  }\n\n  private async finishBlocked(\n    commandId: string,\n    session: BrowserSession,\n    message: string,\n  ): Promise<BrowserRunResult> {\n    const result: BrowserRunResult = {\n      status: "blocked",\n      message,\n      evidence: [...session.evidence],\n      proposal: summarizePlan(session.plan),\n    };\n    await this.cancel(commandId);\n    return result;\n  }\n\n  private async finishFailure(\n`,
+          );
+
+          // TaskService dependency injection and local-Fast-Path-only admission.
+          const servicePath = 'apps/desktop/src/main/task-service.ts';
+          replace(
+            servicePath,
+            '  type BrowserReadiness,\n  type BrowserRunResult,',
+            '  type BrowserIntentAdmission,\n  type BrowserReadiness,\n  type BrowserRunResult,\n  type DesktopBrowserRunnerLike,',
+          );
+          replace(
+            servicePath,
+            'import { compileLocalFastPath } from "./fast-path-planner.js";',
+            'import { compileLocalFastPath } from "./fast-path-planner.js";\nimport { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";',
+          );
+          replace(
+            servicePath,
+            '  providerAbort?: AbortController | undefined;\n}',
+            '  providerAbort?: AbortController | undefined;\n  predictionFirst?: boolean;\n}',
+          );
+          replace(
+            servicePath,
+            '  sourceBudget?: () => TaskBudgetTracker;\n}',
+            '  sourceBudget?: () => TaskBudgetTracker;\n  browserRunner?: DesktopBrowserRunnerLike;\n  humanIntentAdmission?: DesktopHumanIntentAdmission;\n}',
+          );
+          replace(
+            servicePath,
+            '  private readonly browserRunner: DesktopBrowserRunner;\n  private readonly globalRunner: DesktopGlobalRunner;',
+            '  private readonly browserRunner: DesktopBrowserRunnerLike;\n  private readonly globalRunner: DesktopGlobalRunner;\n  private readonly humanIntentAdmission: DesktopHumanIntentAdmission;',
+          );
+          replace(
+            servicePath,
+            '    this.browserRunner = new DesktopBrowserRunner(workspaceRoot);\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);',
+            '    this.browserRunner =\n      options.browserRunner ?? new DesktopBrowserRunner(workspaceRoot);\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);\n    this.humanIntentAdmission =\n      options.humanIntentAdmission ?? new DesktopHumanIntentAdmission();',
+          );
+          replace(
+            servicePath,
+            '        phase: "execution",\n        plan,\n      });',
+            '        phase: "execution",\n        plan,\n        predictionFirst: true,\n      });',
+          );
+          replace(
+            servicePath,
+            '      return isBrowserExecutionPlan(plan)\n        ? this.recordBrowserResult(\n            commandId,\n            await this.browserRunner.execute(commandId, plan),\n          )',
+            `      const admission: BrowserIntentAdmission | undefined =\n        isBrowserExecutionPlan(plan) && pending.predictionFirst\n          ? (state) =>\n              this.humanIntentAdmission.evaluate(\n                commandId,\n                pending.goal,\n                plan,\n                state,\n              )\n          : undefined;\n      return isBrowserExecutionPlan(plan)\n        ? this.recordBrowserResult(\n            commandId,\n            await this.browserRunner.execute(commandId, plan, admission),\n          )`,
+          );
+          replace(
+            servicePath,
+            '          phase: "execution",\n          plan,\n        });',
+            '          phase: "execution",\n          plan,\n          predictionFirst: persisted.predictionFirst === true,\n        });',
+          );
+          replace(
+            servicePath,
+            '        phase: pending.phase,\n        ...(pending.plan ? { plan: pending.plan } : {}),',
+            '        phase: pending.phase,\n        ...(pending.plan ? { plan: pending.plan } : {}),\n        ...(pending.predictionFirst ? { predictionFirst: true } : {}),',
+          );
+          replace(
+            servicePath,
+            '    if (result.status === "completed" || result.status === "failed") {',
+            '    if (\n      result.status === "completed" ||\n      result.status === "failed" ||\n      result.status === "blocked"\n    ) {',
+          );
+
+          const journalPath = 'apps/desktop/src/main/task-journal-store.ts';
+          replace(
+            journalPath,
+            '  plan?: TaskExecutionPlan;\n}',
+            '  plan?: TaskExecutionPlan;\n  predictionFirst?: boolean;\n}',
+          );
+          replace(
+            journalPath,
+            '    (value.plan === undefined || isRecord(value.plan))',
+            '    (value.plan === undefined || isRecord(value.plan)) &&\n    (value.predictionFirst === undefined ||\n      typeof value.predictionFirst === "boolean")',
+          );
+
+          // Cover the new dependency-free engine contract.
+          const learningTestPath = 'packages/controller/src/demo-learning.test.ts';
+          replace(
+            learningTestPath,
+            '  findSimilarDemoSkill,\n  learnDemoSkill,',
+            '  LocalFeatureHashEmbeddingEngine,\n  findSimilarDemoSkill,\n  learnDemoSkill,',
+          );
+          replace(
+            learningTestPath,
+            '  it("removes all form values from model observations", () => {',
+            `  it("produces bounded deterministic embeddings without native dependencies", async () => {\n    const engine = new LocalFeatureHashEmbeddingEngine();\n    const first = await engine.embed("Search release notes");\n    const repeated = await engine.embed("Search release notes");\n    const related = await engine.embed("Search the release documentation");\n    const unrelated = await engine.embed("Delete a billing account");\n    expect(first).toHaveLength(256);\n    expect(repeated).toEqual(first);\n    expect(dot(first, related)).toBeGreaterThan(dot(first, unrelated));\n  });\n\n  it("removes all form values from model observations", () => {`,
+          );
+          write(
+            learningTestPath,
+            read(learningTestPath) + `\nfunction dot(left: readonly number[], right: readonly number[]): number {\n  return left.reduce(\n    (sum, value, index) => sum + value * (right[index] ?? 0),\n    0,\n  );\n}\n`,
+          );
+
+          const rootPath = 'package.json';
+          const root = JSON.parse(read(rootPath));
+          root.overrides = {
+            ...(root.overrides ?? {}),
+            '@hono/node-server': '2.0.11',
+            'fast-uri': '3.1.4',
+          };
+          write(rootPath, `${JSON.stringify(root, null, 2)}\n`);
+          NODE
+      - name: Resolve secure production lockfile
+        run: |
+          SAFE_TAR_VERSION="$(npm view tar version)"
+          npm pkg set "overrides.tar=${SAFE_TAR_VERSION}"
+          npm install --package-lock-only
+          npm audit fix --package-lock-only --omit=dev || true
+          npm ci
+      - run: npm run pw:install
+      - name: Require zero moderate-or-higher production advisories
+        run: npm audit --omit=dev --audit-level=moderate
+      - run: npm run format
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+      - name: Remove temporary workflows and commit
+        run: |
+          git rm .github/workflows/xtf-final-runtime-remediation.yml
+          git rm .github/workflows/xtf-dependency-remediation.yml
+          git rm .github/workflows/xtf-dependency-hardening.yml
+          git rm .github/workflows/xtf-audit-debug.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "fix(xtf): complete live intent admission and remove vulnerable ML chain"
+          git push origin HEAD:xtf/lhic-learnloop
