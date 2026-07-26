@@ -522,7 +522,7 @@ export class HumanIntentLearnLoop {
       previous.intentFingerprint === intentFingerprint &&
       previous.stages.at(-1) !== prediction.predictedIntent
     ) {
-      score += 0.45;
+      score += 0.6;
       reasons.push(
         "Predicted intent changed while the human-intent fingerprint stayed stable.",
       );
