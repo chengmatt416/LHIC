@@ -1,5 +1,12 @@
 import { createPublicKey, type KeyObject } from "node:crypto";
-import { lstatSync, readFileSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync,
+} from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 
 import {
@@ -75,34 +82,58 @@ function readCorrectionApprovalPublicKey(
     return inlineValue;
   }
   if (!filePath) return undefined;
-  let metadata;
+  const value = readBoundedRegularPublicKeyFile(filePath);
+  assertBoundedPublicKey(value);
+  return value;
+}
+
+function readBoundedRegularPublicKeyFile(filePath: string): string {
+  let initialMetadata;
   try {
-    metadata = lstatSync(filePath);
+    initialMetadata = lstatSync(filePath);
   } catch {
     throw new Error(
       "LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE must point to a readable Ed25519 public-key file.",
     );
   }
   if (
-    !metadata.isFile() ||
-    metadata.isSymbolicLink() ||
-    metadata.size < 1 ||
-    metadata.size > maximumCorrectionPublicKeyBytes
+    !initialMetadata.isFile() ||
+    initialMetadata.isSymbolicLink() ||
+    initialMetadata.size < 1 ||
+    initialMetadata.size > maximumCorrectionPublicKeyBytes
   ) {
     throw new Error(
       "LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE must be a bounded regular file, not a symlink.",
     );
   }
-  let value: string;
+
+  const noFollowFlag =
+    process.platform === "win32" ? 0 : constants.O_NOFOLLOW;
+  let descriptor: number;
   try {
-    value = readFileSync(filePath, "utf8").trim();
+    descriptor = openSync(filePath, constants.O_RDONLY | noFollowFlag);
   } catch {
     throw new Error(
-      "LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE could not be read.",
+      "LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE could not be opened without following a symlink.",
     );
   }
-  assertBoundedPublicKey(value);
-  return value;
+  try {
+    const openedMetadata = fstatSync(descriptor);
+    if (
+      !openedMetadata.isFile() ||
+      openedMetadata.size < 1 ||
+      openedMetadata.size > maximumCorrectionPublicKeyBytes ||
+      openedMetadata.dev !== initialMetadata.dev ||
+      openedMetadata.ino !== initialMetadata.ino
+    ) {
+      throw new Error(
+        "LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE changed while it was being opened.",
+      );
+    }
+    return readFileSync(descriptor, "utf8").trim();
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 function assertBoundedPublicKey(value: string): void {
