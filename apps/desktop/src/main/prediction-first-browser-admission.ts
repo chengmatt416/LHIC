@@ -92,7 +92,8 @@ function actionFingerprint(action: SemanticAction): string {
   return JSON.stringify({
     type: action.type,
     target: typeof action.target === "string" ? action.target : "",
-    value: typeof action.value === "string" ? action.value : "",
+    value:
+      "value" in action && typeof action.value === "string" ? action.value : "",
     riskLevel: action.riskLevel,
     methodPreference: [...action.methodPreference],
   });
