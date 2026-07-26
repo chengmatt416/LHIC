@@ -1,14 +1,14 @@
-name: XTF production correction final test diagnostic
+name: XTF production correction ingress final validation
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  integrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Reproduce the successful hardening step
+      - name: Reproduce the successful hardened candidate
         shell: bash
         run: |
           git fetch --depth=1 origin 521b6fe4809ac06fbe2a864622ee58325837eaba
@@ -38,7 +38,30 @@ jobs:
           Path("/tmp/hardening-step.sh").write_text(script)
           PY
           bash /tmp/hardening-step.sh
-      - name: Format and typecheck candidate
+          python <<'PY'
+          import re
+          from pathlib import Path
+
+          path = Path("apps/desktop/src/main/correction-ingestion-runtime.test.ts")
+          source = path.read_text()
+          pattern = re.compile(r'(?m)^([ \t]*)\{\n\1  id: "search",')
+          matches = list(pattern.finditer(source))
+          if len(matches) != 1:
+              raise RuntimeError("Expected one search object in the correction runtime fixture.")
+          indent = matches[0].group(1)
+          replacement = (
+              f'{indent}{{\n'
+              f'{indent}  id: "password",\n'
+              f'{indent}  role: "textbox",\n'
+              f'{indent}  label: "Password",\n'
+              f'{indent}  source: "dom",\n'
+              f'{indent}}},\n'
+              f'{indent}{{\n'
+              f'{indent}  id: "search",'
+          )
+          path.write_text(source[:matches[0].start()] + replacement + source[matches[0].end():])
+          PY
+      - name: Format changed files
         run: |
           npx prettier --write \
             packages/controller/src/correction-replay-store.ts \
@@ -53,29 +76,37 @@ jobs:
             apps/desktop/src/main/main.ts \
             apps/desktop/src/preload/preload.ts \
             apps/desktop/src/shared/contracts.ts
-          npm run format:check
-          npm run typecheck
-      - name: Capture test and lint output
-        shell: bash
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Run correction boundary tests
+        run: >-
+          npx vitest run
+          packages/controller/src/correction-replay-store.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          apps/desktop/src/main/correction-ingestion-runtime.test.ts
+          apps/desktop/src/main/correction-submission-validation.test.ts
+          apps/desktop/src/main/task-service-correction-ingestion.test.ts
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+      - run: npm run lint
+      - name: Commit validated production ingress
         run: |
-          mkdir -p correction-diagnostic
-          set +e
-          npx vitest run \
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            packages/controller/src/correction-replay-store.ts \
             packages/controller/src/correction-replay-store.test.ts \
-            packages/controller/src/trusted-correction-ingestion.test.ts \
+            apps/desktop/src/main/correction-ingestion-runtime.ts \
             apps/desktop/src/main/correction-ingestion-runtime.test.ts \
+            apps/desktop/src/main/correction-submission-validation.ts \
             apps/desktop/src/main/correction-submission-validation.test.ts \
             apps/desktop/src/main/task-service-correction-ingestion.test.ts \
-            apps/desktop/src/main/prediction-first-browser-admission.test.ts \
-            apps/desktop/src/main/task-service-learnloop.test.ts \
-            > correction-diagnostic/tests.log 2>&1
-          echo "$?" > correction-diagnostic/tests.status
-          npm run lint > correction-diagnostic/lint.log 2>&1
-          echo "$?" > correction-diagnostic/lint.status
-          set -e
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: xtf-production-correction-final-test-diagnostic
-          path: correction-diagnostic
-          retention-days: 1
+            apps/desktop/src/main/task-service.ts \
+            apps/desktop/src/main/controller.ts \
+            apps/desktop/src/main/main.ts \
+            apps/desktop/src/preload/preload.ts \
+            apps/desktop/src/shared/contracts.ts \
+            .env.example
+          git commit -m "feat(xtf): wire signed corrections into Desktop LearnLoop"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
