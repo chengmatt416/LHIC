@@ -12,7 +12,7 @@ import { hashState, redactPII } from "@lhic/trace";
 
 import type { BrowserPlanStepOutcome } from "./browser-plan-runner.js";
 
-const embeddingModel = "Xenova/all-MiniLM-L6-v2";
+const embeddingDimensions = 256;
 const safePressValues = new Set([
   "Enter",
   "Escape",
@@ -50,36 +50,18 @@ export interface DemoLearningOptions {
   environment?: CandidateRunEnvironment;
 }
 
-/** Lazily downloads once, then uses a locally cached transformer model. */
-export class TransformersEmbeddingEngine implements LocalEmbeddingEngine {
-  private extractorPromise:
-    Promise<(input: string) => Promise<number[]>> | undefined;
-
-  public embed(input: string): Promise<number[]> {
-    this.extractorPromise ??= this.createExtractor();
-    return this.extractorPromise.then((extractor) => extractor(input));
-  }
-
-  private async createExtractor(): Promise<
-    (input: string) => Promise<number[]>
-  > {
-    const transformers = await import("@huggingface/transformers");
-    const extractor = await transformers.pipeline(
-      "feature-extraction",
-      embeddingModel,
-      {
-        dtype: "fp32",
-      },
-    );
-    return async (input: string) => {
-      const output = await extractor(input, {
-        pooling: "mean",
-        normalize: true,
-      });
-      return Array.from(output.data as Float32Array);
-    };
+/**
+ * Dependency-free local semantic feature hashing. It performs no model
+ * download, native addon load, network call, or dynamic code execution.
+ */
+export class LocalFeatureHashEmbeddingEngine implements LocalEmbeddingEngine {
+  public async embed(input: string): Promise<number[]> {
+    return featureHashEmbedding(input);
   }
 }
+
+/** @deprecated Use LocalFeatureHashEmbeddingEngine. */
+export class TransformersEmbeddingEngine extends LocalFeatureHashEmbeddingEngine {}
 
 export async function learnDemoSkill(
   skillStore: SkillStore,
@@ -278,6 +260,45 @@ function fingerprint(origin: string, shape: readonly string[]): string {
   return createHash("sha256")
     .update(JSON.stringify({ origin, shape }))
     .digest("hex");
+}
+
+function featureHashEmbedding(input: string): number[] {
+  const normalized = redactPII(input)
+    .normalize("NFKC")
+    .toLowerCase()
+    .slice(0, 8_192);
+  const tokens = normalized.match(/[\p{L}\p{N}]+/gu) ?? [];
+  const features: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]!;
+    features.push(`token:${token}`);
+    if (token.length >= 3) {
+      for (let offset = 0; offset <= token.length - 3; offset += 1) {
+        features.push(`tri:${token.slice(offset, offset + 3)}`);
+      }
+    }
+    const next = tokens[index + 1];
+    if (next) features.push(`pair:${token}:${next}`);
+  }
+  const vector = Array<number>(embeddingDimensions).fill(0);
+  for (const feature of features.slice(0, 2_048)) {
+    const primary = fnv1a(feature);
+    const secondary = fnv1a(`sign:${feature}`);
+    vector[primary % embeddingDimensions]! += (secondary & 1) === 0 ? 1 : -1;
+  }
+  const magnitude = Math.sqrt(
+    vector.reduce((sum, value) => sum + value * value, 0),
+  );
+  return magnitude === 0 ? vector : vector.map((value) => value / magnitude);
+}
+
+function fnv1a(value: string): number {
+  let hash = 0x811c9dc5;
+  for (const character of value) {
+    hash ^= character.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
 }
 
 function cosineSimilarity(
