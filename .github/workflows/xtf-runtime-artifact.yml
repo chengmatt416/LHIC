@@ -1,0 +1,51 @@
+name: XTF validated runtime wiring artifact
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Reuse the validated one-shot patch without repository writes
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/xtf-runtime-wiring.yml').read_text().splitlines()
+          start = next(i for i, line in enumerate(workflow) if "node <<'NODE'" in line) + 1
+          end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == 'NODE')
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in workflow[start:end])
+          Path('/tmp/xtf-runtime-patch.js').write_text(script + '\n')
+          PY
+          node /tmp/xtf-runtime-patch.js
+      - run: npm run format
+      - run: npm run typecheck
+      - run: >-
+          npx vitest run
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/prediction-first-human-intent-controller.test.ts
+      - run: npm run lint
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-validated-runtime-wiring
+          path: |
+            apps/desktop/src/main/task-service.ts
+            .github/workflows/xtf-learnloop.yml
+          retention-days: 1
