@@ -1,0 +1,97 @@
+name: XTF snapshot semantic hardening
+
+on:
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Strengthen signed snapshot semantic checks
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const sourcePath = 'packages/controller/src/human-intent-learnloop.ts';
+          let source = fs.readFileSync(sourcePath, 'utf8');
+          const replaceOne = (before, after, label) => {
+            const index = source.indexOf(before);
+            if (index < 0 || source.indexOf(before, index + before.length) >= 0) {
+              throw new Error(`Expected exactly one ${label} match.`);
+            }
+            source = source.slice(0, index) + after + source.slice(index + before.length);
+          };
+
+          replaceOne(
+            '    assertSnapshot(envelope.snapshot, this.maximumRules);',
+            `    assertSnapshot(\n      envelope.snapshot,\n      this.maximumRules,\n      this.minimumTrainingEvidence,\n      this.minimumValidationEvidence,\n    );`,
+            'snapshot call',
+          );
+          replaceOne(
+            `function assertSnapshot(\n  snapshot: LearnLoopSnapshot,\n  maximumRules: number,\n): void {`,
+            `function assertSnapshot(\n  snapshot: LearnLoopSnapshot,\n  maximumRules: number,\n  minimumTrainingEvidence: number,\n  minimumValidationEvidence: number,\n): void {`,
+            'snapshot signature',
+          );
+          replaceOne(
+            '    assertRule(rule);',
+            '    assertRule(rule, minimumTrainingEvidence, minimumValidationEvidence);',
+            'assert rule call',
+          );
+          replaceOne(
+            'function assertRule(rule: LearnLoopRule): void {',
+            `function assertRule(\n  rule: LearnLoopRule,\n  minimumTrainingEvidence: number,\n  minimumValidationEvidence: number,\n): void {`,
+            'assert rule signature',
+          );
+          replaceOne(
+            `    !controllerStages.has(rule.fromStage) ||\n    !controllerStages.has(rule.toStage) ||\n    !["candidate", "active", "quarantined", "revoked"].includes(rule.status) ||`,
+            `    !controllerStages.has(rule.fromStage) ||\n    !controllerStages.has(rule.toStage) ||\n    rule.fromStage === rule.toStage ||\n    !skillForStage[rule.toStage] ||\n    rule.skillName !== skillForStage[rule.toStage] ||\n    !["candidate", "active", "quarantined", "revoked"].includes(rule.status) ||`,
+            'stage skill invariants',
+          );
+          replaceOne(
+            `    rule.featureTokens.length > 128 ||\n    !allUnique(rule.featureTokens) ||\n    !allHashes(rule.trainingTaskHashes) ||`,
+            `    rule.featureTokens.length > 128 ||\n    !allUnique(rule.featureTokens) ||\n    rule.featureTokens.some(\n      (token) =>\n        typeof token !== "string" ||\n        token.length === 0 ||\n        token.length > 128 ||\n        /[\\u0000-\\u001f\\u007f]/.test(token),\n    ) ||\n    (rule.status === "active" &&\n      (rule.trainingTaskHashes.length < minimumTrainingEvidence ||\n        rule.validationUiFingerprints.length < minimumValidationEvidence)) ||\n    !allHashes(rule.trainingTaskHashes) ||`,
+            'evidence and token invariants',
+          );
+          fs.writeFileSync(sourcePath, source);
+
+          const testPath = 'packages/controller/src/human-intent-learnloop.test.ts';
+          let tests = fs.readFileSync(testPath, 'utf8');
+          tests = tests.replace(
+            'import { describe, expect, it } from "vitest";',
+            'import { createHmac } from "node:crypto";\n\nimport { describe, expect, it } from "vitest";',
+          );
+          const marker = `  it("supports explicit revocation without silently evicting active rules", () => {`;
+          if (!tests.includes(marker)) throw new Error('Test marker missing.');
+          const added = `  it("rejects re-signed snapshots with forged active evidence or skill bindings", () => {\n    const loop = new HumanIntentLearnLoop();\n    trainAndValidateSearchRule(loop);\n    const key = "0123456789abcdef0123456789abcdef";\n    const signed = loop.exportSignedSnapshot(key);\n\n    const wrongSkill = structuredClone(signed);\n    wrongSkill.snapshot.rules[0]!.skillName = "download_file";\n    wrongSkill.hmacSha256 = createHmac("sha256", key)\n      .update(JSON.stringify(wrongSkill.snapshot))\n      .digest("hex");\n    expect(() =>\n      new HumanIntentLearnLoop().importSignedSnapshot(wrongSkill, key),\n    ).toThrow("invalid rule");\n\n    const weakEvidence = structuredClone(signed);\n    weakEvidence.snapshot.rules[0]!.trainingTaskHashes = [];\n    weakEvidence.hmacSha256 = createHmac("sha256", key)\n      .update(JSON.stringify(weakEvidence.snapshot))\n      .digest("hex");\n    expect(() =>\n      new HumanIntentLearnLoop().importSignedSnapshot(weakEvidence, key),\n    ).toThrow("invalid rule");\n  });\n\n`;
+          tests = tests.replace(marker, `${added}${marker}`);
+          fs.writeFileSync(testPath, tests);
+
+          const reviewPath = 'docs/xtf-adversarial-review.md';
+          let review = fs.readFileSync(reviewPath, 'utf8');
+          if (!review.includes('Re-signed semantic forgery')) {
+            review += `\n3. **Re-signed semantic forgery:** HMAC integrity alone did not reject an active rule with insufficient evidence or a stage-to-skill mismatch when the envelope was re-signed by a compromised or misconfigured trusted process. Import now validates stage transitions, fixed skill binding, bounded tokens, and configured evidence minima before replacing live state.\n`;
+          }
+          fs.writeFileSync(reviewPath, review);
+          NODE
+      - run: npm run format
+      - run: npm run typecheck
+      - run: npx vitest run packages/controller/src/human-intent-learnloop.test.ts
+      - name: Commit semantic validation hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "fix(xtf): validate signed LearnLoop rule semantics"
+          git push origin HEAD:xtf/lhic-learnloop
