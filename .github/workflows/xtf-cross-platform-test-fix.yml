@@ -1,0 +1,56 @@
+name: XTF cross-platform test correction
+
+on:
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run pw:install
+      - name: Make native macOS tests assert the platform boundary on Linux
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          function replace(path, before, after) {
+            const source = fs.readFileSync(path, 'utf8');
+            if (!source.includes(before)) throw new Error(`Patch target missing: ${path}`);
+            fs.writeFileSync(path, source.replace(before, after));
+          }
+
+          replace(
+            'packages/game-training/src/game-training.test.ts',
+            `    await registerNativeGameTarget(profile, application, join(root, "runtime"));\n\n    await expect(\n      readRegisteredNativeGameTarget(profile, join(root, "runtime")),\n    ).resolves.toMatchObject({\n      schemaVersion: "native-game-target-v1",\n      profileId: "challenge-2026",\n      core: "2d",\n      applicationPath: application,\n    });`,
+            `    if (process.platform !== "darwin") {\n      await expect(\n        registerNativeGameTarget(profile, application, join(root, "runtime")),\n      ).rejects.toThrow("supported only on macOS");\n      return;\n    }\n\n    await registerNativeGameTarget(profile, application, join(root, "runtime"));\n\n    await expect(\n      readRegisteredNativeGameTarget(profile, join(root, "runtime")),\n    ).resolves.toMatchObject({\n      schemaVersion: "native-game-target-v1",\n      profileId: "challenge-2026",\n      core: "2d",\n      applicationPath: application,\n    });`,
+          );
+
+          replace(
+            'apps/cli/src/game-training.test.ts',
+            `    await expect(\n      runGameTrainingCommand([\n        "2d",\n        "setup",\n        "challenge-2026",\n        "--source",\n        application,\n        "--root",\n        join(root, "runtime"),\n      ]),\n    ).resolves.toMatchObject({\n      core: "2d",\n      profile: "challenge-2026",\n      target: { schemaVersion: "native-game-target-v1" },\n    });`,
+            `    const setup = runGameTrainingCommand([\n      "2d",\n      "setup",\n      "challenge-2026",\n      "--source",\n      application,\n      "--root",\n      join(root, "runtime"),\n    ]);\n    if (process.platform !== "darwin") {\n      await expect(setup).rejects.toThrow("supported only on macOS");\n      return;\n    }\n\n    await expect(setup).resolves.toMatchObject({\n      core: "2d",\n      profile: "challenge-2026",\n      target: { schemaVersion: "native-game-target-v1" },\n    });`,
+          );
+          NODE
+      - run: npm run format
+      - run: npm run typecheck
+      - run: npx vitest run packages/game-training/src/game-training.test.ts apps/cli/src/game-training.test.ts
+      - run: npm test
+      - name: Commit cross-platform test fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "test: respect native macOS target boundary on Linux"
+          git push origin HEAD:xtf/lhic-learnloop
