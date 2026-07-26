@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
 import { realpathSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { runCli as runLegacyCli } from "./main.js";
+import { runLegacyCli as runLegacyCli } from "./main.js";
 import { cliUsage } from "./interactive.js";
+import { runLearnLoopBenchmark } from "./learnloop-benchmark.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
 import {
   formatDoctorReport,
@@ -15,12 +18,12 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research command:\n  lhic bench learnloop [--output <path>]`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
- * the original dispatcher; beginner commands are handled here so they can stay
- * small, readable, and independently tested.
+ * the original dispatcher; beginner and research commands are handled here so
+ * they can stay small, readable, and independently tested.
  */
 export async function runCli(argumentsList: string[]): Promise<void> {
   const [command, firstArgument, workspaceRoot, databaseFile] = argumentsList;
@@ -61,6 +64,15 @@ export async function runCli(argumentsList: string[]): Promise<void> {
       console.log(formatSkillProgress(progress));
       return;
     }
+
+    if (command === "bench" && firstArgument === "learnloop") {
+      const report = runLearnLoopBenchmark();
+      const outputFile = parseResearchOutput(argumentsList.slice(2));
+      if (outputFile) await writeResearchOutput(outputFile, report);
+      console.log(JSON.stringify(report, null, 2));
+      if (!report.passed) process.exitCode = 1;
+      return;
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : "LHIC failed.");
     process.exitCode = 1;
@@ -73,6 +85,30 @@ export async function runCli(argumentsList: string[]): Promise<void> {
     );
   }
   await runLegacyCli(argumentsList);
+}
+
+function parseResearchOutput(argumentsList: string[]): string | undefined {
+  if (argumentsList.length === 0) return undefined;
+  if (
+    argumentsList.length !== 2 ||
+    argumentsList[0] !== "--output" ||
+    !argumentsList[1]
+  ) {
+    throw new Error("LearnLoop benchmark accepts only --output <path>.");
+  }
+  return argumentsList[1];
+}
+
+async function writeResearchOutput(
+  outputFile: string,
+  report: ReturnType<typeof runLearnLoopBenchmark>,
+): Promise<void> {
+  const resolvedOutputFile = resolve(outputFile);
+  await mkdir(dirname(resolvedOutputFile), { recursive: true });
+  await writeFile(resolvedOutputFile, `${JSON.stringify(report, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+  });
 }
 
 if (isEntryPoint()) {
