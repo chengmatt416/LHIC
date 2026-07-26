@@ -31,6 +31,7 @@
     "demo:render:build-week:vendor": "tsx demos/render-demo.ts --build-week --vendor-live",
     "pw:install": "playwright install chromium",
     "bench:internal": "tsx apps/cli/src/main.ts bench internal",
+    "bench:learnloop": "tsx apps/cli/src/entry.ts bench learnloop",
     "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
@@ -44,7 +45,7 @@
     "release:checksums": "npm run release:checksums --workspace @lhic/desktop",
     "check:release-versions": "node scripts/check-release-versions.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"
+    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run bench:learnloop && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"
   },
   "dependencies": {
     "playwright": "^1.61.1"
