@@ -1,0 +1,154 @@
+name: XTF one-shot live-UI runtime wiring
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  CI: true
+
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Wire TaskService to live Human Intent admission
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceOnce(source, before, after, label) {
+            const first = source.indexOf(before);
+            if (first < 0 || source.indexOf(before, first + before.length) >= 0) {
+              throw new Error(`Expected exactly one ${label} match.`);
+            }
+            return source.slice(0, first) + after + source.slice(first + before.length);
+          }
+
+          const servicePath = 'apps/desktop/src/main/task-service.ts';
+          let service = fs.readFileSync(servicePath, 'utf8');
+          service = replaceOnce(
+            service,
+            `import {\n  isBrowserExecutionPlan,\n  isDesktopExecutionPlan,\n  isExecutionProfile,\n} from "@lhic/schema";`,
+            `import {\n  isBrowserExecutionPlan,\n  isDesktopExecutionPlan,\n  isExecutionProfile,\n  type BrowserExecutionPlan,\n} from "@lhic/schema";`,
+            'browser plan type import',
+          );
+          service = replaceOnce(
+            service,
+            `  type BrowserReadiness,\n  type BrowserRunResult,\n} from "./desktop-browser-runner.js";`,
+            `  type BrowserIntentAdmission,\n  type BrowserReadiness,\n  type BrowserRunResult,\n} from "./desktop-browser-runner.js";`,
+            'browser admission type import',
+          );
+          service = replaceOnce(
+            service,
+            `import { compileLocalFastPath } from "./fast-path-planner.js";`,
+            `import { compileLocalFastPath } from "./fast-path-planner.js";\nimport { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";`,
+            'admission import',
+          );
+          service = replaceOnce(
+            service,
+            `interface TaskServiceOptions {\n  sourceStore?: Pick<TaskSourceStore, "load" | "save">;\n  journalStore?: Pick<TaskJournalStore, "load" | "save">;\n  sourceBudget?: () => TaskBudgetTracker;\n}`,
+            `type BrowserRunnerPort = Pick<\n  DesktopBrowserRunner,\n  "readiness" | "execute" | "approve" | "cancel" | "close"\n>;\n\ninterface TaskServiceOptions {\n  sourceStore?: Pick<TaskSourceStore, "load" | "save">;\n  journalStore?: Pick<TaskJournalStore, "load" | "save">;\n  sourceBudget?: () => TaskBudgetTracker;\n  browserRunner?: BrowserRunnerPort;\n  humanIntentAdmission?: Pick<DesktopHumanIntentAdmission, "evaluate">;\n}`,
+            'service options',
+          );
+          service = replaceOnce(
+            service,
+            `  private readonly browserRunner: DesktopBrowserRunner;\n  private readonly globalRunner: DesktopGlobalRunner;`,
+            `  private readonly browserRunner: BrowserRunnerPort;\n  private readonly humanIntentAdmission: Pick<\n    DesktopHumanIntentAdmission,\n    "evaluate"\n  >;\n  private readonly globalRunner: DesktopGlobalRunner;`,
+            'service properties',
+          );
+          service = replaceOnce(
+            service,
+            `    this.browserRunner = new DesktopBrowserRunner(workspaceRoot);\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);`,
+            `    this.browserRunner =\n      options.browserRunner ?? new DesktopBrowserRunner(workspaceRoot);\n    this.humanIntentAdmission =\n      options.humanIntentAdmission ?? new DesktopHumanIntentAdmission();\n    this.globalRunner = new DesktopGlobalRunner(workspaceRoot);`,
+            'constructor wiring',
+          );
+          service = replaceOnce(
+            service,
+            `            await this.browserRunner.execute(commandId, plan),`,
+            `            await this.browserRunner.execute(\n              commandId,\n              plan,\n              this.localHumanIntentAdmission(commandId, pending, plan),\n            ),`,
+            'execute admission',
+          );
+          service = replaceOnce(
+            service,
+            `  private recordBrowserResult(\n    commandId: string,`,
+            `  private localHumanIntentAdmission(\n    commandId: string,\n    pending: PendingTask,\n    plan: BrowserExecutionPlan,\n  ): BrowserIntentAdmission | undefined {\n    if (pending.source) return undefined;\n    return (uiState) => {\n      const decision = this.humanIntentAdmission.evaluate(\n        commandId,\n        pending.goal,\n        plan,\n        uiState,\n      );\n      return {\n        allowed: decision.allowed,\n        message: decision.message,\n        evidence: [...decision.evidence],\n      };\n    };\n  }\n\n  private recordBrowserResult(\n    commandId: string,`,
+            'admission callback method',
+          );
+          service = replaceOnce(
+            service,
+            `    if (result.status === "completed" || result.status === "failed") {\n      this.pending.delete(commandId);`,
+            `    if (\n      result.status === "completed" ||\n      result.status === "failed" ||\n      result.status === "blocked"\n    ) {\n      this.pending.delete(commandId);`,
+            'blocked terminal state',
+          );
+          fs.writeFileSync(servicePath, service);
+
+          const testPath = 'apps/desktop/src/main/task-service-learnloop.test.ts';
+          fs.writeFileSync(
+            testPath,
+            `import { describe, expect, it } from "vitest";\n\nimport type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";\n\nimport {\n  summarizePlan,\n  type BrowserIntentAdmission,\n  type BrowserRunResult,\n} from "./desktop-browser-runner.js";\nimport { TaskService } from "./task-service.js";\n\nconst searchState: NormalizedUIState = {\n  surface: "browser",\n  url: "https://docs.example.test/search",\n  title: "Documentation search",\n  objects: [\n    {\n      id: "query",\n      role: "searchbox",\n      label: "Search",\n      enabled: true,\n      source: "dom",\n      selector: "input[type=search]",\n    },\n  ],\n  signals: {},\n  capturedAt: "2026-07-27T00:00:00.000Z",\n};\n\ndescribe("TaskService prediction-first browser wiring", () => {\n  it("evaluates live UI before completing a local Fast Path", async () => {\n    let admissionObserved = false;\n    const service = createService(searchState, () => {\n      admissionObserved = true;\n    });\n    const proposed = await service.start({\n      goal: "Search for release notes",\n      startUrl: "https://docs.example.test/search",\n    });\n\n    const completed = await service.execute(proposed.commandId);\n\n    expect(admissionObserved).toBe(true);\n    expect(completed.status).toBe("completed");\n    expect(completed.evidence).toContain(\n      "Human Intent prediction ran against live normalized UI before task actions.",\n    );\n  });\n\n  it("propagates a fail-closed Human Intent decision as blocked", async () => {\n    const ambiguousState: NormalizedUIState = {\n      ...searchState,\n      objects: [\n        ...searchState.objects,\n        {\n          id: "email",\n          role: "textbox",\n          label: "Email",\n          enabled: true,\n          source: "dom",\n          selector: "#email",\n        },\n        {\n          id: "password",\n          role: "textbox",\n          label: "Password",\n          enabled: true,\n          source: "dom",\n          selector: "#password",\n        },\n      ],\n    };\n    const service = createService(ambiguousState);\n    const proposed = await service.start({\n      goal: "Search for release notes",\n      startUrl: "https://docs.example.test/search",\n    });\n\n    const blocked = await service.execute(proposed.commandId);\n\n    expect(blocked.status).toBe("blocked");\n    expect(blocked.message).toContain("Human-intent admission blocked");\n    await expect(service.execute(proposed.commandId)).rejects.toThrow(\n      "validated browser-plan-v1",\n    );\n  });\n\n  it("does not use LearnLoop admission to elevate Slow Path plans", async () => {\n    let admissionObserved = false;\n    const service = createService(searchState, () => {\n      admissionObserved = true;\n    });\n    const proposed = await service.start({\n      goal: "Unrecognized custom browser workflow",\n    });\n    expect(proposed.status).toBe("awaiting_approval");\n    expect(admissionObserved).toBe(false);\n  });\n});\n\nfunction createService(\n  uiState: NormalizedUIState,\n  onAdmission?: () => void,\n): TaskService {\n  const browserRunner = {\n    readiness: async () => ({\n      ready: true,\n      executablePath: "/test/chromium",\n      message: "ready",\n    }),\n    execute: async (\n      _commandId: string,\n      plan: BrowserExecutionPlan,\n      admission?: BrowserIntentAdmission,\n    ): Promise<BrowserRunResult> => {\n      expect(admission).toBeDefined();\n      onAdmission?.();\n      const decision = await admission!(uiState);\n      return {\n        status: decision.allowed ? "completed" : "blocked",\n        message: decision.message,\n        evidence: decision.evidence,\n        proposal: summarizePlan(plan),\n      };\n    },\n    approve: async () => {\n      throw new Error("not used");\n    },\n    cancel: async () => undefined,\n    close: async () => undefined,\n  };\n  return new TaskService(\n    process.cwd(),\n    { get: async () => undefined } as never,\n    { propose: async () => neverPlan() } as never,\n    {\n      browserRunner,\n      sourceStore: { load: async () => [], save: async () => undefined },\n      journalStore: {\n        load: async () => ({ events: [], pending: [] }),\n        save: async () => undefined,\n      },\n    },\n  );\n}\n\nfunction neverPlan(): never {\n  throw new Error("Slow Path must not be invoked by this test.");\n}\n`,
+          );
+
+          const gatePath = '.github/workflows/xtf-learnloop.yml';
+          let gate = fs.readFileSync(gatePath, 'utf8');
+          gate = replaceOnce(
+            gate,
+            `      - "apps/cli/src/entry.ts"\n      - "XTF-LEARNLOOP.md"`,
+            `      - "apps/cli/src/entry.ts"\n      - "apps/desktop/src/main/desktop-browser-runner.ts"\n      - "apps/desktop/src/main/prediction-first-browser-admission*"\n      - "apps/desktop/src/main/task-service*"\n      - "XTF-LEARNLOOP.md"`,
+            'desktop research paths',
+          );
+          gate = replaceOnce(
+            gate,
+            `          apps/cli/src/learnloop-benchmark.test.ts`,
+            `          apps/cli/src/learnloop-benchmark.test.ts\n          apps/desktop/src/main/prediction-first-browser-admission.test.ts\n          apps/desktop/src/main/task-service-learnloop.test.ts`,
+            'desktop invariant tests',
+          );
+          fs.writeFileSync(gatePath, gate);
+
+          const docsPath = 'XTF-LEARNLOOP.md';
+          let docs = fs.readFileSync(docsPath, 'utf8');
+          const sectionStart = docs.indexOf('## Current integration boundary');
+          const sectionEnd = docs.indexOf('\n## Safety invariants', sectionStart);
+          if (sectionStart < 0 || sectionEnd < 0) {
+            throw new Error('Integration-boundary section not found.');
+          }
+          const replacement = `## Current integration boundary\n\n\`PredictionFirstHumanIntentController\` is exported from \`@lhic/controller\` and is used by \`DesktopHumanIntentAdmission\` for local deterministic browser Fast Paths. The Desktop runner performs only the plan's first fixed low-risk HTTP(S) navigation as observation setup, verifies it, captures live normalized UI with \`BrowserStateObserver\`, and runs Human Intent admission before any fill, press, click, download, or elevated-risk action.\n\nAdmission is fail-closed and requires the authoritative \`FastPathRouter\` to reproduce the same built-in skill and exact non-navigation action sequence. A denied or failed admission closes the browser session and records a terminal blocked task. Slow Path plans are not promoted by LearnLoop and continue through the existing provider approval, action approval, and verifier path. Persistent correction capture from signed runtime outcomes remains a separate follow-up; this branch does not synthesize corrections from unverified desktop events.\n`;
+          docs = docs.slice(0, sectionStart) + replacement + docs.slice(sectionEnd);
+          docs = docs.replace(
+            '- It does not claim that the current Desktop `TaskService` is LearnLoop-integrated.\n',
+            '- It does not claim that all Slow Path or global-desktop execution is LearnLoop-controlled; the live gate applies only to deterministic local browser Fast Paths.\n',
+          );
+          docs = docs.replace(
+            'Before presenting a desktop end-to-end demo as research evidence, wire the research controller after live UI observation, bind `confirmedByUser` and verifier evidence to the existing signed runtime records, and test that failures feed back into rule quarantine without weakening any execution gate.\n',
+            'Before using runtime corrections as research evidence, bind `confirmedByUser` and verifier provenance to existing signed runtime records, persist the LearnLoop snapshot safely, and test that verified failures feed back into quarantine without weakening any execution gate.\n',
+          );
+          fs.writeFileSync(docsPath, docs);
+          NODE
+      - run: npm run format
+      - run: npm run typecheck
+      - run: >-
+          npx vitest run
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/prediction-first-human-intent-controller.test.ts
+      - run: npm run lint
+      - name: Commit validated runtime wiring
+        run: |
+          git rm .github/workflows/xtf-runtime-wiring.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "feat(xtf): gate local browser Fast Path on live Human Intent"
+          git push origin HEAD:xtf/lhic-learnloop
