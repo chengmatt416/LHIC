@@ -1,9 +1,9 @@
 name: XTF temporary test diagnostics
 
 on:
-  push:
+  pull_request:
     branches:
-      - xtf/lhic-learnloop
+      - main
 
 permissions:
   contents: read
