@@ -1,0 +1,46 @@
+name: XTF production hardening diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - name: Extract and run the failed hardening step
+        shell: bash
+        run: |
+          git fetch --depth=1 origin 82a6d7d6829739cbee27bdffaf4a58e0402f06ba
+          git show 82a6d7d6829739cbee27bdffaf4a58e0402f06ba:.github/workflows/xtf-production-correction-test-diagnostic.yml > /tmp/finalizer.yml
+          python <<'PY'
+          from pathlib import Path
+
+          lines = Path("/tmp/finalizer.yml").read_text().splitlines()
+          step = next(i for i, line in enumerate(lines) if "Reproduce and harden the normalized production patch" in line)
+          run = next(i for i in range(step, len(lines)) if lines[i].strip() == "run: |") + 1
+          end = next(i for i in range(run, len(lines)) if lines[i].startswith("      - name: Format changed files"))
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in lines[run:end]
+          ) + "\n"
+          Path("/tmp/hardening-step.sh").write_text(script)
+          PY
+          set +e
+          bash /tmp/hardening-step.sh > hardening.log 2>&1
+          echo "$?" > hardening.status
+          set -e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xtf-production-hardening-diagnostic
+          path: |
+            hardening.log
+            hardening.status
+          retention-days: 1
