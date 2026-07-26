@@ -13,8 +13,8 @@ import type {
 } from "@lhic/schema";
 import { hashState } from "@lhic/trace";
 
+import type { HumanIntentLearnLoop } from "./human-intent-learnloop.js";
 import {
-  HumanIntentLearnLoop,
   type CorrectionEvidenceSplit,
   type LearnLoopRule,
 } from "./human-intent-learnloop.js";
