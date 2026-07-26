@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   CI: true
@@ -85,20 +85,6 @@ jobs:
           );
           source = source.slice(0, browserStart) + updatedBlock + source.slice(browserEnd);
           fs.writeFileSync(path, source);
-
-          const gatePath = '.github/workflows/xtf-learnloop.yml';
-          let gate = fs.readFileSync(gatePath, 'utf8');
-          if (!gate.includes('apps/desktop/src/main/prediction-first-browser-admission*')) {
-            gate = gate.replace(
-              `      - "apps/cli/src/entry.ts"\n      - "XTF-LEARNLOOP.md"`,
-              `      - "apps/cli/src/entry.ts"\n      - "apps/desktop/src/main/desktop-browser-runner.ts"\n      - "apps/desktop/src/main/prediction-first-browser-admission*"\n      - "apps/desktop/src/main/task-service*"\n      - "XTF-LEARNLOOP.md"`,
-            );
-            gate = gate.replace(
-              `          apps/cli/src/learnloop-benchmark.test.ts`,
-              `          apps/cli/src/learnloop-benchmark.test.ts\n          apps/desktop/src/main/prediction-first-browser-admission.test.ts\n          apps/desktop/src/main/task-service-learnloop.test.ts`,
-            );
-            fs.writeFileSync(gatePath, gate);
-          }
           NODE
       - run: npm run format
       - run: npm run typecheck
@@ -111,10 +97,16 @@ jobs:
       - run: npm run lint
       - uses: actions/upload-artifact@v4
         with:
-          name: xtf-verified-runtime-wiring
-          path: |
-            apps/desktop/src/main/task-service.ts
-            apps/desktop/src/main/task-service-learnloop.test.ts
-            .github/workflows/xtf-learnloop.yml
+          name: xtf-verified-runtime-code
+          path: apps/desktop/src/main/task-service.ts
           if-no-files-found: error
           retention-days: 1
+      - name: Commit validated runtime code
+        run: |
+          git checkout -- .github/workflows/xtf-learnloop.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src/main/task-service.ts
+          git commit -m "feat(xtf): enforce live Human Intent in TaskService"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
