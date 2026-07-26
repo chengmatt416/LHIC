@@ -1,4 +1,4 @@
-name: XTF production correction ingress v2 diagnostic
+name: XTF production correction ingress v3 diagnostic
 
 on:
   pull_request:
@@ -30,13 +30,32 @@ jobs:
               for line in workflow[start:end]
           ) + "\n"
           Path("/tmp/production-correction-ingress.py").write_text(script)
-          path = Path("packages/controller/src/correction-replay-store.ts")
-          source = path.read_text()
+
+          replay = Path("packages/controller/src/correction-replay-store.ts")
+          source = replay.read_text()
           needle = "  private readonly now: () => Date;\n  private readonly maximumReservations: number;\n"
           if source.count(needle) != 2:
               raise RuntimeError("Expected matching reservation fields in both replay stores.")
           marker = "  private readonly now: () => Date;\n  // XTF_TEMP_IN_MEMORY_SCOPE\n  private readonly maximumReservations: number;\n"
-          path.write_text(source.replace(needle, marker, 1))
+          replay.write_text(source.replace(needle, marker, 1))
+
+          controller = Path("apps/desktop/src/main/controller.ts")
+          source = controller.read_text()
+          actual = '''  public executeTask(commandId: string): Promise<CommandEvent> {
+            return this.tasks.execute(commandId);
+          }
+
+          public cancelTask(commandId: string): Promise<void> {
+          '''
+          expected = '''  public executeTask(commandId: string): Promise<CommandEvent> {
+              return this.tasks.execute(commandId);
+            }
+
+            public cancelTask(commandId: string): Promise<void> {
+          '''
+          if source.count(actual) != 1:
+              raise RuntimeError("Expected the canonical controller execute/cancel block once.")
+          controller.write_text(source.replace(actual, expected, 1))
           PY
           set +e
           python /tmp/production-correction-ingress.py > correction-ingress.log 2>&1
@@ -46,7 +65,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: xtf-production-correction-v2-diagnostic
+          name: xtf-production-correction-v3-diagnostic
           path: |
             correction-ingress.log
             correction-ingress.status
