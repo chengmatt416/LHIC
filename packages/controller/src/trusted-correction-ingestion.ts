@@ -197,7 +197,9 @@ export class TrustedHumanIntentCorrectionIngestion {
   private readonly consumedApprovalIds = new Map<string, number>();
   private readonly consumedNonces = new Map<string, number>();
 
-  public constructor(private readonly options: TrustedCorrectionIngestionOptions) {
+  public constructor(
+    private readonly options: TrustedCorrectionIngestionOptions,
+  ) {
     this.now = options.now ?? (() => new Date());
     this.maximumConsumedApprovals = boundedInteger(
       options.maximumConsumedApprovals ?? 4_096,
@@ -215,7 +217,11 @@ export class TrustedHumanIntentCorrectionIngestion {
   ): LearnLoopRule {
     assertBindingInputs(binding);
     const now = this.now();
-    const validated = validateSignedApproval(approval, this.options.publicKey, now);
+    const validated = validateSignedApproval(
+      approval,
+      this.options.publicKey,
+      now,
+    );
     this.pruneExpired(now.getTime());
 
     let revoked = true;
@@ -233,7 +239,9 @@ export class TrustedHumanIntentCorrectionIngestion {
       throw new Error("Human Intent correction approval replay was rejected.");
     }
     if (this.consumedNonces.has(validated.claim.nonce)) {
-      throw new Error("Human Intent correction approval nonce replay was rejected.");
+      throw new Error(
+        "Human Intent correction approval nonce replay was rejected.",
+      );
     }
 
     assertClaimMatchesBinding(validated.claim, binding);
@@ -387,7 +395,9 @@ function assertBindingInputs(binding: HumanIntentCorrectionBinding): void {
     throw new Error("Human Intent corrections require a bounded task ID.");
   }
   if (!/^[a-f0-9]{64}$/.test(binding.traceSha256)) {
-    throw new Error("Human Intent corrections require a SHA-256 trace binding.");
+    throw new Error(
+      "Human Intent corrections require a SHA-256 trace binding.",
+    );
   }
   if (
     !binding.verifierVersion.trim() ||

@@ -275,9 +275,7 @@ function signedApproval(
     {
       now: issuedAt,
       ...(options.nonce ? { nonce: options.nonce } : {}),
-      ...(options.expiresInMs
-        ? { expiresInMs: options.expiresInMs }
-        : {}),
+      ...(options.expiresInMs ? { expiresInMs: options.expiresInMs } : {}),
     },
   );
 }
