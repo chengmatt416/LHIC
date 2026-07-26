@@ -1,14 +1,14 @@
-name: XTF production correction test diagnostic
+name: XTF production correction ingress final validation
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  integrate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Reproduce the normalized production patch
+      - name: Reproduce and harden the normalized production patch
         shell: bash
         run: |
           git fetch --depth=1 origin 32f9325638e3e47a803adfe4498f3dd4bb81e6b1
@@ -67,9 +67,55 @@ jobs:
           marker = "  // XTF_TEMP_IN_MEMORY_SCOPE\n"
           if source.count(marker) != 1:
               raise RuntimeError("Temporary InMemory scope marker was not preserved exactly once.")
-          replay.write_text(source.replace(marker, "", 1))
+          source = source.replace(marker, "", 1)
+          before = '''      this.pruneExpiredMarkers(this.approvalDirectory, this.now().getTime());
+                return this.markerCount(this.approvalDirectory);
+          '''
+          after = '''      const nowMs = this.now().getTime();
+                this.pruneExpiredMarkers(this.approvalDirectory, nowMs);
+                this.pruneExpiredMarkers(this.nonceDirectory, nowMs);
+                return this.markerCount(this.approvalDirectory);
+          '''
+          if source.count(before) != 1:
+              raise RuntimeError("Expected one replay count pruning block.")
+          replay.write_text(source.replace(before, after, 1))
+
+          for path_string in [
+              "apps/desktop/src/main/correction-ingestion-runtime.test.ts",
+              "apps/desktop/src/main/correction-submission-validation.test.ts",
+          ]:
+              path = Path(path_string)
+              test_source = path.read_text()
+              legacy = '''    const intent: UserIntent = {
+                schemaVersion: "user-intent-v1",
+                raw: "Search for release notes",
+                normalizedGoal: "Search for release notes",
+                constraints: [],
+                requestedOutputs: [],
+                riskHints: [],
+                source: "desktop",
+              };
+          '''
+              canonical = '''    const intent: UserIntent = {
+                goal: "Search for release notes",
+                constraints: {},
+                riskLevel: "low",
+                requiresConfirmation: false,
+                missingInformation: [],
+              };
+          '''
+              if test_source.count(legacy) != 1:
+                  raise RuntimeError(f"Expected one legacy UserIntent fixture in {path_string}.")
+              path.write_text(test_source.replace(legacy, canonical, 1))
+
+          main = Path("apps/desktop/src/main/main.ts")
+          main_source = main.read_text()
+          unused = "  HumanIntentCorrectionSubmission,\n"
+          if main_source.count(unused) != 1:
+              raise RuntimeError("Expected one unused correction submission import.")
+          main.write_text(main_source.replace(unused, "", 1))
           PY
-      - name: Format and typecheck candidate
+      - name: Format changed files
         run: |
           npx prettier --write \
             packages/controller/src/correction-replay-store.ts \
@@ -84,29 +130,37 @@ jobs:
             apps/desktop/src/main/main.ts \
             apps/desktop/src/preload/preload.ts \
             apps/desktop/src/shared/contracts.ts
-          npm run format:check
-          npm run typecheck
-      - name: Capture test and lint outputs
-        shell: bash
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Run correction boundary tests
+        run: >-
+          npx vitest run
+          packages/controller/src/correction-replay-store.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          apps/desktop/src/main/correction-ingestion-runtime.test.ts
+          apps/desktop/src/main/correction-submission-validation.test.ts
+          apps/desktop/src/main/task-service-correction-ingestion.test.ts
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+      - run: npm run lint
+      - name: Commit validated production ingress
         run: |
-          mkdir -p correction-diagnostic
-          set +e
-          npx vitest run \
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            packages/controller/src/correction-replay-store.ts \
             packages/controller/src/correction-replay-store.test.ts \
-            packages/controller/src/trusted-correction-ingestion.test.ts \
+            apps/desktop/src/main/correction-ingestion-runtime.ts \
             apps/desktop/src/main/correction-ingestion-runtime.test.ts \
+            apps/desktop/src/main/correction-submission-validation.ts \
             apps/desktop/src/main/correction-submission-validation.test.ts \
             apps/desktop/src/main/task-service-correction-ingestion.test.ts \
-            apps/desktop/src/main/prediction-first-browser-admission.test.ts \
-            apps/desktop/src/main/task-service-learnloop.test.ts \
-            > correction-diagnostic/tests.log 2>&1
-          echo "$?" > correction-diagnostic/tests.status
-          npm run lint > correction-diagnostic/lint.log 2>&1
-          echo "$?" > correction-diagnostic/lint.status
-          set -e
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: xtf-production-correction-test-diagnostic
-          path: correction-diagnostic
-          retention-days: 1
+            apps/desktop/src/main/task-service.ts \
+            apps/desktop/src/main/controller.ts \
+            apps/desktop/src/main/main.ts \
+            apps/desktop/src/preload/preload.ts \
+            apps/desktop/src/shared/contracts.ts \
+            .env.example
+          git commit -m "feat(xtf): wire signed corrections into Desktop LearnLoop"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
