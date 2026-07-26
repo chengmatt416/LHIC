@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  TaskBudgetTracker,
+  type HumanIntentCorrectionBinding,
+  type LearnLoopRule,
+  type SignedHumanIntentCorrectionApproval,
+} from "@lhic/controller";
+import {
   isBrowserExecutionPlan,
   isDesktopExecutionPlan,
   isExecutionProfile,
   type BrowserExecutionPlan,
 } from "@lhic/schema";
-import { TaskBudgetTracker } from "@lhic/controller";
 
 import type {
   CommandEvent,
@@ -28,6 +33,7 @@ import {
   summarizeDesktopPlan,
   type GlobalRunResult,
 } from "./desktop-global-runner.js";
+import { createDesktopHumanIntentCorrectionRuntime } from "./correction-ingestion-runtime.js";
 import { compileLocalFastPath } from "./fast-path-planner.js";
 import { DesktopHumanIntentAdmission } from "./prediction-first-browser-admission.js";
 import type { DesktopCredentialStore } from "./keyring.js";
@@ -60,6 +66,10 @@ interface TaskServiceOptions {
   sourceBudget?: () => TaskBudgetTracker;
   browserRunner?: BrowserRunnerPort;
   humanIntentAdmission?: Pick<DesktopHumanIntentAdmission, "evaluate">;
+  humanIntentCorrectionIngestion?: Pick<
+    DesktopHumanIntentAdmission,
+    "ingestCorrection"
+  >;
 }
 
 /**
@@ -78,6 +88,8 @@ export class TaskService {
     DesktopHumanIntentAdmission,
     "evaluate"
   >;
+  private readonly humanIntentCorrectionIngestion:
+    Pick<DesktopHumanIntentAdmission, "ingestCorrection"> | undefined;
   private readonly globalRunner: DesktopGlobalRunner;
   private readonly sourceStore: Pick<TaskSourceStore, "load" | "save">;
   private readonly journalStore: Pick<TaskJournalStore, "load" | "save">;
@@ -98,8 +110,17 @@ export class TaskService {
       new TaskSourceAdapter({ credentialFor: (id) => credentials.get(id) });
     this.browserRunner =
       options.browserRunner ?? new DesktopBrowserRunner(workspaceRoot);
+    const defaultHumanIntentRuntime =
+      options.humanIntentAdmission || options.humanIntentCorrectionIngestion
+        ? undefined
+        : createDesktopHumanIntentCorrectionRuntime(workspaceRoot);
     this.humanIntentAdmission =
-      options.humanIntentAdmission ?? new DesktopHumanIntentAdmission();
+      options.humanIntentAdmission ??
+      defaultHumanIntentRuntime?.admission ??
+      new DesktopHumanIntentAdmission();
+    this.humanIntentCorrectionIngestion =
+      options.humanIntentCorrectionIngestion ??
+      defaultHumanIntentRuntime?.admission;
     this.globalRunner = new DesktopGlobalRunner(workspaceRoot);
     this.sourceStore =
       options.sourceStore ?? new TaskSourceStore(workspaceRoot);
@@ -110,6 +131,21 @@ export class TaskService {
       const source = defaultSource(kind);
       this.sources.set(source.id, source);
     }
+  }
+
+  public ingestHumanIntentCorrection(
+    binding: HumanIntentCorrectionBinding,
+    approval: SignedHumanIntentCorrectionApproval,
+  ): LearnLoopRule {
+    if (!this.humanIntentCorrectionIngestion) {
+      throw new Error(
+        "Trusted Human Intent correction ingestion is not configured for this TaskService.",
+      );
+    }
+    return this.humanIntentCorrectionIngestion.ingestCorrection(
+      binding,
+      approval,
+    );
   }
 
   public listSources(): TaskSourceConfig[] {

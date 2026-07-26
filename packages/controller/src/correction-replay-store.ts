@@ -7,6 +7,7 @@ import {
   openSync,
   readFileSync,
   readdirSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
@@ -95,6 +96,7 @@ export class InMemoryHumanIntentCorrectionReplayStore implements HumanIntentCorr
 export interface FileCorrectionReplayStoreOptions {
   now?: () => Date;
   maximumReservations?: number;
+  expiredRetentionMs?: number;
 }
 
 /**
@@ -108,6 +110,7 @@ export class FileHumanIntentCorrectionReplayStore implements HumanIntentCorrecti
   private readonly nonceDirectory: string;
   private readonly now: () => Date;
   private readonly maximumReservations: number;
+  private readonly expiredRetentionMs: number;
 
   public constructor(
     directory: string,
@@ -121,10 +124,16 @@ export class FileHumanIntentCorrectionReplayStore implements HumanIntentCorrecti
     this.nonceDirectory = join(this.root, "nonces");
     this.now = options.now ?? (() => new Date());
     this.maximumReservations = boundedInteger(
-      options.maximumReservations ?? 100_000,
+      options.maximumReservations ?? 4_096,
       1,
-      1_000_000,
+      100_000,
       "maximumReservations",
+    );
+    this.expiredRetentionMs = boundedInteger(
+      options.expiredRetentionMs ?? 10 * 60_000,
+      30_000,
+      24 * 60 * 60_000,
+      "expiredRetentionMs",
     );
   }
 
@@ -175,7 +184,9 @@ export class FileHumanIntentCorrectionReplayStore implements HumanIntentCorrecti
   public count(): number {
     try {
       this.prepareDirectories();
-      this.pruneExpiredMarkers(this.approvalDirectory, this.now().getTime());
+      const nowMs = this.now().getTime();
+      this.pruneExpiredMarkers(this.approvalDirectory, nowMs);
+      this.pruneExpiredMarkers(this.nonceDirectory, nowMs);
       return this.markerCount(this.approvalDirectory);
     } catch {
       throw new Error(
@@ -253,10 +264,15 @@ export class FileHumanIntentCorrectionReplayStore implements HumanIntentCorrecti
           typeof marker.expiresAt === "string"
             ? Date.parse(marker.expiresAt)
             : Number.NaN;
-        if (Number.isFinite(expiresAt) && expiresAt <= nowMs) {
-          // Deliberately do not remove through this generic scanner. Expired
-          // tokens remain fail-closed until an administrator rotates the store;
-          // this avoids a cross-process unlink/create race reopening a replay.
+        if (
+          Number.isFinite(expiresAt) &&
+          expiresAt + this.expiredRetentionMs <= nowMs
+        ) {
+          try {
+            unlinkSync(path);
+          } catch (error) {
+            if (!hasCode(error, "ENOENT")) throw error;
+          }
         }
       } catch {
         // Preserve malformed markers: deleting them could re-enable a replay.

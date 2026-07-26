@@ -120,6 +120,29 @@ describe("Human Intent correction replay stores", () => {
     });
   });
 
+  it("removes valid expired markers only after a safety retention window", () => {
+    const directory = temporaryDirectory();
+    let currentTime = now;
+    const store = new FileHumanIntentCorrectionReplayStore(directory, {
+      now: () => currentTime,
+      expiredRetentionMs: 10 * 60_000,
+    });
+    expect(
+      store.reserve(
+        correctionReservation(
+          "00000000-0000-4000-8000-000000000008",
+          "8".repeat(64),
+        ),
+      ).allowed,
+    ).toBe(true);
+    currentTime = new Date("2026-07-27T00:14:59.000Z");
+    expect(store.count()).toBe(1);
+    currentTime = new Date("2026-07-27T00:15:01.000Z");
+    expect(store.count()).toBe(0);
+    expect(readdirSync(join(directory, "approvals"))).toHaveLength(0);
+    expect(readdirSync(join(directory, "nonces"))).toHaveLength(0);
+  });
+
   it("keeps the in-memory store explicitly bounded for tests", () => {
     const store = new InMemoryHumanIntentCorrectionReplayStore({
       now: () => now,

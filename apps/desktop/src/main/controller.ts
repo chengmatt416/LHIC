@@ -17,6 +17,7 @@ import type {
   DashboardSnapshot,
   GameProfile,
   GameTrainingEnvironment,
+  HumanIntentCorrectionSubmission,
   GameTrainingRequest,
   PublicWebTrainingRequest,
   PolicyPackage,
@@ -247,6 +248,13 @@ export class DesktopController {
 
   public executeTask(commandId: string): Promise<CommandEvent> {
     return this.tasks.execute(commandId);
+  }
+
+  public ingestHumanIntentCorrection(input: HumanIntentCorrectionSubmission) {
+    return this.tasks.ingestHumanIntentCorrection(
+      input.binding,
+      input.approval,
+    );
   }
 
   public cancelTask(commandId: string): Promise<void> {
