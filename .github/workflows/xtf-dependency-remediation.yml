@@ -1,23 +1,24 @@
-name: XTF one-shot production dependency remediation
+name: XTF dependency remediation diagnostics
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CI: true
 
 jobs:
-  remediate:
+  diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
           ref: xtf/lhic-learnloop
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -26,208 +27,72 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
-      - name: Remove vulnerable native embedding chain and pin audited dependencies
+      - name: Reapply the exact reviewed candidate patch
         run: |
+          git show HEAD^:.github/workflows/xtf-dependency-remediation.yml > /tmp/previous-remediation.yml
           python <<'PY'
-          import json
           from pathlib import Path
 
-          def replace_once(path: str, before: str, after: str) -> None:
-              file = Path(path)
-              source = file.read_text()
-              if source.count(before) != 1:
-                  raise RuntimeError(f"Expected exactly one match in {path}: {before[:120]!r}")
-              file.write_text(source.replace(before, after, 1))
-
-          learning_path = Path("packages/controller/src/demo-learning.ts")
-          learning = learning_path.read_text()
-          learning = learning.replace(
-              'const embeddingModel = "Xenova/all-MiniLM-L6-v2";\n',
-              'const embeddingDimensions = 256;\n',
-              1,
-          )
-          class_start = learning.index(
-              "/** Lazily downloads once, then uses a locally cached transformer model. */"
-          )
-          class_end = learning.index("export async function learnDemoSkill", class_start)
-          replacement = '''/**
-           * Dependency-free local semantic feature hashing. It performs no model
-           * download, native addon load, network call, or dynamic code execution.
-           */
-          export class LocalFeatureHashEmbeddingEngine
-            implements LocalEmbeddingEngine
-          {
-            public async embed(input: string): Promise<number[]> {
-              return featureHashEmbedding(input);
-            }
-          }
-
-          /** @deprecated Use LocalFeatureHashEmbeddingEngine. */
-          export class TransformersEmbeddingEngine extends LocalFeatureHashEmbeddingEngine {}
-
-          '''
-          learning = learning[:class_start] + replacement + learning[class_end:]
-          helper_anchor = "function cosineSimilarity(\n"
-          if helper_anchor not in learning:
-              raise RuntimeError("Embedding helper insertion point is missing.")
-          helper = '''function featureHashEmbedding(input: string): number[] {
-            const normalized = redactPII(input)
-              .normalize("NFKC")
-              .toLowerCase()
-              .slice(0, 8_192);
-            const tokens = normalized.match(/[\\p{L}\\p{N}]+/gu) ?? [];
-            const features: string[] = [];
-            for (let index = 0; index < tokens.length; index += 1) {
-              const token = tokens[index]!;
-              features.push(`token:${token}`);
-              if (token.length >= 3) {
-                for (let offset = 0; offset <= token.length - 3; offset += 1) {
-                  features.push(`tri:${token.slice(offset, offset + 3)}`);
-                }
-              }
-              const next = tokens[index + 1];
-              if (next) features.push(`pair:${token}:${next}`);
-            }
-            const vector = Array<number>(embeddingDimensions).fill(0);
-            for (const feature of features.slice(0, 2_048)) {
-              const primary = fnv1a(feature);
-              const secondary = fnv1a(`sign:${feature}`);
-              vector[primary % embeddingDimensions]! +=
-                (secondary & 1) === 0 ? 1 : -1;
-            }
-            const magnitude = Math.sqrt(
-              vector.reduce((sum, value) => sum + value * value, 0),
-            );
-            return magnitude === 0
-              ? vector
-              : vector.map((value) => value / magnitude);
-          }
-
-          function fnv1a(value: string): number {
-            let hash = 0x811c9dc5;
-            for (const character of value) {
-              hash ^= character.codePointAt(0) ?? 0;
-              hash = Math.imul(hash, 0x01000193);
-            }
-            return hash >>> 0;
-          }
-
-          '''
-          learning_path.write_text(learning.replace(helper_anchor, helper + helper_anchor, 1))
-
-          replace_once(
-              "apps/cli/src/interactive-demo.ts",
-              "  TransformersEmbeddingEngine,\n",
-              "  LocalFeatureHashEmbeddingEngine,\n",
-          )
-          replace_once(
-              "apps/cli/src/interactive-demo.ts",
-              "new TransformersEmbeddingEngine()",
-              "new LocalFeatureHashEmbeddingEngine()",
-          )
-          replace_once(
-              "apps/mcp-server/src/index.ts",
-              "  TransformersEmbeddingEngine,\n",
-              "  LocalFeatureHashEmbeddingEngine,\n",
-          )
-          replace_once(
-              "apps/mcp-server/src/index.ts",
-              "new TransformersEmbeddingEngine()",
-              "new LocalFeatureHashEmbeddingEngine()",
-          )
-
-          test_path = Path("packages/controller/src/demo-learning.test.ts")
-          test = test_path.read_text()
-          test = test.replace(
-              "  findSimilarDemoSkill,\n",
-              "  LocalFeatureHashEmbeddingEngine,\n  findSimilarDemoSkill,\n",
-              1,
-          )
-          test_anchor = '  it("removes all form values from model observations", () => {'
-          if test_anchor not in test:
-              raise RuntimeError("Demo embedding test insertion point is missing.")
-          engine_test = '''  it("produces bounded deterministic local semantic embeddings", async () => {
-            const engine = new LocalFeatureHashEmbeddingEngine();
-            const first = await engine.embed("Search release notes");
-            const repeated = await engine.embed("Search release notes");
-            const related = await engine.embed("Search the release documentation");
-            const unrelated = await engine.embed("Delete a billing account");
-            expect(first).toHaveLength(256);
-            expect(repeated).toEqual(first);
-            expect(dot(first, related)).toBeGreaterThan(dot(first, unrelated));
-            expect(first.every(Number.isFinite)).toBe(true);
-          });
-
-          '''
-          test = test.replace(test_anchor, engine_test + test_anchor, 1)
-          test += '''
-
-          function dot(
-            left: readonly number[],
-            right: readonly number[],
-          ): number {
-            return left.reduce(
-              (sum, value, index) => sum + value * (right[index] ?? 0),
-              0,
-            );
-          }
-          '''
-          test_path.write_text(test)
-
-          controller_package_path = Path("packages/controller/package.json")
-          controller_package = json.loads(controller_package_path.read_text())
-          controller_package["dependencies"].pop("@huggingface/transformers", None)
-          controller_package_path.write_text(
-              json.dumps(controller_package, indent=2, ensure_ascii=False) + "\n"
-          )
-
-          mcp_package_path = Path("apps/mcp-server/package.json")
-          mcp_package = json.loads(mcp_package_path.read_text())
-          mcp_package["dependencies"]["@modelcontextprotocol/sdk"] = "1.24.3"
-          mcp_package_path.write_text(
-              json.dumps(mcp_package, indent=2, ensure_ascii=False) + "\n"
-          )
-
-          root_path = Path("package.json")
-          root = json.loads(root_path.read_text())
-          root.setdefault("overrides", {})["fast-uri"] = "3.1.4"
-          root_path.write_text(json.dumps(root, indent=2, ensure_ascii=False) + "\n")
+          lines = Path("/tmp/previous-remediation.yml").read_text().splitlines()
+          start = next(i for i, line in enumerate(lines) if "python <<'PY'" in line) + 1
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == "PY")
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in lines[start:end]
+          ) + "\n"
+          Path("/tmp/apply-remediation.py").write_text(script)
           PY
+          python /tmp/apply-remediation.py
           SAFE_TAR_VERSION="$(npm view tar version)"
           npm pkg set "overrides.tar=${SAFE_TAR_VERSION}"
           npm install --package-lock-only
           npm ci
       - run: npm run pw:install
-      - name: Validate the complete repository and production graph
+      - name: Capture each validation gate independently
+        shell: bash
         run: |
-          npm run format
-          npm run format:check
-          npm run typecheck
-          npm test
-          npm run lint
-          npm run build
-          npm run bench:internal
-          npm run bench:learnloop
-          npm run preflight
-          npm run audit:prod
-          npm run check:docs
-          npm run check:release-versions
-          npm run scan:secrets
-          PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests
-          python packages/game-training/python/test_worker.py
-          python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
-      - name: Commit validated production remediation
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            package.json \
-            package-lock.json \
-            packages/controller/package.json \
-            packages/controller/src/demo-learning.ts \
-            packages/controller/src/demo-learning.test.ts \
-            apps/cli/src/interactive-demo.ts \
-            apps/mcp-server/package.json \
-            apps/mcp-server/src/index.ts
-          git commit -m "security(xtf): remove vulnerable production dependency chains"
-          git push origin HEAD:xtf/lhic-learnloop
+          mkdir -p dependency-diagnostics
+          set +e
+          npm run format > dependency-diagnostics/format.log 2>&1
+          echo "$?" > dependency-diagnostics/format.status
+          set -e
+
+          run_check() {
+            local name="$1"
+            shift
+            set +e
+            "$@" > "dependency-diagnostics/${name}.log" 2>&1
+            local status=$?
+            set -e
+            echo "$status" > "dependency-diagnostics/${name}.status"
+          }
+
+          run_check format-check npm run format:check
+          run_check typecheck npm run typecheck
+          run_check tests npm test
+          run_check lint npm run lint
+          run_check build npm run build
+          run_check bench-internal npm run bench:internal
+          run_check bench-learnloop npm run bench:learnloop
+          run_check preflight npm run preflight
+          run_check audit npm run audit:prod
+          run_check docs npm run check:docs
+          run_check release-versions npm run check:release-versions
+          run_check secrets npm run scan:secrets
+          run_check agentlab bash -lc 'PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests'
+          run_check game-training-python python packages/game-training/python/test_worker.py
+          run_check python-compile python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
+
+          git diff --binary > dependency-diagnostics/candidate.patch
+          cp package.json package-lock.json packages/controller/package.json apps/mcp-server/package.json dependency-diagnostics/
+          for status_file in dependency-diagnostics/*.status; do
+            printf '%s=' "$(basename "$status_file" .status)"
+            cat "$status_file"
+          done | sort > dependency-diagnostics/summary.txt
+          cat dependency-diagnostics/summary.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-dependency-remediation-diagnostics
+          path: dependency-diagnostics
+          if-no-files-found: error
+          retention-days: 1
