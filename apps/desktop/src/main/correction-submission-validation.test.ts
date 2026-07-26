@@ -41,6 +41,35 @@ describe("Human Intent correction IPC validation", () => {
     );
   });
 
+  it("rejects deeply nested input before recursive state hashing", () => {
+    const submission = validSubmission();
+    let nested: Record<string, unknown> = {};
+    for (let depth = 0; depth < 40; depth += 1) {
+      nested = { next: nested };
+    }
+    submission.binding.intent.constraints = { nested };
+    expect(() => validateHumanIntentCorrectionSubmission(submission)).toThrow(
+      "nested too deeply",
+    );
+  });
+
+  it("rejects malformed intent and UI object fields", () => {
+    const malformedIntent = validSubmission();
+    malformedIntent.binding.intent.riskLevel = "critical" as never;
+    expect(() =>
+      validateHumanIntentCorrectionSubmission(malformedIntent),
+    ).toThrow("risk level");
+
+    const malformedObject = validSubmission();
+    malformedObject.binding.uiState.objects[0] = {
+      ...malformedObject.binding.uiState.objects[0],
+      id: 42,
+    } as never;
+    expect(() =>
+      validateHumanIntentCorrectionSubmission(malformedObject),
+    ).toThrow("object ID");
+  });
+
   it("rejects malformed verifier evidence", () => {
     const submission = validSubmission();
     submission.binding.verification = { success: true, evidence: [] };
