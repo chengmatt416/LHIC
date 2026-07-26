@@ -1,14 +1,14 @@
-name: XTF correction formatting export
+name: XTF correction formatting apply
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  format-export:
+  format-apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +25,18 @@ jobs:
           packages/controller/src/trusted-correction-ingestion.test.ts
           packages/controller/src/index.ts
           .github/workflows/xtf-learnloop.yml
+      - run: npm run format:check
       - run: |
-          mkdir -p formatted/packages/controller/src formatted/.github/workflows
-          cp packages/controller/src/trusted-correction-ingestion.ts formatted/packages/controller/src/
-          cp packages/controller/src/trusted-correction-ingestion.test.ts formatted/packages/controller/src/
-          cp packages/controller/src/index.ts formatted/packages/controller/src/
-          cp .github/workflows/xtf-learnloop.yml formatted/.github/workflows/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtf-correction-formatted
-          path: formatted
-          retention-days: 1
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            packages/controller/src/trusted-correction-ingestion.ts \
+            packages/controller/src/trusted-correction-ingestion.test.ts \
+            packages/controller/src/index.ts \
+            .github/workflows/xtf-learnloop.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "style(xtf): format trusted correction ingestion"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
