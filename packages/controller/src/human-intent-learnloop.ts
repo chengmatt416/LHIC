@@ -34,6 +34,7 @@ export interface CorrectionProvenance {
 export interface LearnLoopRule {
   id: string;
   contextKey: string;
+  scopeSha256: string;
   featureTokens: string[];
   fromStage: ControllerStage;
   toStage: ControllerStage;
@@ -49,7 +50,7 @@ export interface LearnLoopRule {
 }
 
 export interface LearnLoopSnapshot {
-  schemaVersion: "lhic-learnloop-v2";
+  schemaVersion: "lhic-learnloop-v3";
   rules: LearnLoopRule[];
 }
 
@@ -113,6 +114,7 @@ interface SessionState {
 
 interface ContextFeatures {
   key: string;
+  scopeSha256: string;
   tokens: string[];
   intentFingerprint: string;
 }
@@ -253,6 +255,7 @@ export class HumanIntentLearnLoop {
     const related = [...this.rules.values()].filter(
       (rule) =>
         rule.fromStage === input.predictedStage &&
+        rule.scopeSha256 === features.scopeSha256 &&
         rule.status !== "revoked" &&
         similarity(rule.featureTokens, features.tokens) >=
           this.similarityThreshold,
@@ -260,16 +263,6 @@ export class HumanIntentLearnLoop {
     const conflictingTargets = related.filter(
       (rule) => rule.toStage !== input.correctedStage,
     );
-    if (conflictingTargets.length > 0) {
-      for (const rule of related) {
-        this.rules.set(rule.id, {
-          ...rule,
-          status: "quarantined",
-          updatedAt: now,
-        });
-      }
-    }
-
     const existing = related
       .filter((rule) => rule.toStage === input.correctedStage)
       .sort(
@@ -310,6 +303,16 @@ export class HumanIntentLearnLoop {
       validationUiFingerprints.add(input.provenance.uiFingerprint);
     }
 
+    if (conflictingTargets.length > 0) {
+      for (const rule of related) {
+        this.rules.set(rule.id, {
+          ...rule,
+          status: "quarantined",
+          updatedAt: now,
+        });
+      }
+    }
+
     const conflict = conflictingTargets.length > 0;
     const status: LearnLoopRuleStatus = conflict
       ? "quarantined"
@@ -322,7 +325,8 @@ export class HumanIntentLearnLoop {
       : features.tokens;
     const rule: LearnLoopRule = {
       id: existing?.id ?? randomUUID(),
-      contextKey: hashState(featureTokens),
+      contextKey: hashState([features.scopeSha256, ...featureTokens]),
+      scopeSha256: features.scopeSha256,
       featureTokens,
       fromStage: input.predictedStage,
       toStage: input.correctedStage,
@@ -386,7 +390,7 @@ export class HumanIntentLearnLoop {
 
   public exportSnapshot(): LearnLoopSnapshot {
     return {
-      schemaVersion: "lhic-learnloop-v2",
+      schemaVersion: "lhic-learnloop-v3",
       rules: this.listRules(),
     };
   }
@@ -441,6 +445,7 @@ export class HumanIntentLearnLoop {
       .filter(
         ({ rule, similarity: score }) =>
           rule.fromStage === base.predictedIntent &&
+          rule.scopeSha256 === features.scopeSha256 &&
           rule.status !== "revoked" &&
           score >= this.similarityThreshold,
       )
@@ -640,6 +645,7 @@ function contextFeatures(
   ].sort();
   const goalHints = semanticHints(intent.goal.slice(0, 4096));
   const constraintTypes = constraintTypeHistogram(intent.constraints);
+  const scopeSha256 = contextScopeSha256(state);
   const tokens = [
     `surface:${state.surface}`,
     `risk:${intent.riskLevel}`,
@@ -651,7 +657,8 @@ function contextFeatures(
     ...constraintTypes,
   ].sort();
   return {
-    key: hashState(tokens),
+    key: hashState([scopeSha256, ...tokens]),
+    scopeSha256,
     tokens,
     intentFingerprint: hashState([
       ...goalHints.map((hint) => `goal:${hint}`),
@@ -662,6 +669,22 @@ function contextFeatures(
       `goal-length:${Math.min(20, Math.floor(intent.goal.length / 32))}`,
     ]),
   };
+}
+
+function contextScopeSha256(state: NormalizedUIState): string {
+  let scope = `surface:${state.surface}:unknown`;
+  if (state.surface === "browser" && state.url) {
+    try {
+      scope = `browser:${new URL(state.url).origin}`;
+    } catch {
+      scope = "browser:invalid-origin";
+    }
+  } else if (state.app) {
+    scope = `${state.surface}:app:${state.app.slice(0, 256)}`;
+  } else if (state.screenType) {
+    scope = `${state.surface}:screen:${state.screenType.slice(0, 256)}`;
+  }
+  return hashState(scope);
 }
 
 function semanticHints(value: string): string[] {
@@ -808,7 +831,7 @@ function assertSnapshot(
   maximumRules: number,
 ): void {
   if (
-    snapshot.schemaVersion !== "lhic-learnloop-v2" ||
+    snapshot.schemaVersion !== "lhic-learnloop-v3" ||
     !Array.isArray(snapshot.rules) ||
     snapshot.rules.length > maximumRules
   ) {
@@ -828,6 +851,8 @@ function assertRule(rule: LearnLoopRule): void {
   if (
     !rule.id.trim() ||
     !/^[a-f0-9]{64}$/.test(rule.contextKey) ||
+    !/^[a-f0-9]{64}$/.test(rule.scopeSha256) ||
+    rule.contextKey !== hashState([rule.scopeSha256, ...rule.featureTokens]) ||
     !controllerStages.has(rule.fromStage) ||
     !controllerStages.has(rule.toStage) ||
     !["candidate", "active", "quarantined", "revoked"].includes(rule.status) ||

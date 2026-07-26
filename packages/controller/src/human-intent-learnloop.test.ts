@@ -238,6 +238,35 @@ describe("HumanIntentLearnLoop", () => {
         .predictedIntent,
     ).toBe("login");
   });
+
+  it("does not apply a learned correction across browser origins", () => {
+    const loop = new HumanIntentLearnLoop();
+    trainAndValidateSearchRule(loop);
+    const decision = loop.decide("other-origin", searchIntent, {
+      ...ambiguousState,
+      url: "https://unrelated.example.test/workspace",
+      capturedAt: "2026-07-26T02:00:00.000Z",
+    });
+    expect(decision.appliedRuleIds).toEqual([]);
+    expect(decision.prediction.predictedIntent).toBe("login");
+  });
+
+  it("does not mutate rules when rejected validation throws", () => {
+    const loop = new HumanIntentLearnLoop();
+    trainAndValidateSearchRule(loop);
+    const before = loop.listRules();
+    expect(() =>
+      loop.recordCorrection({
+        ...correction(
+          "invalid-conflicting-validation",
+          "validation",
+          ambiguousState,
+        ),
+        correctedStage: "download",
+      }),
+    ).toThrow("Validation evidence cannot create");
+    expect(loop.listRules()).toEqual(before);
+  });
 });
 
 function trainSearchRule(loop: HumanIntentLearnLoop): void {

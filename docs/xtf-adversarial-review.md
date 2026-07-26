@@ -87,3 +87,12 @@ The pull request must remain a draft if any gate is red, queued, skipped because
 | XTF submission readiness     |    4/10 |                     7/10 | Strong repo foundation; paper-quality real-world experiment remains unfinished.                                |
 
 The final score must be updated from actual CI and benchmark results, not assumed from the implementation.
+
+## Second hostile-review pass
+
+A second independent pass found two additional high-severity issues:
+
+1. **Cross-origin rule bleed:** a correction learned on one browser origin could match a similar UI on another origin. Rules are now bound to an exact SHA-256 context scope; raw origins and app names are not persisted.
+2. **Mutation before rejected validation:** an invalid conflicting validation event could quarantine existing rules before throwing. Quarantine now occurs only after validation-only rejection checks complete, and a regression test proves rejected calls leave state unchanged.
+
+The signed snapshot schema is now v3 and rejects missing or inconsistent scope bindings. Older research snapshots are not silently trusted.
