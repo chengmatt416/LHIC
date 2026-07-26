@@ -1,8 +1,8 @@
 name: XTF one-shot lint remediation
 
 on:
-  push:
-    branches: [xtf/lhic-learnloop]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -63,4 +63,3 @@ jobs:
           git add --all
           git commit -m "fix(xtf): satisfy lint without weakening validation"
           git push origin HEAD:xtf/lhic-learnloop
-# Triggered after enabling the push event.
