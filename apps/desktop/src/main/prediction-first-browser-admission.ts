@@ -25,10 +25,7 @@ export interface DesktopHumanIntentAdmissionDecision {
 export interface DesktopHumanIntentAdmissionOptions {
   learnLoop?: HumanIntentLearnLoop;
   controller?: PredictionFirstHumanIntentController;
-  correctionIngestion?: Pick<
-    TrustedHumanIntentCorrectionIngestion,
-    "ingest"
-  >;
+  correctionIngestion?: Pick<TrustedHumanIntentCorrectionIngestion, "ingest">;
 }
 
 /**
@@ -41,8 +38,7 @@ export class DesktopHumanIntentAdmission {
   private readonly learnLoop: HumanIntentLearnLoop;
   private readonly controller: PredictionFirstHumanIntentController;
   private readonly correctionIngestion:
-    | Pick<TrustedHumanIntentCorrectionIngestion, "ingest">
-    | undefined;
+    Pick<TrustedHumanIntentCorrectionIngestion, "ingest"> | undefined;
 
   public constructor(options: DesktopHumanIntentAdmissionOptions = {}) {
     if (options.controller && options.correctionIngestion) {
@@ -122,11 +118,7 @@ export class DesktopHumanIntentAdmission {
         "Trusted Human Intent correction ingestion is not configured for this Desktop runtime.",
       );
     }
-    return this.correctionIngestion.ingest(
-      this.learnLoop,
-      binding,
-      approval,
-    );
+    return this.correctionIngestion.ingest(this.learnLoop, binding, approval);
   }
 }
 

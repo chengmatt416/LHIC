@@ -293,9 +293,7 @@ function correctionBinding(
 function ingestSignedCorrection(
   admission: DesktopHumanIntentAdmission,
   binding: HumanIntentCorrectionBinding,
-  privateKey: Parameters<
-    typeof createSignedHumanIntentCorrectionApproval
-  >[2],
+  privateKey: Parameters<typeof createSignedHumanIntentCorrectionApproval>[2],
 ) {
   const approval = createSignedHumanIntentCorrectionApproval(
     binding,
