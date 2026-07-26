@@ -50,16 +50,16 @@ jobs:
 
           root_path = Path("package.json")
           root = json.loads(root_path.read_text())
-          pins = {
-              "fast-uri": "3.1.4",
-              "@hono/node-server": "2.0.11",
-              "tar": "7.5.22",
-          }
-          root["dependencies"].update(pins)
+          root["dependencies"].pop("@hono/node-server", None)
+          root["dependencies"]["fast-uri"] = "3.1.4"
+          root["dependencies"]["tar"] = "7.5.22"
           overrides = root.setdefault("overrides", {})
+          overrides.pop("@hono/node-server", None)
           overrides["fast-uri"] = "$fast-uri"
-          overrides["@hono/node-server"] = "$@hono/node-server"
           overrides["tar"] = "$tar"
+          overrides["@modelcontextprotocol/sdk@1.29.0"] = {
+              "@hono/node-server": "2.0.11"
+          }
           root_path.write_text(json.dumps(root, indent=2) + "\n")
           PY
       - name: Capture pinned lockfile and install results
