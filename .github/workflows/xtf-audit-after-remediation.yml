@@ -1,0 +1,64 @@
+name: XTF residual production audit diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply the reviewed dependency patch
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          lines = Path('.github/workflows/xtf-finalize-dependencies.yml').read_text().splitlines()
+          start = next(i for i, line in enumerate(lines) if "node <<'NODE'" in line) + 1
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == 'NODE')
+          script = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in lines[start:end]
+          ) + '\n'
+          script = script.replace(
+              r"\\`@huggingface/transformers\\`",
+              "'@huggingface/transformers'",
+          )
+          Path('/tmp/xtf-final-patch.js').write_text(script)
+          PY
+          node /tmp/xtf-final-patch.js
+          SAFE_TAR_VERSION="$(npm view tar version)"
+          npm pkg set "overrides.tar=${SAFE_TAR_VERSION}"
+          npm install --package-lock-only
+          npm audit fix --package-lock-only --omit=dev || true
+          npm ci
+      - name: Capture residual audit JSON
+        run: |
+          set +e
+          npm audit --omit=dev --json > residual-audit.json
+          status=$?
+          echo "$status" > residual-audit-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-residual-production-audit
+          path: |
+            residual-audit.json
+            residual-audit-exit-code.txt
+            package.json
+            package-lock.json
+            packages/controller/package.json
+          retention-days: 1
