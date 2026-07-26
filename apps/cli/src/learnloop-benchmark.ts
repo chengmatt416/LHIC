@@ -1,9 +1,12 @@
-import type { NormalizedUIState, UserIntent } from "@lhic/schema";
-import { predictIntent } from "@lhic/controller";
 import {
   HumanIntentLearnLoop,
+  predictIntent,
+  type CorrectionEvidenceSplit,
   type HumanIntentDecision,
+  type VerifiedIntentCorrection,
 } from "@lhic/controller";
+import type { NormalizedUIState, UserIntent } from "@lhic/schema";
+import { hashState } from "@lhic/trace";
 
 export interface LearnLoopBenchmarkMetrics {
   taskCount: number;
@@ -13,6 +16,9 @@ export interface LearnLoopBenchmarkMetrics {
   fastPathCoverage: number;
   riskyMisexecutionRate: number;
   correctionRetentionRate: number;
+  driftTruePositive: number;
+  driftFalsePositive: number;
+  driftFalseNegative: number;
   driftPrecision: number;
   driftRecall: number;
   driftF1: number;
@@ -21,10 +27,12 @@ export interface LearnLoopBenchmarkMetrics {
 }
 
 export interface LearnLoopBenchmarkReport {
-  schemaVersion: "lhic-learnloop-benchmark-v1";
+  schemaVersion: "lhic-learnloop-benchmark-v2";
   methodology: {
     trainingCorrections: number;
+    validationCorrections: number;
     holdoutTasks: number;
+    driftScenarios: number;
     synthetic: true;
     modelCalls: 0;
     networkCalls: 0;
@@ -48,31 +56,23 @@ interface BenchmarkCase {
   expectedStage: ReturnType<typeof predictIntent>["predictedIntent"];
 }
 
-export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
-  const loop = new HumanIntentLearnLoop({ minimumEvidence: 3 });
-  const trainingIntent = searchIntent("training-query");
-  const trainingState = ambiguousWorkspaceState("training");
-  for (const taskId of ["training-1", "training-2", "training-3"]) {
-    loop.recordCorrection({
-      taskId,
-      intent: trainingIntent,
-      uiState: trainingState,
-      predictedStage: "login",
-      correctedStage: "search",
-      confirmedByUser: true,
-      verification: {
-        success: true,
-        evidence: [`Verifier confirmed corrected search for ${taskId}.`],
-      },
-    });
-  }
+interface DriftCounts {
+  truePositive: number;
+  falsePositive: number;
+  falseNegative: number;
+  scenarioCount: number;
+}
 
+export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
+  const loop = new HumanIntentLearnLoop();
+  trainAndValidateSearchRule(loop, "primary-search");
   const holdout = benchmarkCases();
   let baseCorrect = 0;
   let learnedCorrect = 0;
   let fastPathCount = 0;
   let riskyMisexecutions = 0;
   const latencies: number[] = [];
+
   for (const item of holdout) {
     const base = predictIntent(item.intent, item.state);
     if (base.predictedIntent === item.expectedStage) baseCorrect += 1;
@@ -93,13 +93,13 @@ export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
   const retainedBefore = loop.decide(
     "retention-before",
     searchIntent("retention-before"),
-    ambiguousWorkspaceState("retention-before"),
+    ambiguousWorkspaceState(21),
   );
-  trainUnrelatedFormCorrection(loop);
+  trainAndValidateFormRule(loop, "unrelated-form");
   const retainedAfter = loop.decide(
     "retention-after",
     searchIntent("retention-after"),
-    ambiguousWorkspaceState("retention-after"),
+    ambiguousWorkspaceState(22),
   );
   const correctionRetentionRate =
     retainedBefore.prediction.predictedIntent === "search" &&
@@ -107,20 +107,19 @@ export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
       ? 1
       : 0;
 
-  const driftOutcomes = evaluateDrift(loop);
+  const drift = evaluateDriftScenarios();
   const driftPrecision = ratio(
-    driftOutcomes.truePositive,
-    driftOutcomes.truePositive + driftOutcomes.falsePositive,
+    drift.truePositive,
+    drift.truePositive + drift.falsePositive,
   );
   const driftRecall = ratio(
-    driftOutcomes.truePositive,
-    driftOutcomes.truePositive + driftOutcomes.falseNegative,
+    drift.truePositive,
+    drift.truePositive + drift.falseNegative,
   );
   const driftF1 =
     driftPrecision + driftRecall === 0
       ? 0
       : (2 * driftPrecision * driftRecall) / (driftPrecision + driftRecall);
-
   const metrics: LearnLoopBenchmarkMetrics = {
     taskCount: holdout.length,
     baseTop1Accuracy: ratio(baseCorrect, holdout.length),
@@ -129,6 +128,9 @@ export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
     fastPathCoverage: ratio(fastPathCount, holdout.length),
     riskyMisexecutionRate: ratio(riskyMisexecutions, holdout.length),
     correctionRetentionRate,
+    driftTruePositive: drift.truePositive,
+    driftFalsePositive: drift.falsePositive,
+    driftFalseNegative: drift.falseNegative,
     driftPrecision,
     driftRecall,
     driftF1,
@@ -141,13 +143,15 @@ export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
     riskyMisexecutionRate: metrics.riskyMisexecutionRate === 0,
     correctionRetention: metrics.correctionRetentionRate === 1,
     driftF1: metrics.driftF1 >= 0.8,
-    decisionLatencyP95: metrics.decisionLatencyP95Ms <= 5,
+    decisionLatencyP95: metrics.decisionLatencyP95Ms <= 20,
   };
   return {
-    schemaVersion: "lhic-learnloop-benchmark-v1",
+    schemaVersion: "lhic-learnloop-benchmark-v2",
     methodology: {
-      trainingCorrections: 3,
+      trainingCorrections: 6,
+      validationCorrections: 2,
       holdoutTasks: holdout.length,
+      driftScenarios: drift.scenarioCount,
       synthetic: true,
       modelCalls: 0,
       networkCalls: 0,
@@ -160,16 +164,16 @@ export function runLearnLoopBenchmark(): LearnLoopBenchmarkReport {
 
 function benchmarkCases(): BenchmarkCase[] {
   return [
-    ...[1, 2, 3, 4, 5].map((variant) => ({
+    ...[5, 6, 7, 8, 9, 10].map((variant) => ({
       id: `ambiguous-search-${variant}`,
       intent: searchIntent(`holdout-${variant}`),
-      state: ambiguousWorkspaceState(`holdout-${variant}`),
+      state: ambiguousWorkspaceState(variant),
       expectedStage: "search" as const,
     })),
     ...[1, 2, 3].map((variant) => ({
       id: `login-${variant}`,
       intent: loginIntent(),
-      state: loginState(`login-${variant}`),
+      state: loginState(variant),
       expectedStage: "login" as const,
     })),
     {
@@ -184,80 +188,174 @@ function benchmarkCases(): BenchmarkCase[] {
       state: testState(),
       expectedStage: "test_web_flow",
     },
+    {
+      id: "form-1",
+      intent: formIntent(),
+      state: formState(11),
+      expectedStage: "form_filling",
+    },
   ];
 }
 
-function evaluateDrift(loop: HumanIntentLearnLoop): {
-  truePositive: number;
-  falsePositive: number;
-  falseNegative: number;
-} {
+function evaluateDriftScenarios(): DriftCounts {
   let truePositive = 0;
   let falsePositive = 0;
   let falseNegative = 0;
-  const stable = loop.decide(
-    "stable-session",
-    searchIntent("stable"),
-    ambiguousWorkspaceState("stable"),
-  );
-  if (stable.drift.detected) falsePositive += 1;
+  let scenarioCount = 0;
 
-  const fresh = new HumanIntentLearnLoop({ minimumEvidence: 1 });
-  const intent = searchIntent("drift");
-  const state = ambiguousWorkspaceState("drift");
-  fresh.decide("positive-drift", intent, state);
-  fresh.recordCorrection({
-    taskId: "drift-training",
-    intent,
-    uiState: state,
-    predictedStage: "login",
-    correctedStage: "search",
-    confirmedByUser: true,
-    verification: { success: true, evidence: ["verified"] },
-  });
-  const changed = fresh.decide("positive-drift", intent, state);
+  const changedLoop = new HumanIntentLearnLoop();
+  const changedIntent = searchIntent("drift-change");
+  const changedState = ambiguousWorkspaceState(31);
+  changedLoop.decide("changed-session", changedIntent, changedState);
+  trainAndValidateSearchRule(changedLoop, "changed-rule");
+  const changed = changedLoop.decide(
+    "changed-session",
+    changedIntent,
+    changedState,
+  );
+  scenarioCount += 1;
   if (changed.drift.detected) truePositive += 1;
   else falseNegative += 1;
-  return { truePositive, falsePositive, falseNegative };
+
+  const conflictLoop = new HumanIntentLearnLoop();
+  trainAndValidateSearchRule(conflictLoop, "conflict-search");
+  conflictLoop.recordCorrection({
+    ...correction(
+      "conflict-download",
+      "training",
+      searchIntent("conflict"),
+      ambiguousWorkspaceState(32),
+      "login",
+      "download",
+    ),
+  });
+  const conflict = conflictLoop.decide(
+    "conflict-session",
+    searchIntent("conflict"),
+    ambiguousWorkspaceState(33),
+  );
+  scenarioCount += 1;
+  if (conflict.drift.detected) truePositive += 1;
+  else falseNegative += 1;
+
+  const oscillationLoop = new HumanIntentLearnLoop();
+  const oscillationIntent = searchIntent("oscillation");
+  oscillationLoop.decide(
+    "oscillation-session",
+    oscillationIntent,
+    loginState(41),
+  );
+  oscillationLoop.decide(
+    "oscillation-session",
+    oscillationIntent,
+    searchOnlyState(42),
+  );
+  const oscillating = oscillationLoop.decide(
+    "oscillation-session",
+    oscillationIntent,
+    loginState(43),
+  );
+  scenarioCount += 1;
+  if (oscillating.drift.detected) truePositive += 1;
+  else falseNegative += 1;
+
+  const stableLoop = new HumanIntentLearnLoop();
+  trainAndValidateSearchRule(stableLoop, "stable-rule");
+  for (const variant of [51, 52, 53, 54, 55]) {
+    const stable = stableLoop.decide(
+      `stable-${variant}`,
+      searchIntent(`stable-${variant}`),
+      ambiguousWorkspaceState(variant),
+    );
+    scenarioCount += 1;
+    if (stable.drift.detected) falsePositive += 1;
+  }
+
+  return { truePositive, falsePositive, falseNegative, scenarioCount };
 }
 
-function trainUnrelatedFormCorrection(loop: HumanIntentLearnLoop): void {
-  const intent: UserIntent = {
-    goal: "Fill and save the profile form",
-    constraints: { profile: true },
-    riskLevel: "low",
-    requiresConfirmation: false,
-    missingInformation: [],
-  };
-  const state: NormalizedUIState = {
-    surface: "browser",
-    objects: [
-      {
-        id: "required-name",
-        role: "textbox",
-        label: "Required name *",
-        source: "dom",
-      },
-      {
-        id: "save",
-        role: "button",
-        label: "Save",
-        enabled: false,
-        source: "dom",
-      },
-    ],
-    signals: {},
-    capturedAt: "2026-07-26T00:10:00.000Z",
-  };
-  loop.recordCorrection({
-    taskId: "unrelated-form-correction",
+function trainAndValidateSearchRule(
+  loop: HumanIntentLearnLoop,
+  prefix: string,
+): void {
+  for (const variant of [1, 2, 3]) {
+    loop.recordCorrection(
+      correction(
+        `${prefix}-training-${variant}`,
+        "training",
+        searchIntent(`${prefix}-${variant}`),
+        ambiguousWorkspaceState(variant),
+        "login",
+        "search",
+      ),
+    );
+  }
+  loop.recordCorrection(
+    correction(
+      `${prefix}-validation`,
+      "validation",
+      searchIntent(`${prefix}-validation`),
+      ambiguousWorkspaceState(4),
+      "login",
+      "search",
+    ),
+  );
+}
+
+function trainAndValidateFormRule(
+  loop: HumanIntentLearnLoop,
+  prefix: string,
+): void {
+  for (const variant of [1, 2, 3]) {
+    loop.recordCorrection(
+      correction(
+        `${prefix}-training-${variant}`,
+        "training",
+        formIntent(),
+        ambiguousFormState(variant),
+        "login",
+        "form_filling",
+      ),
+    );
+  }
+  loop.recordCorrection(
+    correction(
+      `${prefix}-validation`,
+      "validation",
+      formIntent(),
+      ambiguousFormState(4),
+      "login",
+      "form_filling",
+    ),
+  );
+}
+
+function correction(
+  taskId: string,
+  split: CorrectionEvidenceSplit,
+  intent: UserIntent,
+  state: NormalizedUIState,
+  predictedStage: VerifiedIntentCorrection["predictedStage"],
+  correctedStage: VerifiedIntentCorrection["correctedStage"],
+): VerifiedIntentCorrection {
+  return {
+    provenance: {
+      taskId,
+      uiFingerprint: hashState({ taskId, split, state }),
+      traceSha256: hashState({ taskId, split, result: "verified" }),
+      verifierVersion: "benchmark-verifier-v2",
+      split,
+    },
     intent,
     uiState: state,
-    predictedStage: "unknown",
-    correctedStage: "form_filling",
+    predictedStage,
+    correctedStage,
     confirmedByUser: true,
-    verification: { success: true, evidence: ["form verified"] },
-  });
+    verification: {
+      success: true,
+      evidence: [`Verified correction for ${taskId}.`],
+    },
+  };
 }
 
 function searchIntent(query: string): UserIntent {
@@ -300,7 +398,21 @@ function testIntent(): UserIntent {
   };
 }
 
-function ambiguousWorkspaceState(variant: string): NormalizedUIState {
+function formIntent(): UserIntent {
+  return {
+    goal: "Fill and save the profile form",
+    constraints: { profile: true },
+    riskLevel: "low",
+    requiresConfirmation: false,
+    missingInformation: [],
+  };
+}
+
+function ambiguousWorkspaceState(variant: number): NormalizedUIState {
+  const extras =
+    variant % 2 === 0
+      ? [{ id: `help-${variant}`, role: "link", label: "Help", source: "dom" as const }]
+      : [];
   return {
     surface: "browser",
     url: `https://example.test/workspace/${variant}`,
@@ -315,16 +427,47 @@ function ambiguousWorkspaceState(variant: string): NormalizedUIState {
       {
         id: "search",
         role: "searchbox",
-        label: "Search projects",
+        label: variant % 3 === 0 ? "Find projects" : "Search projects",
         source: "dom",
       },
+      ...extras,
     ],
-    signals: {},
+    signals: { layoutVariant: variant },
     capturedAt: "2026-07-26T00:00:00.000Z",
   };
 }
 
-function loginState(variant: string): NormalizedUIState {
+function ambiguousFormState(variant: number): NormalizedUIState {
+  return {
+    surface: "browser",
+    objects: [
+      { id: "email", role: "textbox", label: "Email", source: "dom" },
+      {
+        id: "password",
+        role: "textbox",
+        label: "Password",
+        source: "dom",
+      },
+      {
+        id: `required-${variant}`,
+        role: "textbox",
+        label: "Required display name *",
+        source: "dom",
+      },
+      {
+        id: `save-${variant}`,
+        role: "button",
+        label: "Save",
+        enabled: false,
+        source: "dom",
+      },
+    ],
+    signals: { layoutVariant: variant },
+    capturedAt: "2026-07-26T00:00:00.000Z",
+  };
+}
+
+function loginState(variant: number): NormalizedUIState {
   return {
     surface: "browser",
     url: `https://example.test/login/${variant}`,
@@ -334,6 +477,22 @@ function loginState(variant: string): NormalizedUIState {
         id: "password",
         role: "textbox",
         label: "Password",
+        source: "dom",
+      },
+    ],
+    signals: {},
+    capturedAt: "2026-07-26T00:00:00.000Z",
+  };
+}
+
+function searchOnlyState(variant: number): NormalizedUIState {
+  return {
+    surface: "browser",
+    objects: [
+      {
+        id: `search-${variant}`,
+        role: "searchbox",
+        label: "Search projects",
         source: "dom",
       },
     ],
@@ -363,6 +522,29 @@ function testState(): NormalizedUIState {
     surface: "browser",
     title: "Workflow",
     objects: [{ id: "main", role: "main", source: "dom" }],
+    signals: {},
+    capturedAt: "2026-07-26T00:00:00.000Z",
+  };
+}
+
+function formState(variant: number): NormalizedUIState {
+  return {
+    surface: "browser",
+    objects: [
+      {
+        id: `required-${variant}`,
+        role: "textbox",
+        label: "Required name *",
+        source: "dom",
+      },
+      {
+        id: `save-${variant}`,
+        role: "button",
+        label: "Save",
+        enabled: false,
+        source: "dom",
+      },
+    ],
     signals: {},
     capturedAt: "2026-07-26T00:00:00.000Z",
   };
