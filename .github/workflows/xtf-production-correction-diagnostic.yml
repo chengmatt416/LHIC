@@ -1,0 +1,44 @@
+name: XTF production correction diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - name: Run patch script without committing
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/xtf-production-correction-ingress.yml").read_text().splitlines()
+          start = next(i for i, line in enumerate(workflow) if "python <<'PY'" in line) + 1
+          end = next(i for i in range(start, len(workflow)) if workflow[i].strip() == "PY")
+          script = "\n".join(
+              line[10:] if line.startswith("          ") else line
+              for line in workflow[start:end]
+          ) + "\n"
+          Path("/tmp/correction-patch.py").write_text(script)
+          PY
+          set +e
+          python /tmp/correction-patch.py > correction-patch.log 2>&1
+          status=$?
+          set -e
+          echo "$status" > correction-patch.status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xtf-production-correction-diagnostic
+          path: |
+            correction-patch.log
+            correction-patch.status
+          retention-days: 1
