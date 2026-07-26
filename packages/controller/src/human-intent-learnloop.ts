@@ -241,6 +241,12 @@ export class HumanIntentLearnLoop {
 
   public recordCorrection(input: VerifiedIntentCorrection): LearnLoopRule {
     assertCorrection(input);
+    const observedPrediction = predictIntent(input.intent, input.uiState);
+    if (observedPrediction.predictedIntent !== input.predictedStage) {
+      throw new Error(
+        "LearnLoop correction provenance does not match the current base prediction.",
+      );
+    }
     const now = normalizedTimestamp(input.recordedAt);
     const features = contextFeatures(input.intent, input.uiState);
     const taskHash = hashState(input.provenance.taskId);
