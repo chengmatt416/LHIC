@@ -5,7 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { runLegacyCli as runLegacyCli } from "./main.js";
+import { runCli as runLegacyCli } from "./main.js";
 import { cliUsage } from "./interactive.js";
 import { runLearnLoopBenchmark } from "./learnloop-benchmark.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
