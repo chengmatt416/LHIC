@@ -4,7 +4,7 @@ LHIC-LearnLoop keeps the original LHIC thesis intact:
 
 > Predict human intent locally, then execute the matching deterministic action as quickly and accurately as safety allows.
 
-LearnLoop is not a second agent and it is not the execution authority. The existing LHIC predictor always runs first. LearnLoop uses only verifier-backed, user-confirmed corrections to calibrate that prediction. The Intent Drift gate, adapted from the AI-02 concept, stops execution when the predicted intent changes unexpectedly, oscillates, conflicts with prior corrections, or loses confidence.
+LearnLoop is not a second agent and it is not the execution authority. The existing LHIC predictor always runs first. LearnLoop uses only verifier-backed, externally approved corrections to calibrate that prediction. The Intent Drift gate, adapted from the AI-02 concept, stops execution when the predicted intent changes unexpectedly, oscillates, conflicts with prior corrections, or loses confidence.
 
 This work is isolated on `xtf/lhic-learnloop`. It does not change `main` until separately reviewed and merged.
 
@@ -67,16 +67,32 @@ Admission fails closed. A thrown callback, ambiguous UI, drift detection, low co
 
 Slow Path browser plans deliberately receive no LearnLoop admission callback. LearnLoop therefore cannot promote a provider-generated plan or convert a Slow Path proposal into a Fast Path execution.
 
-## Correction-ingestion boundary
+## Signed production correction ingress
 
-Runtime **execution admission is integrated**. Automatic production ingestion of new LearnLoop corrections is intentionally not enabled yet.
+Production correction ingestion is implemented as an explicit opt-in trust boundary. It is disabled unless a separate Ed25519 correction-authority public key is configured through `LHIC_CORRECTION_APPROVAL_PUBLIC_KEY_FILE` or `LHIC_CORRECTION_APPROVAL_PUBLIC_KEY`.
 
-`recordCorrection` must only be called after the existing signed user-approval record and verifier result have both been validated and bound to the same task, UI fingerprint, verifier version, and trace fingerprint. The core module checks bounded structure and provenance consistency, but it is not itself the operating-system signature verifier. Until that adapter is implemented and tested end to end, real corrections should be imported only through a trusted local research workflow.
+The signing private key is never stored in or exposed to LHIC. A correction approval binds the following values into one short-lived signed claim:
+
+- approval ID and cryptographic nonce;
+- hashed approver identity and task identity;
+- complete Human Intent fingerprint;
+- live normalized-UI fingerprint;
+- base and corrected stages;
+- training or validation split;
+- verifier result hash and verifier version;
+- trace SHA-256;
+- canonical issue and expiry timestamps.
+
+The Desktop IPC path is exposed only through the existing trusted-renderer handler. Before cryptographic verification, the input is JSON-canonicalized and constrained by byte size, nesting depth, node count, container size, exact envelope keys, full `UserIntent` shape, bounded normalized UI objects, and bounded verifier evidence.
+
+`TrustedHumanIntentCorrectionIngestion` then verifies the Ed25519 signature, expiry, revocation callback, exact task/UI/trace/verifier binding, and current base prediction. It reserves both the approval ID and nonce atomically before mutating LearnLoop. The production file replay store uses private directories, `wx` marker creation, hashed token filenames, restart-persistent reservations, bounded capacity, and delayed cleanup only after the signed approval can no longer be valid. Malformed markers remain fail-closed.
+
+`TaskService` uses the same `DesktopHumanIntentAdmission` instance for execution admission and correction ingestion, so a validated correction cannot be written into an unused parallel LearnLoop. Missing configuration, storage failure, signature failure, stale UI, cross-task substitution, replay, invalid provenance, or verifier failure all reject the correction without enabling execution.
 
 ## Safety invariants
 
 - Prediction runs before learning on every request.
-- Only user-confirmed corrections with successful, non-empty verifier evidence are accepted.
+- Only externally approved corrections with successful, non-empty verifier evidence are accepted.
 - Training evidence and independent validation evidence cannot reuse the same UI fingerprint.
 - A learned rule cannot change `riskLevel`, `requiresConfirmation`, action policy, approval state, or verifier requirements.
 - High-risk and unknown-risk intents always require confirmation.
@@ -88,6 +104,8 @@ Runtime **execution admission is integrated**. Automatic production ingestion of
 - Active rules are not silently evicted to make room for new learning.
 - The Desktop Fast Path requires the authoritative router to reproduce the exact deterministic plan before mutable actions.
 - Slow Path plans cannot receive LearnLoop Fast Path admission.
+- Correction approvals are short-lived, signature-bound, and one-time across Desktop restarts.
+- Untrusted renderer origins and structurally abusive IPC inputs are rejected before LearnLoop hashing.
 - The benchmark performs zero model calls and zero network calls.
 
 ## Reproduce the included study
@@ -129,7 +147,7 @@ The benchmark has a fixed training set, an independent validation split, and a s
 - It does not claim that synthetic fixtures represent real-world users.
 - It does not claim mechanistic interpretability of a neural model. The AI-02 integration is a behavioral intent-drift microscope: it exposes and tests changes in prediction, confidence, conflicts, candidate eligibility, and oscillation.
 - It does not claim that hash-only context is anonymous against every dictionary attack.
-- It does not claim that automatic production correction ingestion is complete.
+- It does not claim that configuring a public key automatically provides a trustworthy correction-authority workflow; deployment still needs protected external signing, identity policy, revocation, audit, and user consent.
 - It does not allow LearnLoop to bypass the existing three-run and holdout promotion rules for executable Skills.
 - It does not claim the sub-millisecond hosted-runner fixture latency will reproduce on every device.
 
@@ -137,21 +155,30 @@ The benchmark has a fixed training set, an independent validation split, and a s
 
 Before submission, the synthetic regression must be supplemented with a preregistered, consented study using realistic but non-sensitive tasks. Training and evaluation users, UI variants, and task IDs should be separated. Report confidence intervals, all exclusions, negative results, calibration curves, selective-risk curves, and per-domain failure cases. Do not present the included fixture percentages as general-world performance.
 
-Before enabling autonomous correction ingestion, implement a trusted adapter that binds `confirmedByUser`, signed approval records, verifier evidence, verifier version, UI fingerprint, and trace fingerprint to one task. Test replay, cross-task substitution, revoked approval, stale UI, and post-execution verifier failure.
+Before production deployment, define and test the external correction authority: who may sign, how the private key is protected, how user consent is presented, how approvals are revoked, how learned rules and replay markers are deleted, and how audit records are retained without collecting sensitive UI content. The repository verifies signed submissions; it does not operate that organizational trust process.
 
 ## Files added or materially integrated by this branch
 
 - `packages/controller/src/human-intent-learnloop.ts`
 - `packages/controller/src/human-intent-learnloop.test.ts`
+- `packages/controller/src/trusted-correction-ingestion.ts`
+- `packages/controller/src/trusted-correction-ingestion.test.ts`
+- `packages/controller/src/correction-replay-store.ts`
+- `packages/controller/src/correction-replay-store.test.ts`
 - `packages/controller/src/prediction-first-human-intent-controller.ts`
 - `packages/controller/src/prediction-first-human-intent-controller.test.ts`
 - `apps/cli/src/learnloop-benchmark.ts`
 - `apps/cli/src/learnloop-benchmark.test.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.test.ts`
+- `apps/desktop/src/main/correction-ingestion-runtime.ts`
+- `apps/desktop/src/main/correction-ingestion-runtime.test.ts`
+- `apps/desktop/src/main/correction-submission-validation.ts`
+- `apps/desktop/src/main/correction-submission-validation.test.ts`
 - `apps/desktop/src/main/desktop-browser-runner.ts`
 - `apps/desktop/src/main/task-service.ts`
 - `apps/desktop/src/main/task-service-learnloop.test.ts`
+- `apps/desktop/src/main/task-service-correction-ingestion.test.ts`
 - `.github/workflows/xtf-learnloop.yml`
 - `XTF-LEARNLOOP.md`
 - `docs/xtf-adversarial-review.md`
