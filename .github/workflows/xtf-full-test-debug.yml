@@ -1,0 +1,38 @@
+name: XTF temporary full test diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  test-log:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run pw:install
+      - name: Capture complete CI-equivalent Vitest output
+        shell: bash
+        run: |
+          set +e
+          npm test > full-test-output.log 2>&1
+          status=$?
+          echo "$status" > full-test-exit-code.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-full-vitest-diagnostics
+          path: |
+            full-test-output.log
+            full-test-exit-code.txt
+          retention-days: 1
