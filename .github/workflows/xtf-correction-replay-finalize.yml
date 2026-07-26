@@ -1,14 +1,14 @@
-name: XTF persistent correction replay finalize
+name: XTF persistent correction replay export
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  finalize:
+  export:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,17 +75,22 @@ jobs:
           packages/controller/src/trusted-correction-ingestion.test.ts
           apps/desktop/src/main/prediction-first-browser-admission.test.ts
       - run: npm run lint
-      - run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            packages/controller/src/correction-replay-store.ts \
-            packages/controller/src/correction-replay-store.test.ts \
-            packages/controller/src/trusted-correction-ingestion.ts \
-            packages/controller/src/trusted-correction-ingestion.test.ts \
-            packages/controller/src/index.ts \
-            apps/desktop/src/main/prediction-first-browser-admission.test.ts \
-            .github/workflows/xtf-learnloop.yml
-          git commit -m "security(xtf): persist correction replay reservations"
-          git pull --rebase origin xtf/lhic-learnloop
-          git push origin HEAD:xtf/lhic-learnloop
+      - name: Collect validated files
+        run: |
+          mkdir -p \
+            validated/packages/controller/src \
+            validated/apps/desktop/src/main \
+            validated/.github/workflows
+          cp packages/controller/src/correction-replay-store.ts validated/packages/controller/src/
+          cp packages/controller/src/correction-replay-store.test.ts validated/packages/controller/src/
+          cp packages/controller/src/trusted-correction-ingestion.ts validated/packages/controller/src/
+          cp packages/controller/src/trusted-correction-ingestion.test.ts validated/packages/controller/src/
+          cp packages/controller/src/index.ts validated/packages/controller/src/
+          cp apps/desktop/src/main/prediction-first-browser-admission.test.ts validated/apps/desktop/src/main/
+          cp .github/workflows/xtf-learnloop.yml validated/.github/workflows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-persistent-correction-replay
+          path: validated
+          if-no-files-found: error
+          retention-days: 1
