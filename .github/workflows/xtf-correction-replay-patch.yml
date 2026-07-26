@@ -1,14 +1,14 @@
-name: XTF persistent correction replay patch
+name: XTF correction replay patch diagnostics
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,56 +19,28 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Require an explicit atomic replay store
+      - name: Count exact patch preconditions
         run: |
-          python <<'PY'
+          mkdir -p patch-diagnostics
+          python <<'PY' > patch-diagnostics/counts.txt
           from pathlib import Path
 
-          def replace_once(path: str, before: str, after: str) -> None:
-              file = Path(path)
-              source = file.read_text()
-              if source.count(before) != 1:
-                  raise RuntimeError(f"Expected one match in {path}: {before[:120]!r}")
-              file.write_text(source.replace(before, after, 1))
-
-          trusted = "packages/controller/src/trusted-correction-ingestion.ts"
-          replace_once(
-              trusted,
-              'import type { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n',
-              'import type { HumanIntentCorrectionReplayStore } from "./correction-replay-store.js";\nimport type { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n',
-          )
-          replace_once(
-              trusted,
-              '''export interface TrustedCorrectionIngestionOptions {
+          checks = [
+              ("trusted-import", "packages/controller/src/trusted-correction-ingestion.ts", 'import type { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n'),
+              ("trusted-options", "packages/controller/src/trusted-correction-ingestion.ts", '''export interface TrustedCorrectionIngestionOptions {
             publicKey: KeyLike;
             now?: () => Date;
             maximumConsumedApprovals?: number;
             isApprovalRevoked?: (approvalId: string) => boolean;
           }
-          ''',
-              '''export interface TrustedCorrectionIngestionOptions {
-            publicKey: KeyLike;
-            replayStore: HumanIntentCorrectionReplayStore;
-            now?: () => Date;
-            isApprovalRevoked?: (approvalId: string) => boolean;
-          }
-          ''',
-          )
-          replace_once(
-              trusted,
-              '''  private readonly now: () => Date;
+          '''),
+              ("trusted-fields", "packages/controller/src/trusted-correction-ingestion.ts", '''  private readonly now: () => Date;
             private readonly maximumConsumedApprovals: number;
             private readonly isApprovalRevoked: (approvalId: string) => boolean;
             private readonly consumedApprovalIds = new Map<string, number>();
             private readonly consumedNonces = new Map<string, number>();
-          ''',
-              '''  private readonly now: () => Date;
-            private readonly isApprovalRevoked: (approvalId: string) => boolean;
-          ''',
-          )
-          replace_once(
-              trusted,
-              '''    this.now = options.now ?? (() => new Date());
+          '''),
+              ("trusted-constructor", "packages/controller/src/trusted-correction-ingestion.ts", '''    this.now = options.now ?? (() => new Date());
               this.maximumConsumedApprovals = boundedInteger(
                 options.maximumConsumedApprovals ?? 4_096,
                 1,
@@ -76,197 +48,22 @@ jobs:
                 "maximumConsumedApprovals",
               );
               this.isApprovalRevoked = options.isApprovalRevoked ?? (() => false);
-          ''',
-              '''    this.now = options.now ?? (() => new Date());
-              this.isApprovalRevoked = options.isApprovalRevoked ?? (() => false);
-          ''',
-          )
-          replace_once(trusted, '    this.pruneExpired(now.getTime());\n\n', '')
-          replace_once(
-              trusted,
-              '''    if (this.consumedApprovalIds.has(validated.claim.approvalId)) {
-                throw new Error("Human Intent correction approval replay was rejected.");
-              }
-              if (this.consumedNonces.has(validated.claim.nonce)) {
-                throw new Error(
-                  "Human Intent correction approval nonce replay was rejected.",
-                );
-              }
-
-              assertClaimMatchesBinding(validated.claim, binding);
-              if (this.consumedApprovalIds.size >= this.maximumConsumedApprovals) {
-                throw new Error(
-                  "Human Intent correction replay cache is full of unexpired approvals.",
-                );
-              }
-
-              this.consumedApprovalIds.set(
-                validated.claim.approvalId,
-                validated.expiresAtMs,
-              );
-              this.consumedNonces.set(validated.claim.nonce, validated.expiresAtMs);
-          ''',
-              '''    assertClaimMatchesBinding(validated.claim, binding);
-              let replayDecision;
-              try {
-                replayDecision = this.options.replayStore.reserve({
-                  approvalId: validated.claim.approvalId,
-                  nonce: validated.claim.nonce,
-                  expiresAt: validated.claim.expiresAt,
-                });
-              } catch {
-                throw new Error(
-                  "Human Intent correction replay protection could not reserve this approval.",
-                );
-              }
-              if (!replayDecision.allowed) throw new Error(replayDecision.reason);
-          ''',
-          )
-          replace_once(
-              trusted,
-              '''  public consumedApprovalCount(): number {
-              this.pruneExpired(this.now().getTime());
-              return this.consumedApprovalIds.size;
-            }
-
-            private pruneExpired(nowMs: number): void {
-              for (const [approvalId, expiresAt] of this.consumedApprovalIds) {
-                if (expiresAt <= nowMs) this.consumedApprovalIds.delete(approvalId);
-              }
-              for (const [nonce, expiresAt] of this.consumedNonces) {
-                if (expiresAt <= nowMs) this.consumedNonces.delete(nonce);
-              }
-            }
-          ''',
-              '''  public consumedApprovalCount(): number {
-              try {
-                return this.options.replayStore.count();
-              } catch {
-                throw new Error(
-                  "Human Intent correction replay protection could not read its reservation count.",
-                );
-              }
-            }
-          ''',
-          )
-
-          replace_once(
-              "packages/controller/src/index.ts",
-              'export * from "./human-intent-learnloop.js";\n',
-              'export * from "./human-intent-learnloop.js";\nexport * from "./correction-replay-store.js";\n',
-          )
-
-          test = "packages/controller/src/trusted-correction-ingestion.test.ts"
-          replace_once(
-              test,
-              'import { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n',
-              'import { InMemoryHumanIntentCorrectionReplayStore } from "./correction-replay-store.js";\nimport { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n',
-          )
-          replace_once(
-              test,
-              '''function ingestionGate(
-            overrides: {
-              now?: () => Date;
-              isApprovalRevoked?: (approvalId: string) => boolean;
-            } = {},
-          ): TrustedHumanIntentCorrectionIngestion {
-            return new TrustedHumanIntentCorrectionIngestion({
-              publicKey: keyPair.publicKey,
-              now: overrides.now ?? (() => ingestionTime),
-              ...(overrides.isApprovalRevoked
-                ? { isApprovalRevoked: overrides.isApprovalRevoked }
-                : {}),
-            });
-          }
-          ''',
-              '''function ingestionGate(
-            overrides: {
-              now?: () => Date;
-              isApprovalRevoked?: (approvalId: string) => boolean;
-            } = {},
-          ): TrustedHumanIntentCorrectionIngestion {
-            const now = overrides.now ?? (() => ingestionTime);
-            return new TrustedHumanIntentCorrectionIngestion({
-              publicKey: keyPair.publicKey,
-              replayStore: new InMemoryHumanIntentCorrectionReplayStore({ now }),
-              now,
-              ...(overrides.isApprovalRevoked
-                ? { isApprovalRevoked: overrides.isApprovalRevoked }
-                : {}),
-            });
-          }
-          ''',
-          )
-
-          desktop_test = "apps/desktop/src/main/prediction-first-browser-admission.test.ts"
-          replace_once(
-              desktop_test,
-              '''  HumanIntentLearnLoop,
+          '''),
+              ("trusted-prune-call", "packages/controller/src/trusted-correction-ingestion.ts", '    this.pruneExpired(now.getTime());\n\n'),
+              ("index-export", "packages/controller/src/index.ts", 'export * from "./human-intent-learnloop.js";\n'),
+              ("test-import", "packages/controller/src/trusted-correction-ingestion.test.ts", 'import { HumanIntentLearnLoop } from "./human-intent-learnloop.js";\n'),
+              ("desktop-import", "apps/desktop/src/main/prediction-first-browser-admission.test.ts", '''  HumanIntentLearnLoop,
             TrustedHumanIntentCorrectionIngestion,
-          ''',
-              '''  HumanIntentLearnLoop,
-            InMemoryHumanIntentCorrectionReplayStore,
-            TrustedHumanIntentCorrectionIngestion,
-          ''',
-          )
-          replace_once(
-              desktop_test,
-              '''    const ingestion = new TrustedHumanIntentCorrectionIngestion({
-              publicKey: keyPair.publicKey,
-              now: () => correctionTime,
-            });
-          ''',
-              '''    const correctionNow = () => correctionTime;
-            const ingestion = new TrustedHumanIntentCorrectionIngestion({
-              publicKey: keyPair.publicKey,
-              replayStore: new InMemoryHumanIntentCorrectionReplayStore({
-                now: correctionNow,
-              }),
-              now: correctionNow,
-            });
-          ''',
-          )
-
-          workflow = ".github/workflows/xtf-learnloop.yml"
-          replace_once(
-              workflow,
-              '      - "packages/controller/src/trusted-correction-ingestion*"\n',
-              '      - "packages/controller/src/trusted-correction-ingestion*"\n      - "packages/controller/src/correction-replay-store*"\n',
-          )
-          replace_once(
-              workflow,
-              '          packages/controller/src/trusted-correction-ingestion.test.ts\n',
-              '          packages/controller/src/trusted-correction-ingestion.test.ts\n          packages/controller/src/correction-replay-store.test.ts\n',
-          )
+          '''),
+              ("workflow-path", ".github/workflows/xtf-learnloop.yml", '      - "packages/controller/src/trusted-correction-ingestion*"\n'),
+              ("workflow-test", ".github/workflows/xtf-learnloop.yml", '          packages/controller/src/trusted-correction-ingestion.test.ts\n'),
+          ]
+          for name, path, pattern in checks:
+              print(f"{name}={Path(path).read_text().count(pattern)}")
           PY
-      - run: >-
-          npx prettier --write
-          packages/controller/src/correction-replay-store.ts
-          packages/controller/src/correction-replay-store.test.ts
-          packages/controller/src/trusted-correction-ingestion.ts
-          packages/controller/src/trusted-correction-ingestion.test.ts
-          packages/controller/src/index.ts
-          apps/desktop/src/main/prediction-first-browser-admission.test.ts
-          .github/workflows/xtf-learnloop.yml
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: >-
-          npx vitest run
-          packages/controller/src/correction-replay-store.test.ts
-          packages/controller/src/trusted-correction-ingestion.test.ts
-          apps/desktop/src/main/prediction-first-browser-admission.test.ts
-      - run: npm run lint
-      - run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            packages/controller/src/correction-replay-store.ts \
-            packages/controller/src/correction-replay-store.test.ts \
-            packages/controller/src/trusted-correction-ingestion.ts \
-            packages/controller/src/trusted-correction-ingestion.test.ts \
-            packages/controller/src/index.ts \
-            apps/desktop/src/main/prediction-first-browser-admission.test.ts \
-            .github/workflows/xtf-learnloop.yml
-          git commit -m "security(xtf): persist correction replay reservations"
-          git pull --rebase origin xtf/lhic-learnloop
-          git push origin HEAD:xtf/lhic-learnloop
+          cat patch-diagnostics/counts.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-correction-replay-preconditions
+          path: patch-diagnostics/counts.txt
+          retention-days: 1
