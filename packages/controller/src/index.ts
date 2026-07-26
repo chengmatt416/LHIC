@@ -9,6 +9,7 @@ export * from "./context-engine.js";
 export * from "./fast-path-router.js";
 export * from "./fast-path-plan.js";
 export * from "./human-intent-learnloop.js";
+export * from "./trusted-correction-ingestion.js";
 export * from "./prediction-first-human-intent-controller.js";
 export * from "./intent-parser.js";
 export * from "./predictor.js";
