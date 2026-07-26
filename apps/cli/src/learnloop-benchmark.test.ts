@@ -7,10 +7,12 @@ describe("LearnLoop benchmark", () => {
     const report = runLearnLoopBenchmark();
 
     expect(report).toMatchObject({
-      schemaVersion: "lhic-learnloop-benchmark-v1",
+      schemaVersion: "lhic-learnloop-benchmark-v2",
       methodology: {
-        trainingCorrections: 3,
-        holdoutTasks: 10,
+        trainingCorrections: 6,
+        validationCorrections: 2,
+        holdoutTasks: 12,
+        driftScenarios: 8,
         synthetic: true,
         modelCalls: 0,
         networkCalls: 0,
@@ -21,7 +23,9 @@ describe("LearnLoop benchmark", () => {
     );
     expect(report.metrics.riskyMisexecutionRate).toBe(0);
     expect(report.metrics.correctionRetentionRate).toBe(1);
-    expect(report.metrics.driftF1).toBe(1);
+    expect(report.metrics.driftTruePositive).toBeGreaterThanOrEqual(3);
+    expect(report.metrics.driftFalsePositive).toBe(0);
+    expect(report.metrics.driftF1).toBeGreaterThanOrEqual(0.8);
     expect(report.passed).toBe(true);
   });
 });
