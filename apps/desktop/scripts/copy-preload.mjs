@@ -33,7 +33,9 @@ await mkdir(dirname(destination), { recursive: true });
 await cp(source, destination);
 
 function ipcChannels(sourceText) {
-  return [...sourceText.matchAll(/ipcRenderer\.invoke\(\s*["']([^"']+)["']/g)]
+  return [
+    ...sourceText.matchAll(/ipcRenderer\.invoke\(\s*["']([^"']+)["']/g),
+  ]
     .map((match) => match[1])
     .filter((channel, index, channels) => channels.indexOf(channel) === index)
     .sort();
