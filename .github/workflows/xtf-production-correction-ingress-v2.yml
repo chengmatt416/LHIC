@@ -1,4 +1,4 @@
-name: XTF production correction ingress v4 diagnostic
+name: XTF production correction ingress v5 diagnostic
 
 on:
   pull_request:
@@ -32,18 +32,8 @@ jobs:
               for line in workflow[start:end]
           ) + "\n"
 
-          bad = ''''''  public executeTask(commandId: string): Promise<CommandEvent> {
-              return this.tasks.execute(commandId);
-            }
-
-            public cancelTask(commandId: string): Promise<void> {
-          ''''''
-          good = ''''''  public executeTask(commandId: string): Promise<CommandEvent> {
-            return this.tasks.execute(commandId);
-          }
-
-          public cancelTask(commandId: string): Promise<void> {
-          ''''''
+          bad = "'''  public executeTask(commandId: string): Promise<CommandEvent> {\n      return this.tasks.execute(commandId);\n    }\n\n    public cancelTask(commandId: string): Promise<void> {\n'''"
+          good = "'''  public executeTask(commandId: string): Promise<CommandEvent> {\n    return this.tasks.execute(commandId);\n  }\n\n  public cancelTask(commandId: string): Promise<void> {\n'''"
           if script.count(bad) != 1:
               raise RuntimeError("Expected one over-indented controller patch anchor.")
           script = script.replace(bad, good, 1)
@@ -65,7 +55,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: xtf-production-correction-v4-diagnostic
+          name: xtf-production-correction-v5-diagnostic
           path: |
             correction-ingress.log
             correction-ingress.status
