@@ -1,0 +1,53 @@
+name: XTF production dependency hardening
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  CI: true
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Upgrade the local embedding runtime and patched URI parser
+        run: |
+          npm install @huggingface/transformers@4.2.0 --workspace @lhic/controller --save-exact
+          npm pkg set 'overrides.fast-uri=3.1.4'
+          npm install
+      - name: Verify the v4 API boundary
+        run: >-
+          node --input-type=module -e
+          "const module = await import('@huggingface/transformers');
+          if (typeof module.pipeline !== 'function')
+          throw new Error('Transformers v4 pipeline export is unavailable.');"
+      - run: npm run format
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint
+      - name: Require zero high or critical production advisories
+        run: npm audit --omit=dev --audit-level=high
+      - name: Record resolved production tree
+        run: npm ls @huggingface/transformers sharp fast-uri --all
+      - name: Commit validated dependency hardening
+        run: |
+          git rm .github/workflows/xtf-dependency-hardening.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json packages/controller/package.json
+          git add --all
+          git commit -m "fix(security): update embedding runtime and URI parser"
+          git push origin HEAD:xtf/lhic-learnloop
