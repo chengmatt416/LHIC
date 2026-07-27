@@ -33,10 +33,10 @@ describe("LearnLoop preregistered study scheduling", () => {
     );
 
     expect(reversedParticipants).toEqual(forward);
-    expect(forward.counts.evaluationAssignments).toBe(8);
+    expect(forward.counts.evaluationAssignments).toBe(14);
     expect(forward.counts.evaluationAssignmentsPerLanguage).toEqual({
-      en: 4,
-      "zh-TW": 4,
+      en: 8,
+      "zh-TW": 6,
     });
     expect(forward.qualityChecks.maximumUiVariantImbalance).toBeLessThanOrEqual(
       1,
@@ -98,12 +98,30 @@ describe("LearnLoop preregistered study scheduling", () => {
 
   it("fails when the frozen enrollment cannot satisfy sample or language minima", () => {
     const fixture = scheduleFixture();
-    const insufficient = fixture.participants.filter(
+    const totalInsufficient = fixture.participants.filter(
       (participant) =>
         participant.split === "training" || participant.language === "en",
     );
     expect(() =>
-      buildLearnLoopStudySchedule(fixture.plan, fixture.manifest, insufficient),
+      buildLearnLoopStudySchedule(
+        fixture.plan,
+        fixture.manifest,
+        totalInsufficient,
+      ),
+    ).toThrow("minimumEvaluationUnits");
+
+    const languageInsufficient = fixture.participants.filter(
+      (participant) =>
+        participant.split === "training" ||
+        participant.language === "en" ||
+        participant.participantHash === digest("evaluation-zh-a"),
+    );
+    expect(() =>
+      buildLearnLoopStudySchedule(
+        fixture.plan,
+        fixture.manifest,
+        languageInsufficient,
+      ),
     ).toThrow("evaluation minimum for zh-TW");
   });
 
@@ -162,8 +180,11 @@ function scheduleFixture(): {
     participant(planSha256, "training-zh", "training", "zh-TW"),
     participant(planSha256, "evaluation-en-a", "evaluation", "en"),
     participant(planSha256, "evaluation-en-b", "evaluation", "en"),
+    participant(planSha256, "evaluation-en-c", "evaluation", "en"),
+    participant(planSha256, "evaluation-en-d", "evaluation", "en"),
     participant(planSha256, "evaluation-zh-a", "evaluation", "zh-TW"),
     participant(planSha256, "evaluation-zh-b", "evaluation", "zh-TW"),
+    participant(planSha256, "evaluation-zh-c", "evaluation", "zh-TW"),
   ];
   return { plan, manifest, participants };
 }
@@ -177,7 +198,7 @@ function studyPlan(): LearnLoopStudyPlan {
     lhicCommitSha: "0".repeat(40),
     frozenAt: "2026-07-27T00:00:00.000Z",
     design: "paired-offline-intent-v1",
-    minimumEvaluationUnits: 8,
+    minimumEvaluationUnits: 10,
     confidenceLevel: 0.95,
     calibrationBins: 10,
     requiredLanguages: ["en", "zh-TW"],
