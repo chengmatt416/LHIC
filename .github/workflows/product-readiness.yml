@@ -1,0 +1,46 @@
+name: Product readiness gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/cli/src/product-data*"
+      - "apps/cli/src/entry.ts"
+      - "apps/cli/src/user-experience*"
+      - "docs/product-data-lifecycle.md"
+      - "README.md"
+      - "package.json"
+      - ".github/workflows/product-readiness.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  product-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test local product-data lifecycle
+        run: npx vitest run apps/cli/src/product-data.test.ts apps/cli/src/user-experience.test.ts
+      - name: Validate public product-data CLI
+        run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "data inventory"
+          npx tsx apps/cli/src/entry.ts help | grep -F "data erase"
+      - name: Validate distributable CLI package
+        run: npm run package:smoke
+      - name: Lint repository
+        run: npm run lint
