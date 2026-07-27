@@ -59,6 +59,17 @@ jobs:
           npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
           npm run study:learnloop -- digest --plan benchmarks/learnloop-study/plan.example.json
       - run: npm run lint
+      - name: Stage final read-only workflow artifact
+        shell: bash
+        run: |
+          mkdir -p final-workflow
+          cp .github/workflows/xtf-learnloop.yml final-workflow/xtf-learnloop.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-labeling-read-only-workflow
+          path: final-workflow/xtf-learnloop.yml
+          if-no-files-found: error
+          retention-days: 1
       - name: Commit validated labeling integration
         shell: bash
         run: |
@@ -70,7 +81,6 @@ jobs:
             apps/cli/src/entry.ts \
             benchmarks/learnloop-study/README.md \
             docs/xtf-study-preregistration.md \
-            XTF-LEARNLOOP.md \
-            .github/workflows/xtf-learnloop.yml
+            XTF-LEARNLOOP.md
           git commit -m "feat(xtf): finalize blinded gold-label workflow"
           git push origin HEAD:xtf/lhic-learnloop
