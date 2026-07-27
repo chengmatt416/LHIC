@@ -12,8 +12,8 @@ npm run check:release-versions
 npm run check:product-readiness
 ```
 
-| Artifact            | Version | Status            | Notes                                                                                                                         |
-| ------------------- | ------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Artifact            | Version | Status            | Notes                                                                                                                        |
+| ------------------- | ------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `@pinyencheng/lhic` | 0.1.2   | Release candidate | npm CLI; publish only from exact `cli-v0.1.2` in the protected `npm-release` environment, followed by registry smoke checks. |
 | `lhic`              | 0.1.2   | Release candidate | Compatibility wrapper; publish from the same trusted-publishing workflow as the scoped CLI.                                  |
 | `@lhic/desktop`     | 0.1.4   | Release candidate | Native Control Center; requires signed/notarized macOS, Authenticode Windows, approved Linux, checksums, and GitHub Release. |

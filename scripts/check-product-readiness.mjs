@@ -10,12 +10,7 @@ const releaseStatuses = new Set([
   "released",
 ]);
 const artifactKinds = new Set(["npm", "desktop"]);
-const releasePlatforms = new Set([
-  "registry",
-  "linux",
-  "macos",
-  "windows",
-]);
+const releasePlatforms = new Set(["registry", "linux", "macos", "windows"]);
 const maximumArtifacts = 16;
 const maximumListItems = 64;
 
@@ -56,9 +51,7 @@ export function parseProductReadinessArguments(argumentsList) {
     );
   }
   if (mode === "release" && (!artifact || !tag || !platform)) {
-    throw new Error(
-      "Release mode requires --artifact, --tag, and --platform.",
-    );
+    throw new Error("Release mode requires --artifact, --tag, and --platform.");
   }
   return {
     mode,
@@ -82,11 +75,7 @@ export async function validateCandidateRepository({
   const normalized = validateProductizationManifest(manifest);
   const checks = [];
   const releaseManifest = validateReleaseManifest(
-    await readJson(
-      repositoryRoot,
-      "release-manifest.json",
-      "release manifest",
-    ),
+    await readJson(repositoryRoot, "release-manifest.json", "release manifest"),
   );
 
   for (const gate of normalized.permanentGates) {
@@ -225,9 +214,7 @@ export async function validateCandidateRepository({
     "apps/cli/src/product-data.test.ts",
   ]) {
     if (!productGate.includes(requiredText)) {
-      throw new Error(
-        `Product readiness gate must include ${requiredText}.`,
-      );
+      throw new Error(`Product readiness gate must include ${requiredText}.`);
     }
   }
   checks.push({
@@ -263,11 +250,7 @@ export async function validateReleaseEnvironment({
 }) {
   const repositoryRoot = resolve(root);
   const manifest = validateProductizationManifest(
-    await readJson(
-      repositoryRoot,
-      manifestPath,
-      "productization manifest",
-    ),
+    await readJson(repositoryRoot, manifestPath, "productization manifest"),
   );
   const artifact = manifest.artifacts.find((entry) => entry.id === artifactId);
   if (!artifact) {
@@ -318,19 +301,17 @@ export async function validateReleaseEnvironment({
     }
     const hasApiKey = Boolean(
       environment.APPLE_API_KEY &&
-        environment.APPLE_API_KEY_ID &&
-        environment.APPLE_API_ISSUER,
+      environment.APPLE_API_KEY_ID &&
+      environment.APPLE_API_ISSUER,
     );
     const hasAppleId = Boolean(
       environment.APPLE_ID &&
-        environment.APPLE_APP_SPECIFIC_PASSWORD &&
-        environment.APPLE_TEAM_ID,
+      environment.APPLE_APP_SPECIFIC_PASSWORD &&
+      environment.APPLE_TEAM_ID,
     );
     const hasKeychainProfile = Boolean(environment.APPLE_KEYCHAIN_PROFILE);
     if (!hasApiKey && !hasAppleId && !hasKeychainProfile) {
-      throw new Error(
-        "macOS release requires Apple notarization credentials.",
-      );
+      throw new Error("macOS release requires Apple notarization credentials.");
     }
     if (hasApiKey) {
       await assertNonemptyNormalFile(
@@ -453,10 +434,7 @@ function validateProductizationManifest(value) {
       artifact.packagePath,
       `artifact ${id} packagePath`,
     );
-    const version = semanticVersion(
-      artifact.version,
-      `artifact ${id} version`,
-    );
+    const version = semanticVersion(artifact.version, `artifact ${id} version`);
     if (!releaseStatuses.has(artifact.status)) {
       throw new Error(`Product artifact ${id} status is unsupported.`);
     }
@@ -484,9 +462,7 @@ function validateProductizationManifest(value) {
       releasePlatforms,
     );
     const expectedPlatforms =
-      artifact.kind === "npm"
-        ? ["registry"]
-        : ["linux", "macos", "windows"];
+      artifact.kind === "npm" ? ["registry"] : ["linux", "macos", "windows"];
     if (
       JSON.stringify([...platforms].sort()) !==
       JSON.stringify(expectedPlatforms)
@@ -602,7 +578,7 @@ function validateDesktopReleaseWorkflow(workflow, artifact) {
     "check-product-readiness.mjs",
     "--mode release",
     "--artifact desktop",
-    "--tag \"$GITHUB_REF_NAME\"",
+    '--tag "$GITHUB_REF_NAME"',
     "--platform linux",
     "--platform macos",
     "--platform windows",
@@ -826,7 +802,10 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     console.error(
       error instanceof Error ? error.message : "Product readiness failed.",
