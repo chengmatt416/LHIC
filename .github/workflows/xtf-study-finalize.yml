@@ -1,0 +1,80 @@
+name: XTF study tooling finalizer
+
+on:
+  push:
+    branches: [xtf/lhic-learnloop]
+    paths:
+      - "apps/cli/src/learnloop-study*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-preregistration.md"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
+      - ".github/workflows/xtf-study-finalize.yml"
+
+concurrency:
+  group: xtf-study-tooling-finalizer
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Format study changes
+        run: >-
+          npx prettier --write
+          apps/cli/src/learnloop-study.ts
+          apps/cli/src/learnloop-study.test.ts
+          apps/cli/src/entry.ts
+          benchmarks/learnloop-study/README.md
+          benchmarks/learnloop-study/plan.example.json
+          docs/xtf-study-preregistration.md
+          package.json
+          .github/workflows/xtf-learnloop.yml
+          .github/workflows/xtf-study-finalize.yml
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Test study and existing LearnLoop invariants
+        run: >-
+          npx vitest run
+          apps/cli/src/learnloop-study.test.ts
+          apps/cli/src/learnloop-benchmark.test.ts
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          packages/controller/src/correction-replay-store.test.ts
+      - name: Validate study CLI
+        run: >-
+          npm run study:learnloop -- digest
+          --plan benchmarks/learnloop-study/plan.example.json
+      - run: npm run lint
+      - name: Commit validated formatting
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/cli/src/learnloop-study.ts \
+            apps/cli/src/learnloop-study.test.ts \
+            apps/cli/src/entry.ts \
+            benchmarks/learnloop-study/README.md \
+            benchmarks/learnloop-study/plan.example.json \
+            docs/xtf-study-preregistration.md \
+            package.json \
+            .github/workflows/xtf-learnloop.yml
+          if git diff --cached --quiet; then
+            echo "No formatting changes to commit."
+          else
+            git commit -m "style(xtf): format preregistered study tooling"
+            git push origin HEAD:xtf/lhic-learnloop
+          fi
