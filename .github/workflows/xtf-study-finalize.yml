@@ -7,7 +7,7 @@ on:
       - "apps/cli/src/learnloop-study*"
       - "apps/cli/src/entry.ts"
       - "benchmarks/learnloop-study/**"
-      - "docs/xtf-study-preregistration.md"
+      - "docs/xtf-study-*"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
       - "package.json"
@@ -36,10 +36,11 @@ jobs:
         run: npm run format:check
       - name: Typecheck project references
         run: npm run typecheck
-      - name: Test preregistration, labeling, withdrawal, and analysis invariants
+      - name: Test preregistration, scheduling, labeling, withdrawal, and analysis invariants
         run: >-
           npx vitest run
           apps/cli/src/learnloop-study.test.ts
+          apps/cli/src/learnloop-study-schedule.test.ts
           apps/cli/src/learnloop-study-labeling.test.ts
           apps/cli/src/learnloop-study-withdrawal.test.ts
       - name: Validate the non-evidence plan example through the public CLI
@@ -48,6 +49,7 @@ jobs:
           --plan benchmarks/learnloop-study/plan.example.json
       - name: Validate public study lifecycle commands
         run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop schedule"
           npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
           npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop withdraw"
       - name: Lint repository
