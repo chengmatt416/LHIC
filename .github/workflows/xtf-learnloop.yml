@@ -25,7 +25,7 @@ on:
       - ".env.example"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
-      - "docs/xtf-study-preregistration.md"
+      - "docs/xtf-study-*"
       - "package.json"
       - ".github/workflows/xtf-learnloop.yml"
   push:
@@ -60,6 +60,7 @@ jobs:
           packages/controller/src/prediction-first-human-intent-controller.test.ts
           apps/cli/src/learnloop-benchmark.test.ts
           apps/cli/src/learnloop-study.test.ts
+          apps/cli/src/learnloop-study-schedule.test.ts
           apps/cli/src/learnloop-study-labeling.test.ts
           apps/cli/src/learnloop-study-withdrawal.test.ts
           apps/desktop/src/main/prediction-first-browser-admission.test.ts
