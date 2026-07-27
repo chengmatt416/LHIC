@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/cli/src/learnloop-study-labeling*"
       - "scripts/xtf-labeling-finalize.py"
+      - "scripts/xtf-labeling-preflight.py"
       - ".github/workflows/xtf-study-finalize.yml"
   push:
     branches: [xtf/lhic-learnloop]
@@ -32,6 +33,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Stabilize documentation anchor
+        run: python scripts/xtf-labeling-preflight.py
       - name: Integrate blinded labeling workflow
         run: python scripts/xtf-labeling-finalize.py
       - name: Format labeling changes
