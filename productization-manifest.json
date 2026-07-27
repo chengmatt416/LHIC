@@ -11,8 +11,11 @@
   "forbiddenTemporaryPaths": [
     ".github/workflows/product-cli-pin-finalize.yml",
     ".github/workflows/product-installer-finalize.yml",
+    ".github/workflows/product-uninstall-finalize.yml",
     "scripts/product-cli-pin-finalize.py",
     "scripts/product-cli-pin-preflight.py",
+    "scripts/product-uninstall-finalize.py",
+    "scripts/product-uninstall-preflight.py",
     "scripts/xtf-withdrawal-finalize.py",
     "scripts/xtf-withdrawal-preflight.py"
   ],
@@ -31,6 +34,9 @@
       "requiredFiles": [
         ".github/workflows/release.yml",
         "apps/cli/package.json",
+        "apps/cli/src/uninstaller.test.ts",
+        "apps/cli/src/uninstaller.ts",
+        "docs/uninstall.md",
         "scripts/check-cli-release-tag.mjs",
         "scripts/package-smoke.mjs",
         "scripts/published-package-smoke.mjs"
