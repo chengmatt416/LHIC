@@ -37,6 +37,7 @@ export interface LearnLoopStudyPlan {
   studyId: string;
   protocolVersion: string;
   collectorVersion: string;
+  lhicCommitSha: string;
   frozenAt: string;
   design: "paired-offline-intent-v1";
   minimumEvaluationUnits: number;
@@ -103,6 +104,8 @@ export interface LearnLoopStudyReport {
   datasetSha256: string;
   methodology: {
     design: LearnLoopStudyPlan["design"];
+    protocolVersion: string;
+    lhicCommitSha: string;
     trainingRecords: number;
     evaluationRecords: number;
     includedEvaluationUnits: number;
@@ -165,6 +168,7 @@ export function parseLearnLoopStudyPlan(value: unknown): LearnLoopStudyPlan {
       "studyId",
       "protocolVersion",
       "collectorVersion",
+      "lhicCommitSha",
       "frozenAt",
       "design",
       "minimumEvaluationUnits",
@@ -190,6 +194,7 @@ export function parseLearnLoopStudyPlan(value: unknown): LearnLoopStudyPlan {
     "collectorVersion",
     64,
   );
+  const lhicCommitSha = gitCommitSha(plan.lhicCommitSha, "lhicCommitSha");
   const frozenAt = canonicalTimestamp(plan.frozenAt, "frozenAt");
   if (plan.design !== "paired-offline-intent-v1") {
     throw new Error("Study design is unsupported.");
@@ -249,6 +254,7 @@ export function parseLearnLoopStudyPlan(value: unknown): LearnLoopStudyPlan {
     studyId,
     protocolVersion,
     collectorVersion,
+    lhicCommitSha,
     frozenAt,
     design: "paired-offline-intent-v1",
     minimumEvaluationUnits,
@@ -412,6 +418,8 @@ export function analyzeLearnLoopStudy(
     datasetSha256,
     methodology: {
       design: plan.design,
+      protocolVersion: plan.protocolVersion,
+      lhicCommitSha: plan.lhicCommitSha,
       trainingRecords: training.length,
       evaluationRecords: evaluation.length,
       includedEvaluationUnits: included.length,
@@ -920,6 +928,16 @@ function languageTag(value: unknown, name: string): string {
     value.length > 35
   ) {
     throw new Error(`${name} is invalid.`);
+  }
+  return value;
+}
+
+function gitCommitSha(value: unknown, name: string): string {
+  if (
+    typeof value !== "string" ||
+    (!/^[a-f0-9]{40}$/u.test(value) && !/^[a-f0-9]{64}$/u.test(value))
+  ) {
+    throw new Error(`${name} must be a full lowercase Git commit digest.`);
   }
   return value;
 }

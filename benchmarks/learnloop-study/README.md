@@ -5,7 +5,7 @@ This directory contains the machine-readable starting point for the XTF evidence
 ## Workflow
 
 1. Copy `plan.example.json` to a new study-specific plan.
-2. Replace the example identifiers, collector version, timestamp, sample minimums, languages, and thresholds.
+2. Replace the example identifiers, exact LHIC commit SHA, collector version, timestamp, sample minimums, languages, and thresholds.
 3. Commit and timestamp the plan before collecting records.
 4. Compute the frozen digest:
 

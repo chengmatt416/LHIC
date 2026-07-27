@@ -144,7 +144,7 @@ The benchmark has a fixed training set, an independent validation split, and a s
 
 The branch now includes a separate paired offline study analyzer for the real XTF evidence phase. The tooling is complete; participant recruitment and data collection have **not** been performed.
 
-Freeze and hash a machine-readable plan before collecting any record:
+Freeze and hash a machine-readable plan, including the exact full LHIC Git commit, before collecting any record:
 
 ```bash
 npm run study:learnloop -- digest \

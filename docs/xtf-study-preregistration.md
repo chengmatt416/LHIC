@@ -60,7 +60,7 @@ This design must not execute both arms against a mutable external account. The p
 Before collecting any record:
 
 1. Copy the plan example and replace every study-specific value.
-2. Pin the LHIC Git revision and the study collector version outside the dataset.
+2. Set `lhicCommitSha` to the exact full LHIC commit under study and set the frozen collector version. Both values are included in the plan digest and aggregate report.
 3. Set hypotheses, sample minimums, languages, calibration bins, confidence level, exclusion rules, and pass thresholds.
 4. Set `frozenAt` to a canonical UTC ISO timestamp.
 5. Commit the plan to a public or access-controlled append-only location.

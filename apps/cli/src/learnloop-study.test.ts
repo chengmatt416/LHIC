@@ -19,6 +19,7 @@ describe("LearnLoop preregistered study analysis", () => {
     const report = analyzeLearnLoopStudy(plan, records);
 
     expect(report.methodology.includedEvaluationUnits).toBe(40);
+    expect(report.methodology.lhicCommitSha).toBe(plan.lhicCommitSha);
     expect(report.metrics.base.top1Accuracy).toBe(0.7);
     expect(report.metrics.learned.top1Accuracy).toBe(1);
     expect(report.metrics.accuracyGain).toBeCloseTo(0.3);
@@ -133,6 +134,12 @@ describe("LearnLoop preregistered study analysis", () => {
         requiredLanguages: ["en", "en"],
       }),
     ).toThrow("unique language tags");
+    expect(() =>
+      parseLearnLoopStudyPlan({
+        ...plan,
+        lhicCommitSha: "main",
+      }),
+    ).toThrow("full lowercase Git commit digest");
   });
 });
 
@@ -142,6 +149,7 @@ function studyPlan(): LearnLoopStudyPlan {
     studyId: "xtf-learnloop-paired-pilot-001",
     protocolVersion: "1.0.0",
     collectorVersion: "lhic-study-collector-1.0.0",
+    lhicCommitSha: "309aa9133bf1b3625b188fe037ca9c9c86ce16a3",
     frozenAt: "2026-07-27T00:00:00.000Z",
     design: "paired-offline-intent-v1",
     minimumEvaluationUnits: 40,
