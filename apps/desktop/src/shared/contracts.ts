@@ -1,3 +1,9 @@
+import type {
+  HumanIntentCorrectionBinding,
+  LearnLoopRule,
+  SignedHumanIntentCorrectionApproval,
+} from "@lhic/controller";
+
 export const taskSourceKinds = [
   "codex-cli",
   "antigravity-cli",
@@ -76,6 +82,11 @@ export interface TaskApproval {
   approvedAt: string;
   expiresAt: string;
   signature?: string;
+}
+
+export interface HumanIntentCorrectionSubmission {
+  binding: HumanIntentCorrectionBinding;
+  approval: SignedHumanIntentCorrectionApproval;
 }
 
 export const mcpClientKinds = [
@@ -453,6 +464,9 @@ export interface DesktopApi {
     execute(commandId: string): Promise<CommandEvent>;
     approve(commandId: string, approval?: TaskApproval): Promise<CommandEvent>;
     cancel(commandId: string): Promise<void>;
+    ingestCorrection(
+      input: HumanIntentCorrectionSubmission,
+    ): Promise<LearnLoopRule>;
   };
   skills: {
     connect(input: SharedLibraryConnection): Promise<CommandEvent>;

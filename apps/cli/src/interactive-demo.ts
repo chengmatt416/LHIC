@@ -9,7 +9,7 @@ import {
   PlaywrightDirectExecutor,
 } from "@lhic/browser";
 import {
-  TransformersEmbeddingEngine,
+  LocalFeatureHashEmbeddingEngine,
   createDemoModelProvider,
   executeBrowserPlan,
   learnDemoSkill,
@@ -89,7 +89,7 @@ export async function runInteractiveDemo(
   const database = createMemoryDatabase(databaseFile);
   const skillStore = new SkillStore(database);
   const embeddingEngine =
-    options.embeddingEngine ?? new TransformersEmbeddingEngine();
+    options.embeddingEngine ?? new LocalFeatureHashEmbeddingEngine();
   const browser = await (
     options.launchBrowser ?? (() => chromium.launch({ headless: false }))
   )();

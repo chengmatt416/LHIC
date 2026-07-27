@@ -27,7 +27,7 @@ import {
   type BrowserPlanRunResult,
   type BrowserPlanStepOutcome,
   type LocalEmbeddingEngine,
-  TransformersEmbeddingEngine,
+  LocalFeatureHashEmbeddingEngine,
 } from "@lhic/controller";
 import { createMemoryDatabase, SelectorMemory, SkillStore } from "@lhic/memory";
 import {
@@ -160,7 +160,7 @@ export async function createMcpRuntime(
     skillStore,
     selectorMemory: new SelectorMemory(database),
     embeddingEngine:
-      options.embeddingEngine ?? new TransformersEmbeddingEngine(),
+      options.embeddingEngine ?? new LocalFeatureHashEmbeddingEngine(),
     ...(sharedSkills ? { sharedSkills } : {}),
     close: () => database.close(),
   };

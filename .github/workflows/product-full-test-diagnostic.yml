@@ -1,0 +1,46 @@
+name: Diagnose full TypeScript suite
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/product-full-test-diagnostic.yml"
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run pw:install
+      - name: Run complete TypeScript suite
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: npm test > full-typescript-test.log 2>&1
+      - name: Upload complete test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-typescript-test-log
+          path: full-typescript-test.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Require test success
+        if: steps.tests.outcome != 'success'
+        run: |
+          cat full-typescript-test.log
+          exit 1

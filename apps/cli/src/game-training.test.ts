@@ -98,7 +98,7 @@ describe("game-training CLI", () => {
     const application = join(root, "Challenge2026.app");
     await mkdir(application);
 
-    await expect(
+    const setup = () =>
       runGameTrainingCommand([
         "2d",
         "setup",
@@ -107,8 +107,14 @@ describe("game-training CLI", () => {
         application,
         "--root",
         join(root, "runtime"),
-      ]),
-    ).resolves.toMatchObject({
+      ]);
+
+    if (process.platform !== "darwin") {
+      await expect(setup()).rejects.toThrow("only on macOS");
+      return;
+    }
+
+    await expect(setup()).resolves.toMatchObject({
       core: "2d",
       profile: "challenge-2026",
       target: { schemaVersion: "native-game-target-v1" },

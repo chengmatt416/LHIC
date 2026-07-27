@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, readFileSync } from "node:fs";
 import {
   access,
   appendFile,
@@ -18,12 +18,18 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const cliPackageName = "@pinyencheng/lhic";
-const githubReleaseUrl =
-  "https://api.github.com/repos/chengmatt416/LHIC/releases/latest";
+const cliPackageVersion = readCliPackageVersion();
+const githubReleasesUrl =
+  "https://api.github.com/repos/chengmatt416/LHIC/releases?per_page=100";
+const maximumDesktopReleases = 100;
+const maximumDesktopAssetsPerRelease = 200;
+const maximumChecksumManifestBytes = 256 * 1024;
+const maximumDesktopArtifactBytes = 1_500_000_000;
 
 export interface CommandResult {
   readonly stdout: string;
@@ -43,6 +49,8 @@ export interface DesktopReleaseAsset {
 
 export interface DesktopRelease {
   readonly tag_name: string;
+  readonly draft: boolean;
+  readonly prerelease: boolean;
   readonly assets: readonly DesktopReleaseAsset[];
 }
 
@@ -57,6 +65,7 @@ export interface CliInstallerOptions {
   readonly homeDirectory?: string;
   readonly shell?: string | undefined;
   readonly path?: string | undefined;
+  readonly version?: string;
   readonly runNpm?: (
     argumentsList: readonly string[],
   ) => Promise<CommandResult>;
@@ -81,13 +90,15 @@ export async function installCliRuntime(
   const homeDirectory = options.homeDirectory ?? homedir();
   const runNpm = options.runNpm ?? runNpmCommand;
   const currentPath = options.path ?? process.env.PATH ?? process.env.Path;
+  const version = parseCliPackageVersion(options.version ?? cliPackageVersion);
+  const packageSpecifier = `${cliPackageName}@${version}`;
 
-  await runNpm(["install", "--global", `${cliPackageName}@latest`]);
+  await runNpm(["install", "--global", packageSpecifier]);
   await runNpm([
     "exec",
     "--yes",
     "--package",
-    `${cliPackageName}@latest`,
+    packageSpecifier,
     "--",
     "playwright",
     "install",
@@ -144,26 +155,35 @@ export async function installDesktopApplication(
   const fetcher = options.fetcher ?? fetch;
   const runCommand = options.runCommand ?? runSystemCommand;
   const release = await fetchLatestDesktopRelease(fetcher);
+  const releaseVersion = parseDesktopReleaseTag(release.tag_name);
   const artifact = selectDesktopReleaseAsset(
     release.assets,
     platform,
     architecture,
+    releaseVersion,
   );
   if (basename(artifact.name) !== artifact.name) {
     throw new Error(
       "The desktop release contains an invalid installer filename.",
     );
   }
-  const checksumAsset = release.assets.find(
-    (candidate) =>
-      candidate.name === `SHA256SUMS-${release.tag_name.replace(/^v/, "")}.txt`,
+  const checksumName = `SHA256SUMS-${releaseVersion}.txt`;
+  const checksumAssets = release.assets.filter(
+    (candidate) => candidate.name === checksumName,
   );
-  if (!checksumAsset) {
-    throw new Error("The desktop release does not include a SHA-256 manifest.");
+  if (checksumAssets.length !== 1) {
+    throw new Error(
+      checksumAssets.length === 0
+        ? "The desktop release does not include a SHA-256 manifest."
+        : "The desktop release contains multiple SHA-256 manifests.",
+    );
   }
+  const checksumAsset = checksumAssets[0]!;
   const expectedChecksum = await fetchChecksum(
     fetcher,
     checksumAsset.browser_download_url,
+    release.tag_name,
+    checksumName,
     artifact.name,
   );
   const workingDirectory = await createWorkingDirectory(temporaryDirectory);
@@ -174,6 +194,8 @@ export async function installDesktopApplication(
       artifact.browser_download_url,
       downloadedArtifact,
       expectedChecksum,
+      release.tag_name,
+      artifact.name,
     );
     const location = await installDesktopArtifact({
       platform,
@@ -191,20 +213,84 @@ export function selectDesktopReleaseAsset(
   assets: readonly DesktopReleaseAsset[],
   platform: NodeJS.Platform,
   architecture: string,
+  releaseVersion?: string,
 ): DesktopReleaseAsset {
   const extension = desktopArtifactExtension(platform);
+  const prefix = releaseVersion
+    ? `lhic-control-center-${releaseVersion}-`
+    : "lhic-control-center-";
   const suffix = `-${architecture}${extension}`;
-  const asset = assets.find(
+  const matches = assets.filter(
     (candidate) =>
-      candidate.name.startsWith("lhic-control-center-") &&
-      candidate.name.endsWith(suffix),
+      candidate.name.startsWith(prefix) && candidate.name.endsWith(suffix),
   );
-  if (!asset) {
+  if (matches.length === 0) {
     throw new Error(
       `No LHIC Control Center installer is published for ${platform}/${architecture}.`,
     );
   }
-  return asset;
+  if (matches.length > 1) {
+    throw new Error(
+      `Multiple LHIC Control Center installers are published for ${platform}/${architecture}.`,
+    );
+  }
+  return matches[0]!;
+}
+
+export function parseDesktopReleaseTag(tag: string): string {
+  const match = tag.match(
+    /^desktop-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u,
+  );
+  if (!match) {
+    throw new Error("Desktop release tag must be desktop-vX.Y.Z.");
+  }
+  const parts = match.slice(1).map(Number);
+  if (parts.some((part) => !Number.isSafeInteger(part))) {
+    throw new Error("Desktop release version is outside the supported range.");
+  }
+  return parts.join(".");
+}
+
+export function selectLatestDesktopRelease(
+  releases: readonly DesktopRelease[],
+): DesktopRelease {
+  const candidates: Array<{
+    release: DesktopRelease;
+    version: string;
+    parts: number[];
+  }> = [];
+  const seenTags = new Set<string>();
+  for (const release of releases) {
+    if (release.draft || release.prerelease) continue;
+    let version: string;
+    try {
+      version = parseDesktopReleaseTag(release.tag_name);
+    } catch {
+      continue;
+    }
+    if (seenTags.has(release.tag_name)) {
+      throw new Error(
+        `Desktop release list contains duplicate tag ${release.tag_name}.`,
+      );
+    }
+    seenTags.add(release.tag_name);
+    candidates.push({
+      release,
+      version,
+      parts: version.split(".").map(Number),
+    });
+  }
+  candidates.sort((left, right) => {
+    for (let index = 0; index < 3; index += 1) {
+      const difference = right.parts[index]! - left.parts[index]!;
+      if (difference !== 0) return difference;
+    }
+    return left.release.tag_name.localeCompare(right.release.tag_name);
+  });
+  if (!candidates[0]) {
+    throw new Error("No stable desktop-vX.Y.Z release is published.");
+  }
+  return candidates[0].release;
 }
 
 export function parseSha256Manifest(
@@ -212,15 +298,22 @@ export function parseSha256Manifest(
   artifactName: string,
 ): string {
   const escapedName = escapeRegularExpression(artifactName);
-  const match = manifest.match(
-    new RegExp(`^([a-fA-F0-9]{64})\\s+[*]?${escapedName}$`, "m"),
-  );
-  if (!match?.[1]) {
+  const matches = [
+    ...manifest.matchAll(
+      new RegExp(`^([a-fA-F0-9]{64})\\s+[*]?${escapedName}$`, "gm"),
+    ),
+  ];
+  if (!matches[0]?.[1]) {
     throw new Error(
       `The SHA-256 manifest has no checksum for ${artifactName}.`,
     );
   }
-  return match[1].toLowerCase();
+  if (matches.length > 1) {
+    throw new Error(
+      `The SHA-256 manifest has multiple checksums for ${artifactName}.`,
+    );
+  }
+  return matches[0][1].toLowerCase();
 }
 
 export function profileForShell(
@@ -242,7 +335,7 @@ export function globalBinDirectory(
 async function fetchLatestDesktopRelease(
   fetcher: typeof fetch,
 ): Promise<DesktopRelease> {
-  const response = await fetcher(githubReleaseUrl, {
+  const response = await fetcher(githubReleasesUrl, {
     headers: {
       accept: "application/vnd.github+json",
       "user-agent": "lhic-cli-installer",
@@ -250,28 +343,36 @@ async function fetchLatestDesktopRelease(
   });
   if (!response.ok) {
     throw new Error(
-      `Unable to retrieve the LHIC desktop release (${response.status}).`,
+      `Unable to retrieve LHIC desktop releases (${response.status}).`,
     );
   }
   const payload: unknown = await response.json();
-  if (!isDesktopRelease(payload)) {
-    throw new Error("The LHIC desktop release response is invalid.");
+  if (!Array.isArray(payload) || payload.length > maximumDesktopReleases) {
+    throw new Error("The LHIC desktop release list is invalid.");
   }
-  return payload;
+  return selectLatestDesktopRelease(payload.filter(isDesktopRelease));
 }
 
 async function fetchChecksum(
   fetcher: typeof fetch,
   url: string,
+  releaseTag: string,
+  checksumName: string,
   artifactName: string,
 ): Promise<string> {
-  const response = await fetcher(verifiedGithubDownloadUrl(url));
+  const response = await fetcher(
+    verifiedGithubDownloadUrl(url, releaseTag, checksumName),
+  );
   if (!response.ok) {
     throw new Error(
       `Unable to download the SHA-256 manifest (${response.status}).`,
     );
   }
-  return parseSha256Manifest(await response.text(), artifactName);
+  const manifest = await response.text();
+  if (Buffer.byteLength(manifest, "utf8") > maximumChecksumManifestBytes) {
+    throw new Error("The SHA-256 manifest exceeds the supported size limit.");
+  }
+  return parseSha256Manifest(manifest, artifactName);
 }
 
 async function downloadVerifiedArtifact(
@@ -279,16 +380,39 @@ async function downloadVerifiedArtifact(
   url: string,
   destination: string,
   expectedChecksum: string,
+  releaseTag: string,
+  artifactName: string,
 ): Promise<void> {
-  const response = await fetcher(verifiedGithubDownloadUrl(url));
+  const response = await fetcher(
+    verifiedGithubDownloadUrl(url, releaseTag, artifactName),
+  );
   if (!response.ok || !response.body) {
     throw new Error(
       `Unable to download the desktop installer (${response.status}).`,
     );
   }
+  const declaredLength = response.headers.get("content-length");
+  if (declaredLength) {
+    if (!/^\d+$/u.test(declaredLength)) {
+      throw new Error("The desktop installer has an invalid Content-Length.");
+    }
+    if (Number(declaredLength) > maximumDesktopArtifactBytes) {
+      throw new Error(
+        "The desktop installer exceeds the supported size limit.",
+      );
+    }
+  }
   const checksum = createHash("sha256");
+  let downloadedBytes = 0;
   const hasher = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
+      downloadedBytes += chunk.length;
+      if (downloadedBytes > maximumDesktopArtifactBytes) {
+        callback(
+          new Error("The desktop installer exceeds the supported size limit."),
+        );
+        return;
+      }
       checksum.update(chunk);
       callback(null, chunk);
     },
@@ -507,9 +631,30 @@ function desktopArtifactExtension(platform: NodeJS.Platform): string {
   }
 }
 
-function verifiedGithubDownloadUrl(url: string): string {
+function verifiedGithubDownloadUrl(
+  url: string,
+  releaseTag: string,
+  assetName: string,
+): string {
+  parseDesktopReleaseTag(releaseTag);
+  if (
+    basename(assetName) !== assetName ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/u.test(assetName)
+  ) {
+    throw new Error("The desktop release contains an invalid asset name.");
+  }
   const parsed = new URL(url);
-  if (parsed.protocol !== "https:" || parsed.hostname !== "github.com") {
+  const expectedPath = `/chengmatt416/LHIC/releases/download/${releaseTag}/${assetName}`;
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== "github.com" ||
+    parsed.port !== "" ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.search !== "" ||
+    parsed.hash !== "" ||
+    parsed.pathname !== expectedPath
+  ) {
     throw new Error("The desktop release contains an untrusted download URL.");
   }
   return parsed.toString();
@@ -520,12 +665,19 @@ function isDesktopRelease(value: unknown): value is DesktopRelease {
   const candidate = value as Partial<DesktopRelease>;
   return (
     typeof candidate.tag_name === "string" &&
+    candidate.tag_name.length <= 64 &&
+    typeof candidate.draft === "boolean" &&
+    typeof candidate.prerelease === "boolean" &&
     Array.isArray(candidate.assets) &&
+    candidate.assets.length > 0 &&
+    candidate.assets.length <= maximumDesktopAssetsPerRelease &&
     candidate.assets.every(
       (asset) =>
         asset &&
         typeof asset.name === "string" &&
-        typeof asset.browser_download_url === "string",
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/u.test(asset.name) &&
+        typeof asset.browser_download_url === "string" &&
+        asset.browser_download_url.length <= 2_048,
     )
   );
 }
@@ -580,6 +732,39 @@ function escapeRegularExpression(value: string): string {
 
 function escapeDesktopEntryValue(value: string): string {
   return value.replace(/([\\\s"'`$])/g, "\\$1");
+}
+
+export function parseCliPackageVersion(value: string): string {
+  const match = value.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  if (!match) {
+    throw new Error("CLI package version must be an exact X.Y.Z version.");
+  }
+  const parts = match.slice(1).map(Number);
+  if (parts.some((part) => !Number.isSafeInteger(part))) {
+    throw new Error("CLI package version is outside the supported range.");
+  }
+  return parts.join(".");
+}
+
+function readCliPackageVersion(): string {
+  const packageFile = fileURLToPath(
+    new URL("../package.json", import.meta.url),
+  );
+  let value: unknown;
+  try {
+    value = JSON.parse(readFileSync(packageFile, "utf8")) as unknown;
+  } catch {
+    throw new Error("Unable to read the installed LHIC package metadata.");
+  }
+  if (
+    !value ||
+    typeof value !== "object" ||
+    (value as { name?: unknown }).name !== cliPackageName ||
+    typeof (value as { version?: unknown }).version !== "string"
+  ) {
+    throw new Error("Installed LHIC package metadata is invalid.");
+  }
+  return parseCliPackageVersion((value as { version: string }).version);
 }
 
 async function runNpmCommand(

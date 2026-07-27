@@ -25,6 +25,7 @@ import type {
 } from "../shared/contracts.js";
 import { validateCustomGameProfile } from "../shared/policy.js";
 import { DesktopController } from "./controller.js";
+import { validateHumanIntentCorrectionSubmission } from "./correction-submission-validation.js";
 import {
   isAllowedExternalUrl,
   isTrustedRendererUrl,
@@ -158,6 +159,11 @@ function registerIpc(): void {
   );
   ipcMain.handle("lhic:task:cancel", (_event, commandId: string) =>
     controller.cancelTask(requiredString(commandId, "command id")),
+  );
+  ipcMain.handle("lhic:task:ingest-correction", (_event, input: unknown) =>
+    controller.ingestHumanIntentCorrection(
+      validateHumanIntentCorrectionSubmission(input),
+    ),
   );
   ipcMain.handle("lhic:skills:sync", () => controller.syncSkills());
   ipcMain.handle("lhic:skills:status", () => controller.sharedSkillsStatus());

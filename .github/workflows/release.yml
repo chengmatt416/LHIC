@@ -8,10 +8,15 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  CI: true
+  NPM_CONFIG_PROVENANCE: "true"
+
 jobs:
   publish-cli:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    environment: npm-release
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,10 +36,17 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: echo "version=${RELEASE_TAG#cli-v}" >> "$GITHUB_OUTPUT"
-      - name: Verify CLI release tag and manifest
+      - name: Verify CLI release tag and manifests
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: npm run check:cli-release-tag
+          LHIC_RELEASE_ENVIRONMENT: npm-release
+        run: |
+          npm run check:cli-release-tag
+          node scripts/check-product-readiness.mjs \
+            --mode release \
+            --artifact cli \
+            --tag "$RELEASE_TAG" \
+            --platform registry
       - run: npm run ci
       - run: npm run package:smoke
       - run: npm run package:alias-smoke
@@ -42,7 +54,7 @@ jobs:
         run: npm publish --workspace @pinyencheng/lhic --access public --provenance
       - name: Publish compatibility entry with npm trusted publishing
         run: npm publish --workspace lhic --access public --provenance
-      - name: Wait for the scoped package to become visible
+      - name: Wait for both packages to become visible
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
         run: |

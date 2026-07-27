@@ -4,6 +4,7 @@ import { createMemoryDatabase, SkillStore } from "@lhic/memory";
 import type { BrowserExecutionPlan, NormalizedUIState } from "@lhic/schema";
 
 import {
+  LocalFeatureHashEmbeddingEngine,
   findSimilarDemoSkill,
   learnDemoSkill,
   toModelSafeUiState,
@@ -104,9 +105,28 @@ describe("demo learning", () => {
     }
   });
 
+  it("produces bounded deterministic local semantic embeddings", async () => {
+    const engine = new LocalFeatureHashEmbeddingEngine();
+    const first = await engine.embed("Search release notes");
+    const repeated = await engine.embed("Search release notes");
+    const related = await engine.embed("Search the release documentation");
+    const unrelated = await engine.embed("Delete a billing account");
+    expect(first).toHaveLength(256);
+    expect(repeated).toEqual(first);
+    expect(dot(first, related)).toBeGreaterThan(dot(first, unrelated));
+    expect(first.every(Number.isFinite)).toBe(true);
+  });
+
   it("removes all form values from model observations", () => {
     const safe = toModelSafeUiState(state);
     expect(JSON.stringify(safe)).not.toContain("private value");
     expect(safe.objects[0]?.value).toBeUndefined();
   });
 });
+
+function dot(left: readonly number[], right: readonly number[]): number {
+  return left.reduce(
+    (sum, value, index) => sum + value * (right[index] ?? 0),
+    0,
+  );
+}

@@ -1,0 +1,50 @@
+name: XTF study data lifecycle gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/cli/src/learnloop-study-labeling*"
+      - "apps/cli/src/learnloop-study-withdrawal*"
+      - "apps/cli/src/learnloop-study-schedule*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-*"
+      - "XTF-LEARNLOOP.md"
+      - ".github/workflows/xtf-labeling-finalize.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  study-data-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test scheduling, labeling, and withdrawal invariants
+        run: >-
+          npx vitest run
+          apps/cli/src/learnloop-study-schedule.test.ts
+          apps/cli/src/learnloop-study-labeling.test.ts
+          apps/cli/src/learnloop-study-withdrawal.test.ts
+      - name: Validate public study data lifecycle CLI
+        run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop schedule"
+          npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
+          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop withdraw"
+      - name: Lint repository
+        run: npm run lint

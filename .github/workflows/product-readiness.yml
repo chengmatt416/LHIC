@@ -1,0 +1,67 @@
+name: Product readiness gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/cli/src/product-data*"
+      - "apps/cli/src/installer*"
+      - "apps/cli/src/uninstaller*"
+      - "apps/cli/src/entry.ts"
+      - "apps/cli/src/main.ts"
+      - "apps/cli/src/interactive.ts"
+      - "apps/cli/src/user-experience*"
+      - "apps/desktop/scripts/assert-*-release-env.mjs"
+      - "docs/product-*"
+      - "docs/uninstall.md"
+      - "productization-manifest.json"
+      - "release-manifest.json"
+      - "scripts/check-product-readiness*"
+      - "README.md"
+      - "package.json"
+      - ".github/workflows/desktop-release.yml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/product-readiness.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  product-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test install, uninstall, data, and onboarding lifecycle
+        run: >-
+          npx vitest run
+          apps/cli/src/product-data.test.ts
+          apps/cli/src/user-experience.test.ts
+          apps/cli/src/installer.test.ts
+          apps/cli/src/uninstaller.test.ts
+      - name: Test candidate and release readiness policy
+        run: npm run test:product-readiness
+      - name: Validate machine-readable candidate readiness
+        run: npm run check:product-readiness
+      - name: Validate public product lifecycle CLI
+        run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "uninstall <cli|desktop>"
+          npx tsx apps/cli/src/entry.ts help | grep -F "data inventory"
+          npx tsx apps/cli/src/entry.ts help | grep -F "data erase"
+      - name: Validate distributable CLI package
+        run: npm run package:smoke
+      - name: Lint repository
+        run: npm run lint

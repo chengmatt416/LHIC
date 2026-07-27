@@ -43,6 +43,10 @@ import {
 import { runGameTrainingCommand } from "./game-training.js";
 import { installCliRuntime, installDesktopApplication } from "./installer.js";
 import {
+  uninstallCliRuntime,
+  uninstallDesktopApplication,
+} from "./uninstaller.js";
+import {
   cliUsage,
   createTerminalPrompter,
   guideCliArguments,
@@ -89,6 +93,16 @@ async function runCommand(
   }
   if (command === "install" && subcommand === "desktop") {
     const result = await installDesktopApplication();
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (command === "uninstall" && subcommand === "cli") {
+    const result = await uninstallCliRuntime();
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (command === "uninstall" && subcommand === "desktop") {
+    const result = await uninstallDesktopApplication();
     console.log(JSON.stringify(result, null, 2));
     return;
   }

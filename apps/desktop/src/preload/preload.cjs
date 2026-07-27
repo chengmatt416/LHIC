@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("lhic", {
     approve: (commandId, approval) =>
       ipcRenderer.invoke("lhic:task:approve", commandId, approval),
     cancel: (commandId) => ipcRenderer.invoke("lhic:task:cancel", commandId),
+    ingestCorrection: (input) =>
+      ipcRenderer.invoke("lhic:task:ingest-correction", input),
   },
   skills: {
     connect: (input) => ipcRenderer.invoke("lhic:skills:connect", input),

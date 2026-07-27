@@ -73,6 +73,13 @@ describe("game-training shared infrastructure", () => {
     await mkdir(application);
     const profile = getGameTargetProfile("challenge-2026");
 
+    if (process.platform !== "darwin") {
+      await expect(
+        registerNativeGameTarget(profile, application, join(root, "runtime")),
+      ).rejects.toThrow("only on macOS");
+      return;
+    }
+
     await registerNativeGameTarget(profile, application, join(root, "runtime"));
 
     await expect(

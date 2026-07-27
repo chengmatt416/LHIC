@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "lhic-learnloop-study-plan-v1",
+  "studyId": "example-not-preregistered",
+  "protocolVersion": "1.0.0",
+  "collectorVersion": "lhic-study-collector-1.0.0",
+  "lhicCommitSha": "0000000000000000000000000000000000000000",
+  "frozenAt": "2026-07-27T00:00:00.000Z",
+  "design": "paired-offline-intent-v1",
+  "minimumEvaluationUnits": 120,
+  "confidenceLevel": 0.95,
+  "calibrationBins": 10,
+  "requiredLanguages": ["en", "zh-TW"],
+  "minimumEvaluationUnitsPerLanguage": 50,
+  "thresholds": {
+    "minimumAccuracyGain": 0.05,
+    "maximumWrongFastAdmissionUpperBound": 0.05,
+    "maximumLearnedP95LatencyMs": 20,
+    "maximumLearnedExpectedCalibrationError": 0.15,
+    "significanceAlpha": 0.05,
+    "minimumDistinctExpectedStages": 4
+  }
+}

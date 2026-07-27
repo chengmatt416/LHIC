@@ -1,0 +1,84 @@
+name: XTF LearnLoop research gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/controller/src/human-intent-learnloop*"
+      - "packages/controller/src/trusted-correction-ingestion*"
+      - "packages/controller/src/correction-replay-store*"
+      - "packages/controller/src/prediction-first-human-intent-controller*"
+      - "apps/cli/src/learnloop-benchmark*"
+      - "apps/cli/src/learnloop-study*"
+      - "apps/cli/src/entry.ts"
+      - "apps/desktop/scripts/copy-preload.mjs"
+      - "apps/desktop/src/main/desktop-browser-runner.ts"
+      - "apps/desktop/src/main/prediction-first-browser-admission*"
+      - "apps/desktop/src/main/correction-ingestion-runtime*"
+      - "apps/desktop/src/main/correction-submission-validation*"
+      - "apps/desktop/src/main/task-service*"
+      - "apps/desktop/src/main/controller.ts"
+      - "apps/desktop/src/main/main.ts"
+      - "apps/desktop/src/preload/preload.*"
+      - "apps/desktop/src/shared/contracts.ts"
+      - "benchmarks/learnloop-study/**"
+      - ".env.example"
+      - "XTF-LEARNLOOP.md"
+      - "docs/xtf-adversarial-review.md"
+      - "docs/xtf-study-*"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  research-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test prediction-first and LearnLoop invariants
+        run: >-
+          npx vitest run
+          packages/controller/src/human-intent-learnloop.test.ts
+          packages/controller/src/trusted-correction-ingestion.test.ts
+          packages/controller/src/correction-replay-store.test.ts
+          packages/controller/src/prediction-first-human-intent-controller.test.ts
+          apps/cli/src/learnloop-benchmark.test.ts
+          apps/cli/src/learnloop-study.test.ts
+          apps/cli/src/learnloop-study-schedule.test.ts
+          apps/cli/src/learnloop-study-labeling.test.ts
+          apps/cli/src/learnloop-study-withdrawal.test.ts
+          apps/desktop/src/main/prediction-first-browser-admission.test.ts
+          apps/desktop/src/main/correction-ingestion-runtime.test.ts
+          apps/desktop/src/main/correction-submission-validation.test.ts
+          apps/desktop/src/main/task-service-correction-ingestion.test.ts
+          apps/desktop/src/main/task-service-learnloop.test.ts
+      - name: Validate the non-evidence preregistration example
+        run: >-
+          npm run study:learnloop -- digest
+          --plan benchmarks/learnloop-study/plan.example.json
+      - name: Produce immutable LearnLoop benchmark report
+        run: npm run bench:learnloop -- --output artifacts/learnloop-report.json
+      - name: Print benchmark report
+        run: cat artifacts/learnloop-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-learnloop-report
+          path: artifacts/learnloop-report.json
+          if-no-files-found: error
+          retention-days: 30

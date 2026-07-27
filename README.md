@@ -123,6 +123,8 @@ run this once:
 npx @pinyencheng/lhic install cli
 ```
 
+The self-installer pins the exact version of the package currently running; it does not resolve a moving `latest` tag, so the CLI binary and Playwright Chromium runtime stay reproducible.
+
 On macOS and Linux this creates `~/.local/bin/lhic` and adds that directory to
 your zsh/bash interactive shell configuration. Restart the terminal before using `lhic` directly. On
 Windows, npm's global bin directory is used; ensure the normal npm global bin
@@ -140,7 +142,7 @@ The native Control Center is still a development build. Do not use the desktop
 installer as Build Week release evidence until a platform package and matching
 SHA-256 manifest have passed the desktop release workflow. When that gate is
 green, install the native Control Center for the current operating system and
-architecture with a SHA-256-verified GitHub Release asset. macOS installs to
+architecture with a SHA-256-verified asset from the highest stable `desktop-vX.Y.Z` GitHub Release. CLI-only, draft, and prerelease tags are ignored. macOS installs to
 `~/Applications`, Linux installs a user-local AppImage and launcher, and
 Windows runs the release NSIS installer:
 
@@ -151,6 +153,36 @@ npx @pinyencheng/lhic install desktop
 The desktop installer rejects assets without a matching entry in the release
 checksum manifest and does not require an administrator password on macOS or
 Linux.
+
+### Safe uninstall
+
+Remove application binaries without silently deleting user data:
+
+```bash
+npx @pinyencheng/lhic uninstall cli
+npx @pinyencheng/lhic uninstall desktop
+```
+
+The CLI uninstaller validates its managed symlink and exact shell-profile marker before invoking npm. The Desktop uninstaller verifies the macOS bundle identifier, the Linux AppImage and launcher, or one exact Windows NSIS uninstaller. Modified, ambiguous, symlinked, or unrelated targets fail closed. User data and the shared Playwright Chromium runtime are preserved. See the [safe uninstall guide](docs/uninstall.md), then use the separate confirmation-gated data command only when deletion is intended.
+
+### Local data inventory and deletion
+
+Review all metadata under the selected local product-data root:
+
+```bash
+npx @pinyencheng/lhic data inventory --root .lhic
+```
+
+The output includes an inventory digest and a confirmation value derived from the current root contents. To perform logical deletion, stop LHIC, review the inventory, and pass that exact value while writing the receipt outside the selected root:
+
+```bash
+npx @pinyencheng/lhic data erase \
+  --root .lhic \
+  --confirm ERASE-0123456789ABCDEF \
+  --receipt ./lhic-data-erase-receipt.json
+```
+
+The command rejects symbolic links, filesystem roots, the user's home directory, the current working directory, stale confirmation values, and receipt paths inside the deleted root. It does not claim physical SSD erasure and does not automatically remove operating-system Keychain entries, external trace/replay directories, backups, or remote-service data. See the [product-data lifecycle guide](docs/product-data-lifecycle.md).
 
 ### Published CLI commands
 
