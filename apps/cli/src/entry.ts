@@ -8,6 +8,13 @@ import { fileURLToPath } from "node:url";
 import { runCli as runLegacyCli } from "./main.js";
 import { cliUsage } from "./interactive.js";
 import { runLearnLoopBenchmark } from "./learnloop-benchmark.js";
+import {
+  analyzeLearnLoopStudy,
+  hashLearnLoopStudyPlan,
+  readLearnLoopStudyPlan,
+  readLearnLoopStudyRecords,
+  writeLearnLoopStudyReport,
+} from "./learnloop-study.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
 import {
   formatDoctorReport,
@@ -18,7 +25,7 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research command:\n  lhic bench learnloop [--output <path>]`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
@@ -73,6 +80,40 @@ export async function runCli(argumentsList: string[]): Promise<void> {
       if (!report.passed) process.exitCode = 1;
       return;
     }
+
+    if (command === "study" && firstArgument === "learnloop") {
+      const action = argumentsList[2];
+      if (action === "digest") {
+        const planFile = parseStudyDigestOptions(argumentsList.slice(3));
+        const plan = await readLearnLoopStudyPlan(planFile);
+        console.log(
+          JSON.stringify(
+            {
+              schemaVersion: "lhic-learnloop-study-plan-digest-v1",
+              planSha256: hashLearnLoopStudyPlan(plan),
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      if (action === "analyze") {
+        const options = parseStudyAnalyzeOptions(argumentsList.slice(3));
+        const [plan, records] = await Promise.all([
+          readLearnLoopStudyPlan(options.planFile),
+          readLearnLoopStudyRecords(options.recordsFile),
+        ]);
+        const report = analyzeLearnLoopStudy(plan, records);
+        await writeLearnLoopStudyReport(options.outputFile, report);
+        console.log(JSON.stringify(report, null, 2));
+        if (!report.passed) process.exitCode = 1;
+        return;
+      }
+      throw new Error(
+        "LearnLoop study action must be digest or analyze. Run `lhic help` for usage.",
+      );
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : "LHIC failed.");
     process.exitCode = 1;
@@ -97,6 +138,53 @@ function parseResearchOutput(argumentsList: string[]): string | undefined {
     throw new Error("LearnLoop benchmark accepts only --output <path>.");
   }
   return argumentsList[1];
+}
+
+function parseStudyDigestOptions(argumentsList: string[]): string {
+  const options = parseExactFlags(argumentsList, ["--plan"]);
+  return options["--plan"]!;
+}
+
+function parseStudyAnalyzeOptions(argumentsList: string[]): {
+  planFile: string;
+  recordsFile: string;
+  outputFile: string;
+} {
+  const options = parseExactFlags(argumentsList, [
+    "--plan",
+    "--records",
+    "--output",
+  ]);
+  return {
+    planFile: options["--plan"]!,
+    recordsFile: options["--records"]!,
+    outputFile: options["--output"]!,
+  };
+}
+
+function parseExactFlags(
+  argumentsList: string[],
+  expectedFlags: readonly string[],
+): Record<string, string> {
+  if (argumentsList.length !== expectedFlags.length * 2) {
+    throw new Error(
+      `Expected exactly: ${expectedFlags.map((flag) => `${flag} <path>`).join(" ")}.`,
+    );
+  }
+  const expected = new Set(expectedFlags);
+  const options: Record<string, string> = {};
+  for (let index = 0; index < argumentsList.length; index += 2) {
+    const flag = argumentsList[index];
+    const value = argumentsList[index + 1];
+    if (!flag || !expected.has(flag) || !value || options[flag]) {
+      throw new Error("Study command contains an unknown, duplicate, or empty flag.");
+    }
+    options[flag] = value;
+  }
+  if (Object.keys(options).length !== expectedFlags.length) {
+    throw new Error("Study command is missing a required flag.");
+  }
+  return options;
 }
 
 async function writeResearchOutput(
