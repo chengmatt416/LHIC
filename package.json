@@ -17,7 +17,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:product-readiness": "node --test scripts/check-product-readiness.test.mjs",
+    "test:product-readiness": "node --test scripts/check-product-readiness.node-test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
