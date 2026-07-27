@@ -1,294 +1,41 @@
-name: XTF blinded labeling finalizer
+name: XTF blinded labeling gate
 
 on:
-  push:
-    branches: [xtf/lhic-learnloop]
+  pull_request:
+    branches: [main]
     paths:
       - "apps/cli/src/learnloop-study-labeling*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-preregistration.md"
+      - "XTF-LEARNLOOP.md"
       - ".github/workflows/xtf-labeling-finalize.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
 
 permissions:
-  contents: write
+  contents: read
 
-concurrency:
-  group: xtf-blinded-labeling-finalizer
-  cancel-in-progress: true
+env:
+  CI: true
 
 jobs:
-  finalize:
+  blinded-labeling:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: xtf/lhic-learnloop
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Integrate the blinded labeling CLI and research protocol
-        shell: bash
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          def replace_once(path: str, old: str, new: str) -> None:
-              file = Path(path)
-              text = file.read_text()
-              if text.count(old) != 1:
-                  raise RuntimeError(f"Expected exactly one match in {path}: {old!r}")
-              file.write_text(text.replace(old, new, 1))
-
-          entry = "apps/cli/src/entry.ts"
-          replace_once(
-              entry,
-              '''} from "./learnloop-study.js";
-          import { parseMcpHarness }''',
-              '''} from "./learnloop-study.js";
-          import {
-            finalizeLearnLoopStudyLabels,
-            readLearnLoopStudyAdjudications,
-            readLearnLoopStudyAnnotations,
-            readLearnLoopStudyBlindUnits,
-            writeFinalizedLearnLoopStudyLabels,
-          } from "./learnloop-study-labeling.js";
-          import { parseMcpHarness }''',
-          )
-          replace_once(
-              entry,
-              '  lhic study learnloop digest --plan <plan.json>\\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;',
-              '  lhic study learnloop digest --plan <plan.json>\\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;',
-          )
-          replace_once(
-              entry,
-              '''      if (action === "analyze") {
-                const options = parseStudyAnalyzeOptions(argumentsList.slice(3));''',
-              '''      if (action === "finalize-labels") {
-                const options = parseStudyLabelingOptions(argumentsList.slice(3));
-                const [plan, units, annotations, adjudications] = await Promise.all([
-                  readLearnLoopStudyPlan(options.planFile),
-                  readLearnLoopStudyBlindUnits(options.unitsFile),
-                  readLearnLoopStudyAnnotations(options.annotationsFile),
-                  readLearnLoopStudyAdjudications(options.adjudicationsFile),
-                ]);
-                const finalized = finalizeLearnLoopStudyLabels(
-                  plan,
-                  units,
-                  annotations,
-                  adjudications,
-                );
-                await writeFinalizedLearnLoopStudyLabels(
-                  options.recordsOutputFile,
-                  options.reportOutputFile,
-                  finalized,
-                );
-                console.log(JSON.stringify(finalized.report, null, 2));
-                return;
-              }
-              if (action === "analyze") {
-                const options = parseStudyAnalyzeOptions(argumentsList.slice(3));''',
-          )
-          replace_once(
-              entry,
-              '"LearnLoop study action must be digest or analyze. Run `lhic help` for usage.",',
-              '"LearnLoop study action must be digest, finalize-labels, or analyze. Run `lhic help` for usage.",',
-          )
-          replace_once(
-              entry,
-              '''function parseStudyAnalyzeOptions(argumentsList: string[]): {
-            planFile: string;''',
-              '''function parseStudyLabelingOptions(argumentsList: string[]): {
-            planFile: string;
-            unitsFile: string;
-            annotationsFile: string;
-            adjudicationsFile: string;
-            recordsOutputFile: string;
-            reportOutputFile: string;
-          } {
-            const options = parseExactFlags(argumentsList, [
-              "--plan",
-              "--units",
-              "--annotations",
-              "--adjudications",
-              "--records-output",
-              "--report-output",
-            ]);
-            return {
-              planFile: options["--plan"]!,
-              unitsFile: options["--units"]!,
-              annotationsFile: options["--annotations"]!,
-              adjudicationsFile: options["--adjudications"]!,
-              recordsOutputFile: options["--records-output"]!,
-              reportOutputFile: options["--report-output"]!,
-            };
-          }
-
-          function parseStudyAnalyzeOptions(argumentsList: string[]): {
-            planFile: string;''',
-          )
-
-          replace_once(
-              "benchmarks/learnloop-study/README.md",
-              '''5. Bind every JSONL record to that digest.
-          6. Analyze without overwriting an earlier report:
-
-          ```bash
-          lhic study learnloop analyze \\
-            --plan benchmarks/learnloop-study/plan.json \\
-            --records results/learnloop-study-records.jsonl \\
-            --output results/learnloop-study-report.json
-          ```''',
-              '''5. Collect blind units without `expectedStage`; annotators must not receive base or LearnLoop predictions.
-          6. Finalize two independent labels per unit, with third-person adjudication for every disagreement:
-
-          ```bash
-          lhic study learnloop finalize-labels \\
-            --plan benchmarks/learnloop-study/plan.json \\
-            --units results/learnloop-study-units.jsonl \\
-            --annotations results/learnloop-study-annotations.jsonl \\
-            --adjudications results/learnloop-study-adjudications.jsonl \\
-            --records-output results/learnloop-study-records.jsonl \\
-            --report-output results/learnloop-study-labeling-report.json
-          ```
-
-          7. Analyze without overwriting an earlier report:
-
-          ```bash
-          lhic study learnloop analyze \\
-            --plan benchmarks/learnloop-study/plan.json \\
-            --records results/learnloop-study-records.jsonl \\
-            --output results/learnloop-study-report.json
-          ```''',
-          )
-
-          protocol = "docs/xtf-study-preregistration.md"
-          replace_once(
-              protocol,
-              '''The JSONL study file accepts only the fixed record schema. It deliberately excludes:''',
-              '''The blind-unit, annotation, adjudication, and finalized-record JSONL files each accept only a fixed exact schema. They deliberately exclude:''',
-          )
-          replace_once(
-              protocol,
-              '''## 10. Record format
-
-          Store one JSON object per line. Required fields are:''',
-              '''## 10. Record format
-
-          Store one JSON object per line. Blind units contain the same fields as finalized records except `expectedStage`. This prevents the collector from assigning a gold label before independent annotation.
-
-          Finalized record fields are:''',
-          )
-          replace_once(
-              protocol,
-              '''## 11. Gold-label procedure
-
-          Expected Human Intent stage labels should be assigned independently of LHIC predictions. Recommended procedure:
-
-          1. Two annotators independently label the intended stage from the participant instruction and frozen task definition.
-          2. Annotators must not see base or LearnLoop predictions.
-          3. Resolve disagreement using a preregistered adjudicator.
-          4. Report initial agreement and adjudication count outside the machine-readable analyzer report.
-          5. Freeze the final expected-stage label before running the paired analysis.
-
-          Do not use the LearnLoop correction itself as the only gold label.''',
-              '''## 11. Gold-label procedure
-
-          Gold labels are finalized through the implemented blinded-labeling command:
-
-          ```bash
-          lhic study learnloop finalize-labels \\
-            --plan benchmarks/learnloop-study/plan.json \\
-            --units results/learnloop-study-units.jsonl \\
-            --annotations results/learnloop-study-annotations.jsonl \\
-            --adjudications results/learnloop-study-adjudications.jsonl \\
-            --records-output results/learnloop-study-records.jsonl \\
-            --report-output results/learnloop-study-labeling-report.json
-          ```
-
-          The finalizer enforces:
-
-          1. exactly two labels for every blind unit;
-          2. two distinct secret-salted annotator hashes;
-          3. `blindedToArm: true` for all annotations and adjudications;
-          4. no annotation before the frozen unit exists;
-          5. no adjudication when the first two labels agree;
-          6. exactly one independent third-person adjudication for every disagreement;
-          7. no orphan labels, duplicate units, plan substitution, pre-freeze rows, or training/evaluation identity overlap;
-          8. exclusive creation of both finalized records and the labeling report, with rollback if the second output cannot be created.
-
-          The labeling report includes raw initial agreement, nominal Fleiss' kappa, agreement/disagreement/adjudication counts, label and gold-stage distributions, annotator workloads, and order-independent digests for units, annotations, adjudications, and finalized records.
-
-          Agreement does not prove label validity. Publish the rubric, annotator training procedure, blinded audit sample, and all adjudication rules. Do not use a LearnLoop prediction or correction as the only gold label.''',
-          )
-          replace_once(
-              protocol,
-              '''- annotation procedure and agreement;''',
-              '''- blinded annotation procedure, raw agreement, Fleiss' kappa, adjudication count, and labeling-report digest;''',
-          )
-
-          replace_once(
-              "XTF-LEARNLOOP.md",
-              '''The tooling enforces before analysis:''',
-              '''The study kit first finalizes gold labels from blind units using two distinct annotators and mandatory independent adjudication for every disagreement. It reports raw agreement, Fleiss' kappa, label distributions, workloads, and order-independent dataset digests.
-
-          The tooling enforces before analysis:''',
-          )
-
-          replace_once(
-              ".github/workflows/xtf-learnloop.yml",
-              '''          apps/cli/src/learnloop-study.test.ts
-                    apps/desktop/src/main/prediction-first-browser-admission.test.ts''',
-              '''          apps/cli/src/learnloop-study.test.ts
-                    apps/cli/src/learnloop-study-labeling.test.ts
-                    apps/desktop/src/main/prediction-first-browser-admission.test.ts''',
-          )
-          replace_once(
-              ".github/workflows/xtf-study-finalize.yml",
-              '''      - name: Test preregistration and analysis invariants
-                  run: npx vitest run apps/cli/src/learnloop-study.test.ts''',
-              '''      - name: Test preregistration, labeling, and analysis invariants
-                  run: >-
-                    npx vitest run
-                    apps/cli/src/learnloop-study.test.ts
-                    apps/cli/src/learnloop-study-labeling.test.ts''',
-          )
-          PY
-      - name: Format blinded-labeling changes
-        run: >-
-          npx prettier --write
-          apps/cli/src/learnloop-study-labeling.ts
-          apps/cli/src/learnloop-study-labeling.test.ts
-          apps/cli/src/entry.ts
-          benchmarks/learnloop-study/README.md
-          docs/xtf-study-preregistration.md
-          XTF-LEARNLOOP.md
-          .github/workflows/xtf-learnloop.yml
-          .github/workflows/xtf-study-finalize.yml
-      - run: npm run format:check
-      - run: npm run typecheck
-      - name: Test labeling and existing study invariants
-        run: >-
-          npx vitest run
-          apps/cli/src/learnloop-study-labeling.test.ts
-          apps/cli/src/learnloop-study.test.ts
-      - name: Validate public CLI help and frozen plan digest
-        run: |
-          npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
-          npm run study:learnloop -- digest --plan benchmarks/learnloop-study/plan.example.json
-      - run: npm run lint
-      - name: Commit validated blinded-labeling workflow
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            apps/cli/src/learnloop-study-labeling.ts \
-            apps/cli/src/learnloop-study-labeling.test.ts \
-            apps/cli/src/entry.ts \
-            benchmarks/learnloop-study/README.md \
-            docs/xtf-study-preregistration.md \
-            XTF-LEARNLOOP.md \
-            .github/workflows/xtf-learnloop.yml \
-            .github/workflows/xtf-study-finalize.yml
-          git commit -m "feat(xtf): finalize blinded gold-label workflow"
-          git push origin HEAD:xtf/lhic-learnloop
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test blinded labeling invariants
+        run: npx vitest run apps/cli/src/learnloop-study-labeling.test.ts
+      - name: Validate public labeling CLI
+        run: npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
+      - name: Lint repository
+        run: npm run lint
