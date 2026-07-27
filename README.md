@@ -154,6 +154,17 @@ The desktop installer rejects assets without a matching entry in the release
 checksum manifest and does not require an administrator password on macOS or
 Linux.
 
+### Safe uninstall
+
+Remove application binaries without silently deleting user data:
+
+```bash
+npx @pinyencheng/lhic uninstall cli
+npx @pinyencheng/lhic uninstall desktop
+```
+
+The CLI uninstaller validates its managed symlink and exact shell-profile marker before invoking npm. The Desktop uninstaller verifies the macOS bundle identifier, the Linux AppImage and launcher, or one exact Windows NSIS uninstaller. Modified, ambiguous, symlinked, or unrelated targets fail closed. User data and the shared Playwright Chromium runtime are preserved. See the [safe uninstall guide](docs/uninstall.md), then use the separate confirmation-gated data command only when deletion is intended.
+
 ### Local data inventory and deletion
 
 Review all metadata under the selected local product-data root:

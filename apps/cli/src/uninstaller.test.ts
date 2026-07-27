@@ -60,8 +60,7 @@ describe("CLI uninstall lifecycle", () => {
         runNpm: async (argumentsList) => {
           (calls as string[][]).push([...argumentsList]);
           return {
-            stdout:
-              argumentsList[0] === "prefix" ? `${prefix}\n` : "removed\n",
+            stdout: argumentsList[0] === "prefix" ? `${prefix}\n` : "removed\n",
             stderr: "",
           };
         },
@@ -71,7 +70,9 @@ describe("CLI uninstall lifecycle", () => {
         ["prefix", "--global"],
         ["uninstall", "--global", "@pinyencheng/lhic"],
       ]);
-      await expect(lstat(userExecutable)).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(lstat(userExecutable)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
       const profileContent = await readFile(profile, "utf8");
       expect(profileContent).toContain("export EXISTING=value");
       expect(profileContent).toContain("export AFTER=value");
@@ -244,7 +245,11 @@ describe("Desktop uninstall lifecycle", () => {
     const home = await temporaryDirectory();
     const application = join(home, "Applications", "LHIC Control Center.app");
     await mkdir(join(application, "Contents"), { recursive: true });
-    await writeFile(join(application, "Contents", "Info.plist"), "fixture", "utf8");
+    await writeFile(
+      join(application, "Contents", "Info.plist"),
+      "fixture",
+      "utf8",
+    );
     const calls: Array<{ file: string; argumentsList: readonly string[] }> = [];
     const result = await uninstallDesktopApplication({
       platform: "darwin",

@@ -10,7 +10,7 @@ export interface CliPrompter {
 }
 
 export const cliUsage =
-  "Usage: lhic [install <cli|desktop> | start [memory-database] | demo [--safe] [--viewable] [--endpoint <URL>] | gui [demo|mcp] [--no-open] | shared <enable|login|disable|status|sync|list> [options] | train public-web <wikipedia-search|mdn-search|github-issue-filter|openstreetmap-place-search> --query <safe-public-query> [--database <path>] [--viewable] | train game env <setup|doctor> [--root <path>] [--python <path>] | train game <2d|3d> <setup|lease|record|fit|evaluate|play> <star-trooper|nemesis> [options] | preflight | global doctor | run action <action-file> [approval-file] | run plan <plan-file> [approvals-file] [--var name=value] | bench internal [--output <path>] | bench simulate resilience [task-count] [seed] | bench readiness <workarena|webarena> | bench validate-evidence <file> | mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | trace inspect <trace-file>]";
+  "Usage: lhic [install <cli|desktop> | uninstall <cli|desktop> | start [memory-database] | demo [--safe] [--viewable] [--endpoint <URL>] | gui [demo|mcp] [--no-open] | shared <enable|login|disable|status|sync|list> [options] | train public-web <wikipedia-search|mdn-search|github-issue-filter|openstreetmap-place-search> --query <safe-public-query> [--database <path>] [--viewable] | train game env <setup|doctor> [--root <path>] [--python <path>] | train game <2d|3d> <setup|lease|record|fit|evaluate|play> <star-trooper|nemesis> [options] | preflight | global doctor | run action <action-file> [approval-file] | run plan <plan-file> [approvals-file] [--var name=value] | bench internal [--output <path>] | bench simulate resilience [task-count] [seed] | bench readiness <workarena|webarena> | bench validate-evidence <file> | mcp config <antigravity|codex|claude-code|vscode> [workspace-root] | trace inspect <trace-file>]";
 
 export function createTerminalPrompter(): CliPrompter {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
@@ -63,6 +63,8 @@ export async function guideCliArguments(
       return selectedFromRootMenu ? guideGuiCommand(guided, prompter) : guided;
     case "install":
       return guideInstallCommand(guided, prompter);
+    case "uninstall":
+      return guideUninstallCommand(guided, prompter);
     case "shared":
       return guideSharedCommand(guided, prompter);
     case "train":
@@ -144,6 +146,7 @@ async function chooseRootCommand(prompter: CliPrompter): Promise<string[]> {
   const choice = await askChoice(prompter, "What would you like LHIC to do", [
     "start",
     "install",
+    "uninstall",
     "demo",
     "gui",
     "preflight",
@@ -165,6 +168,15 @@ async function guideInstallCommand(
 ): Promise<string[]> {
   const guided = [...argumentsList];
   guided[1] ??= await askChoice(prompter, "Install LHIC", ["cli", "desktop"]);
+  return guided;
+}
+
+async function guideUninstallCommand(
+  argumentsList: string[],
+  prompter: CliPrompter,
+): Promise<string[]> {
+  const guided = [...argumentsList];
+  guided[1] ??= await askChoice(prompter, "Uninstall LHIC", ["cli", "desktop"]);
   return guided;
 }
 

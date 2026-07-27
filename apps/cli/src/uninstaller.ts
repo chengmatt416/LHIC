@@ -140,7 +140,10 @@ async function planProfileCleanup(
   const original = await readOptionalText(profile);
   if (!original.includes(profileMarker)) return undefined;
   const exactBlock = `${profileMarker}\nexport PATH="${userBinDirectory}:$PATH"\n`;
-  if (countOccurrences(original, profileMarker) !== 1 || !original.includes(exactBlock)) {
+  if (
+    countOccurrences(original, profileMarker) !== 1 ||
+    !original.includes(exactBlock)
+  ) {
     throw new Error(
       `Refusing to modify ${profile}: the LHIC PATH marker was edited or duplicated.`,
     );
@@ -149,9 +152,7 @@ async function planProfileCleanup(
   return { path: profile, original, updated };
 }
 
-async function applyProfileCleanup(
-  plan: ProfileCleanupPlan,
-): Promise<boolean> {
+async function applyProfileCleanup(plan: ProfileCleanupPlan): Promise<boolean> {
   const current = await readOptionalText(plan.path);
   if (current !== plan.original) {
     throw new Error(
@@ -260,7 +261,6 @@ async function uninstallLinuxApplication(
     "lhic-control-center.desktop",
   );
   const directoryStat = await optionalLstat(applicationDirectory);
-  let applicationRemoved = false;
   if (directoryStat) {
     if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()) {
       throw new Error(
@@ -277,11 +277,8 @@ async function uninstallLinuxApplication(
         "Refusing to remove the Linux application because the managed AppImage is missing or unsafe.",
       );
     }
-    await rm(applicationDirectory, { recursive: true, force: false });
-    applicationRemoved = true;
   }
 
-  let launcherRemoved = false;
   const launcherStat = await optionalLstat(launcher);
   if (launcherStat) {
     if (launcherStat.isSymbolicLink() || !launcherStat.isFile()) {
@@ -299,14 +296,19 @@ async function uninstallLinuxApplication(
         "Refusing to remove the Linux launcher because it no longer matches the LHIC-managed application.",
       );
     }
+  }
+
+  if (directoryStat) {
+    await rm(applicationDirectory, { recursive: true, force: false });
+  }
+  if (launcherStat) {
     await rm(launcher);
-    launcherRemoved = true;
   }
   return desktopResult(
     "linux",
-    applicationRemoved,
-    launcherRemoved,
-    applicationRemoved ? application : null,
+    Boolean(directoryStat),
+    Boolean(launcherStat),
+    directoryStat ? application : null,
   );
 }
 
