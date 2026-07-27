@@ -108,5 +108,6 @@ jobs:
         with:
           name: xtf-formatted-study-gates
           path: formatted
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
