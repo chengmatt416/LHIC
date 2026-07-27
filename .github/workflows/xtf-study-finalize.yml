@@ -1,6 +1,16 @@
 name: XTF study tooling finalizer
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/cli/src/learnloop-study*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-preregistration.md"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
+      - ".github/workflows/xtf-study-finalize.yml"
   push:
     branches: [xtf/lhic-learnloop]
     paths:
