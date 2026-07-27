@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { createWriteStream, readFileSync } from "node:fs";
 import {
   access,
   appendFile,
@@ -18,10 +18,12 @@ import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const cliPackageName = "@pinyencheng/lhic";
+const cliPackageVersion = readCliPackageVersion();
 const githubReleasesUrl =
   "https://api.github.com/repos/chengmatt416/LHIC/releases?per_page=100";
 const maximumDesktopReleases = 100;
@@ -63,6 +65,7 @@ export interface CliInstallerOptions {
   readonly homeDirectory?: string;
   readonly shell?: string | undefined;
   readonly path?: string | undefined;
+  readonly version?: string;
   readonly runNpm?: (
     argumentsList: readonly string[],
   ) => Promise<CommandResult>;
@@ -87,13 +90,15 @@ export async function installCliRuntime(
   const homeDirectory = options.homeDirectory ?? homedir();
   const runNpm = options.runNpm ?? runNpmCommand;
   const currentPath = options.path ?? process.env.PATH ?? process.env.Path;
+  const version = parseCliPackageVersion(options.version ?? cliPackageVersion);
+  const packageSpecifier = `${cliPackageName}@${version}`;
 
-  await runNpm(["install", "--global", `${cliPackageName}@latest`]);
+  await runNpm(["install", "--global", packageSpecifier]);
   await runNpm([
     "exec",
     "--yes",
     "--package",
-    `${cliPackageName}@latest`,
+    packageSpecifier,
     "--",
     "playwright",
     "install",
@@ -727,6 +732,39 @@ function escapeRegularExpression(value: string): string {
 
 function escapeDesktopEntryValue(value: string): string {
   return value.replace(/([\\\s"'`$])/g, "\\$1");
+}
+
+export function parseCliPackageVersion(value: string): string {
+  const match = value.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u);
+  if (!match) {
+    throw new Error("CLI package version must be an exact X.Y.Z version.");
+  }
+  const parts = match.slice(1).map(Number);
+  if (parts.some((part) => !Number.isSafeInteger(part))) {
+    throw new Error("CLI package version is outside the supported range.");
+  }
+  return parts.join(".");
+}
+
+function readCliPackageVersion(): string {
+  const packageFile = fileURLToPath(
+    new URL("../package.json", import.meta.url),
+  );
+  let value: unknown;
+  try {
+    value = JSON.parse(readFileSync(packageFile, "utf8")) as unknown;
+  } catch {
+    throw new Error("Unable to read the installed LHIC package metadata.");
+  }
+  if (
+    !value ||
+    typeof value !== "object" ||
+    (value as { name?: unknown }).name !== cliPackageName ||
+    typeof (value as { version?: unknown }).version !== "string"
+  ) {
+    throw new Error("Installed LHIC package metadata is invalid.");
+  }
+  return parseCliPackageVersion((value as { version: string }).version);
 }
 
 async function runNpmCommand(

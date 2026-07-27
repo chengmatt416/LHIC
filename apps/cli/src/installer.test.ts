@@ -8,6 +8,7 @@ import {
   globalBinDirectory,
   installDesktopApplication,
   installCliRuntime,
+  parseCliPackageVersion,
   parseDesktopReleaseTag,
   parseSha256Manifest,
   profileForShell,
@@ -25,6 +26,7 @@ describe("CLI installer", () => {
         homeDirectory,
         shell: "/bin/zsh",
         path: "/usr/bin",
+        version: "1.2.3",
         runNpm: async (argumentsList) => {
           (calls as string[][]).push([...argumentsList]);
           if (argumentsList[0] === "prefix") {
@@ -35,12 +37,12 @@ describe("CLI installer", () => {
       });
 
       expect(calls).toEqual([
-        ["install", "--global", "@pinyencheng/lhic@latest"],
+        ["install", "--global", "@pinyencheng/lhic@1.2.3"],
         [
           "exec",
           "--yes",
           "--package",
-          "@pinyencheng/lhic@latest",
+          "@pinyencheng/lhic@1.2.3",
           "--",
           "playwright",
           "install",
@@ -68,6 +70,7 @@ describe("CLI installer", () => {
     const result = await installCliRuntime({
       platform: "win32",
       path: "C:\\npm;C:\\Windows",
+      version: "1.2.3",
       runNpm: async (argumentsList) => {
         (calls as string[][]).push([...argumentsList]);
         if (argumentsList[0] === "prefix") {
@@ -83,6 +86,37 @@ describe("CLI installer", () => {
       restartRequired: false,
     });
     expect(calls).toHaveLength(3);
+    expect(calls[0]).toEqual([
+      "install",
+      "--global",
+      "@pinyencheng/lhic@1.2.3",
+    ]);
+  });
+
+  it("rejects moving tags and malformed versions before invoking npm", async () => {
+    expect(parseCliPackageVersion("0.1.2")).toBe("0.1.2");
+    for (const invalid of [
+      "latest",
+      "1.2",
+      "01.2.3",
+      "1.2.3-beta.1",
+      "1.2.3 || malicious",
+    ]) {
+      expect(() => parseCliPackageVersion(invalid)).toThrow(
+        "exact X.Y.Z version",
+      );
+    }
+    let invoked = false;
+    await expect(
+      installCliRuntime({
+        version: "latest",
+        runNpm: async () => {
+          invoked = true;
+          return { stdout: "", stderr: "" };
+        },
+      }),
+    ).rejects.toThrow("exact X.Y.Z version");
+    expect(invoked).toBe(false);
   });
 });
 

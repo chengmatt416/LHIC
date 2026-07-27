@@ -123,6 +123,8 @@ run this once:
 npx @pinyencheng/lhic install cli
 ```
 
+The self-installer pins the exact version of the package currently running; it does not resolve a moving `latest` tag, so the CLI binary and Playwright Chromium runtime stay reproducible.
+
 On macOS and Linux this creates `~/.local/bin/lhic` and adds that directory to
 your zsh/bash interactive shell configuration. Restart the terminal before using `lhic` directly. On
 Windows, npm's global bin directory is used; ensure the normal npm global bin
