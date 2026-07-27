@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "apps/cli/src/product-data*"
+      - "apps/cli/src/installer*"
       - "apps/cli/src/entry.ts"
       - "apps/cli/src/user-experience*"
       - "docs/product-data-lifecycle.md"
@@ -34,8 +35,12 @@ jobs:
         run: npm run format:check
       - name: Typecheck project references
         run: npm run typecheck
-      - name: Test local product-data lifecycle
-        run: npx vitest run apps/cli/src/product-data.test.ts apps/cli/src/user-experience.test.ts
+      - name: Test product data, onboarding, and installer lifecycle
+        run: >-
+          npx vitest run
+          apps/cli/src/product-data.test.ts
+          apps/cli/src/user-experience.test.ts
+          apps/cli/src/installer.test.ts
       - name: Validate public product-data CLI
         run: |
           npx tsx apps/cli/src/entry.ts help | grep -F "data inventory"
