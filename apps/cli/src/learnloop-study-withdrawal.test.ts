@@ -40,14 +40,16 @@ describe("LearnLoop participant withdrawal", () => {
       annotations: 4,
       adjudications: 1,
     });
-    expect(redacted.receipt.removed.unitHashes).toEqual(
-      fixture.units
-        .filter(
-          (unit) => unit.participantHash === fixture.withdrawnParticipantHash,
-        )
-        .map((unit) => hashLearnLoopStudyBlindUnit(unit))
-        .sort(),
+    const removedUnitHashes = fixture.units
+      .filter(
+        (unit) => unit.participantHash === fixture.withdrawnParticipantHash,
+      )
+      .map((unit) => hashLearnLoopStudyBlindUnit(unit))
+      .sort();
+    expect(redacted.receipt.removed.unitSetSha256).toBe(
+      hashState(removedUnitHashes),
     );
+    expect(redacted.receipt.removed).not.toHaveProperty("unitHashes");
     expect(redacted.receipt.withdrawalSubjectCommitment).toMatch(
       /^[a-f0-9]{64}$/u,
     );
@@ -104,6 +106,29 @@ describe("LearnLoop participant withdrawal", () => {
         "2026-07-27T01:00:00.000Z",
       ),
     ).toThrow("unknown blind unit");
+  });
+
+  it("supports withdrawal before labeling and rejects an impossible timestamp", () => {
+    const fixture = withdrawalFixture();
+    const beforeLabeling = redactLearnLoopStudyParticipant(
+      fixture.units,
+      [],
+      [],
+      fixture.withdrawnParticipantHash,
+      "2026-07-27T01:00:00.000Z",
+    );
+    expect(beforeLabeling.annotations).toHaveLength(0);
+    expect(beforeLabeling.adjudications).toHaveLength(0);
+
+    expect(() =>
+      redactLearnLoopStudyParticipant(
+        fixture.units,
+        fixture.annotations,
+        fixture.adjudications,
+        fixture.withdrawnParticipantHash,
+        "2026-07-26T23:59:59.000Z",
+      ),
+    ).toThrow("predates a source record");
   });
 
   it("rolls back all newly created files if one output is reserved", async () => {
