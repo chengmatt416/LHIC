@@ -1,86 +1,49 @@
-name: XTF blinded labeling finalizer
+name: XTF LearnLoop study protocol gate
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "apps/cli/src/learnloop-study-labeling*"
-      - "scripts/xtf-labeling-finalize.py"
-      - "scripts/xtf-labeling-preflight.py"
+      - "apps/cli/src/learnloop-study*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-preregistration.md"
+      - "XTF-LEARNLOOP.md"
+      - "docs/xtf-adversarial-review.md"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
       - ".github/workflows/xtf-study-finalize.yml"
   push:
     branches: [xtf/lhic-learnloop]
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   CI: true
 
-concurrency:
-  group: xtf-blinded-labeling-finalizer
-  cancel-in-progress: true
-
 jobs:
-  finalize:
+  study-protocol:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: xtf/lhic-learnloop
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Stabilize documentation anchor
-        run: python scripts/xtf-labeling-preflight.py
-      - name: Integrate blinded labeling workflow
-        run: python scripts/xtf-labeling-finalize.py
-      - name: Format labeling changes
-        run: >-
-          npx prettier --write
-          apps/cli/src/learnloop-study-labeling.ts
-          apps/cli/src/learnloop-study-labeling.test.ts
-          apps/cli/src/entry.ts
-          benchmarks/learnloop-study/README.md
-          docs/xtf-study-preregistration.md
-          XTF-LEARNLOOP.md
-          .github/workflows/xtf-learnloop.yml
-      - run: npm run format:check
-      - run: npm run typecheck
-      - name: Test labeling and study invariants
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test preregistration, labeling, and analysis invariants
         run: >-
           npx vitest run
-          apps/cli/src/learnloop-study-labeling.test.ts
           apps/cli/src/learnloop-study.test.ts
-      - name: Validate public CLI
-        run: |
-          npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
-          npm run study:learnloop -- digest --plan benchmarks/learnloop-study/plan.example.json
-      - run: npm run lint
-      - name: Stage final read-only workflow artifact
-        shell: bash
-        run: |
-          mkdir -p final-workflow
-          cp .github/workflows/xtf-learnloop.yml final-workflow/xtf-learnloop.yml
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtf-labeling-read-only-workflow
-          path: final-workflow/xtf-learnloop.yml
-          if-no-files-found: error
-          retention-days: 1
-      - name: Commit validated labeling integration
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            apps/cli/src/learnloop-study-labeling.ts \
-            apps/cli/src/learnloop-study-labeling.test.ts \
-            apps/cli/src/entry.ts \
-            benchmarks/learnloop-study/README.md \
-            docs/xtf-study-preregistration.md \
-            XTF-LEARNLOOP.md
-          git commit -m "feat(xtf): finalize blinded gold-label workflow"
-          git push origin HEAD:xtf/lhic-learnloop
+          apps/cli/src/learnloop-study-labeling.test.ts
+      - name: Validate the non-evidence plan example through the public CLI
+        run: >-
+          npm run study:learnloop -- digest
+          --plan benchmarks/learnloop-study/plan.example.json
+      - name: Lint repository
+        run: npm run lint
