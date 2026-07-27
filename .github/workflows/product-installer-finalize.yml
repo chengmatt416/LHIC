@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git checkout -- .github/workflows/product-readiness.yml
+          git restore --source=HEAD --staged --worktree .github/workflows/product-readiness.yml
           git rm scripts/xtf-withdrawal-preflight.py
           git rm scripts/xtf-withdrawal-finalize.py
           git add apps/cli/src/installer.ts apps/cli/src/installer.test.ts README.md
