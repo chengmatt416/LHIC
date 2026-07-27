@@ -9,6 +9,7 @@ on:
       - "packages/controller/src/correction-replay-store*"
       - "packages/controller/src/prediction-first-human-intent-controller*"
       - "apps/cli/src/learnloop-benchmark*"
+      - "apps/cli/src/learnloop-study*"
       - "apps/cli/src/entry.ts"
       - "apps/desktop/scripts/copy-preload.mjs"
       - "apps/desktop/src/main/desktop-browser-runner.ts"
@@ -20,9 +21,11 @@ on:
       - "apps/desktop/src/main/main.ts"
       - "apps/desktop/src/preload/preload.*"
       - "apps/desktop/src/shared/contracts.ts"
+      - "benchmarks/learnloop-study/**"
       - ".env.example"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
+      - "docs/xtf-study-preregistration.md"
       - "package.json"
       - ".github/workflows/xtf-learnloop.yml"
   push:
@@ -56,11 +59,16 @@ jobs:
           packages/controller/src/correction-replay-store.test.ts
           packages/controller/src/prediction-first-human-intent-controller.test.ts
           apps/cli/src/learnloop-benchmark.test.ts
+          apps/cli/src/learnloop-study.test.ts
           apps/desktop/src/main/prediction-first-browser-admission.test.ts
           apps/desktop/src/main/correction-ingestion-runtime.test.ts
           apps/desktop/src/main/correction-submission-validation.test.ts
           apps/desktop/src/main/task-service-correction-ingestion.test.ts
           apps/desktop/src/main/task-service-learnloop.test.ts
+      - name: Validate the non-evidence preregistration example
+        run: >-
+          npm run study:learnloop -- digest
+          --plan benchmarks/learnloop-study/plan.example.json
       - name: Produce immutable LearnLoop benchmark report
         run: npm run bench:learnloop -- --output artifacts/learnloop-report.json
       - name: Print benchmark report
