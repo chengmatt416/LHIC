@@ -1,109 +1,46 @@
-name: XTF study document commit and gate export
+name: XTF LearnLoop study protocol gate
 
 on:
   pull_request:
     branches: [main]
     paths:
+      - "apps/cli/src/learnloop-study*"
+      - "apps/cli/src/entry.ts"
+      - "benchmarks/learnloop-study/**"
+      - "docs/xtf-study-preregistration.md"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
+      - "package.json"
+      - ".github/workflows/xtf-learnloop.yml"
       - ".github/workflows/xtf-study-finalize.yml"
+  push:
+    branches: [xtf/lhic-learnloop]
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  CI: true
 
 jobs:
-  finalize:
+  study-protocol:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: xtf/lhic-learnloop
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Format final documents
-        run: >-
-          npx prettier --write
-          XTF-LEARNLOOP.md
-          docs/xtf-adversarial-review.md
-      - name: Build the final read-only gate artifact
-        shell: bash
-        run: |
-          mkdir -p final-gate
-          cat > final-gate/xtf-study-finalize.yml <<'YAML'
-          name: XTF LearnLoop study protocol gate
-
-          on:
-            pull_request:
-              branches: [main]
-              paths:
-                - "apps/cli/src/learnloop-study*"
-                - "apps/cli/src/entry.ts"
-                - "benchmarks/learnloop-study/**"
-                - "docs/xtf-study-preregistration.md"
-                - "XTF-LEARNLOOP.md"
-                - "docs/xtf-adversarial-review.md"
-                - "package.json"
-                - ".github/workflows/xtf-learnloop.yml"
-                - ".github/workflows/xtf-study-finalize.yml"
-            push:
-              branches: [xtf/lhic-learnloop]
-
-          permissions:
-            contents: read
-
-          env:
-            CI: true
-
-          jobs:
-            study-protocol:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - uses: actions/setup-node@v4
-                  with:
-                    node-version: 24
-                    cache: npm
-                - run: npm ci
-                - name: Check repository formatting
-                  run: npm run format:check
-                - name: Typecheck project references
-                  run: npm run typecheck
-                - name: Test preregistration and analysis invariants
-                  run: npx vitest run apps/cli/src/learnloop-study.test.ts
-                - name: Validate the non-evidence plan example through the public CLI
-                  run: >-
-                    npm run study:learnloop -- digest
-                    --plan benchmarks/learnloop-study/plan.example.json
-                - name: Lint repository
-                  run: npm run lint
-          YAML
-          npx prettier --write final-gate/xtf-study-finalize.yml
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: npx vitest run apps/cli/src/learnloop-study.test.ts
-      - name: Validate public study CLI
+      - name: Check repository formatting
+        run: npm run format:check
+      - name: Typecheck project references
+        run: npm run typecheck
+      - name: Test preregistration and analysis invariants
+        run: npx vitest run apps/cli/src/learnloop-study.test.ts
+      - name: Validate the non-evidence plan example through the public CLI
         run: >-
           npm run study:learnloop -- digest
           --plan benchmarks/learnloop-study/plan.example.json
-      - run: npm run lint
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xtf-study-final-read-only-gate
-          path: final-gate/xtf-study-finalize.yml
-          if-no-files-found: error
-          retention-days: 1
-      - name: Commit validated final documents
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add XTF-LEARNLOOP.md docs/xtf-adversarial-review.md
-          if git diff --cached --quiet; then
-            echo "No document changes to commit."
-          else
-            git commit -m "style(xtf): finalize preregistered study documentation"
-            git push origin HEAD:xtf/lhic-learnloop
-          fi
+      - name: Lint repository
+        run: npm run lint
