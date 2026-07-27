@@ -38,25 +38,17 @@ jobs:
           npx vitest run apps/cli/src/installer.test.ts apps/cli/src/product-data.test.ts apps/cli/src/user-experience.test.ts
           npm run package:smoke
           npm run lint
-      - name: Commit and push only validated product changes
+      - name: Commit only non-workflow product changes
         shell: bash
         run: |
           set -euo pipefail
+          git checkout -- .github/workflows/product-readiness.yml
           git rm scripts/xtf-withdrawal-preflight.py
           git rm scripts/xtf-withdrawal-finalize.py
-          git rm .github/workflows/product-installer-finalize.yml
-          git add apps/cli/src/installer.ts apps/cli/src/installer.test.ts .github/workflows/product-readiness.yml README.md
+          git add apps/cli/src/installer.ts apps/cli/src/installer.test.ts README.md
           git diff --cached --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix(product): harden desktop release installation"
           git pull --rebase origin xtf/lhic-learnloop
-          git push origin HEAD:xtf/lhic-learnloop 2>&1 | tee product-installer-push.log
-      - name: Upload push diagnostic on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: product-installer-push-failure
-          path: product-installer-push.log
-          if-no-files-found: ignore
-          retention-days: 1
+          git push origin HEAD:xtf/lhic-learnloop
