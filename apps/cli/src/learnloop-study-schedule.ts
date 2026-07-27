@@ -118,9 +118,7 @@ export function parseLearnLoopStudyTaskManifest(
     ],
     "study task manifest",
   );
-  if (
-    manifest.schemaVersion !== "lhic-learnloop-study-task-manifest-v1"
-  ) {
+  if (manifest.schemaVersion !== "lhic-learnloop-study-task-manifest-v1") {
     throw new Error("Study task manifest schemaVersion is unsupported.");
   }
   const planSha256 = sha256(manifest.planSha256, "planSha256");
@@ -132,10 +130,14 @@ export function parseLearnLoopStudyTaskManifest(
     throw new Error("Study task manifest predates the frozen plan.");
   }
   if (manifest.access !== "restricted-coordinator") {
-    throw new Error("Study task manifest access must be restricted-coordinator.");
+    throw new Error(
+      "Study task manifest access must be restricted-coordinator.",
+    );
   }
   if (manifest.containsGoldLabels !== true) {
-    throw new Error("Study task manifest must declare containsGoldLabels=true.");
+    throw new Error(
+      "Study task manifest must declare containsGoldLabels=true.",
+    );
   }
   if (!Array.isArray(manifest.taskFamilies)) {
     throw new Error("Study taskFamilies must be an array.");
@@ -187,9 +189,7 @@ export function parseLearnLoopStudyTaskManifest(
       .filter((family) => family.split === "evaluation")
       .map((family) => family.expectedStage),
   ).size;
-  if (
-    evaluationStageCount < plan.thresholds.minimumDistinctExpectedStages
-  ) {
+  if (evaluationStageCount < plan.thresholds.minimumDistinctExpectedStages) {
     throw new Error(
       "Study task manifest cannot meet expected-stage diversity.",
     );
@@ -251,10 +251,16 @@ export function parseLearnLoopStudyParticipants(
       `study participant ${index}`,
     );
     if (row.schemaVersion !== "lhic-learnloop-study-participant-v1") {
-      throw new Error(`Study participant ${index} schemaVersion is unsupported.`);
+      throw new Error(
+        `Study participant ${index} schemaVersion is unsupported.`,
+      );
     }
-    if (sha256(row.planSha256, `participant ${index} planSha256`) !== planSha256) {
-      throw new Error(`Study participant ${index} is bound to a different plan.`);
+    if (
+      sha256(row.planSha256, `participant ${index} planSha256`) !== planSha256
+    ) {
+      throw new Error(
+        `Study participant ${index} is bound to a different plan.`,
+      );
     }
     if (row.consented !== true || row.withdrawn !== false) {
       throw new Error(
@@ -281,11 +287,7 @@ export function parseLearnLoopStudyParticipants(
         row.participantHash,
         `participant ${index} participantHash`,
       ),
-      split: stringChoice(
-        row.split,
-        studySplits,
-        `participant ${index} split`,
-      ),
+      split: stringChoice(row.split, studySplits, `participant ${index} split`),
       language,
       enrolledAt,
       consented: true,
@@ -348,7 +350,8 @@ export function buildLearnLoopStudySchedule(
       );
     }
     for (const [index, family] of eligibleFamilies.entries()) {
-      const familyUsage = usage.get(family.taskHash) ?? new Map<string, number>();
+      const familyUsage =
+        usage.get(family.taskHash) ?? new Map<string, number>();
       usage.set(family.taskHash, familyUsage);
       const uiVariantHash = [...family.uiVariantHashes].sort((left, right) => {
         const countDifference =
@@ -522,12 +525,19 @@ function parseTaskFamily(
     ["taskHash", "split", "language", "expectedStage", "uiVariantHashes"],
     `study task family ${index}`,
   );
-  const language = languageTag(family.language, `task family ${index} language`);
+  const language = languageTag(
+    family.language,
+    `task family ${index} language`,
+  );
   if (!plan.requiredLanguages.includes(language)) {
-    throw new Error(`Study task family ${index} language is not preregistered.`);
+    throw new Error(
+      `Study task family ${index} language is not preregistered.`,
+    );
   }
   if (!Array.isArray(family.uiVariantHashes)) {
-    throw new Error(`Study task family ${index} uiVariantHashes must be an array.`);
+    throw new Error(
+      `Study task family ${index} uiVariantHashes must be an array.`,
+    );
   }
   if (
     family.uiVariantHashes.length < 1 ||
@@ -545,7 +555,11 @@ function parseTaskFamily(
   }
   return {
     taskHash: sha256(family.taskHash, `task family ${index} taskHash`),
-    split: stringChoice(family.split, studySplits, `task family ${index} split`),
+    split: stringChoice(
+      family.split,
+      studySplits,
+      `task family ${index} split`,
+    ),
     language,
     expectedStage: stringChoice(
       family.expectedStage,
@@ -631,7 +645,10 @@ async function readJsonLines(
     });
 }
 
-async function readBoundedText(inputFile: string, name: string): Promise<string> {
+async function readBoundedText(
+  inputFile: string,
+  name: string,
+): Promise<string> {
   const content = await readFile(resolve(inputFile), "utf8");
   if (Buffer.byteLength(content, "utf8") > maximumInputBytes) {
     throw new Error(`${name} exceeds ${maximumInputBytes} bytes.`);
@@ -644,11 +661,7 @@ function exactRecord(
   keys: readonly string[],
   name: string,
 ): Record<string, unknown> {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    Array.isArray(value)
-  ) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error(`${name} must be an object.`);
   }
   const record = value as Record<string, unknown>;

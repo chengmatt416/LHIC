@@ -8,14 +8,14 @@ Because the project owner is a minor, an adult supervisor or institution must re
 
 Use separate people or accounts for these roles wherever practicable:
 
-| Role | May access | Must not access before label freeze |
-| --- | --- | --- |
-| Study supervisor | protocol, consent process, incident log, retention policy | participant secrets unless required for safeguarding |
-| Coordinator | restricted task manifest, participant pseudonyms, randomization schedule | model outcome summaries before enrollment and assignment freeze |
-| Collector operator | one current assignment, consent state, local collector | gold label and annotator identity |
-| Annotator A/B | blinded unit packet and rubric | participant hash, split, base prediction, learned prediction, confidence, admission |
-| Adjudicator | disputed blinded unit packet, both proposed labels, rubric | participant hash and model-arm outputs |
-| Analyst | finalized records, frozen plan, labeling report | direct identifiers or recruitment contact list |
+| Role               | May access                                                               | Must not access before label freeze                                                 |
+| ------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Study supervisor   | protocol, consent process, incident log, retention policy                | participant secrets unless required for safeguarding                                |
+| Coordinator        | restricted task manifest, participant pseudonyms, randomization schedule | model outcome summaries before enrollment and assignment freeze                     |
+| Collector operator | one current assignment, consent state, local collector                   | gold label and annotator identity                                                   |
+| Annotator A/B      | blinded unit packet and rubric                                           | participant hash, split, base prediction, learned prediction, confidence, admission |
+| Adjudicator        | disputed blinded unit packet, both proposed labels, rubric               | participant hash and model-arm outputs                                              |
+| Analyst            | finalized records, frozen plan, labeling report                          | direct identifiers or recruitment contact list                                      |
 
 A field such as `blindedToArm: true` records a claim made by the workflow. It does not independently prove that the person was operationally blinded.
 

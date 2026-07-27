@@ -103,11 +103,7 @@ describe("LearnLoop preregistered study scheduling", () => {
         participant.split === "training" || participant.language === "en",
     );
     expect(() =>
-      buildLearnLoopStudySchedule(
-        fixture.plan,
-        fixture.manifest,
-        insufficient,
-      ),
+      buildLearnLoopStudySchedule(fixture.plan, fixture.manifest, insufficient),
     ).toThrow("evaluation minimum for zh-TW");
   });
 
@@ -157,18 +153,8 @@ function scheduleFixture(): {
       taskFamily("training-zh-search", "training", "zh-TW", "search"),
       taskFamily("evaluation-en-login", "evaluation", "en", "login"),
       taskFamily("evaluation-en-search", "evaluation", "en", "search"),
-      taskFamily(
-        "evaluation-zh-form",
-        "evaluation",
-        "zh-TW",
-        "form_filling",
-      ),
-      taskFamily(
-        "evaluation-zh-download",
-        "evaluation",
-        "zh-TW",
-        "download",
-      ),
+      taskFamily("evaluation-zh-form", "evaluation", "zh-TW", "form_filling"),
+      taskFamily("evaluation-zh-download", "evaluation", "zh-TW", "download"),
     ],
   };
   const participants: LearnLoopStudyParticipantEnrollment[] = [
