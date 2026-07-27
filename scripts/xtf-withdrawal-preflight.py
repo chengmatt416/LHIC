@@ -15,3 +15,19 @@ required = [
 missing = [str(path) for path in required if not path.is_file()]
 if missing:
     raise RuntimeError(f"Missing study execution-kit files: {missing}")
+
+script = Path("scripts/xtf-withdrawal-finalize.py")
+text = script.read_text()
+old_anchor = '''    ''' + "'''  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop withdraw'''" + ''','''
+new_anchor = '''    r''' + "'''  lhic study learnloop digest --plan <plan.json>\\n  lhic study learnloop withdraw'''" + ''','''
+old_replacement = '''    ''' + "'''  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop schedule --plan <plan.json> --manifest <manifest.json> --participants <participants.jsonl> --output <schedule.json>\n  lhic study learnloop withdraw'''" + ''','''
+new_replacement = '''    r''' + "'''  lhic study learnloop digest --plan <plan.json>\\n  lhic study learnloop schedule --plan <plan.json> --manifest <manifest.json> --participants <participants.jsonl> --output <schedule.json>\\n  lhic study learnloop withdraw'''" + ''','''
+if old_anchor not in text or old_replacement not in text:
+    raise RuntimeError("Unable to locate literal CLI usage replacements.")
+script.write_text(
+    text.replace(old_anchor, new_anchor, 1).replace(
+        old_replacement,
+        new_replacement,
+        1,
+    )
+)
