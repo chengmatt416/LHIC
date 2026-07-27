@@ -38,7 +38,7 @@ export interface LearnLoopStudyWithdrawalReceipt {
     units: number;
     annotations: number;
     adjudications: number;
-    unitHashes: string[];
+    unitSetSha256: string;
   };
   invalidation: {
     priorFinalizedRecordsMustBeDeleted: true;
@@ -85,6 +85,14 @@ export function redactLearnLoopStudyParticipant(
     throw new Error("Study withdrawal input must use exactly one frozen plan.");
   }
   const planSha256 = [...planHashes][0]!;
+  const latestSourceRecordedAtMs = Math.max(
+    ...units.map((unit) => Date.parse(unit.recordedAt)),
+    ...annotations.map((annotation) => Date.parse(annotation.recordedAt)),
+    ...adjudications.map((adjudication) => Date.parse(adjudication.recordedAt)),
+  );
+  if (Date.parse(withdrawnAt) < latestSourceRecordedAtMs) {
+    throw new Error("Study withdrawal timestamp predates a source record.");
+  }
   assertRowsBoundToKnownUnits(
     annotations,
     unitHashes,
@@ -160,7 +168,7 @@ export function redactLearnLoopStudyParticipant(
       units: units.length - redactedUnits.length,
       annotations: annotations.length - redactedAnnotations.length,
       adjudications: adjudications.length - redactedAdjudications.length,
-      unitHashes: removedUnitHashes,
+      unitSetSha256: hashState(removedUnitHashes),
     },
     invalidation: {
       priorFinalizedRecordsMustBeDeleted: true,
