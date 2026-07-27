@@ -1,4 +1,4 @@
-name: Diagnose product installer finalization
+name: Finalize product installer hardening
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ env:
   CI: true
 
 jobs:
-  diagnose:
+  finalize:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -38,43 +38,25 @@ jobs:
           npx vitest run apps/cli/src/installer.test.ts apps/cli/src/product-data.test.ts apps/cli/src/user-experience.test.ts
           npm run package:smoke
           npm run lint
-      - name: Record every Git finalization command
-        id: git-diagnostic
-        continue-on-error: true
+      - name: Commit and push only validated product changes
         shell: bash
         run: |
-          set +e
-          exec > >(tee product-installer-git-diagnostic.log) 2>&1
-          run_command() {
-            echo
-            echo "### $*"
-            "$@"
-            status=$?
-            echo "exit=$status"
-            return 0
-          }
-          run_command git status --short
-          run_command git rm scripts/xtf-withdrawal-preflight.py
-          run_command git rm scripts/xtf-withdrawal-finalize.py
-          run_command git rm .github/workflows/product-installer-finalize.yml
-          run_command git add apps/cli/src/installer.ts apps/cli/src/installer.test.ts .github/workflows/product-readiness.yml README.md
-          run_command git diff --cached --check
-          run_command git diff --cached --stat
-          run_command git config user.name github-actions-bot
-          run_command git config user.email 41898282+github-actions-bot@users.noreply.github.com
-          run_command git commit -m "fix(product): harden desktop release installation"
-          run_command git status --short
-          run_command git pull --rebase origin xtf/lhic-learnloop
-          run_command git push --dry-run origin HEAD:xtf/lhic-learnloop
-          exit 1
-      - name: Upload Git diagnostic
-        if: always()
+          set -euo pipefail
+          git rm scripts/xtf-withdrawal-preflight.py
+          git rm scripts/xtf-withdrawal-finalize.py
+          git rm .github/workflows/product-installer-finalize.yml
+          git add apps/cli/src/installer.ts apps/cli/src/installer.test.ts .github/workflows/product-readiness.yml README.md
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(product): harden desktop release installation"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop 2>&1 | tee product-installer-push.log
+      - name: Upload push diagnostic on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: product-installer-git-diagnostic
-          path: product-installer-git-diagnostic.log
-          if-no-files-found: error
+          name: product-installer-push-failure
+          path: product-installer-push.log
+          if-no-files-found: ignore
           retention-days: 1
-      - name: Stop after diagnostic
-        if: always()
-        run: exit 1
