@@ -1,0 +1,63 @@
+name: Export productization formatting
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/product-format-export.yml"
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Format productization files in the workspace
+        run: >-
+          npx prettier --write
+          productization-manifest.json
+          release-manifest.json
+          package.json
+          scripts/check-product-readiness.mjs
+          scripts/check-product-readiness.test.mjs
+          apps/desktop/scripts/assert-windows-release-env.mjs
+          .github/workflows/desktop-release.yml
+          .github/workflows/release.yml
+          .github/workflows/product-readiness.yml
+          docs/productization.md
+          docs/release-status.md
+      - name: Stage only files changed by Prettier
+        shell: bash
+        run: |
+          git diff --name-only > product-format-files.txt
+          test -s product-format-files.txt
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          destination = Path("formatted")
+          for raw in Path("product-format-files.txt").read_text().splitlines():
+              source = Path(raw)
+              target = destination / source
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, target)
+          shutil.copy2("product-format-files.txt", destination / "product-format-files.txt")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: productization-formatted-files
+          path: formatted
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
