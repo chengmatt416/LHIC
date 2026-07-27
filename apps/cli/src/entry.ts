@@ -177,7 +177,9 @@ function parseExactFlags(
     const flag = argumentsList[index];
     const value = argumentsList[index + 1];
     if (!flag || !expected.has(flag) || !value || options[flag]) {
-      throw new Error("Study command contains an unknown, duplicate, or empty flag.");
+      throw new Error(
+        "Study command contains an unknown, duplicate, or empty flag.",
+      );
     }
     options[flag] = value;
   }

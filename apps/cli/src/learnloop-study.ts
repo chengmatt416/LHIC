@@ -222,7 +222,9 @@ export function parseLearnLoopStudyPlan(value: unknown): LearnLoopStudyPlan {
     requiredLanguages.length > 16 ||
     new Set(requiredLanguages).size !== requiredLanguages.length
   ) {
-    throw new Error("requiredLanguages must contain 1-16 unique language tags.");
+    throw new Error(
+      "requiredLanguages must contain 1-16 unique language tags.",
+    );
   }
   const minimumEvaluationUnitsPerLanguage = boundedInteger(
     plan.minimumEvaluationUnitsPerLanguage,
@@ -326,7 +328,9 @@ export function analyzeLearnLoopStudy(
       throw new Error(`Study record ${index} is bound to a different plan.`);
     }
     if (record.collectorVersion !== plan.collectorVersion) {
-      throw new Error(`Study record ${index} uses a different collector version.`);
+      throw new Error(
+        `Study record ${index} uses a different collector version.`,
+      );
     }
     if (Date.parse(record.recordedAt) < frozenAtMs) {
       throw new Error(`Study record ${index} predates the frozen plan.`);
@@ -365,7 +369,8 @@ export function analyzeLearnLoopStudy(
   let baseWrongLearnedCorrect = 0;
   for (const record of included) {
     const baseCorrect = record.base.predictedStage === record.expectedStage;
-    const learnedCorrect = record.learned.predictedStage === record.expectedStage;
+    const learnedCorrect =
+      record.learned.predictedStage === record.expectedStage;
     if (baseCorrect && !learnedCorrect) baseCorrectLearnedWrong += 1;
     if (!baseCorrect && learnedCorrect) baseWrongLearnedCorrect += 1;
   }
@@ -377,8 +382,7 @@ export function analyzeLearnLoopStudy(
   const expectedStageCounts = countStages(included);
   const languageResults = languageMetrics(included);
   const passCriteria = {
-    minimumEvaluationUnits:
-      included.length >= plan.minimumEvaluationUnits,
+    minimumEvaluationUnits: included.length >= plan.minimumEvaluationUnits,
     requiredLanguageCoverage: plan.requiredLanguages.every(
       (language) =>
         (languageResults[language]?.count ?? 0) >=
@@ -415,8 +419,7 @@ export function analyzeLearnLoopStudy(
       confidenceLevel: plan.confidenceLevel,
       calibrationBins: plan.calibrationBins,
       requiredLanguages: [...plan.requiredLanguages],
-      minimumEvaluationUnitsPerLanguage:
-        plan.minimumEvaluationUnitsPerLanguage,
+      minimumEvaluationUnitsPerLanguage: plan.minimumEvaluationUnitsPerLanguage,
       collectorVersion: plan.collectorVersion,
       rawTaskTextCollected: false,
       rawUiTextCollected: false,
@@ -584,7 +587,12 @@ function parseDecision(
       studyAdmissions,
       `${name} admission`,
     ),
-    latencyMs: boundedNumber(decision.latencyMs, `${name} latencyMs`, 0, 60_000),
+    latencyMs: boundedNumber(
+      decision.latencyMs,
+      `${name} latencyMs`,
+      0,
+      60_000,
+    ),
   };
 }
 

@@ -29,9 +29,9 @@ describe("LearnLoop preregistered study analysis", () => {
     });
     expect(report.metrics.pairedDiscordance.twoSidedPValue).toBeLessThan(0.001);
     expect(report.metrics.learned.wrongFastAdmissionRate).toBe(0);
-    expect(report.metrics.learned.wrongFastAdmissionRateInterval.upper).toBeLessThan(
-      0.1,
-    );
+    expect(
+      report.metrics.learned.wrongFastAdmissionRateInterval.upper,
+    ).toBeLessThan(0.1);
     expect(report.metrics.languageResults.en?.count).toBe(20);
     expect(report.metrics.languageResults["zh-TW"]?.count).toBe(20);
     expect(report.passed).toBe(true);
@@ -104,9 +104,9 @@ describe("LearnLoop preregistered study analysis", () => {
     } satisfies LearnLoopStudyPlan;
     const report = analyzeLearnLoopStudy(plan, studyRecords(plan, 10, 6));
     expect(report.metrics.learned.wrongFastAdmissionRate).toBe(0);
-    expect(report.metrics.learned.wrongFastAdmissionRateInterval.upper).toBeGreaterThan(
-      0.1,
-    );
+    expect(
+      report.metrics.learned.wrongFastAdmissionRateInterval.upper,
+    ).toBeGreaterThan(0.1);
     expect(report.passCriteria.wrongFastAdmissionUpperBound).toBe(false);
     expect(report.passed).toBe(false);
   });
