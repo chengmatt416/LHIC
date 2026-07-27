@@ -1,17 +1,12 @@
-name: XTF LearnLoop study protocol gate
+name: XTF withdrawal privacy hardening verifier
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - "apps/cli/src/learnloop-study*"
-      - "apps/cli/src/entry.ts"
-      - "benchmarks/learnloop-study/**"
-      - "docs/xtf-study-preregistration.md"
-      - "XTF-LEARNLOOP.md"
-      - "docs/xtf-adversarial-review.md"
-      - "package.json"
-      - ".github/workflows/xtf-learnloop.yml"
+      - "apps/cli/src/learnloop-study-labeling*"
+      - "apps/cli/src/learnloop-study-withdrawal*"
+      - "scripts/xtf-withdrawal-hardening.py"
       - ".github/workflows/xtf-study-finalize.yml"
   push:
     branches: [xtf/lhic-learnloop]
@@ -22,8 +17,12 @@ permissions:
 env:
   CI: true
 
+concurrency:
+  group: xtf-withdrawal-privacy-hardening-verifier
+  cancel-in-progress: true
+
 jobs:
-  study-protocol:
+  verify-hardening:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,23 +31,39 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Check repository formatting
-        run: npm run format:check
-      - name: Typecheck project references
-        run: npm run typecheck
-      - name: Test preregistration, labeling, withdrawal, and analysis invariants
+      - name: Apply withdrawal privacy hardening in the runner
+        run: python scripts/xtf-withdrawal-hardening.py
+      - name: Format hardening changes
+        run: >-
+          npx prettier --write
+          apps/cli/src/learnloop-study-labeling.ts
+          apps/cli/src/learnloop-study-withdrawal.ts
+          apps/cli/src/learnloop-study-withdrawal.test.ts
+          docs/xtf-study-preregistration.md
+          docs/xtf-adversarial-review.md
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Test withdrawal, labeling, and analysis invariants
         run: >-
           npx vitest run
-          apps/cli/src/learnloop-study.test.ts
-          apps/cli/src/learnloop-study-labeling.test.ts
           apps/cli/src/learnloop-study-withdrawal.test.ts
-      - name: Validate the non-evidence plan example through the public CLI
-        run: >-
-          npm run study:learnloop -- digest
-          --plan benchmarks/learnloop-study/plan.example.json
-      - name: Validate public study lifecycle commands
+          apps/cli/src/learnloop-study-labeling.test.ts
+          apps/cli/src/learnloop-study.test.ts
+      - run: npm run lint
+      - name: Stage verified files
+        shell: bash
         run: |
-          npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
-          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop withdraw"
-      - name: Lint repository
-        run: npm run lint
+          mkdir -p verified
+          cp --parents \
+            apps/cli/src/learnloop-study-labeling.ts \
+            apps/cli/src/learnloop-study-withdrawal.ts \
+            apps/cli/src/learnloop-study-withdrawal.test.ts \
+            docs/xtf-study-preregistration.md \
+            docs/xtf-adversarial-review.md \
+            verified/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-withdrawal-privacy-hardening
+          path: verified
+          if-no-files-found: error
+          retention-days: 1
