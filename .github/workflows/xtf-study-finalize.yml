@@ -33,7 +33,23 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Integrate withdrawal redaction
-        run: python scripts/xtf-withdrawal-finalize.py
+        id: integration
+        continue-on-error: true
+        shell: bash
+        run: python scripts/xtf-withdrawal-finalize.py > integration.log 2>&1
+      - name: Upload integration diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xtf-withdrawal-integration-log
+          path: integration.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Require successful integration
+        if: steps.integration.outcome != 'success'
+        run: |
+          cat integration.log
+          exit 1
       - name: Format withdrawal changes
         run: >-
           npx prettier --write
