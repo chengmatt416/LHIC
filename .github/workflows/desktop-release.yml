@@ -1,0 +1,231 @@
+name: Release Desktop
+
+on:
+  push:
+    tags: ["desktop-v*.*.*"]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate productization candidate and exact Desktop tag
+        shell: bash
+        run: |
+          npm run check:product-readiness
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          test "$GITHUB_REF_NAME" = "desktop-v$version"
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npx vitest run apps/cli/src/installer.test.ts apps/cli/src/product-data.test.ts apps/desktop/src/main/window-security.test.ts
+      - run: npm run lint
+      - run: npm run audit:prod
+      - run: npm run scan:secrets
+
+  package-linux:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: desktop-release
+    env:
+      LHIC_RELEASE_ENVIRONMENT: desktop-release
+      LHIC_LINUX_RELEASE_APPROVED: ${{ vars.LHIC_LINUX_RELEASE_APPROVED }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate protected Linux release environment
+        run: >-
+          node scripts/check-product-readiness.mjs
+          --mode release
+          --artifact desktop --tag "$GITHUB_REF_NAME"
+          --platform linux
+      - run: npm run build --workspace @lhic/desktop
+      - name: Build Linux x64 installers
+        run: >-
+          npm exec --workspace @lhic/desktop --
+          electron-builder --config electron-builder.release.yml
+          --linux AppImage deb --x64
+      - name: Verify packaged runtime
+        run: node apps/desktop/scripts/verify-package.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-linux-x64
+          path: |
+            apps/desktop/release/lhic-control-center-*-x64.AppImage
+            apps/desktop/release/lhic-control-center-*-x64.deb
+          if-no-files-found: error
+          retention-days: 3
+
+  package-windows:
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 40
+    environment: desktop-release
+    env:
+      LHIC_RELEASE_ENVIRONMENT: desktop-release
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate protected Windows release environment
+        shell: bash
+        run: >-
+          node scripts/check-product-readiness.mjs
+          --mode release
+          --artifact desktop --tag "$GITHUB_REF_NAME"
+          --platform windows
+      - run: node apps/desktop/scripts/assert-windows-release-env.mjs
+      - run: npm run build --workspace @lhic/desktop
+      - name: Build signed Windows x64 installer
+        run: >-
+          npm exec --workspace @lhic/desktop --
+          electron-builder --config electron-builder.release.yml
+          --win nsis --x64
+      - name: Verify packaged runtime
+        run: node apps/desktop/scripts/verify-package.mjs
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
+          $path = "apps/desktop/release/lhic-control-center-$version-x64.exe"
+          if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Signed Windows installer was not produced: $path"
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $path
+          if ($signature.Status -ne "Valid") {
+            throw "Windows Authenticode signature is not valid: $($signature.Status)"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-x64
+          path: apps/desktop/release/lhic-control-center-*-x64.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  package-macos:
+    needs: validate
+    runs-on: macos-latest
+    timeout-minutes: 45
+    environment: desktop-release
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [x64, arm64]
+    env:
+      LHIC_RELEASE_ENVIRONMENT: desktop-release
+      CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+      APPLE_API_KEY: ${{ runner.temp }}/AuthKey.p8
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Materialize Apple notarization API key
+        shell: bash
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY"
+          test -s "$APPLE_API_KEY"
+      - name: Validate protected macOS release environment
+        run: >-
+          node scripts/check-product-readiness.mjs
+          --mode release
+          --artifact desktop --tag "$GITHUB_REF_NAME"
+          --platform macos
+      - run: node apps/desktop/scripts/assert-macos-release-env.mjs
+      - run: npm run build --workspace @lhic/desktop
+      - name: Build signed and notarized macOS installer
+        run: >-
+          npm exec --workspace @lhic/desktop --
+          electron-builder --config electron-builder.release.yml
+          --mac dmg --${{ matrix.arch }}
+      - name: Verify signing, packaged runtime, and notarization
+        run: LHIC_REQUIRE_NOTARIZATION=true node apps/desktop/scripts/verify-package.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-${{ matrix.arch }}
+          path: apps/desktop/release/lhic-control-center-*-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          retention-days: 3
+
+  publish-release:
+    needs: [package-linux, package-windows, package-macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: desktop-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-assets
+          merge-multiple: true
+      - name: Validate the complete release asset set
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          expected=(
+            "lhic-control-center-$version-arm64.dmg"
+            "lhic-control-center-$version-x64.AppImage"
+            "lhic-control-center-$version-x64.deb"
+            "lhic-control-center-$version-x64.dmg"
+            "lhic-control-center-$version-x64.exe"
+          )
+          mapfile -t actual < <(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${actual[*]}" = "${wanted[*]}"
+      - name: Generate combined SHA-256 manifest
+        shell: bash
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          node scripts/generate-sha256-manifest.mjs release-assets "$version"
+          test -s "release-assets/SHA256SUMS-$version.txt"
+      - name: Publish immutable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          test "$GITHUB_REF_NAME" = "desktop-v$version"
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --verify-tag \
+            --title "LHIC Control Center $version" \
+            --generate-notes
