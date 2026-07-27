@@ -32,6 +32,7 @@
     "pw:install": "playwright install chromium",
     "bench:internal": "tsx apps/cli/src/main.ts bench internal",
     "bench:learnloop": "tsx apps/cli/src/entry.ts bench learnloop",
+    "study:learnloop": "tsx apps/cli/src/entry.ts study learnloop",
     "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
