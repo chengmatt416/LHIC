@@ -106,9 +106,9 @@ The Desktop IPC path is exposed only through the existing trusted-renderer handl
 - Slow Path plans cannot receive LearnLoop Fast Path admission.
 - Correction approvals are short-lived, signature-bound, and one-time across Desktop restarts.
 - Untrusted renderer origins and structurally abusive IPC inputs are rejected before LearnLoop hashing.
-- The benchmark performs zero model calls and zero network calls.
+- The synthetic benchmark performs zero model calls and zero network calls.
 
-## Reproduce the included study
+## Reproduce the synthetic mechanism study
 
 Requirements are the same as the repository: Node.js 24 and npm 11.
 
@@ -127,7 +127,7 @@ npm run bench:learnloop -- --output artifacts/learnloop-report.json
 
 The output command uses exclusive creation and refuses to overwrite an existing result.
 
-## Included metrics
+### Synthetic metrics
 
 - Base top-1 intent accuracy
 - Learned top-1 intent accuracy
@@ -140,11 +140,55 @@ The output command uses exclusive creation and refuses to overwrite an existing 
 
 The benchmark has a fixed training set, an independent validation split, and a separate synthetic holdout set. It is a regression and mechanism test, not evidence of performance on arbitrary websites or users.
 
+## Preregistered evidence-study tooling
+
+The branch now includes a separate paired offline study analyzer for the real XTF evidence phase. The tooling is complete; participant recruitment and data collection have **not** been performed.
+
+Freeze and hash a machine-readable plan before collecting any record:
+
+```bash
+npm run study:learnloop -- digest \
+  --plan benchmarks/learnloop-study/plan.json
+```
+
+Analyze consented JSONL records and write a non-overwritable report:
+
+```bash
+npm run study:learnloop -- analyze \
+  --plan benchmarks/learnloop-study/plan.json \
+  --records results/learnloop-study-records.jsonl \
+  --output results/learnloop-study-report.json
+```
+
+The analyzer rejects:
+
+- plan substitution or records collected before the frozen timestamp;
+- collector-version drift;
+- missing consent or retained withdrawn records;
+- duplicate evaluation units;
+- participant, session, task, or UI-variant overlap between training and evaluation;
+- raw extra fields, including accidental raw task or UI content;
+- malformed hashes, timestamps, stages, admissions, exclusions, or bounds.
+
+It reports:
+
+- Wilson confidence intervals for accuracy, Fast Path coverage, and wrong-fast admission;
+- paired accuracy gain and exact two-sided McNemar/binomial significance;
+- expected calibration error;
+- fixed-threshold coverage-risk curves;
+- p50 and p95 local decision latency;
+- English and Taiwan Traditional Chinese strata;
+- expected-stage and exclusion counts;
+- a plan digest and order-independent dataset digest.
+
+The full protocol, stopping rule, gold-label procedure, claim limits, consent requirements, and separate live-execution follow-up are in `docs/xtf-study-preregistration.md`. `benchmarks/learnloop-study/plan.example.json` is explicitly a template and is not evidence.
+
 ## What this branch does not claim
 
 - It does not claim zero vulnerabilities.
 - It does not claim clinical, legal, financial, or autonomous high-risk safety.
 - It does not claim that synthetic fixtures represent real-world users.
+- It does not claim that the preregistered human study has already been conducted.
 - It does not claim mechanistic interpretability of a neural model. The AI-02 integration is a behavioral intent-drift microscope: it exposes and tests changes in prediction, confidence, conflicts, candidate eligibility, and oscillation.
 - It does not claim that hash-only context is anonymous against every dictionary attack.
 - It does not claim that configuring a public key automatically provides a trustworthy correction-authority workflow; deployment still needs protected external signing, identity policy, revocation, audit, and user consent.
@@ -153,7 +197,9 @@ The benchmark has a fixed training set, an independent validation split, and a s
 
 ## Required next evidence for the XTF paper
 
-Before submission, the synthetic regression must be supplemented with a preregistered, consented study using realistic but non-sensitive tasks. Training and evaluation users, UI variants, and task IDs should be separated. Report confidence intervals, all exclusions, negative results, calibration curves, selective-risk curves, and per-domain failure cases. Do not present the included fixture percentages as general-world performance.
+The protocol and analysis pipeline are now implemented, but the study must still be run with valid consent and realistic non-sensitive tasks. Training and evaluation participants, sessions, tasks, and UI variants must remain disjoint. The frozen report must include confidence intervals, all exclusions, negative results, calibration, selective-risk curves, language strata, and per-domain failures. Do not present the included synthetic percentages or the example plan as general-world evidence.
+
+A separate preregistered live-execution follow-up is still required for verifier-confirmed task success, wrong actions per executed task, bootstrap side effects, confirmation burden, end-to-end latency, recovery after blocks, and user trust.
 
 Before production deployment, define and test the external correction authority: who may sign, how the private key is protected, how user consent is presented, how approvals are revoked, how learned rules and replay markers are deleted, and how audit records are retained without collecting sensitive UI content. The repository verifies signed submissions; it does not operate that organizational trust process.
 
@@ -169,6 +215,8 @@ Before production deployment, define and test the external correction authority:
 - `packages/controller/src/prediction-first-human-intent-controller.test.ts`
 - `apps/cli/src/learnloop-benchmark.ts`
 - `apps/cli/src/learnloop-benchmark.test.ts`
+- `apps/cli/src/learnloop-study.ts`
+- `apps/cli/src/learnloop-study.test.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.test.ts`
 - `apps/desktop/src/main/correction-ingestion-runtime.ts`
@@ -179,10 +227,14 @@ Before production deployment, define and test the external correction authority:
 - `apps/desktop/src/main/task-service.ts`
 - `apps/desktop/src/main/task-service-learnloop.test.ts`
 - `apps/desktop/src/main/task-service-correction-ingestion.test.ts`
+- `benchmarks/learnloop-study/README.md`
+- `benchmarks/learnloop-study/plan.example.json`
+- `docs/xtf-study-preregistration.md`
 - `.github/workflows/xtf-learnloop.yml`
+- `.github/workflows/xtf-study-finalize.yml`
 - `XTF-LEARNLOOP.md`
 - `docs/xtf-adversarial-review.md`
 
 ## Final validation policy
 
-A result is accepted only when the dedicated LearnLoop research gate and the repository-wide CI both pass on the same non-temporary branch commit. Results from an earlier commit, a skipped step, an `action_required` run, or a diagnostic workflow are supporting evidence only and cannot be reported as the final repository status.
+A result is accepted only when the permanent LearnLoop research gate, the permanent study protocol gate, and repository-wide CI all pass on the same non-temporary branch commit. Results from an earlier commit, a skipped step, an `action_required` run, a write-capable formatter, or a diagnostic workflow are supporting evidence only and cannot be reported as the final repository status.
