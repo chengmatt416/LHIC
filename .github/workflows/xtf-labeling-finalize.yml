@@ -1,10 +1,11 @@
-name: XTF blinded labeling gate
+name: XTF study data lifecycle gate
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "apps/cli/src/learnloop-study-labeling*"
+      - "apps/cli/src/learnloop-study-withdrawal*"
       - "apps/cli/src/entry.ts"
       - "benchmarks/learnloop-study/**"
       - "docs/xtf-study-preregistration.md"
@@ -20,7 +21,7 @@ env:
   CI: true
 
 jobs:
-  blinded-labeling:
+  study-data-lifecycle:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,9 +34,14 @@ jobs:
         run: npm run format:check
       - name: Typecheck project references
         run: npm run typecheck
-      - name: Test blinded labeling invariants
-        run: npx vitest run apps/cli/src/learnloop-study-labeling.test.ts
-      - name: Validate public labeling CLI
-        run: npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
+      - name: Test labeling and withdrawal invariants
+        run: >-
+          npx vitest run
+          apps/cli/src/learnloop-study-labeling.test.ts
+          apps/cli/src/learnloop-study-withdrawal.test.ts
+      - name: Validate public study data lifecycle CLI
+        run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
+          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop withdraw"
       - name: Lint repository
         run: npm run lint
