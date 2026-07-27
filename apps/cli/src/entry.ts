@@ -34,6 +34,13 @@ import {
 } from "./learnloop-study-withdrawal.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
 import {
+  eraseProductData,
+  formatProductDataInventory,
+  inspectProductData,
+  writeProductDataEraseReceipt,
+  writeProductDataInventory,
+} from "./product-data.js";
+import {
   formatDoctorReport,
   formatSetupReport,
   formatSkillProgress,
@@ -42,7 +49,7 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop schedule --plan <plan.json> --manifest <manifest.json> --participants <participants.jsonl> --output <schedule.json>\n  lhic study learnloop withdraw --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --participant-hash <sha256> --units-output <units.jsonl> --annotations-output <annotations.jsonl> --adjudications-output <adjudications.jsonl> --receipt-output <receipt.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nProduct data commands:\n  lhic data inventory [--root <directory>] [--output <inventory.json>]\n  lhic data erase --root <directory> --confirm <token> --receipt <receipt.json>\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop schedule --plan <plan.json> --manifest <manifest.json> --participants <participants.jsonl> --output <schedule.json>\n  lhic study learnloop withdraw --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --participant-hash <sha256> --units-output <units.jsonl> --annotations-output <annotations.jsonl> --adjudications-output <adjudications.jsonl> --receipt-output <receipt.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
@@ -87,6 +94,37 @@ export async function runCli(argumentsList: string[]): Promise<void> {
       const progress = await listSkillProgress(firstArgument);
       console.log(formatSkillProgress(progress));
       return;
+    }
+
+    if (command === "data") {
+      if (firstArgument === "inventory") {
+        const options = parseProductDataInventoryOptions(
+          argumentsList.slice(2),
+        );
+        const inventory = await inspectProductData(options.root);
+        if (options.outputFile) {
+          await writeProductDataInventory(options.outputFile, inventory);
+        }
+        console.log(formatProductDataInventory(inventory));
+        return;
+      }
+      if (firstArgument === "erase") {
+        const options = parseProductDataEraseOptions(argumentsList.slice(2));
+        const receipt = await eraseProductData(
+          options.root,
+          options.confirmation,
+        );
+        await writeProductDataEraseReceipt(
+          options.receiptFile,
+          receipt,
+          options.root,
+        );
+        console.log(JSON.stringify(receipt, null, 2));
+        return;
+      }
+      throw new Error(
+        "Data action must be inventory or erase. Run `lhic help` for usage.",
+      );
     }
 
     if (command === "bench" && firstArgument === "learnloop") {
@@ -205,6 +243,70 @@ export async function runCli(argumentsList: string[]): Promise<void> {
     );
   }
   await runLegacyCli(argumentsList);
+}
+
+function parseProductDataInventoryOptions(argumentsList: string[]): {
+  root: string;
+  outputFile?: string;
+} {
+  if (argumentsList.length % 2 !== 0 || argumentsList.length > 4) {
+    throw new Error(
+      "Data inventory accepts only [--root <directory>] [--output <inventory.json>].",
+    );
+  }
+  let root = ".lhic";
+  let outputFile: string | undefined;
+  const seen = new Set<string>();
+  for (let index = 0; index < argumentsList.length; index += 2) {
+    const flag = argumentsList[index];
+    const value = argumentsList[index + 1];
+    if (
+      !flag ||
+      !value ||
+      seen.has(flag) ||
+      (flag !== "--root" && flag !== "--output")
+    ) {
+      throw new Error(
+        "Data inventory contains an unknown, duplicate, or empty flag.",
+      );
+    }
+    seen.add(flag);
+    if (flag === "--root") root = value;
+    else outputFile = value;
+  }
+  return { root, ...(outputFile ? { outputFile } : {}) };
+}
+
+function parseProductDataEraseOptions(argumentsList: string[]): {
+  root: string;
+  confirmation: string;
+  receiptFile: string;
+} {
+  if (argumentsList.length !== 6) {
+    throw new Error(
+      "Data erase requires exactly --root <directory> --confirm <token> --receipt <receipt.json>.",
+    );
+  }
+  const allowed = new Set(["--root", "--confirm", "--receipt"]);
+  const options: Record<string, string> = {};
+  for (let index = 0; index < argumentsList.length; index += 2) {
+    const flag = argumentsList[index];
+    const value = argumentsList[index + 1];
+    if (!flag || !value || !allowed.has(flag) || options[flag]) {
+      throw new Error(
+        "Data erase contains an unknown, duplicate, or empty flag.",
+      );
+    }
+    options[flag] = value;
+  }
+  if (Object.keys(options).length !== allowed.size) {
+    throw new Error("Data erase is missing a required flag.");
+  }
+  return {
+    root: options["--root"]!,
+    confirmation: options["--confirm"]!,
+    receiptFile: options["--receipt"]!,
+  };
 }
 
 function parseResearchOutput(argumentsList: string[]): string | undefined {

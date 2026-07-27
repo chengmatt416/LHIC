@@ -1,12 +1,5 @@
 import { homedir } from "node:os";
-import {
-  chmod,
-  lstat,
-  mkdir,
-  readdir,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { chmod, lstat, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import {
   basename,
   dirname,
@@ -80,7 +73,9 @@ export async function inspectProductData(
 
   const entries: ProductDataEntry[] = [];
   await walkProductData(root, root, 0, entries);
-  entries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+  entries.sort((left, right) =>
+    left.relativePath.localeCompare(right.relativePath),
+  );
   return createInventory(root, true, generatedAt, entries);
 }
 
@@ -139,7 +134,17 @@ export async function eraseProductData(
 export async function writeProductDataEraseReceipt(
   outputFile: string,
   receipt: ProductDataEraseReceipt,
+  erasedRoot?: string,
 ): Promise<void> {
+  if (erasedRoot) {
+    const root = resolveSafeRoot(erasedRoot);
+    const resolvedOutputFile = resolve(outputFile);
+    if (resolvedOutputFile === root || isInsideRoot(root, resolvedOutputFile)) {
+      throw new Error(
+        "Erase receipt must be written outside the deleted product data root.",
+      );
+    }
+  }
   await writePrivateJsonExclusive(outputFile, receipt);
 }
 
@@ -176,7 +181,9 @@ function createInventory(
     0,
   );
   if (!Number.isSafeInteger(totalBytes)) {
-    throw new Error("Product data size exceeds the supported safe integer range.");
+    throw new Error(
+      "Product data size exceeds the supported safe integer range.",
+    );
   }
   const inventorySha256 = hashState({ root, rootExists, entries });
   return {
@@ -245,7 +252,9 @@ function resolveSafeRoot(rootInput: string): string {
   }
   const root = resolve(rootInput);
   if (!isAbsolute(root)) {
-    throw new Error("Product data root could not be resolved to an absolute path.");
+    throw new Error(
+      "Product data root could not be resolved to an absolute path.",
+    );
   }
   return root;
 }
@@ -293,15 +302,11 @@ async function writePrivateJsonExclusive(
   if (process.platform !== "win32") {
     await chmod(dirname(resolvedOutputFile), 0o700);
   }
-  await writeFile(
-    resolvedOutputFile,
-    `${JSON.stringify(value, null, 2)}\n`,
-    {
-      encoding: "utf8",
-      flag: "wx",
-      mode: 0o600,
-    },
-  );
+  await writeFile(resolvedOutputFile, `${JSON.stringify(value, null, 2)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
 }
 
 function canonicalTimestamp(value: Date, name: string): string {

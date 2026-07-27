@@ -152,6 +152,25 @@ The desktop installer rejects assets without a matching entry in the release
 checksum manifest and does not require an administrator password on macOS or
 Linux.
 
+### Local data inventory and deletion
+
+Review all metadata under the selected local product-data root:
+
+```bash
+npx @pinyencheng/lhic data inventory --root .lhic
+```
+
+The output includes an inventory digest and a confirmation value derived from the current root contents. To perform logical deletion, stop LHIC, review the inventory, and pass that exact value while writing the receipt outside the selected root:
+
+```bash
+npx @pinyencheng/lhic data erase \
+  --root .lhic \
+  --confirm ERASE-0123456789ABCDEF \
+  --receipt ./lhic-data-erase-receipt.json
+```
+
+The command rejects symbolic links, filesystem roots, the user's home directory, the current working directory, stale confirmation values, and receipt paths inside the deleted root. It does not claim physical SSD erasure and does not automatically remove operating-system Keychain entries, external trace/replay directories, backups, or remote-service data. See the [product-data lifecycle guide](docs/product-data-lifecycle.md).
+
 ### Published CLI commands
 
 After the current npm release passes `npm run package:published-smoke -- 0.1.2`,

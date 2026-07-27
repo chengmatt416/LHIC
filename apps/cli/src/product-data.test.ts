@@ -138,10 +138,17 @@ describe("product data lifecycle", () => {
       fixedTime,
     );
     const receiptFile = join(outputDirectory, "erase-receipt.json");
-    await writeProductDataEraseReceipt(receiptFile, receipt);
+    await expect(
+      writeProductDataEraseReceipt(
+        join(root, "erase-receipt.json"),
+        receipt,
+        root,
+      ),
+    ).rejects.toThrow("outside the deleted product data root");
+    await writeProductDataEraseReceipt(receiptFile, receipt, root);
     expect(JSON.parse(await readFile(receiptFile, "utf8"))).toEqual(receipt);
     await expect(
-      writeProductDataEraseReceipt(receiptFile, receipt),
+      writeProductDataEraseReceipt(receiptFile, receipt, root),
     ).rejects.toThrow();
   });
 
