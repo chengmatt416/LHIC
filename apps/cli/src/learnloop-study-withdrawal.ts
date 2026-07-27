@@ -16,7 +16,7 @@ import {
 export interface LearnLoopStudyWithdrawalReceipt {
   schemaVersion: "lhic-learnloop-study-withdrawal-receipt-v1";
   planSha256: string;
-  participantHash: string;
+  withdrawalSubjectCommitment: string;
   withdrawnAt: string;
   input: {
     units: number;
@@ -132,7 +132,11 @@ export function redactLearnLoopStudyParticipant(
   const receipt: LearnLoopStudyWithdrawalReceipt = {
     schemaVersion: "lhic-learnloop-study-withdrawal-receipt-v1",
     planSha256,
-    participantHash,
+    withdrawalSubjectCommitment: hashState({
+      planSha256,
+      participantHash,
+      withdrawnAt,
+    }),
     withdrawnAt,
     input: {
       units: units.length,
@@ -148,8 +152,9 @@ export function redactLearnLoopStudyParticipant(
       adjudications: redactedAdjudications.length,
       unitDatasetSha256: unitDatasetDigest(redactedUnits),
       annotationDatasetSha256: annotationDatasetDigest(redactedAnnotations),
-      adjudicationDatasetSha256:
-        adjudicationDatasetDigest(redactedAdjudications),
+      adjudicationDatasetSha256: adjudicationDatasetDigest(
+        redactedAdjudications,
+      ),
     },
     removed: {
       units: units.length - redactedUnits.length,

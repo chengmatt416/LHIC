@@ -26,7 +26,23 @@ lhic study learnloop finalize-labels \
   --report-output results/learnloop-study-labeling-report.json
 ```
 
-7. Analyze without overwriting an earlier report:
+7. If a participant withdraws at any time, create redacted replacement source files before finalization or analysis:
+
+```bash
+lhic study learnloop withdraw \
+  --units results/learnloop-study-units.jsonl \
+  --annotations results/learnloop-study-annotations.jsonl \
+  --adjudications results/learnloop-study-adjudications.jsonl \
+  --participant-hash <secret-salted-participant-sha256> \
+  --units-output results/redacted-units.jsonl \
+  --annotations-output results/redacted-annotations.jsonl \
+  --adjudications-output results/redacted-adjudications.jsonl \
+  --receipt-output results/withdrawal-receipt.json
+```
+
+The command never overwrites input files. Securely replace or destroy the original source files and all prior finalized records, labeling reports, and analysis reports; then rerun finalization and analysis from the redacted outputs.
+
+8. Analyze without overwriting an earlier report:
 
 ```bash
 lhic study learnloop analyze \

@@ -22,6 +22,10 @@ import {
   readLearnLoopStudyBlindUnits,
   writeFinalizedLearnLoopStudyLabels,
 } from "./learnloop-study-labeling.js";
+import {
+  redactLearnLoopStudyParticipant,
+  writeRedactedLearnLoopStudyData,
+} from "./learnloop-study-withdrawal.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
 import {
   formatDoctorReport,
@@ -32,7 +36,7 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop withdraw --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --participant-hash <sha256> --units-output <units.jsonl> --annotations-output <annotations.jsonl> --adjudications-output <adjudications.jsonl> --receipt-output <receipt.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
@@ -105,6 +109,30 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         );
         return;
       }
+      if (action === "withdraw") {
+        const options = parseStudyWithdrawalOptions(argumentsList.slice(3));
+        const [units, annotations, adjudications] = await Promise.all([
+          readLearnLoopStudyBlindUnits(options.unitsFile),
+          readLearnLoopStudyAnnotations(options.annotationsFile),
+          readLearnLoopStudyAdjudications(options.adjudicationsFile),
+        ]);
+        const redacted = redactLearnLoopStudyParticipant(
+          units,
+          annotations,
+          adjudications,
+          options.participantHash,
+          new Date().toISOString(),
+        );
+        await writeRedactedLearnLoopStudyData(
+          options.unitsOutputFile,
+          options.annotationsOutputFile,
+          options.adjudicationsOutputFile,
+          options.receiptOutputFile,
+          redacted,
+        );
+        console.log(JSON.stringify(redacted.receipt, null, 2));
+        return;
+      }
       if (action === "finalize-labels") {
         const options = parseStudyLabelingOptions(argumentsList.slice(3));
         const [plan, units, annotations, adjudications] = await Promise.all([
@@ -140,7 +168,7 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         return;
       }
       throw new Error(
-        "LearnLoop study action must be digest, finalize-labels, or analyze. Run `lhic help` for usage.",
+        "LearnLoop study action must be digest, withdraw, finalize-labels, or analyze. Run `lhic help` for usage.",
       );
     }
   } catch (error) {
@@ -172,6 +200,38 @@ function parseResearchOutput(argumentsList: string[]): string | undefined {
 function parseStudyDigestOptions(argumentsList: string[]): string {
   const options = parseExactFlags(argumentsList, ["--plan"]);
   return options["--plan"]!;
+}
+
+function parseStudyWithdrawalOptions(argumentsList: string[]): {
+  unitsFile: string;
+  annotationsFile: string;
+  adjudicationsFile: string;
+  participantHash: string;
+  unitsOutputFile: string;
+  annotationsOutputFile: string;
+  adjudicationsOutputFile: string;
+  receiptOutputFile: string;
+} {
+  const options = parseExactFlags(argumentsList, [
+    "--units",
+    "--annotations",
+    "--adjudications",
+    "--participant-hash",
+    "--units-output",
+    "--annotations-output",
+    "--adjudications-output",
+    "--receipt-output",
+  ]);
+  return {
+    unitsFile: options["--units"]!,
+    annotationsFile: options["--annotations"]!,
+    adjudicationsFile: options["--adjudications"]!,
+    participantHash: options["--participant-hash"]!,
+    unitsOutputFile: options["--units-output"]!,
+    annotationsOutputFile: options["--annotations-output"]!,
+    adjudicationsOutputFile: options["--adjudications-output"]!,
+    receiptOutputFile: options["--receipt-output"]!,
+  };
 }
 
 function parseStudyLabelingOptions(argumentsList: string[]): {

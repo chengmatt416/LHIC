@@ -103,6 +103,24 @@ Each retained record must assert:
 
 A withdrawn participant's records must be deleted before analysis. The analyzer rejects records marked withdrawn rather than counting them as ordinary exclusions.
 
+Use the implemented redaction command against the blind-unit and labeling source files:
+
+```bash
+lhic study learnloop withdraw \
+  --units results/learnloop-study-units.jsonl \
+  --annotations results/learnloop-study-annotations.jsonl \
+  --adjudications results/learnloop-study-adjudications.jsonl \
+  --participant-hash <secret-salted-participant-sha256> \
+  --units-output results/redacted-units.jsonl \
+  --annotations-output results/redacted-annotations.jsonl \
+  --adjudications-output results/redacted-adjudications.jsonl \
+  --receipt-output results/withdrawal-receipt.json
+```
+
+The command removes every blind unit for the participant and every annotation or adjudication bound to those unit hashes. It writes all four outputs with exclusive creation and rolls back newly created outputs if any write fails. The receipt includes before/after counts and order-independent digests, removed unit hashes, a non-linkable withdrawal-subject commitment, and explicit invalidation flags.
+
+The command intentionally does not overwrite or securely erase source files. After verifying the receipt, the study operator must securely replace or destroy the original units, annotations, adjudications, any finalized records, labeling reports, and analysis reports. Finalization and analysis must then be rerun. The receipt is an audit aid, not a trusted timestamp or external signature; publish or countersign it through the preregistered study authority when independent proof is required.
+
 Participant-facing consent should explain:
 
 - the purpose of intent-prediction research;

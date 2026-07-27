@@ -153,6 +153,8 @@ npm run study:learnloop -- digest \
 
 The study kit first finalizes gold labels from blind units using two distinct annotators and mandatory independent adjudication for every disagreement. It reports raw agreement, Fleiss' kappa, label distributions, workloads, and order-independent dataset digests.
 
+A participant-withdrawal command removes all matching blind units plus linked annotations and adjudications into four non-overwritable redacted outputs. Its receipt records before/after digests and invalidates every previously derived record or report, which must be deleted and regenerated.
+
 The tooling enforces before analysis:
 
 Analyze consented JSONL records and write a non-overwritable report:
@@ -221,6 +223,10 @@ Before production deployment, define and test the external correction authority:
 - `apps/cli/src/learnloop-benchmark.test.ts`
 - `apps/cli/src/learnloop-study.ts`
 - `apps/cli/src/learnloop-study.test.ts`
+- `apps/cli/src/learnloop-study-labeling.ts`
+- `apps/cli/src/learnloop-study-labeling.test.ts`
+- `apps/cli/src/learnloop-study-withdrawal.ts`
+- `apps/cli/src/learnloop-study-withdrawal.test.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.test.ts`
 - `apps/desktop/src/main/correction-ingestion-runtime.ts`

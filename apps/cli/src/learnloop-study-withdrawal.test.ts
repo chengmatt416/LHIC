@@ -43,11 +43,13 @@ describe("LearnLoop participant withdrawal", () => {
     expect(redacted.receipt.removed.unitHashes).toEqual(
       fixture.units
         .filter(
-          (unit) =>
-            unit.participantHash === fixture.withdrawnParticipantHash,
+          (unit) => unit.participantHash === fixture.withdrawnParticipantHash,
         )
         .map((unit) => hashLearnLoopStudyBlindUnit(unit))
         .sort(),
+    );
+    expect(redacted.receipt.withdrawalSubjectCommitment).toMatch(
+      /^[a-f0-9]{64}$/u,
     );
     expect(
       redacted.receipt.invalidation.priorFinalizedRecordsMustBeDeleted,
@@ -156,7 +158,13 @@ function withdrawalFixture(): {
     const unitHash = hashLearnLoopStudyBlindUnit(unit);
     const expectedStage = stages[index]!;
     annotations.push(
-      annotation(planSha256, unitHash, `annotator-a-${index}`, expectedStage, 1),
+      annotation(
+        planSha256,
+        unitHash,
+        `annotator-a-${index}`,
+        expectedStage,
+        1,
+      ),
       annotation(
         planSha256,
         unitHash,
@@ -221,7 +229,7 @@ function blindUnit(
   return {
     schemaVersion: "lhic-learnloop-study-record-v1",
     planSha256,
-    split: index === 0 ? "training" : "evaluation",
+    split: index === 2 ? "training" : "evaluation",
     participantHash,
     sessionHash: digest(`session-${index}`),
     taskHash: digest(`task-${index}`),
