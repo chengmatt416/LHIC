@@ -6,6 +6,7 @@ on:
     paths:
       - "apps/cli/src/learnloop-study-withdrawal*"
       - "scripts/xtf-withdrawal-finalize.py"
+      - "scripts/xtf-withdrawal-preflight.py"
       - ".github/workflows/xtf-study-finalize.yml"
   push:
     branches: [xtf/lhic-learnloop]
@@ -32,6 +33,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Patch literal CLI usage newline
+        run: python scripts/xtf-withdrawal-preflight.py
       - name: Integrate withdrawal redaction
         id: integration
         continue-on-error: true
@@ -76,7 +79,7 @@ jobs:
       - name: Commit validated withdrawal integration
         shell: bash
         run: |
-          rm scripts/xtf-withdrawal-finalize.py
+          rm scripts/xtf-withdrawal-finalize.py scripts/xtf-withdrawal-preflight.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -87,6 +90,7 @@ jobs:
             docs/xtf-study-preregistration.md \
             docs/xtf-adversarial-review.md \
             XTF-LEARNLOOP.md \
-            scripts/xtf-withdrawal-finalize.py
+            scripts/xtf-withdrawal-finalize.py \
+            scripts/xtf-withdrawal-preflight.py
           git commit -m "feat(xtf): add auditable participant withdrawal"
           git push origin HEAD:xtf/lhic-learnloop
