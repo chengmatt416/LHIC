@@ -1,4 +1,4 @@
-name: XTF study documentation finalizer
+name: XTF study final file export
 
 on:
   pull_request:
@@ -9,24 +9,25 @@ on:
       - ".github/workflows/xtf-study-finalize.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  finalize:
+  export:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: xtf/lhic-learnloop
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Restore the permanent read-only study gate
+      - name: Build final read-only workflow and format final files
         shell: bash
         run: |
-          cat > .github/workflows/xtf-study-finalize.yml <<'YAML'
+          mkdir -p final-files/.github/workflows final-files/docs
+          cp XTF-LEARNLOOP.md final-files/XTF-LEARNLOOP.md
+          cp docs/xtf-adversarial-review.md final-files/docs/xtf-adversarial-review.md
+          cat > final-files/.github/workflows/xtf-study-finalize.yml <<'YAML'
           name: XTF LearnLoop study protocol gate
 
           on:
@@ -74,28 +75,13 @@ jobs:
                 - name: Lint repository
                   run: npm run lint
           YAML
-      - name: Format final documents and read-only gate
-        run: >-
-          npx prettier --write
-          XTF-LEARNLOOP.md
-          docs/xtf-adversarial-review.md
-          .github/workflows/xtf-study-finalize.yml
-      - run: npm run format:check
-      - run: npm run typecheck
-      - run: npx vitest run apps/cli/src/learnloop-study.test.ts
-      - name: Validate public study CLI
-        run: >-
-          npm run study:learnloop -- digest
-          --plan benchmarks/learnloop-study/plan.example.json
-      - run: npm run lint
-      - name: Commit validated final documents
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            XTF-LEARNLOOP.md \
-            docs/xtf-adversarial-review.md \
-            .github/workflows/xtf-study-finalize.yml
-          git commit -m "style(xtf): finalize preregistered study documentation"
-          git push origin HEAD:xtf/lhic-learnloop
+          npx prettier --write \
+            final-files/XTF-LEARNLOOP.md \
+            final-files/docs/xtf-adversarial-review.md \
+            final-files/.github/workflows/xtf-study-finalize.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xtf-study-final-files
+          path: final-files
+          if-no-files-found: error
+          retention-days: 1
