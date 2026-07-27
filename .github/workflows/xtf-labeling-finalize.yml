@@ -6,9 +6,10 @@ on:
     paths:
       - "apps/cli/src/learnloop-study-labeling*"
       - "apps/cli/src/learnloop-study-withdrawal*"
+      - "apps/cli/src/learnloop-study-schedule*"
       - "apps/cli/src/entry.ts"
       - "benchmarks/learnloop-study/**"
-      - "docs/xtf-study-preregistration.md"
+      - "docs/xtf-study-*"
       - "XTF-LEARNLOOP.md"
       - ".github/workflows/xtf-labeling-finalize.yml"
   push:
@@ -34,13 +35,15 @@ jobs:
         run: npm run format:check
       - name: Typecheck project references
         run: npm run typecheck
-      - name: Test labeling and withdrawal invariants
+      - name: Test scheduling, labeling, and withdrawal invariants
         run: >-
           npx vitest run
+          apps/cli/src/learnloop-study-schedule.test.ts
           apps/cli/src/learnloop-study-labeling.test.ts
           apps/cli/src/learnloop-study-withdrawal.test.ts
       - name: Validate public study data lifecycle CLI
         run: |
+          npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop schedule"
           npx tsx apps/cli/src/entry.ts help | grep -F "finalize-labels"
           npx tsx apps/cli/src/entry.ts help | grep -F "study learnloop withdraw"
       - name: Lint repository
