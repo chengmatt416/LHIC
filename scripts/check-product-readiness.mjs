@@ -45,7 +45,8 @@ export function parseProductReadinessArguments(argumentsList) {
   if (mode !== "candidate" && mode !== "release") {
     throw new Error("Product readiness mode must be candidate or release.");
   }
-  const manifestPath = values.get("--manifest") ?? "productization-manifest.json";
+  const manifestPath =
+    values.get("--manifest") ?? "productization-manifest.json";
   const artifact = values.get("--artifact");
   const tag = values.get("--tag");
   const platform = values.get("--platform");
@@ -136,7 +137,11 @@ export async function validateCandidateRepository({
     artifactIds.add(artifact.id);
     packageNames.add(artifact.packageName);
     const packageJson = exactRecord(
-      await readJson(repositoryRoot, artifact.packagePath, artifact.packageName),
+      await readJson(
+        repositoryRoot,
+        artifact.packagePath,
+        artifact.packageName,
+      ),
       undefined,
       `${artifact.packageName} package`,
     );
@@ -258,7 +263,11 @@ export async function validateReleaseEnvironment({
 }) {
   const repositoryRoot = resolve(root);
   const manifest = validateProductizationManifest(
-    await readJson(repositoryRoot, manifestPath, "productization manifest"),
+    await readJson(
+      repositoryRoot,
+      manifestPath,
+      "productization manifest",
+    ),
   );
   const artifact = manifest.artifacts.find((entry) => entry.id === artifactId);
   if (!artifact) {
@@ -478,8 +487,13 @@ function validateProductizationManifest(value) {
       artifact.kind === "npm"
         ? ["registry"]
         : ["linux", "macos", "windows"];
-    if (JSON.stringify([...platforms].sort()) !== JSON.stringify(expectedPlatforms)) {
-      throw new Error(`Product artifact ${id} release platforms are incomplete.`);
+    if (
+      JSON.stringify([...platforms].sort()) !==
+      JSON.stringify(expectedPlatforms)
+    ) {
+      throw new Error(
+        `Product artifact ${id} release platforms are incomplete.`,
+      );
     }
     const requiredFiles = relativePathList(
       artifact.requiredFiles,
@@ -563,7 +577,10 @@ function validateNpmReleaseWorkflow(workflow, artifact) {
     'tags: ["cli-v*.*.*"]',
     "id-token: write",
     "environment: npm-release",
-    "check-product-readiness.mjs --mode release --artifact cli",
+    "check-product-readiness.mjs",
+    "--mode release",
+    "--artifact cli",
+    "--platform registry",
     "npm publish --workspace @pinyencheng/lhic --access public --provenance",
     "npm publish --workspace lhic --access public --provenance",
     "package:published-smoke",
@@ -582,7 +599,10 @@ function validateDesktopReleaseWorkflow(workflow, artifact) {
     'tags: ["desktop-v*.*.*"]',
     "environment: desktop-release",
     "contents: write",
-    "--artifact desktop --tag",
+    "check-product-readiness.mjs",
+    "--mode release",
+    "--artifact desktop",
+    "--tag \"$GITHUB_REF_NAME\"",
     "--platform linux",
     "--platform macos",
     "--platform windows",
@@ -681,7 +701,9 @@ function relativePath(value, name) {
     value.includes("\\") ||
     value.includes("\0") ||
     value.startsWith("/") ||
-    value.split("/").some((segment) => !segment || segment === "." || segment === "..")
+    value
+      .split("/")
+      .some((segment) => !segment || segment === "." || segment === "..")
   ) {
     throw new Error(`${name} must be a bounded repository-relative path.`);
   }
@@ -689,7 +711,11 @@ function relativePath(value, name) {
 }
 
 function relativePathList(value, name) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > maximumListItems) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > maximumListItems
+  ) {
     throw new Error(`${name} must be a bounded nonempty array.`);
   }
   const paths = value.map((entry, index) =>
@@ -702,7 +728,11 @@ function relativePathList(value, name) {
 }
 
 function stringList(value, name, allowed) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > maximumListItems) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > maximumListItems
+  ) {
     throw new Error(`${name} must be a bounded nonempty array.`);
   }
   const entries = value.map((entry, index) => {
@@ -718,7 +748,11 @@ function stringList(value, name, allowed) {
 }
 
 function boundedStringList(value, name) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > maximumListItems) {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > maximumListItems
+  ) {
     throw new Error(`${name} must be a bounded nonempty array.`);
   }
   return value.map((entry, index) => {
@@ -792,10 +826,7 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(
       error instanceof Error ? error.message : "Product readiness failed.",
