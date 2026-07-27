@@ -15,6 +15,13 @@ import {
   readLearnLoopStudyRecords,
   writeLearnLoopStudyReport,
 } from "./learnloop-study.js";
+import {
+  finalizeLearnLoopStudyLabels,
+  readLearnLoopStudyAdjudications,
+  readLearnLoopStudyAnnotations,
+  readLearnLoopStudyBlindUnits,
+  writeFinalizedLearnLoopStudyLabels,
+} from "./learnloop-study-labeling.js";
 import { parseMcpHarness } from "./mcp-harness-config.js";
 import {
   formatDoctorReport,
@@ -25,7 +32,7 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
@@ -98,6 +105,28 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         );
         return;
       }
+      if (action === "finalize-labels") {
+        const options = parseStudyLabelingOptions(argumentsList.slice(3));
+        const [plan, units, annotations, adjudications] = await Promise.all([
+          readLearnLoopStudyPlan(options.planFile),
+          readLearnLoopStudyBlindUnits(options.unitsFile),
+          readLearnLoopStudyAnnotations(options.annotationsFile),
+          readLearnLoopStudyAdjudications(options.adjudicationsFile),
+        ]);
+        const finalized = finalizeLearnLoopStudyLabels(
+          plan,
+          units,
+          annotations,
+          adjudications,
+        );
+        await writeFinalizedLearnLoopStudyLabels(
+          options.recordsOutputFile,
+          options.reportOutputFile,
+          finalized,
+        );
+        console.log(JSON.stringify(finalized.report, null, 2));
+        return;
+      }
       if (action === "analyze") {
         const options = parseStudyAnalyzeOptions(argumentsList.slice(3));
         const [plan, records] = await Promise.all([
@@ -111,7 +140,7 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         return;
       }
       throw new Error(
-        "LearnLoop study action must be digest or analyze. Run `lhic help` for usage.",
+        "LearnLoop study action must be digest, finalize-labels, or analyze. Run `lhic help` for usage.",
       );
     }
   } catch (error) {
@@ -143,6 +172,32 @@ function parseResearchOutput(argumentsList: string[]): string | undefined {
 function parseStudyDigestOptions(argumentsList: string[]): string {
   const options = parseExactFlags(argumentsList, ["--plan"]);
   return options["--plan"]!;
+}
+
+function parseStudyLabelingOptions(argumentsList: string[]): {
+  planFile: string;
+  unitsFile: string;
+  annotationsFile: string;
+  adjudicationsFile: string;
+  recordsOutputFile: string;
+  reportOutputFile: string;
+} {
+  const options = parseExactFlags(argumentsList, [
+    "--plan",
+    "--units",
+    "--annotations",
+    "--adjudications",
+    "--records-output",
+    "--report-output",
+  ]);
+  return {
+    planFile: options["--plan"]!,
+    unitsFile: options["--units"]!,
+    annotationsFile: options["--annotations"]!,
+    adjudicationsFile: options["--adjudications"]!,
+    recordsOutputFile: options["--records-output"]!,
+    reportOutputFile: options["--report-output"]!,
+  };
 }
 
 function parseStudyAnalyzeOptions(argumentsList: string[]): {

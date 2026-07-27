@@ -151,6 +151,10 @@ npm run study:learnloop -- digest \
   --plan benchmarks/learnloop-study/plan.json
 ```
 
+The study kit first finalizes gold labels from blind units using two distinct annotators and mandatory independent adjudication for every disagreement. It reports raw agreement, Fleiss' kappa, label distributions, workloads, and order-independent dataset digests.
+
+The tooling enforces before analysis:
+
 Analyze consented JSONL records and write a non-overwritable report:
 
 ```bash

@@ -163,11 +163,7 @@ describe("LearnLoop blinded study labeling", () => {
     await writeFile(reportFile, "reserved", "utf8");
 
     await expect(
-      writeFinalizedLearnLoopStudyLabels(
-        recordsFile,
-        reportFile,
-        finalized,
-      ),
+      writeFinalizedLearnLoopStudyLabels(recordsFile, reportFile, finalized),
     ).rejects.toThrow();
     await expect(readFile(recordsFile, "utf8")).rejects.toThrow();
   });
@@ -195,7 +191,13 @@ function labelingFixture(): {
     const unitHash = hashLearnLoopStudyBlindUnit(unit);
     const expectedStage = stages[index]!;
     annotations.push(
-      annotation(planSha256, unitHash, `annotator-a-${index}`, expectedStage, 1),
+      annotation(
+        planSha256,
+        unitHash,
+        `annotator-a-${index}`,
+        expectedStage,
+        1,
+      ),
       annotation(
         planSha256,
         unitHash,

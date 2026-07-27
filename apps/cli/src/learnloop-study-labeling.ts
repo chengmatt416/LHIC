@@ -163,7 +163,9 @@ export function finalizeLearnLoopStudyLabels(
   const identityKeys = new Set<string>();
   for (const [index, unit] of units.entries()) {
     if (unit.planSha256 !== planSha256) {
-      throw new Error(`Study blind unit ${index} is bound to a different plan.`);
+      throw new Error(
+        `Study blind unit ${index} is bound to a different plan.`,
+      );
     }
     if (unit.collectorVersion !== plan.collectorVersion) {
       throw new Error(
@@ -190,11 +192,7 @@ export function finalizeLearnLoopStudyLabels(
 
   const annotationsByUnit = groupByUnitHash(annotations);
   const adjudicationsByUnit = groupByUnitHash(adjudications);
-  assertNoOrphanRows(
-    annotationsByUnit.keys(),
-    unitsByHash,
-    "Study annotation",
-  );
+  assertNoOrphanRows(annotationsByUnit.keys(), unitsByHash, "Study annotation");
   assertNoOrphanRows(
     adjudicationsByUnit.keys(),
     unitsByHash,
@@ -317,7 +315,8 @@ export function finalizeLearnLoopStudyLabels(
     counts: {
       units: units.length,
       trainingUnits: units.filter((unit) => unit.split === "training").length,
-      evaluationUnits: units.filter((unit) => unit.split === "evaluation").length,
+      evaluationUnits: units.filter((unit) => unit.split === "evaluation")
+        .length,
       annotations: annotations.length,
       adjudications: adjudications.length,
       agreedUnits,
@@ -375,7 +374,9 @@ export async function writeFinalizedLearnLoopStudyLabels(
   const resolvedRecordsFile = resolve(recordsOutputFile);
   const resolvedReportFile = resolve(reportOutputFile);
   if (resolvedRecordsFile === resolvedReportFile) {
-    throw new Error("Finalized records and labeling report need different paths.");
+    throw new Error(
+      "Finalized records and labeling report need different paths.",
+    );
   }
   await Promise.all([
     mkdir(dirname(resolvedRecordsFile), { recursive: true }),
@@ -402,7 +403,10 @@ export async function writeFinalizedLearnLoopStudyLabels(
   }
 }
 
-function parseBlindUnit(value: unknown, index: number): LearnLoopStudyBlindUnit {
+function parseBlindUnit(
+  value: unknown,
+  index: number,
+): LearnLoopStudyBlindUnit {
   const unit = exactRecord(
     value,
     [
@@ -452,13 +456,13 @@ function parseAnnotation(
     ],
     `study annotation ${index}`,
   );
-  if (
-    annotation.schemaVersion !== "lhic-learnloop-study-annotation-v1"
-  ) {
+  if (annotation.schemaVersion !== "lhic-learnloop-study-annotation-v1") {
     throw new Error(`Study annotation ${index} schemaVersion is unsupported.`);
   }
   if (annotation.blindedToArm !== true) {
-    throw new Error(`Study annotation ${index} is not blinded to the model arm.`);
+    throw new Error(
+      `Study annotation ${index} is not blinded to the model arm.`,
+    );
   }
   return {
     schemaVersion: "lhic-learnloop-study-annotation-v1",
@@ -501,13 +505,15 @@ function parseAdjudication(
     ],
     `study adjudication ${index}`,
   );
-  if (
-    adjudication.schemaVersion !== "lhic-learnloop-study-adjudication-v1"
-  ) {
-    throw new Error(`Study adjudication ${index} schemaVersion is unsupported.`);
+  if (adjudication.schemaVersion !== "lhic-learnloop-study-adjudication-v1") {
+    throw new Error(
+      `Study adjudication ${index} schemaVersion is unsupported.`,
+    );
   }
   if (adjudication.blindedToArm !== true) {
-    throw new Error(`Study adjudication ${index} is not blinded to the model arm.`);
+    throw new Error(
+      `Study adjudication ${index} is not blinded to the model arm.`,
+    );
   }
   return {
     schemaVersion: "lhic-learnloop-study-adjudication-v1",
@@ -548,10 +554,14 @@ function assertAnnotationBinding(
   counts: Map<string, number>,
 ): void {
   if (annotation.planSha256 !== planSha256) {
-    throw new Error(`Study annotation ${annotation.unitHash} uses another plan.`);
+    throw new Error(
+      `Study annotation ${annotation.unitHash} uses another plan.`,
+    );
   }
   if (annotation.unitHash !== hashState(unit)) {
-    throw new Error(`Study annotation ${annotation.unitHash} uses another unit.`);
+    throw new Error(
+      `Study annotation ${annotation.unitHash} uses another unit.`,
+    );
   }
   if (
     Date.parse(annotation.recordedAt) < frozenAtMs ||
@@ -561,7 +571,10 @@ function assertAnnotationBinding(
       `Study annotation ${annotation.unitHash} predates its frozen unit.`,
     );
   }
-  counts.set(annotation.annotatorHash, (counts.get(annotation.annotatorHash) ?? 0) + 1);
+  counts.set(
+    annotation.annotatorHash,
+    (counts.get(annotation.annotatorHash) ?? 0) + 1,
+  );
 }
 
 function assertAdjudicationBinding(
@@ -574,10 +587,14 @@ function assertAdjudicationBinding(
   counts: Map<string, number>,
 ): void {
   if (adjudication.planSha256 !== planSha256) {
-    throw new Error(`Study adjudication ${adjudication.unitHash} uses another plan.`);
+    throw new Error(
+      `Study adjudication ${adjudication.unitHash} uses another plan.`,
+    );
   }
   if (adjudication.unitHash !== hashState(unit)) {
-    throw new Error(`Study adjudication ${adjudication.unitHash} uses another unit.`);
+    throw new Error(
+      `Study adjudication ${adjudication.unitHash} uses another unit.`,
+    );
   }
   if (
     adjudication.adjudicatorHash === first.annotatorHash ||
@@ -638,9 +655,9 @@ function assertNoOrphanRows<T>(
   }
 }
 
-function groupByUnitHash<
-  T extends { unitHash: string },
->(rows: T[]): Map<string, T[]> {
+function groupByUnitHash<T extends { unitHash: string }>(
+  rows: T[],
+): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
   for (const row of rows) {
     const existing = grouped.get(row.unitHash) ?? [];
@@ -656,7 +673,8 @@ function fleissKappa(
   const totalRatings = ratings.length * 2;
   const stageTotals = countStages(ratings.flat());
   const observedAgreement =
-    ratings.filter(([first, second]) => first === second).length / ratings.length;
+    ratings.filter(([first, second]) => first === second).length /
+    ratings.length;
   const expectedAgreement = Object.values(stageTotals).reduce(
     (sum, count) => sum + (count / totalRatings) ** 2,
     0,
@@ -680,13 +698,18 @@ function countStages(
   return counts;
 }
 
-function sortedCountRecord(counts: Map<string, number>): Record<string, number> {
+function sortedCountRecord(
+  counts: Map<string, number>,
+): Record<string, number> {
   return Object.fromEntries(
     [...counts.entries()].sort(([left], [right]) => left.localeCompare(right)),
   );
 }
 
-async function readJsonLines(inputFile: string, name: string): Promise<unknown[]> {
+async function readJsonLines(
+  inputFile: string,
+  name: string,
+): Promise<unknown[]> {
   const text = await readFile(resolve(inputFile), "utf8");
   return text
     .split(/\r?\n/u)

@@ -13,8 +13,20 @@ This directory contains the machine-readable starting point for the XTF evidence
 lhic study learnloop digest --plan benchmarks/learnloop-study/plan.json
 ```
 
-5. Bind every JSONL record to that digest.
-6. Analyze without overwriting an earlier report:
+5. Collect blind units without `expectedStage`; annotators must not receive base or LearnLoop predictions.
+6. Finalize two independent labels per unit, with third-person adjudication for every disagreement:
+
+```bash
+lhic study learnloop finalize-labels \
+  --plan benchmarks/learnloop-study/plan.json \
+  --units results/learnloop-study-units.jsonl \
+  --annotations results/learnloop-study-annotations.jsonl \
+  --adjudications results/learnloop-study-adjudications.jsonl \
+  --records-output results/learnloop-study-records.jsonl \
+  --report-output results/learnloop-study-labeling-report.json
+```
+
+7. Analyze without overwriting an earlier report:
 
 ```bash
 lhic study learnloop analyze \

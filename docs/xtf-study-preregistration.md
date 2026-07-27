@@ -142,7 +142,7 @@ Report each language stratum separately, including sample count, base accuracy, 
 
 ## 9. Data minimization
 
-The JSONL study file accepts only the fixed record schema. It deliberately excludes:
+The blind-unit, annotation, adjudication, and finalized-record JSONL files each accept only a fixed exact schema. They deliberately exclude:
 
 - participant names or contact details;
 - raw user goals;
@@ -160,7 +160,9 @@ The report contains only aggregate metrics plus plan and dataset digests. Hashes
 
 ## 10. Record format
 
-Store one JSON object per line. Required fields are:
+Store one JSON object per line. Blind units contain the same fields as finalized records except `expectedStage`. This prevents the collector from assigning a gold label before independent annotation.
+
+Finalized record fields are:
 
 ```text
 schemaVersion
@@ -200,15 +202,32 @@ Excluded units remain in the dataset digest and disposition counts, preventing s
 
 ## 11. Gold-label procedure
 
-Expected Human Intent stage labels should be assigned independently of LHIC predictions. Recommended procedure:
+Gold labels are finalized through the implemented blinded-labeling command:
 
-1. Two annotators independently label the intended stage from the participant instruction and frozen task definition.
-2. Annotators must not see base or LearnLoop predictions.
-3. Resolve disagreement using a preregistered adjudicator.
-4. Report initial agreement and adjudication count outside the machine-readable analyzer report.
-5. Freeze the final expected-stage label before running the paired analysis.
+```bash
+lhic study learnloop finalize-labels \
+  --plan benchmarks/learnloop-study/plan.json \
+  --units results/learnloop-study-units.jsonl \
+  --annotations results/learnloop-study-annotations.jsonl \
+  --adjudications results/learnloop-study-adjudications.jsonl \
+  --records-output results/learnloop-study-records.jsonl \
+  --report-output results/learnloop-study-labeling-report.json
+```
 
-Do not use the LearnLoop correction itself as the only gold label.
+The finalizer enforces:
+
+1. exactly two labels for every blind unit;
+2. two distinct secret-salted annotator hashes;
+3. `blindedToArm: true` for all annotations and adjudications;
+4. no annotation before the frozen unit exists;
+5. no adjudication when the first two labels agree;
+6. exactly one independent third-person adjudication for every disagreement;
+7. no orphan labels, duplicate units, plan substitution, pre-freeze rows, or training/evaluation identity overlap;
+8. exclusive creation of both finalized records and the labeling report, with rollback if the second output cannot be created.
+
+The labeling report includes raw initial agreement, nominal Fleiss' kappa, agreement/disagreement/adjudication counts, label and gold-stage distributions, annotator workloads, and order-independent digests for units, annotations, adjudications, and finalized records.
+
+Agreement does not prove label validity. Publish the rubric, annotator training procedure, blinded audit sample, and all adjudication rules. Do not use a LearnLoop prediction or correction as the only gold label.
 
 ## 12. Primary analysis
 
@@ -266,7 +285,7 @@ Publish or submit:
 - immutable report;
 - aggregate exclusion counts;
 - participant and task recruitment procedure;
-- annotation procedure and agreement;
+- blinded annotation procedure, raw agreement, Fleiss' kappa, adjudication count, and labeling-report digest;
 - all negative outcomes and protocol deviations;
 - hardware and operating-system details for latency claims;
 - explicit statement that the paired study does not measure external side effects.
