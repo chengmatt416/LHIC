@@ -1,46 +1,175 @@
-name: XTF LearnLoop study protocol gate
+name: XTF frozen commit binding finalizer
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "apps/cli/src/learnloop-study*"
-      - "apps/cli/src/entry.ts"
       - "benchmarks/learnloop-study/**"
       - "docs/xtf-study-preregistration.md"
       - "XTF-LEARNLOOP.md"
       - "docs/xtf-adversarial-review.md"
-      - "package.json"
-      - ".github/workflows/xtf-learnloop.yml"
       - ".github/workflows/xtf-study-finalize.yml"
-  push:
-    branches: [xtf/lhic-learnloop]
 
 permissions:
-  contents: read
-
-env:
-  CI: true
+  contents: write
 
 jobs:
-  study-protocol:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Check repository formatting
-        run: npm run format:check
-      - name: Typecheck project references
-        run: npm run typecheck
-      - name: Test preregistration and analysis invariants
-        run: npx vitest run apps/cli/src/learnloop-study.test.ts
-      - name: Validate the non-evidence plan example through the public CLI
+      - name: Bind the frozen study plan to an exact LHIC commit
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if text.count(old) != 1:
+                  raise RuntimeError(f"Expected exactly one match in {path}: {old!r}")
+              file.write_text(text.replace(old, new, 1))
+
+          study = "apps/cli/src/learnloop-study.ts"
+          replace_once(
+              study,
+              '  collectorVersion: string;\n  frozenAt: string;',
+              '  collectorVersion: string;\n  lhicCommitSha: string;\n  frozenAt: string;',
+          )
+          replace_once(
+              study,
+              '    design: LearnLoopStudyPlan["design"];\n    trainingRecords: number;',
+              '    design: LearnLoopStudyPlan["design"];\n    protocolVersion: string;\n    lhicCommitSha: string;\n    trainingRecords: number;',
+          )
+          replace_once(
+              study,
+              '      "collectorVersion",\n      "frozenAt",',
+              '      "collectorVersion",\n      "lhicCommitSha",\n      "frozenAt",',
+          )
+          replace_once(
+              study,
+              '  const frozenAt = canonicalTimestamp(plan.frozenAt, "frozenAt");',
+              '  const lhicCommitSha = gitCommitSha(plan.lhicCommitSha, "lhicCommitSha");\n  const frozenAt = canonicalTimestamp(plan.frozenAt, "frozenAt");',
+          )
+          replace_once(
+              study,
+              '    collectorVersion,\n    frozenAt,',
+              '    collectorVersion,\n    lhicCommitSha,\n    frozenAt,',
+          )
+          replace_once(
+              study,
+              '      design: plan.design,\n      trainingRecords: training.length,',
+              '      design: plan.design,\n      protocolVersion: plan.protocolVersion,\n      lhicCommitSha: plan.lhicCommitSha,\n      trainingRecords: training.length,',
+          )
+          replace_once(
+              study,
+              'function sha256(value: unknown, name: string): string {',
+              '''function gitCommitSha(value: unknown, name: string): string {
+            if (
+              typeof value !== "string" ||
+              (!/^[a-f0-9]{40}$/u.test(value) && !/^[a-f0-9]{64}$/u.test(value))
+            ) {
+              throw new Error(`${name} must be a full lowercase Git commit digest.`);
+            }
+            return value;
+          }
+
+          function sha256(value: unknown, name: string): string {''',
+          )
+
+          test = "apps/cli/src/learnloop-study.test.ts"
+          replace_once(
+              test,
+              '    expect(report.methodology.includedEvaluationUnits).toBe(40);',
+              '    expect(report.methodology.includedEvaluationUnits).toBe(40);\n    expect(report.methodology.lhicCommitSha).toBe(plan.lhicCommitSha);',
+          )
+          replace_once(
+              test,
+              '    expect(() =>\n      parseLearnLoopStudyPlan({\n        ...plan,\n        requiredLanguages: ["en", "en"],\n      }),\n    ).toThrow("unique language tags");',
+              '''    expect(() =>
+              parseLearnLoopStudyPlan({
+                ...plan,
+                requiredLanguages: ["en", "en"],
+              }),
+            ).toThrow("unique language tags");
+            expect(() =>
+              parseLearnLoopStudyPlan({
+                ...plan,
+                lhicCommitSha: "main",
+              }),
+            ).toThrow("full lowercase Git commit digest");''',
+          )
+          replace_once(
+              test,
+              '    collectorVersion: "lhic-study-collector-1.0.0",\n    frozenAt:',
+              '    collectorVersion: "lhic-study-collector-1.0.0",\n    lhicCommitSha: "309aa9133bf1b3625b188fe037ca9c9c86ce16a3",\n    frozenAt:',
+          )
+
+          replace_once(
+              "benchmarks/learnloop-study/plan.example.json",
+              '  "collectorVersion": "lhic-study-collector-1.0.0",\n  "frozenAt":',
+              '  "collectorVersion": "lhic-study-collector-1.0.0",\n  "lhicCommitSha": "0000000000000000000000000000000000000000",\n  "frozenAt":',
+          )
+          replace_once(
+              "benchmarks/learnloop-study/README.md",
+              "2. Replace the example identifiers, collector version, timestamp, sample minimums, languages, and thresholds.",
+              "2. Replace the example identifiers, exact LHIC commit SHA, collector version, timestamp, sample minimums, languages, and thresholds.",
+          )
+          replace_once(
+              "docs/xtf-study-preregistration.md",
+              "2. Pin the LHIC Git revision and the study collector version outside the dataset.",
+              "2. Set `lhicCommitSha` to the exact full LHIC commit under study and set the frozen collector version. Both values are included in the plan digest and aggregate report.",
+          )
+          replace_once(
+              "XTF-LEARNLOOP.md",
+              "Freeze and hash a machine-readable plan before collecting any record:",
+              "Freeze and hash a machine-readable plan, including the exact full LHIC Git commit, before collecting any record:",
+          )
+          replace_once(
+              "docs/xtf-adversarial-review.md",
+              "Added a machine-readable plan with a canonical freeze timestamp, exact schema, immutable digest command, fixed thresholds, language minima, stopping rule, and non-overwritable report. Records must bind to the frozen digest.",
+              "Added a machine-readable plan with the exact LHIC commit SHA, canonical freeze timestamp, exact schema, immutable digest command, fixed thresholds, language minima, stopping rule, and non-overwritable report. Records must bind to the frozen digest.",
+          )
+          PY
+      - name: Format frozen-commit changes
+        run: >-
+          npx prettier --write
+          apps/cli/src/learnloop-study.ts
+          apps/cli/src/learnloop-study.test.ts
+          benchmarks/learnloop-study/README.md
+          benchmarks/learnloop-study/plan.example.json
+          docs/xtf-study-preregistration.md
+          XTF-LEARNLOOP.md
+          docs/xtf-adversarial-review.md
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npx vitest run apps/cli/src/learnloop-study.test.ts
+      - name: Validate public study CLI
         run: >-
           npm run study:learnloop -- digest
           --plan benchmarks/learnloop-study/plan.example.json
-      - name: Lint repository
-        run: npm run lint
+      - run: npm run lint
+      - name: Commit validated frozen-commit binding
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/cli/src/learnloop-study.ts \
+            apps/cli/src/learnloop-study.test.ts \
+            benchmarks/learnloop-study/README.md \
+            benchmarks/learnloop-study/plan.example.json \
+            docs/xtf-study-preregistration.md \
+            XTF-LEARNLOOP.md \
+            docs/xtf-adversarial-review.md
+          git commit -m "feat(xtf): freeze exact LHIC commit in study plans"
+          git push origin HEAD:xtf/lhic-learnloop
