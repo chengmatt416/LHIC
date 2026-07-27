@@ -63,7 +63,10 @@ export function redactLearnLoopStudyParticipant(
   withdrawnAtInput: string,
 ): RedactedLearnLoopStudyData {
   const units = parseLearnLoopStudyBlindUnits(unitsInput);
-  const annotations = parseLearnLoopStudyAnnotations(annotationsInput);
+  const annotations =
+    annotationsInput.length === 0
+      ? []
+      : parseLearnLoopStudyAnnotations(annotationsInput);
   const adjudications = parseLearnLoopStudyAdjudications(adjudicationsInput);
   const participantHash = sha256(participantHashInput, "participantHash");
   const withdrawnAt = canonicalTimestamp(withdrawnAtInput, "withdrawnAt");

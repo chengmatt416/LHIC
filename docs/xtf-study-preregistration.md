@@ -117,7 +117,7 @@ lhic study learnloop withdraw \
   --receipt-output results/withdrawal-receipt.json
 ```
 
-The command removes every blind unit for the participant and every annotation or adjudication bound to those unit hashes. It writes all four outputs with exclusive creation and rolls back newly created outputs if any write fails. The receipt includes before/after counts and order-independent digests, removed unit hashes, a non-linkable withdrawal-subject commitment, and explicit invalidation flags.
+The command removes every blind unit for the participant and every annotation or adjudication bound to those unit hashes. It writes all four outputs with exclusive creation and rolls back newly created outputs if any write fails. The receipt includes before/after counts and order-independent digests, a digest of the removed unit set, a plan-and-time-bound withdrawal-subject commitment, and explicit invalidation flags. It does not retain the participant hash or individual removed unit hashes.
 
 The command intentionally does not overwrite or securely erase source files. After verifying the receipt, the study operator must securely replace or destroy the original units, annotations, adjudications, any finalized records, labeling reports, and analysis reports. Finalization and analysis must then be rerun. The receipt is an audit aid, not a trusted timestamp or external signature; publish or countersign it through the preregistered study authority when independent proof is required.
 
