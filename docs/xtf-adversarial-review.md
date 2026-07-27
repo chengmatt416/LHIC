@@ -64,15 +64,30 @@ No software review can prove that a repository has zero vulnerabilities. “Reme
 | Medium   | No authority configured                     | A default-open implementation could silently accept unsigned local corrections.                                                               | No correction public key means ingestion is disabled; the admission method throws `not configured`.                                                                                                                   |
 | Medium   | Signing workflow mistaken for completed UX  | Cryptographic verification alone does not establish consent presentation, organizational identity policy, revocation operations, or auditing. | The repository exposes an opt-in verification boundary only. External signer operations, user consent UX, revocation service, deletion controls, and privacy-preserving audit remain explicit deployment obligations. |
 
+## Fifth hostile-review pass: evidence methodology
+
+| Severity | Finding                                      | Attack or invalidating argument                                                                                                             | Remediation                                                                                                                                                                                                                                                                                         |
+| -------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Critical | Post-hoc thresholds                          | Choosing sample size, success thresholds, or exclusions after seeing outcomes can manufacture a winning result.                            | Added a machine-readable plan with a canonical freeze timestamp, exact schema, immutable digest command, fixed thresholds, language minima, stopping rule, and non-overwritable report. Records must bind to the frozen digest.                                                                        |
+| Critical | Training/evaluation identity leakage         | Reusing a participant, session, task, or UI variant can convert memorization into apparent generalization.                                  | The analyzer rejects overlap across all four hashed dimensions. The confirmatory protocol requires participant-disjoint evaluation, not merely different task IDs.                                                                                                                                  |
+| High     | Raw participant or task data in study files  | A convenient JSONL collector could leak names, goals, URLs, screenshots, or UI text.                                                        | Study records use exact-key validation and accept only secret-salted hashes plus bounded decision metrics. Raw extra fields cause failure; the aggregate report declares that raw task and UI text were not collected.                                                                                |
+| High     | Perfect zero-error result presented as proof | Reporting `0/N` wrong-fast outcomes without uncertainty hides severe small-sample risk.                                                     | The report includes Wilson confidence intervals and gates on the upper bound, not the observed point estimate. A regression test proves that zero errors in ten units still fails a 10% upper-bound criterion.                                                                                         |
+| High     | Unpaired significance or cherry-picked cases | Comparing aggregate percentages without paired discordance ignores task difficulty; searching thresholds inflates significance.            | The fixed paired offline design reports exact two-sided McNemar/binomial significance and fixed confidence-threshold coverage-risk curves. Additional subgroup or threshold analyses are explicitly exploratory unless separately preregistered.                                                     |
+| High     | Exclusions silently erase failures           | Deleting technical failures or protocol deviations after observing outcomes can bias the report.                                           | Allowed exclusion codes are schema-frozen; excluded units remain in the dataset digest and disposition counts. Withdrawn records are rejected and must be deleted to honor withdrawal rather than being relabeled as ordinary exclusions.                                                            |
+| High     | Gold labels copied from LearnLoop            | Treating the correction itself as the expected label makes accuracy circular.                                                              | The protocol requires blinded independent annotators, preregistered adjudication, and a frozen expected-stage label before paired analysis.                                                                                                                                                        |
+| Medium   | Aggregate result hides language failure      | A strong English result could conceal weak Taiwan Traditional Chinese performance.                                                          | Plans preregister required language tags and minimum units per language; reports include per-language counts, base and learned accuracy, and gain.                                                                                                                                                   |
+| Medium   | Offline prediction confused with execution   | A paired frozen-observation study does not measure browser side effects, verifier success, confirmation burden, or real end-to-end latency. | The report contains this limitation, and the protocol requires a separate randomized live-execution follow-up. A passing offline report cannot be marketed as proof of side-effect-free autonomous execution.                                                                                         |
+| Medium   | Example plan presented as completed evidence | A committed sample plan and passing analyzer tests could be shown as though participants had been studied.                                  | The template is named `example-not-preregistered`; documentation repeatedly states that tooling is complete but recruitment and data collection have not occurred. CI validates only schema and CLI reproducibility, not real-world effectiveness.                                                  |
+
 ## CI-derived remediation
 
 Repository-wide checks found defects feature-only tests would have missed:
 
 - Two pre-existing macOS `.app` tests incorrectly expected native registration to succeed on Ubuntu. The runtime restriction was preserved; tests now assert rejection outside macOS and success only on macOS.
 - ESLint rejected a control-character regular expression and value imports used only as TypeScript types. The validator now checks code points without disabling `no-control-regex`, and type-only imports are explicit.
-- Repository Prettier exposed runtime files that targeted tests had transpiled successfully. They were formatted and revalidated with project typecheck, runtime tests, and lint.
+- Repository Prettier exposed runtime and research files that targeted tests had transpiled successfully. They were formatted and revalidated with project typecheck, tests, and lint.
 - Dependency audit identified a native transformer-to-image-processing chain with unpatched high-severity advisories. The default embedding path is now bounded dependency-free local feature hashing; production high/critical advisories are zero.
-- Temporary diagnostic and write-capable workflows were removed. The final branch retains only the read-only permanent XTF research gate.
+- A temporary formatter used to normalize the study files was replaced by a permanent read-only protocol gate. The final branch has no workflow with repository write permission.
 
 ## Remaining hard questions
 
@@ -82,7 +97,7 @@ It is bounded online calibration over coarse context features, not neural fine-t
 
 ### 2. Does the synthetic benchmark prove real-world improvement?
 
-No. It proves that the mechanism can improve a fixed synthetic fixture while preserving its encoded safety invariants. It cannot support “50% more accurate on the web” or a population-level accuracy claim. A credible paper needs preregistered tasks, withheld users or sessions, independently authored UI variants, uncertainty intervals, selective-risk curves, and all negative results.
+No. It proves that the mechanism can improve a fixed synthetic fixture while preserving its encoded safety invariants. It cannot support “50% more accurate on the web” or a population-level accuracy claim. The new preregistration tooling makes a credible study possible; it does not replace participants, realistic tasks, consent, independent labels, or negative results.
 
 ### 3. Is correction ingestion now end to end?
 
@@ -90,7 +105,7 @@ The repository path is end to end from trusted renderer IPC through structural v
 
 ### 4. Are hashed features anonymous?
 
-No. Hashes reduce accidental disclosure but are not anonymity. Low-entropy values can be guessed. Persistent deployments should use encrypted storage, OS-keyring or KMS-held HMAC keys, retention limits, and user-visible deletion/revocation controls.
+No. Hashes reduce accidental disclosure but are not anonymity. Low-entropy values can be guessed. Study identifiers require a study-specific secret salt; persistent deployments should use encrypted storage, OS-keyring or KMS-held keys, retention limits, and user-visible deletion/revocation controls.
 
 ### 5. Does the drift gate explain model internals?
 
@@ -98,7 +113,7 @@ No. It explains observable behavior: base prediction, learned override, confiden
 
 ### 6. Can LearnLoop increase selective risk?
 
-Yes. Any mechanism that admits more tasks to Fast Path can increase the absolute count of wrong fast executions even when average accuracy improves. Real evaluation must report wrong executions per admitted task, coverage-risk curves, and abstention quality—not only top-1 accuracy.
+Yes. Any mechanism that admits more tasks to Fast Path can increase the absolute count of wrong fast executions even when average accuracy improves. The study analyzer reports wrong-fast outcomes per admitted task, Wilson uncertainty, fixed coverage-risk curves, and abstention coverage rather than only top-1 accuracy.
 
 ### 7. Is the navigation bootstrap truly side-effect free?
 
@@ -107,6 +122,10 @@ Not provably. Opening a URL can create analytics events, redirects, sessions, or
 ### 8. Can local malware still submit a valid correction?
 
 Possession of the external correction-authority private key remains decisive. LHIC prevents unsigned, replayed, substituted, stale, malformed, and foreign-renderer submissions; it cannot protect a signer private key that has already been stolen. Key custody and revocation are part of the deployment threat model.
+
+### 9. Is the XTF evidence study complete?
+
+No. The protocol, schemas, CLI, statistical analysis, privacy bounds, leakage checks, and immutable reporting path are implemented. No participant-level study result exists yet. Scientific rigor rises because the future analysis is constrained before data collection; real-world evidence does not rise until the preregistered study is actually conducted and all outcomes are retained.
 
 ## Final acceptance gates
 
@@ -118,29 +137,31 @@ The branch is repository-complete only when all of the following pass at the sam
 - lint;
 - package build and internal benchmark;
 - LearnLoop benchmark without model or network calls;
+- preregistration parser, leakage controls, statistical analysis, and public CLI digest tests;
 - system preflight;
 - production dependency audit at high severity;
 - documentation links, release-version checks, and secret scan;
 - AgentLab and game-training Python checks;
 - container production preflight;
 - Linux, macOS, and Windows package smoke and Desktop packaging;
-- permanent XTF research gate, including signed correction ingress, persistent replay, Desktop admission, and `TaskService` boundary tests.
+- permanent read-only LearnLoop research gate;
+- permanent read-only study protocol gate.
 
 The pull request must remain draft if any required gate is red, queued, skipped because an earlier step failed, or unavailable.
 
 ## Strict rating framework after remediation
 
-| Dimension                    | Initial | Current code-level rating | Why it is not higher                                                                                                                                              |
-| ---------------------------- | ------: | ------------------------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Human Intent focus           |    7/10 |                     10/10 | The base predictor is explicitly first; LearnLoop is calibration only; execution requires authoritative exact-plan reproduction.                                  |
-| Security architecture        |    5/10 |                      9/10 | Signed bound corrections, persistent replay, exact-plan routing, Slow Path isolation, bounded IPC, and key-file hardening are present; signer operations remain.  |
-| Privacy                      |    5/10 |                    8.5/10 | Raw values are excluded from learned snapshots, but hashes are guessable and runtime consent/deletion/retention policy still needs deployment validation.         |
-| Continual-learning stability |    4/10 |                    8.5/10 | Independent validation, conflicts, failure feedback, revocation, scope binding, and no active eviction are present; long-duration real-user behavior is untested. |
-| Intent-drift quality         |    3/10 |                      7/10 | Signals and fail-closed behavior are explicit, but the labeled drift dataset is synthetic and small.                                                              |
-| Speed evidence               |    5/10 |                      7/10 | Local decision p50/p95 are measured and very small in the fixture; cross-device, cold-start, energy, and full-task latency are missing.                           |
-| Scientific rigor             |    4/10 |                    6.5/10 | The mechanism study is reproducible and honestly bounded; real users, confidence intervals, calibration, and independent task authorship are absent.              |
-| Reproducibility              |    5/10 |                      9/10 | Fixed fixtures, immutable JSON, CLI reproduction, targeted gate, and repository-wide CI are present.                                                              |
-| Real-world evidence          |    2/10 |                    3.5/10 | Production execution and correction ingress are integrated, but no preregistered realistic-task study has been run.                                               |
-| XTF submission readiness     |    4/10 |                    7.5/10 | Strong code and research foundation; paper-quality human evidence and operational signer/consent workflow remain incomplete.                                      |
+| Dimension                    | Initial | Current code-level rating | Why it is not higher                                                                                                                                                              |
+| ---------------------------- | ------: | ------------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Human Intent focus           |    7/10 |                     10/10 | The base predictor is explicitly first; LearnLoop is calibration only; execution requires authoritative exact-plan reproduction.                                                  |
+| Security architecture        |    5/10 |                      9/10 | Signed bound corrections, persistent replay, exact-plan routing, Slow Path isolation, bounded IPC, and key-file hardening are present; signer operations remain.                  |
+| Privacy                      |    5/10 |                    8.5/10 | Raw values are excluded from learned snapshots and study records; hashes remain guessable, and deployment consent/deletion/retention operations are incomplete.                  |
+| Continual-learning stability |    4/10 |                    8.5/10 | Independent validation, conflicts, failure feedback, revocation, scope binding, and no active eviction are present; long-duration real-user behavior is untested.                 |
+| Intent-drift quality         |    3/10 |                      7/10 | Signals and fail-closed behavior are explicit, but the labeled drift dataset is synthetic and small.                                                                              |
+| Speed evidence               |    5/10 |                      7/10 | Local decision p50/p95 are measured and the future protocol freezes latency criteria; cross-device, cold-start, energy, and end-to-end evidence are still missing.                |
+| Scientific rigor             |    4/10 |                    7.5/10 | Preregistration, immutable digests, exact paired testing, uncertainty, calibration, exclusions, and leakage controls are implemented; no human data has been collected.           |
+| Reproducibility              |    5/10 |                    9.5/10 | Fixed fixtures, immutable reports, machine-readable plans, dataset digests, CLI reproduction, two read-only gates, and repository-wide CI are present.                            |
+| Real-world evidence          |    2/10 |                    3.5/10 | Production execution and correction ingress are integrated, but the preregistered realistic-task study and separate live-execution study have not been run.                      |
+| XTF submission readiness     |    4/10 |                      8/10 | The engineering and study machinery are strong; valid participant evidence, annotation results, live-execution evidence, and operational signer/consent workflow remain missing. |
 
-A green CI result raises confidence that the implementation is internally consistent. It does not raise the real-world evidence score by itself.
+A green CI result raises confidence that the implementation and analysis machinery are internally consistent. It does not raise the real-world evidence score by itself.
