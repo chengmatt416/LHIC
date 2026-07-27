@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "lhic-productization-manifest-v1",
+  "repository": "chengmatt416/LHIC",
+  "permanentGates": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/product-readiness.yml",
+    ".github/workflows/xtf-labeling-finalize.yml",
+    ".github/workflows/xtf-learnloop.yml",
+    ".github/workflows/xtf-study-finalize.yml"
+  ],
+  "forbiddenTemporaryPaths": [
+    ".github/workflows/product-cli-pin-finalize.yml",
+    ".github/workflows/product-installer-finalize.yml",
+    "scripts/product-cli-pin-finalize.py",
+    "scripts/product-cli-pin-preflight.py",
+    "scripts/xtf-withdrawal-finalize.py",
+    "scripts/xtf-withdrawal-preflight.py"
+  ],
+  "artifacts": [
+    {
+      "id": "cli",
+      "kind": "npm",
+      "packageName": "@pinyencheng/lhic",
+      "packagePath": "apps/cli/package.json",
+      "version": "0.1.2",
+      "status": "release-candidate",
+      "tagPrefix": "cli-v",
+      "releaseWorkflow": ".github/workflows/release.yml",
+      "releaseEnvironment": "npm-release",
+      "releasePlatforms": ["registry"],
+      "requiredFiles": [
+        ".github/workflows/release.yml",
+        "apps/cli/package.json",
+        "scripts/check-cli-release-tag.mjs",
+        "scripts/package-smoke.mjs",
+        "scripts/published-package-smoke.mjs"
+      ],
+      "externalRequirements": [
+        "Configure npm trusted publishing for @pinyencheng/lhic.",
+        "Create and protect the GitHub npm-release environment.",
+        "Push the exact cli-v0.1.2 tag only after the validated commit is selected.",
+        "Observe both registry smoke tests succeeding after publication."
+      ]
+    },
+    {
+      "id": "cli-alias",
+      "kind": "npm",
+      "packageName": "lhic",
+      "packagePath": "apps/lhic/package.json",
+      "version": "0.1.2",
+      "status": "release-candidate",
+      "tagPrefix": "cli-v",
+      "releaseWorkflow": ".github/workflows/release.yml",
+      "releaseEnvironment": "npm-release",
+      "releasePlatforms": ["registry"],
+      "requiredFiles": [
+        ".github/workflows/release.yml",
+        "apps/lhic/package.json",
+        "scripts/alias-package-smoke.mjs",
+        "scripts/published-alias-smoke.mjs"
+      ],
+      "externalRequirements": [
+        "Configure npm trusted publishing for the lhic compatibility package.",
+        "Create and protect the GitHub npm-release environment.",
+        "Publish from the same exact cli-v0.1.2 workflow run as the scoped package.",
+        "Observe the alias registry smoke test succeeding after publication."
+      ]
+    },
+    {
+      "id": "desktop",
+      "kind": "desktop",
+      "packageName": "@lhic/desktop",
+      "packagePath": "apps/desktop/package.json",
+      "version": "0.1.4",
+      "status": "release-candidate",
+      "tagPrefix": "desktop-v",
+      "releaseWorkflow": ".github/workflows/desktop-release.yml",
+      "releaseEnvironment": "desktop-release",
+      "releasePlatforms": ["linux", "macos", "windows"],
+      "requiredFiles": [
+        ".github/workflows/desktop-release.yml",
+        "apps/desktop/electron-builder.common.yml",
+        "apps/desktop/electron-builder.release.yml",
+        "apps/desktop/package.json",
+        "apps/desktop/scripts/assert-macos-release-env.mjs",
+        "apps/desktop/scripts/assert-windows-release-env.mjs",
+        "apps/desktop/scripts/verify-package.mjs",
+        "scripts/generate-sha256-manifest.mjs"
+      ],
+      "externalRequirements": [
+        "Create and protect the GitHub desktop-release environment.",
+        "Provide an Apple Developer ID signing credential and notarization API credentials.",
+        "Provide a Windows Authenticode certificate and its password.",
+        "Approve the Linux release job in the protected environment.",
+        "Push the exact desktop-v0.1.4 tag only after the validated commit is selected.",
+        "Observe all signed packages, checksum generation, and GitHub Release publication succeeding."
+      ]
+    }
+  ]
+}
