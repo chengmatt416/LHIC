@@ -140,7 +140,7 @@ The native Control Center is still a development build. Do not use the desktop
 installer as Build Week release evidence until a platform package and matching
 SHA-256 manifest have passed the desktop release workflow. When that gate is
 green, install the native Control Center for the current operating system and
-architecture with a SHA-256-verified GitHub Release asset. macOS installs to
+architecture with a SHA-256-verified asset from the highest stable `desktop-vX.Y.Z` GitHub Release. CLI-only, draft, and prerelease tags are ignored. macOS installs to
 `~/Applications`, Linux installs a user-local AppImage and launcher, and
 Windows runs the release NSIS installer:
 
