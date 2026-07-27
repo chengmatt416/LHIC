@@ -1,0 +1,54 @@
+name: Finalize productization formatting
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/product-format-finalize.yml"
+
+permissions:
+  contents: write
+
+env:
+  CI: true
+
+jobs:
+  finalize:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: xtf/lhic-learnloop
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply exact Prettier output
+        run: >-
+          npx prettier --write
+          scripts/check-product-readiness.mjs
+          docs/release-status.md
+      - name: Validate productization policy
+        run: |
+          npm run format:check
+          npm run typecheck
+          npm run test:product-readiness
+          npm run check:product-readiness
+          npx vitest run apps/cli/src/installer.test.ts apps/cli/src/product-data.test.ts apps/cli/src/user-experience.test.ts
+          npm run package:smoke
+          npm run lint
+      - name: Commit only validated formatted files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add scripts/check-product-readiness.mjs docs/release-status.md
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(product): format productization policy"
+          git pull --rebase origin xtf/lhic-learnloop
+          git push origin HEAD:xtf/lhic-learnloop
