@@ -13,8 +13,20 @@ This directory contains the machine-readable starting point for the XTF evidence
 lhic study learnloop digest --plan benchmarks/learnloop-study/plan.json
 ```
 
-5. Collect blind units without `expectedStage`; annotators must not receive base or LearnLoop predictions.
-6. Finalize two independent labels per unit, with third-person adjudication for every disagreement:
+5. Copy `task-manifest.example.json` and `participants.example.jsonl`, replace every placeholder, freeze the restricted manifest and consented participant enrollment set, and generate the deterministic balanced schedule:
+
+```bash
+lhic study learnloop schedule \
+  --plan benchmarks/learnloop-study/plan.json \
+  --manifest benchmarks/learnloop-study/task-manifest.json \
+  --participants results/participants.jsonl \
+  --output results/schedule.json
+```
+
+The manifest contains gold stages and remains restricted to the coordinator. The schedule contains participant pseudonyms but no gold labels or model outputs. Freeze the manifest, participant-dataset, and assignment-dataset digests before outcomes are inspected.
+
+6. Collect blind units without `expectedStage`; annotators must not receive participant hashes, split, base or LearnLoop predictions, confidence, or admission decisions.
+7. Finalize two independent labels per unit, with third-person adjudication for every disagreement:
 
 ```bash
 lhic study learnloop finalize-labels \
@@ -26,7 +38,7 @@ lhic study learnloop finalize-labels \
   --report-output results/learnloop-study-labeling-report.json
 ```
 
-7. If a participant withdraws at any time, create redacted replacement source files before finalization or analysis:
+8. If a participant withdraws at any time, create redacted replacement source files before finalization or analysis:
 
 ```bash
 lhic study learnloop withdraw \
@@ -42,7 +54,7 @@ lhic study learnloop withdraw \
 
 The command never overwrites input files. Securely replace or destroy the original source files and all prior finalized records, labeling reports, and analysis reports; then rerun finalization and analysis from the redacted outputs.
 
-8. Analyze without overwriting an earlier report:
+9. Analyze without overwriting an earlier report:
 
 ```bash
 lhic study learnloop analyze \
@@ -53,4 +65,4 @@ lhic study learnloop analyze \
 
 The analyzer rejects raw extra fields, invalid consent state, withdrawn records, pre-freeze records, collector-version drift, duplicate units, plan substitution, and any participant/session/task/UI-variant overlap between training and evaluation.
 
-See `docs/xtf-study-preregistration.md` for the full protocol and claim limits.
+Execution materials are in `docs/xtf-study-operations-sop.md`, the two consent templates, the two participant-instruction templates, and `docs/xtf-study-annotation-rubric.md`. See `docs/xtf-study-preregistration.md` for the full protocol and claim limits.

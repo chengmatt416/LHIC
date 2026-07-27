@@ -151,7 +151,9 @@ npm run study:learnloop -- digest \
   --plan benchmarks/learnloop-study/plan.json
 ```
 
-The study kit first finalizes gold labels from blind units using two distinct annotators and mandatory independent adjudication for every disagreement. It reports raw agreement, Fleiss' kappa, label distributions, workloads, and order-independent dataset digests.
+Before collection, the study kit freezes a restricted task/UI manifest and consented participant enrollment set, then generates a deterministic participant-disjoint schedule. It uses a frozen SHA-256 seed, balances eligible UI variants to a maximum count difference of one, fails when preregistered sample/language/stage minima cannot be met, and emits no gold labels or model outputs in the schedule.
+
+The study kit then finalizes gold labels from blind units using two distinct annotators and mandatory independent adjudication for every disagreement. It reports raw agreement, Fleiss' kappa, label distributions, workloads, and order-independent dataset digests.
 
 A participant-withdrawal command removes all matching blind units plus linked annotations and adjudications into four non-overwritable redacted outputs. Its receipt records before/after digests and invalidates every previously derived record or report, which must be deleted and regenerated.
 
@@ -227,6 +229,8 @@ Before production deployment, define and test the external correction authority:
 - `apps/cli/src/learnloop-study-labeling.test.ts`
 - `apps/cli/src/learnloop-study-withdrawal.ts`
 - `apps/cli/src/learnloop-study-withdrawal.test.ts`
+- `apps/cli/src/learnloop-study-schedule.ts`
+- `apps/cli/src/learnloop-study-schedule.test.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.ts`
 - `apps/desktop/src/main/prediction-first-browser-admission.test.ts`
 - `apps/desktop/src/main/correction-ingestion-runtime.ts`
@@ -239,7 +243,15 @@ Before production deployment, define and test the external correction authority:
 - `apps/desktop/src/main/task-service-correction-ingestion.test.ts`
 - `benchmarks/learnloop-study/README.md`
 - `benchmarks/learnloop-study/plan.example.json`
+- `benchmarks/learnloop-study/task-manifest.example.json`
+- `benchmarks/learnloop-study/participants.example.jsonl`
 - `docs/xtf-study-preregistration.md`
+- `docs/xtf-study-operations-sop.md`
+- `docs/xtf-study-annotation-rubric.md`
+- `docs/xtf-study-consent-template.en.md`
+- `docs/xtf-study-consent-template.zh-TW.md`
+- `docs/xtf-study-participant-instructions.en.md`
+- `docs/xtf-study-participant-instructions.zh-TW.md`
 - `.github/workflows/xtf-learnloop.yml`
 - `.github/workflows/xtf-study-finalize.yml`
 - `XTF-LEARNLOOP.md`

@@ -88,6 +88,28 @@ Hashes must be lowercase SHA-256 digests generated with a study-specific secret 
 
 The strict participant-disjoint rule means LearnLoop evidence may not be trained on a participant who later appears in the confirmatory evaluation set. A separate exploratory within-person study may be run, but it must not be mixed into this confirmatory report.
 
+## 5A. Deterministic task allocation and schedule freeze
+
+Before outcomes are collected, create a restricted coordinator task manifest bound to the plan digest. The manifest must declare `containsGoldLabels: true`, include only preregistered languages and stages, use globally unique training/evaluation task and UI-variant hashes, and freeze a SHA-256 randomization seed.
+
+After valid consent, store one exact-schema participant enrollment row per participant. Participant hashes must be study-specific secret-salted pseudonyms; each participant belongs to exactly one split and one language stratum.
+
+Run:
+
+```bash
+lhic study learnloop schedule \
+  --plan benchmarks/learnloop-study/plan.json \
+  --manifest benchmarks/learnloop-study/task-manifest.json \
+  --participants results/participants.jsonl \
+  --output results/schedule.json
+```
+
+The schedule generator deterministically orders tasks, assigns the least-used eligible UI variant with a hash-based tie break, limits variant count imbalance to one, and fails when total units, required-language minima, expected-stage diversity, or train/evaluation separation cannot be satisfied. The non-overwritable output binds the plan, manifest, participant dataset, randomization seed, and assignment dataset by digest.
+
+The schedule contains participant pseudonyms and is restricted to the coordinator. It deliberately omits gold labels and model outputs. Operational blinding still requires role-based access, separate annotator packets, and controlled task presentation. Freeze or trusted-timestamp the manifest, enrollment set, schedule, rubric, and participant-material versions before outcomes are inspected.
+
+The execution SOP, consent templates, participant instructions, and annotation rubric are versioned in `docs/xtf-study-operations-sop.md`, `docs/xtf-study-consent-template.*.md`, `docs/xtf-study-participant-instructions.*.md`, and `docs/xtf-study-annotation-rubric.md`.
+
 ## 6. Participants and consent
 
 Use only participants able to provide valid consent under the applicable school, competition, and local research rules. Because the project owner is a minor, an adult supervisor or institution should review participant-facing materials and data handling before recruitment.

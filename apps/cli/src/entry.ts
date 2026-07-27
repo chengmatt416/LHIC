@@ -23,6 +23,12 @@ import {
   writeFinalizedLearnLoopStudyLabels,
 } from "./learnloop-study-labeling.js";
 import {
+  buildLearnLoopStudySchedule,
+  readLearnLoopStudyParticipants,
+  readLearnLoopStudyTaskManifest,
+  writeLearnLoopStudySchedule,
+} from "./learnloop-study-schedule.js";
+import {
   redactLearnLoopStudyParticipant,
   writeRedactedLearnLoopStudyData,
 } from "./learnloop-study-withdrawal.js";
@@ -36,7 +42,7 @@ import {
   runUserSetup,
 } from "./user-experience.js";
 
-export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop withdraw --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --participant-hash <sha256> --units-output <units.jsonl> --annotations-output <annotations.jsonl> --adjudications-output <adjudications.jsonl> --receipt-output <receipt.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
+export const userCliUsage = `${cliUsage}\n\nBeginner commands:\n  lhic setup [codex|claude-code|vscode|antigravity] [workspace-root] [memory-database]\n  lhic doctor [memory-database]\n  lhic skills [memory-database]\n\nXTF research commands:\n  lhic bench learnloop [--output <path>]\n  lhic study learnloop digest --plan <plan.json>\n  lhic study learnloop schedule --plan <plan.json> --manifest <manifest.json> --participants <participants.jsonl> --output <schedule.json>\n  lhic study learnloop withdraw --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --participant-hash <sha256> --units-output <units.jsonl> --annotations-output <annotations.jsonl> --adjudications-output <adjudications.jsonl> --receipt-output <receipt.json>\n  lhic study learnloop finalize-labels --plan <plan.json> --units <units.jsonl> --annotations <annotations.jsonl> --adjudications <adjudications.jsonl> --records-output <records.jsonl> --report-output <label-report.json>\n  lhic study learnloop analyze --plan <plan.json> --records <records.jsonl> --output <report.json>`;
 
 /**
  * Backward-compatible public CLI entrypoint. Existing commands are delegated to
@@ -109,6 +115,22 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         );
         return;
       }
+      if (action === "schedule") {
+        const options = parseStudyScheduleOptions(argumentsList.slice(3));
+        const plan = await readLearnLoopStudyPlan(options.planFile);
+        const [manifest, participants] = await Promise.all([
+          readLearnLoopStudyTaskManifest(plan, options.manifestFile),
+          readLearnLoopStudyParticipants(plan, options.participantsFile),
+        ]);
+        const schedule = buildLearnLoopStudySchedule(
+          plan,
+          manifest,
+          participants,
+        );
+        await writeLearnLoopStudySchedule(options.outputFile, schedule);
+        console.log(JSON.stringify(schedule, null, 2));
+        return;
+      }
       if (action === "withdraw") {
         const options = parseStudyWithdrawalOptions(argumentsList.slice(3));
         const [units, annotations, adjudications] = await Promise.all([
@@ -168,7 +190,7 @@ export async function runCli(argumentsList: string[]): Promise<void> {
         return;
       }
       throw new Error(
-        "LearnLoop study action must be digest, withdraw, finalize-labels, or analyze. Run `lhic help` for usage.",
+        "LearnLoop study action must be digest, schedule, withdraw, finalize-labels, or analyze. Run `lhic help` for usage.",
       );
     }
   } catch (error) {
@@ -200,6 +222,26 @@ function parseResearchOutput(argumentsList: string[]): string | undefined {
 function parseStudyDigestOptions(argumentsList: string[]): string {
   const options = parseExactFlags(argumentsList, ["--plan"]);
   return options["--plan"]!;
+}
+
+function parseStudyScheduleOptions(argumentsList: string[]): {
+  planFile: string;
+  manifestFile: string;
+  participantsFile: string;
+  outputFile: string;
+} {
+  const options = parseExactFlags(argumentsList, [
+    "--plan",
+    "--manifest",
+    "--participants",
+    "--output",
+  ]);
+  return {
+    planFile: options["--plan"]!,
+    manifestFile: options["--manifest"]!,
+    participantsFile: options["--participants"]!,
+    outputFile: options["--output"]!,
+  };
 }
 
 function parseStudyWithdrawalOptions(argumentsList: string[]): {
