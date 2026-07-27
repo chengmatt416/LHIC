@@ -8,9 +8,15 @@ on:
       - "apps/cli/src/installer*"
       - "apps/cli/src/entry.ts"
       - "apps/cli/src/user-experience*"
-      - "docs/product-data-lifecycle.md"
+      - "apps/desktop/scripts/assert-*-release-env.mjs"
+      - "docs/product-*"
+      - "productization-manifest.json"
+      - "release-manifest.json"
+      - "scripts/check-product-readiness*"
       - "README.md"
       - "package.json"
+      - ".github/workflows/desktop-release.yml"
+      - ".github/workflows/release.yml"
       - ".github/workflows/product-readiness.yml"
   push:
     branches: [xtf/lhic-learnloop]
@@ -41,6 +47,10 @@ jobs:
           apps/cli/src/product-data.test.ts
           apps/cli/src/user-experience.test.ts
           apps/cli/src/installer.test.ts
+      - name: Test candidate and release readiness policy
+        run: npm run test:product-readiness
+      - name: Validate machine-readable candidate readiness
+        run: npm run check:product-readiness
       - name: Validate public product-data CLI
         run: |
           npx tsx apps/cli/src/entry.ts help | grep -F "data inventory"
