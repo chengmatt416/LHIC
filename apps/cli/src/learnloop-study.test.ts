@@ -100,6 +100,7 @@ describe("LearnLoop preregistered study analysis", () => {
     const plan = {
       ...studyPlan(),
       minimumEvaluationUnits: 10,
+      minimumEvaluationUnitsPerLanguage: 5,
     } satisfies LearnLoopStudyPlan;
     const report = analyzeLearnLoopStudy(plan, studyRecords(plan, 10, 6));
     expect(report.metrics.learned.wrongFastAdmissionRate).toBe(0);
