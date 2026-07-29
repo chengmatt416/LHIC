@@ -4393,3 +4393,19 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-29T16:45:29.913Z] [GitHub Sync] Pushing structured artifacts (iteration #250)...
 [2026-07-29T16:45:30.229Z] [GitHub Sync] Push note: Command failed: git push origin training-results || git push -u origin training-results
 fatal: could not read Username for 'https://github.com': No su
+[2026-07-29T16:45:31.234Z] 
+--- Cycle #251 (Tasks: 12,550/100,000) ---
+[2026-07-29T16:45:31.234Z] Elapsed: 2.52h | Remaining: 717.48h
+[2026-07-29T16:45:31.234Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T16:45:33.868Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T16:45:33.871Z] [Step 2/3] PyTorch 2D Training (space-invaders-2d)...
+[2026-07-29T16:45:37.861Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-29T16:45:37.861Z] [Step 3/3] Web Skill Training: mdn-search (docs) "requestAnimationFrame"...
+[2026-07-29T16:45:43.854Z] Web Skill OK: mdn-search (docs)
+[2026-07-29T16:45:44.862Z] 
+--- Cycle #252 (Tasks: 12,600/100,000) ---
+[2026-07-29T16:45:44.862Z] Elapsed: 2.52h | Remaining: 717.48h
+[2026-07-29T16:45:44.862Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T16:45:47.382Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T16:45:47.385Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
