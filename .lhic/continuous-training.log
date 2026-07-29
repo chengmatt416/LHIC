@@ -8113,3 +8113,27 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-29T20:28:17.311Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
 [2026-07-29T20:28:20.099Z] Resilience: semantic=100.0%, delta=+80%
 [2026-07-29T20:28:20.106Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
+[2026-07-29T20:28:29.603Z] Game record failed: node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+page.waitForTimeout: Target page, context or browser has been closed
+    at runScriptedBrowserDemon
+[2026-07-29T20:28:29.604Z] [Step 3/3] Web Skill Training: wikipedia-search (search) "Browser Automation Testing"...
+[2026-07-29T20:28:35.792Z] Web Skill OK: wikipedia-search (search)
+[2026-07-29T20:28:36.801Z] 
+--- Cycle #623 (Tasks: 31,150/100,000) ---
+[2026-07-29T20:28:36.801Z] Elapsed: 6.24h | Remaining: 713.76h
+[2026-07-29T20:28:36.801Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T20:28:39.308Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T20:28:39.316Z] [Step 2/3] PyTorch 2D Training (space-invaders-2d)...
+[2026-07-29T20:28:43.310Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-29T20:28:43.310Z] [Step 3/3] Web Skill Training: mdn-search (docs) "MutationObserver"...
+[2026-07-29T20:28:49.461Z] Web Skill OK: mdn-search (docs)
+[2026-07-29T20:28:50.470Z] 
+--- Cycle #624 (Tasks: 31,200/100,000) ---
+[2026-07-29T20:28:50.470Z] Elapsed: 6.24h | Remaining: 713.76h
+[2026-07-29T20:28:50.470Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T20:28:53.117Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T20:28:53.124Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
