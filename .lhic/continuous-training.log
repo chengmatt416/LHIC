@@ -5080,3 +5080,9 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-29T17:26:39.874Z] [Step 3/3] Web Skill Training: github-issues (project) "is:open label:bug"...
 [2026-07-29T17:26:43.390Z] Web Skill note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, openstreetmap-place-search.
 
+[2026-07-29T17:26:44.397Z] 
+--- Cycle #320 (Tasks: 16,000/100,000) ---
+[2026-07-29T17:26:44.397Z] Elapsed: 3.21h | Remaining: 716.79h
+[2026-07-29T17:26:44.397Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T17:26:46.934Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T17:26:46.938Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
