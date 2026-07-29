@@ -1,23 +1,24 @@
 {
-  "status": "ACTIVE (100k TASK SUITE FULL LOAD)",
+  "status": "ACTIVE (PRACTICAL TRAINING)",
   "targetDurationDays": 30,
-  "startTime": "2026-07-29T12:21:01.206Z",
-  "targetEndTime": "2026-08-28T12:21:01.206Z",
-  "lastUpdated": "2026-07-29T14:13:38.091Z",
-  "iteration": 114,
+  "startTime": "2026-07-29T14:14:20.878Z",
+  "targetEndTime": "2026-08-28T14:14:20.878Z",
+  "lastUpdated": "2026-07-29T14:14:33.907Z",
+  "iteration": 1,
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5700,
-    "progressPercent": "5.70"
+    "completedTasks": 50,
+    "progressPercent": "0.05"
   },
   "stats": {
-    "totalSimulations": 114,
-    "totalGameFits": 112,
-    "totalPublicWebRuns": 114,
-    "elapsedHours": "1.86",
-    "remainingHours": "718.14",
-    "latestPyTorchLoss": 6.621425151824951,
-    "latestPyTorchAccuracy": 0.582089552238806,
+    "totalSimulations": 1,
+    "totalGameFits": 0,
+    "totalPublicWebRuns": 1,
+    "totalSkillCandidates": 1,
+    "elapsedHours": "0.00",
+    "remainingHours": "720.00",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": 0.8
   }
 }
