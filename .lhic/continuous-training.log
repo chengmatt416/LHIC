@@ -3146,3 +3146,10 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-29T15:29:30.261Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
 
 [2026-07-29T15:29:30.261Z] [Step 3/3] Web Skill Training: product-search (commerce) "mechanical keyboard"...
+[2026-07-29T15:29:37.158Z] Web Skill OK: product-search (commerce)
+[2026-07-29T15:29:38.164Z] 
+--- Cycle #126 (Tasks: 6,300/100,000) ---
+[2026-07-29T15:29:38.164Z] Elapsed: 1.25h | Remaining: 718.75h
+[2026-07-29T15:29:38.165Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T15:29:40.734Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T15:29:40.737Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
