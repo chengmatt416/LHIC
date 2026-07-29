@@ -5743,3 +5743,16 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #385 (Tasks: 19,250/100,000) ---
 [2026-07-29T18:05:25.786Z] Elapsed: 3.85h | Remaining: 716.15h
 [2026-07-29T18:05:25.786Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T18:05:28.421Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T18:05:28.426Z] [Step 2/3] PyTorch 2D Training (space-invaders-2d)...
+[2026-07-29T18:05:32.425Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-29T18:05:32.425Z] [Step 3/3] Web Skill Training: github-issues (project) "is:open label:bug"...
+[2026-07-29T18:05:35.945Z] Web Skill note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, openstreetmap-place-search.
+
+[2026-07-29T18:05:36.952Z] 
+--- Cycle #386 (Tasks: 19,300/100,000) ---
+[2026-07-29T18:05:36.953Z] Elapsed: 3.85h | Remaining: 716.15h
+[2026-07-29T18:05:36.953Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T18:05:39.777Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T18:05:39.783Z] [Step 2/3] PyTorch 3D Training (epic-shooter-3d)...
