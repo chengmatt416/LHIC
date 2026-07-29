@@ -3,22 +3,22 @@
   "targetDurationDays": 30,
   "startTime": "2026-07-29T14:14:20.878Z",
   "targetEndTime": "2026-08-28T14:14:20.878Z",
-  "lastUpdated": "2026-07-29T17:46:05.131Z",
-  "iteration": 353,
+  "lastUpdated": "2026-07-29T17:47:01.863Z",
+  "iteration": 354,
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 17650,
-    "progressPercent": "17.65"
+    "completedTasks": 17700,
+    "progressPercent": "17.70"
   },
   "stats": {
-    "totalSimulations": 353,
-    "totalGameFits": 174,
-    "totalPublicWebRuns": 289,
-    "totalSkillCandidates": 289,
+    "totalSimulations": 354,
+    "totalGameFits": 175,
+    "totalPublicWebRuns": 290,
+    "totalSkillCandidates": 290,
     "elapsedHours": "3.53",
     "remainingHours": "716.47",
-    "latestPyTorchLoss": null,
-    "latestPyTorchAccuracy": null,
+    "latestPyTorchLoss": 6.6687421798706055,
+    "latestPyTorchAccuracy": 0.6753731343283582,
     "latestSimDelta": 0.8
   }
 }
