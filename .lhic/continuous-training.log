@@ -5864,3 +5864,9 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #397 (Tasks: 19,850/100,000) ---
 [2026-07-29T18:12:33.980Z] Elapsed: 3.97h | Remaining: 716.03h
 [2026-07-29T18:12:33.980Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-29T18:12:36.721Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-29T18:12:36.727Z] [Step 2/3] PyTorch 2D Training (space-invaders-2d)...
+[2026-07-29T18:12:40.772Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-29T18:12:40.773Z] [Step 3/3] Web Skill Training: wikipedia-search (search) "Antigravity Agentic Coding"...
+[2026-07-29T18:12:46.949Z] Web Skill OK: wikipedia-search (search)
