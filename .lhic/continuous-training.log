@@ -25926,3 +25926,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #138 | Task: mdn-intersection-observer | LLM=ON ---
 [2026-07-30T12:08:29.047Z] Elapsed: 0.47h | Remaining: 479.53h | SuccessRate: 95.0%
 [2026-07-30T12:08:29.067Z] [Web] mdn-search "IntersectionObserver"
+[2026-07-30T12:08:35.165Z] [Web] OK: mdn-search
+[2026-07-30T12:08:35.384Z] 
+--- Cycle #139 | Task: mdn-raf | LLM=ON ---
+[2026-07-30T12:08:35.384Z] Elapsed: 0.47h | Remaining: 479.53h | SuccessRate: 95.0%
+[2026-07-30T12:08:35.405Z] [Web] mdn-search "requestAnimationFrame"
+[2026-07-30T12:08:41.545Z] [Web] OK: mdn-search
+[2026-07-30T12:08:41.762Z] 
+--- Cycle #140 | Task: mdn-performance-observer | LLM=ON ---
+[2026-07-30T12:08:41.763Z] Elapsed: 0.47h | Remaining: 479.53h | SuccessRate: 95.0%
+[2026-07-30T12:08:41.783Z] [Web] mdn-search "PerformanceObserver"
+[2026-07-30T12:08:47.872Z] [Web] OK: mdn-search
+[2026-07-30T12:08:48.091Z] 
+--- Cycle #141 | Task: slow-plan-multi-step-search | LLM=ON ---
+[2026-07-30T12:08:48.092Z] Elapsed: 0.47h | Remaining: 479.53h | SuccessRate: 95.0%
+[2026-07-30T12:08:48.113Z] [SlowPath] planning: slow-plan-multi-step-search — Plan a multi-step browser flow: open Wikipedia, search for 'Local Human Intent C
