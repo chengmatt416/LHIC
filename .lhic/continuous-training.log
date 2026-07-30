@@ -24261,3 +24261,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #612 | Task: osm-taipei | LLM=ON ---
 [2026-07-30T11:06:35.997Z] Elapsed: 2.07h | Remaining: 477.93h | SuccessRate: 56.0%
 [2026-07-30T11:06:36.020Z] [Web] openstreetmap "Taipei 101"
+[2026-07-30T11:06:39.522Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T11:06:39.739Z] 
+--- Cycle #613 | Task: osm-central-park | LLM=ON ---
+[2026-07-30T11:06:39.739Z] Elapsed: 2.08h | Remaining: 477.92h | SuccessRate: 55.0%
+[2026-07-30T11:06:39.760Z] [Web] openstreetmap "Central Park New York"
+[2026-07-30T11:06:43.296Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T11:06:43.508Z] 
+--- Cycle #614 | Task: slow-plan-github-triage | LLM=ON ---
+[2026-07-30T11:06:43.509Z] Elapsed: 2.08h | Remaining: 477.92h | SuccessRate: 54.0%
+[2026-07-30T11:06:43.529Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
