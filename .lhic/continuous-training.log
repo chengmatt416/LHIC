@@ -32399,3 +32399,92 @@ fatal: could not read Username for 'https://gi
 --- Cycle #231 | Task: resilience-adversarial-150 | LLM=ON ---
 [2026-07-31T00:40:45+08:00] Elapsed: 1.03h | Remaining: 478.97h | SuccessRate: 93.0%
 [2026-07-31T00:40:45+08:00] [Resilience] batch=150 seed=928 threads=20
+[2026-07-31T00:40:49+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:40:49+08:00] 
+--- Cycle #232 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-31T00:40:49+08:00] Elapsed: 1.03h | Remaining: 478.97h | SuccessRate: 93.0%
+[2026-07-31T00:40:49+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T00:41:40+08:00] [Policy] loss=6.6676 accuracy=68.3%
+[2026-07-31T00:41:40+08:00] 
+--- Cycle #233 | Task: skill-chain-wiki-mdn-github | LLM=ON ---
+[2026-07-31T00:41:40+08:00] Elapsed: 1.05h | Remaining: 478.95h | SuccessRate: 93.0%
+[2026-07-31T00:41:40+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T00:41:47+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:41:47+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T00:41:53+08:00] [Web] OK: mdn-search
+[2026-07-31T00:41:53+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T00:42:02+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:42:02+08:00] 
+--- Cycle #234 | Task: skill-chain-docs-to-code | LLM=ON ---
+[2026-07-31T00:42:02+08:00] Elapsed: 1.05h | Remaining: 478.95h | SuccessRate: 93.0%
+[2026-07-31T00:42:02+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T00:42:08+08:00] [Web] OK: mdn-search
+[2026-07-31T00:42:08+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T00:42:15+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:42:15+08:00] 
+--- Cycle #235 | Task: recovery-network-timeout | LLM=ON ---
+[2026-07-31T00:42:15+08:00] Elapsed: 1.05h | Remaining: 478.95h | SuccessRate: 93.0%
+[2026-07-31T00:42:15+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T00:42:34+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to create a JSON plan for recovery from a network timeout during br...
+[2026-07-31T00:42:34+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:42:34+08:00] 
+--- Cycle #236 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T00:42:34+08:00] Elapsed: 1.06h | Remaining: 478.94h | SuccessRate: 93.0%
+[2026-07-31T00:42:34+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
+[2026-07-31T00:42:57+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to produce a JSON plan for "recovery of stale element reference". T...
+[2026-07-31T00:42:57+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:42:57+08:00] 
+--- Cycle #237 | Task: crossmodal-api-plus-web | LLM=ON ---
+[2026-07-31T00:42:57+08:00] Elapsed: 1.07h | Remaining: 478.93h | SuccessRate: 93.0%
+[2026-07-31T00:42:58+08:00] [SlowPath] planning: crossmodal-api-plus-web — Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Op
+[2026-07-31T00:43:18+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-modal data fusion: 1) Fetch GitHub API for repo...
+[2026-07-31T00:43:18+08:00] [Web] github-issue-filter "is:open"
+[2026-07-31T00:43:27+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:43:27+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:43:27+08:00] 
+--- Cycle #238 | Task: docs-entry-type-wiki | LLM=ON ---
+[2026-07-31T00:43:27+08:00] Elapsed: 1.07h | Remaining: 478.93h | SuccessRate: 93.0%
+[2026-07-31T00:43:27+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T00:43:34+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:43:34+08:00] 
+--- Cycle #239 | Task: geo-multi-stop-route | LLM=ON ---
+[2026-07-31T00:43:34+08:00] Elapsed: 1.08h | Remaining: 478.92h | SuccessRate: 93.0%
+[2026-07-31T00:43:34+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T00:43:39+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:43:40+08:00] 
+--- Cycle #240 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-31T00:43:40+08:00] Elapsed: 1.08h | Remaining: 478.92h | SuccessRate: 94.0%
+[2026-07-31T00:43:40+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T00:43:45+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:43:46+08:00] 
+--- Cycle #241 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T00:43:46+08:00] Elapsed: 1.08h | Remaining: 478.92h | SuccessRate: 94.0%
+[2026-07-31T00:43:46+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T00:44:08+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: Plan extraction from an infinite-scroll page: 1) Initial sc...
+[2026-07-31T00:44:08+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:44:08+08:00] 
+--- Cycle #242 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T00:44:08+08:00] Elapsed: 1.09h | Remaining: 478.91h | SuccessRate: 94.0%
+[2026-07-31T00:44:08+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T00:44:28+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:44:28+08:00] 
+--- Cycle #243 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T00:44:28+08:00] Elapsed: 1.09h | Remaining: 478.91h | SuccessRate: 94.0%
+[2026-07-31T00:44:28+08:00] [Resilience] batch=300 seed=132 threads=20
+[2026-07-31T00:44:35+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:44:35+08:00] 
+--- Cycle #244 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T00:44:35+08:00] Elapsed: 1.09h | Remaining: 478.91h | SuccessRate: 94.0%
+[2026-07-31T00:44:35+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T00:44:39+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T00:44:39+08:00] 
+--- Cycle #245 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-31T00:44:39+08:00] Elapsed: 1.09h | Remaining: 478.91h | SuccessRate: 93.0%
+[2026-07-31T00:44:39+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T00:44:43+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T00:44:43+08:00] 
+--- Cycle #246 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-31T00:44:43+08:00] Elapsed: 1.10h | Remaining: 478.90h | SuccessRate: 92.0%
+[2026-07-31T00:44:43+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
