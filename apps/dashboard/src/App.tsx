@@ -16,21 +16,31 @@ interface StatusData {
     completedTasks: number;
     progressPercent: string;
   };
+  currentTask?: string | null;
+  llm?: {
+    hasAvailable?: boolean;
+    models?: Array<{ model: string; available: boolean; rateLimitedUntil: string | null }>;
+    stats?: { deepseek?: { ok: number; fail: number; rateLimit: number }; mimo?: { ok: number; fail: number; rateLimit: number } };
+  };
   stats?: {
     totalSimulations: number;
     totalGameFits: number;
     totalPublicWebRuns: number;
+    totalSlowPathPlans?: number;
+    totalSkillCandidates?: number;
+    rollingSuccessRate?: number | null;
     elapsedHours: string;
     remainingHours: string;
     latestPyTorchLoss: number | null;
     latestPyTorchAccuracy: number | null;
     latestSimDelta: number | null;
+    cpuCount?: number;
   };
 }
 
 type ConnectionSource = "sse" | "rest" | "github" | "disconnected";
 
-const VM_BASE_URL = "https://planet-rover-gourmet-gourmet.trycloudflare.com";
+const VM_BASE_URL = "https://relatively-winds-assignment-class.trycloudflare.com";
 const GITHUB_STATUS_URL =
   "https://raw.githubusercontent.com/chengmatt416/LHIC/training-results/.lhic/training-artifacts/latest/status.json";
 const GITHUB_LOG_URL =
@@ -234,9 +244,19 @@ export default function App() {
     );
   }
 
+  const targetDays = data?.targetDurationDays ?? 20;
   const elapsedPercent = data?.stats
-    ? Math.min(100, (parseFloat(data.stats.elapsedHours) / (30 * 24)) * 100).toFixed(2)
+    ? Math.min(100, (parseFloat(data.stats.elapsedHours) / (targetDays * 24)) * 100).toFixed(2)
     : "0.10";
+  const successPct =
+    data?.stats?.rollingSuccessRate != null
+      ? `${(data.stats.rollingSuccessRate * 100).toFixed(1)}%`
+      : "N/A";
+  const llmLabel = data?.llm?.hasAvailable === false
+    ? "LLM OFF (rate-limited)"
+    : data?.llm?.hasAvailable
+      ? "LLM ON (deepseek→mimo)"
+      : "LLM ?";
 
   const suiteCompleted = data?.taskSuite?.completedTasks ?? 1420;
   const suiteTotal = data?.taskSuite?.totalTasks ?? 100000;
@@ -359,8 +379,10 @@ export default function App() {
           />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--text-muted)" }}>
-          <span>30-Day Training: {elapsedPercent}% elapsed</span>
-          <span>{data?.stats?.elapsedHours || "0.15"}h elapsed / {data?.stats?.remainingHours || "719.85"}h remaining</span>
+          <span>{targetDays}-Day Training: {elapsedPercent}% · Success {successPct} · {llmLabel}</span>
+          <span>
+            Task: {data?.currentTask || "—"} · {data?.stats?.elapsedHours || "0"}h / {data?.stats?.remainingHours || "—"}h left
+          </span>
         </div>
       </div>
 

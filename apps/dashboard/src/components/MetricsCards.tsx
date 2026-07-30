@@ -46,9 +46,19 @@ export const MetricsCards: React.FC<StatsProps> = ({ stats, iteration }) => {
     {
       title: "Total Completed Cycles",
       value: `${iteration} / Loop`,
-      subtext: `${stats.totalGameFits} Fits | ${stats.totalPublicWebRuns} Skill Runs`,
+      subtext: `${stats.totalGameFits} Fits | ${stats.totalPublicWebRuns} Skills | ${(stats as { totalSlowPathPlans?: number }).totalSlowPathPlans ?? 0} SlowPath`,
       color: "var(--accent-amber)",
       icon: "&#9889;",
+    },
+    {
+      title: "Rolling Success Rate",
+      value:
+        (stats as { rollingSuccessRate?: number | null }).rollingSuccessRate != null
+          ? `${(((stats as { rollingSuccessRate?: number }).rollingSuccessRate ?? 0) * 100).toFixed(1)}%`
+          : "N/A",
+      subtext: "Last 100 training outcomes",
+      color: "var(--accent-emerald)",
+      icon: "&#128200;",
     },
   ];
 

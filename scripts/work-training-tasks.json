@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "description": "Practical work-training task suite for LHIC Fast/Slow Path skill acquisition",
+  "categories": {
+    "search": "Public information retrieval",
+    "docs": "Developer documentation navigation",
+    "project": "Issue tracking and repo navigation",
+    "geo": "Maps and place search",
+    "commerce": "Product discovery flows",
+    "interaction": "Form fill and multi-step UI",
+    "navigation": "Multi-page and tab flows",
+    "dynamic": "Lazy load and scroll content",
+    "planning": "Slow Path LLM complex planning",
+    "resilience": "Selector resilience benchmarks",
+    "policy": "Game policy neural training"
+  },
+  "tasks": [
+    {
+      "id": "wiki-search-agentic",
+      "category": "search",
+      "type": "public-web",
+      "scenario": "wikipedia-search",
+      "query": "Agentic coding systems",
+      "goal": "Find and verify Wikipedia search results for agentic coding",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "wiki-search-automation",
+      "category": "search",
+      "type": "public-web",
+      "scenario": "wikipedia-search",
+      "query": "Deterministic computer automation",
+      "goal": "Search Wikipedia for automation concepts",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "wiki-search-verifier",
+      "category": "search",
+      "type": "public-web",
+      "scenario": "wikipedia-search",
+      "query": "Software testing verification",
+      "goal": "Search Wikipedia for verification concepts",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "wiki-search-playwright",
+      "category": "search",
+      "type": "public-web",
+      "scenario": "wikipedia-search",
+      "query": "Browser automation",
+      "goal": "Search Wikipedia for browser automation",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "mdn-mutation-observer",
+      "category": "docs",
+      "type": "public-web",
+      "scenario": "mdn-search",
+      "query": "MutationObserver",
+      "goal": "Locate MDN MutationObserver documentation",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "mdn-intersection-observer",
+      "category": "docs",
+      "type": "public-web",
+      "scenario": "mdn-search",
+      "query": "IntersectionObserver",
+      "goal": "Locate MDN IntersectionObserver documentation",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "mdn-raf",
+      "category": "docs",
+      "type": "public-web",
+      "scenario": "mdn-search",
+      "query": "requestAnimationFrame",
+      "goal": "Locate MDN requestAnimationFrame docs",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "mdn-performance-observer",
+      "category": "docs",
+      "type": "public-web",
+      "scenario": "mdn-search",
+      "query": "PerformanceObserver",
+      "goal": "Locate MDN PerformanceObserver docs",
+      "priority": 1,
+      "usesLlm": false
+    },
+    {
+      "id": "github-open-bugs",
+      "category": "project",
+      "type": "public-web",
+      "scenario": "github-issue-filter",
+      "query": "is:open label:bug",
+      "goal": "Filter GitHub issues by open bugs",
+      "priority": 2,
+      "usesLlm": false
+    },
+    {
+      "id": "github-enhancements",
+      "category": "project",
+      "type": "public-web",
+      "scenario": "github-issue-filter",
+      "query": "is:open label:enhancement",
+      "goal": "Filter GitHub issues by enhancements",
+      "priority": 2,
+      "usesLlm": false
+    },
+    {
+      "id": "osm-taipei",
+      "category": "geo",
+      "type": "public-web",
+      "scenario": "openstreetmap-place-search",
+      "query": "Taipei 101",
+      "goal": "Search OpenStreetMap for Taipei 101",
+      "priority": 2,
+      "usesLlm": false
+    },
+    {
+      "id": "osm-central-park",
+      "category": "geo",
+      "type": "public-web",
+      "scenario": "openstreetmap-place-search",
+      "query": "Central Park New York",
+      "goal": "Search OpenStreetMap for Central Park",
+      "priority": 2,
+      "usesLlm": false
+    },
+    {
+      "id": "slow-plan-multi-step-search",
+      "category": "planning",
+      "type": "slow-path-plan",
+      "goal": "Plan a multi-step browser flow: open Wikipedia, search for 'Local Human Intent Controller', open first result, extract title",
+      "priority": 1,
+      "usesLlm": true,
+      "scenario": "wikipedia-search",
+      "query": "Local Human Intent Controller"
+    },
+    {
+      "id": "slow-plan-mdn-deep",
+      "category": "planning",
+      "type": "slow-path-plan",
+      "goal": "Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verify heading",
+      "priority": 1,
+      "usesLlm": true,
+      "scenario": "mdn-search",
+      "query": "ARIA roles"
+    },
+    {
+      "id": "slow-plan-form-recovery",
+      "category": "planning",
+      "type": "slow-path-plan",
+      "goal": "Given a failed form submit verification, propose recovery actions with alternative selectors",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "verification_failed"
+    },
+    {
+      "id": "slow-plan-complex-nav",
+      "category": "planning",
+      "type": "slow-path-plan",
+      "goal": "Plan complex navigation across public docs site with low confidence stage classification",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "low_confidence",
+      "scenario": "mdn-search",
+      "query": "CSS selectors"
+    },
+    {
+      "id": "slow-plan-github-triage",
+      "category": "planning",
+      "type": "slow-path-plan",
+      "goal": "Plan GitHub issue triage: filter open bugs, sort by recently updated, open first issue",
+      "priority": 2,
+      "usesLlm": true,
+      "scenario": "github-issue-filter",
+      "query": "is:open label:bug sort:updated-desc"
+    },
+    {
+      "id": "resilience-batch-100",
+      "category": "resilience",
+      "type": "resilience-sim",
+      "goal": "Run 100-task selector resilience simulation",
+      "priority": 1,
+      "usesLlm": false,
+      "batchSize": 100
+    },
+    {
+      "id": "resilience-batch-200",
+      "category": "resilience",
+      "type": "resilience-sim",
+      "goal": "Run 200-task selector resilience simulation under load",
+      "priority": 2,
+      "usesLlm": false,
+      "batchSize": 200
+    },
+    {
+      "id": "policy-3d-fit",
+      "category": "policy",
+      "type": "game-fit",
+      "goal": "Record and fit 3D shooter behavior cloning policy",
+      "priority": 1,
+      "usesLlm": false,
+      "profile": "epic-shooter-3d",
+      "core": "3d"
+    },
+    {
+      "id": "policy-2d-fit",
+      "category": "policy",
+      "type": "game-fit",
+      "goal": "Record and fit 2D game behavior cloning policy",
+      "priority": 2,
+      "usesLlm": false,
+      "profile": "space-invaders-2d",
+      "core": "2d"
+    },
+    {
+      "id": "skill-holdout-eval",
+      "category": "search",
+      "type": "skill-holdout",
+      "goal": "Re-run top skill candidates for holdout verification promotion",
+      "priority": 1,
+      "usesLlm": false
+    }
+  ]
+}

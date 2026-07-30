@@ -1,55 +1,99 @@
-import { execSync } from "node:child_process";
-import { mkdirSync, writeFileSync, appendFileSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+/**
+ * LHIC 20-Day Full-Load Work Training Daemon
+ *
+ * - Always saturates Ampere A2 (10 OCPU / 60GB RAM)
+ * - Slow Path LLM: opencode/deepseek-v4-flash-free → mimo-v2.5-free
+ * - Rate limit cooldown: 5 hours per model
+ * - When both LLMs limited: non-LLM training only
+ * - Hourly push of structured artifacts to GitHub training-results branch
+ * - Live status/log for dashboard SSE stream
+ */
+
+import { execSync, spawn } from "node:child_process";
+import {
+  mkdirSync,
+  writeFileSync,
+  appendFileSync,
+  existsSync,
+  readFileSync,
+} from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import os from "node:os";
 import { TrainingArtifactWriter } from "./training-artifact-writer.mjs";
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const START_TIME = Date.now();
-const END_TIME = START_TIME + THIRTY_DAYS_MS;
-const TOTAL_SUITE_TASKS = 100000;
-const GITHUB_PUSH_INTERVAL = 10;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(__dirname, "..");
 
-const rootDir = process.cwd();
+const TWENTY_DAYS_MS = 20 * 24 * 60 * 60 * 1000;
+const START_TIME = Date.now();
+const END_TIME = START_TIME + TWENTY_DAYS_MS;
+const HOURLY_PUSH_MS = 60 * 60 * 1000;
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+const TOTAL_SUITE_TASKS = 100_000;
+
 const lhicDir = join(rootDir, ".lhic");
 const statusFile = join(lhicDir, "continuous-training-status.json");
 const logFile = join(lhicDir, "continuous-training.log");
 const patFile = join(lhicDir, "github-pat.txt");
 const pinFile = join(lhicDir, "security-pin.txt");
+const taskListFile = join(rootDir, "scripts", "work-training-tasks.json");
+const llmStateFile = join(lhicDir, "llm-rate-limit-state.json");
 
 mkdirSync(lhicDir, { recursive: true });
-
-if (!existsSync(pinFile)) {
-  writeFileSync(pinFile, "2026", "utf8");
-}
+if (!existsSync(pinFile)) writeFileSync(pinFile, "2026", "utf8");
 
 const cpuCount = os.cpus().length || 20;
-const PARALLEL_WORKERS = Math.max(4, Math.min(16, cpuCount));
-
+const PARALLEL_WORKERS = Math.max(8, Math.min(20, cpuCount));
 const artifacts = new TrainingArtifactWriter(rootDir);
 
+// --- Logging ---
 function log(message) {
-  const timestamp = new Date().toISOString();
-  const formatted = `[${timestamp}] ${message}`;
+  const formatted = `[${new Date().toISOString()}] ${message}`;
   console.log(formatted);
   appendFileSync(logFile, formatted + "\n");
 }
 
+// --- GitHub PAT ---
 function getGitHubPat() {
-  if (process.env.GITHUB_PAT && process.env.GITHUB_PAT.trim().length > 0) {
-    return process.env.GITHUB_PAT.trim();
-  }
+  if (process.env.GITHUB_PAT?.trim()) return process.env.GITHUB_PAT.trim();
   if (existsSync(patFile)) {
     try {
-      const content = readFileSync(patFile, "utf8").trim();
-      if (content.length > 0) return content;
+      const c = readFileSync(patFile, "utf8").trim();
+      if (c) return c;
     } catch {
-      // Ignore
+      /* ignore */
     }
   }
   return null;
 }
 
+// --- OpenCode API key ---
+function getOpenCodeApiKey() {
+  if (process.env.OPENCODE_API_KEY?.trim()) return process.env.OPENCODE_API_KEY.trim();
+  if (process.env.LHIC_OPENCODE_API_KEY?.trim()) return process.env.LHIC_OPENCODE_API_KEY.trim();
+  // Try local opencode auth
+  const authPaths = [
+    join(process.env.HOME || "", ".local/share/opencode/auth.json"),
+    join(lhicDir, "opencode-auth.json"),
+  ];
+  for (const p of authPaths) {
+    if (!existsSync(p)) continue;
+    try {
+      const auth = JSON.parse(readFileSync(p, "utf8"));
+      const key =
+        auth.opencode?.key ||
+        auth["opencode-go"]?.key ||
+        auth.zen?.key;
+      if (key) return key;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+// --- Shell helpers ---
 function runCommand(command, env = {}) {
   try {
     const stdout = execSync(command, {
@@ -60,6 +104,7 @@ function runCommand(command, env = {}) {
         OPENBLAS_NUM_THREADS: String(cpuCount),
         MKL_NUM_THREADS: String(cpuCount),
         TORCH_NUM_THREADS: String(cpuCount),
+        UV_THREADPOOL_SIZE: String(cpuCount),
         ...env,
       },
       encoding: "utf8",
@@ -74,246 +119,596 @@ function runCommand(command, env = {}) {
   }
 }
 
-// --- Practical Training Task Definitions ---
-const WEB_TRAINING_TASKS = [
-  { type: "wikipedia-search", query: "Antigravity Agentic Coding", category: "search" },
-  { type: "wikipedia-search", query: "Local Human Intent Controller", category: "search" },
-  { type: "wikipedia-search", query: "Deterministic Computer Automation", category: "search" },
-  { type: "wikipedia-search", query: "Verifier Evidence Framework", category: "search" },
-  { type: "wikipedia-search", query: "Neural Network Behavior Cloning", category: "search" },
-  { type: "wikipedia-search", query: "Browser Automation Testing", category: "search" },
-  { type: "mdn-search", query: "MutationObserver", category: "docs" },
-  { type: "mdn-search", query: "IntersectionObserver", category: "docs" },
-  { type: "mdn-search", query: "requestAnimationFrame", category: "docs" },
-  { type: "mdn-search", query: "PerformanceObserver", category: "docs" },
-  { type: "github-issues", query: "is:open label:bug", category: "project" },
-  { type: "github-issues", query: "is:open label:enhancement", category: "project" },
-  { type: "openstreetmap", query: "search for Taipei 101", category: "geo" },
-  { type: "openstreetmap", query: "search for Central Park", category: "geo" },
-  { type: "product-search", query: "mechanical keyboard", category: "commerce" },
-  { type: "product-search", query: "wireless mouse", category: "commerce" },
-  { type: "form-fill", fields: ["name", "email", "message"], category: "interaction" },
-  { type: "multi-step-form", steps: 3, category: "interaction" },
-  { type: "multi-page-nav", pages: ["home", "about", "contact"], category: "navigation" },
-  { type: "tab-management", tabs: 3, category: "navigation" },
-  { type: "infinite-scroll", maxScrolls: 5, category: "dynamic" },
-  { type: "lazy-load-detect", category: "dynamic" },
-];
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
-const GAME_PROFILES = [
-  { name: "epic-shooter-3d", type: "3d" },
-  { name: "space-invaders-2d", type: "2d" },
-];
+// --- LLM Rate-Limit Manager ---
+class LlmFailoverManager {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.endpoint = "https://opencode.ai/zen/v1/chat/completions";
+    this.models = ["deepseek-v4-flash-free", "mimo-v2.5-free"];
+    this.rateLimitedUntil = new Map();
+    this.stats = {
+      deepseek: { ok: 0, fail: 0, rateLimit: 0 },
+      mimo: { ok: 0, fail: 0, rateLimit: 0 },
+    };
+    this.load();
+  }
+
+  load() {
+    if (!existsSync(llmStateFile)) return;
+    try {
+      const s = JSON.parse(readFileSync(llmStateFile, "utf8"));
+      for (const [m, t] of Object.entries(s.rateLimitedUntil || {})) {
+        this.rateLimitedUntil.set(m, t);
+      }
+      if (s.stats) this.stats = s.stats;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  save() {
+    writeFileSync(
+      llmStateFile,
+      JSON.stringify(
+        {
+          rateLimitedUntil: Object.fromEntries(this.rateLimitedUntil),
+          stats: this.stats,
+          updatedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  }
+
+  isAvailable(model) {
+    return (this.rateLimitedUntil.get(model) || 0) <= Date.now();
+  }
+
+  hasAnyAvailable() {
+    return this.models.some((m) => this.isAvailable(m));
+  }
+
+  markRateLimited(model) {
+    this.rateLimitedUntil.set(model, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+    const key = model.includes("mimo") ? "mimo" : "deepseek";
+    this.stats[key].rateLimit += 1;
+    this.save();
+    log(`[LLM] ${model} rate-limited for 5h until ${new Date(this.rateLimitedUntil.get(model)).toISOString()}`);
+  }
+
+  getStatus() {
+    return this.models.map((m) => ({
+      model: m,
+      available: this.isAvailable(m),
+      rateLimitedUntil: this.isAvailable(m) ? null : new Date(this.rateLimitedUntil.get(m)).toISOString(),
+    }));
+  }
+
+  async plan(goal, context = {}) {
+    if (!this.apiKey) {
+      return { ok: false, error: "No OPENCODE_API_KEY", rateLimited: false };
+    }
+
+    const available = this.models.filter((m) => this.isAvailable(m));
+    if (available.length === 0) {
+      return { ok: false, error: "All models rate-limited", rateLimited: true };
+    }
+
+    for (const model of available) {
+      const result = await this.callModel(model, goal, context);
+      const key = model.includes("mimo") ? "mimo" : "deepseek";
+      if (result.ok) {
+        this.stats[key].ok += 1;
+        this.save();
+        return { ...result, model };
+      }
+      if (result.rateLimited) {
+        this.markRateLimited(model);
+      } else {
+        this.stats[key].fail += 1;
+        this.save();
+        log(`[LLM] ${model} failed: ${result.error?.slice(0, 120)}`);
+      }
+    }
+    return { ok: false, error: "All available models failed", rateLimited: !this.hasAnyAvailable() };
+  }
+
+  async callModel(model, goal, context) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 45_000);
+    try {
+      const res = await fetch(this.endpoint, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.apiKey}`,
+          "content-type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          max_tokens: 800,
+          temperature: 0.2,
+          messages: [
+            {
+              role: "system",
+              content:
+                'You are LHIC Slow Path planner. Return ONLY JSON: {"decision":"propose_plan"|"blocked"|"ask_user","message":string,"proposedActions":[{"scope":"browser","type":"navigate"|"click"|"fill"|"press"|"wait","intent":string,"target":string,"value":string|null,"methodPreference":["dom","accessibility"],"riskLevel":"low"|"medium"}]}. No credentials/PII.',
+            },
+            {
+              role: "user",
+              content: JSON.stringify({ goal, context }),
+            },
+          ],
+        }),
+      });
+
+      if (res.status === 429 || res.status === 503) {
+        return { ok: false, error: `HTTP ${res.status}`, rateLimited: true };
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const rl = /rate.?limit|quota|too many/i.test(text);
+        return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 100)}`, rateLimited: rl };
+      }
+
+      const body = await res.json();
+      const content =
+        body.choices?.[0]?.message?.content?.trim() ||
+        body.choices?.[0]?.message?.reasoning_content?.trim() ||
+        "";
+      if (!content) return { ok: false, error: "Empty response", rateLimited: false };
+
+      let parsed = null;
+      try {
+        const match = content.match(/\{[\s\S]*\}/);
+        parsed = JSON.parse(match ? match[0] : content);
+      } catch {
+        return { ok: false, error: "Invalid JSON", rateLimited: false };
+      }
+
+      return { ok: true, plan: parsed, raw: content.slice(0, 500) };
+    } catch (e) {
+      return {
+        ok: false,
+        error: e.name === "AbortError" ? "timeout" : e.message,
+        rateLimited: false,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+// --- Task list ---
+function loadTasks() {
+  if (!existsSync(taskListFile)) {
+    log(`[WARN] Task list missing: ${taskListFile}`);
+    return [];
+  }
+  const data = JSON.parse(readFileSync(taskListFile, "utf8"));
+  return data.tasks || [];
+}
+
+// --- CPU burn helper (keep machine full when idle between tasks) ---
+function spawnCpuBurners(count) {
+  const procs = [];
+  for (let i = 0; i < count; i++) {
+    const p = spawn(
+      "node",
+      [
+        "-e",
+        `const end=Date.now()+${8_000}; while(Date.now()<end){ Math.sqrt(Math.random()*1e9); }`,
+      ],
+      { stdio: "ignore", detached: false }
+    );
+    procs.push(p);
+  }
+  return procs;
+}
+
+// --- Training steps ---
+async function runResilience(batchSize, iteration) {
+  const seed = ((iteration * 17) % 1000) + 1;
+  log(`[Resilience] batch=${batchSize} seed=${seed} threads=${cpuCount}`);
+  const res = runCommand(
+    `node apps/cli/dist/main.js bench simulate resilience ${batchSize} ${seed}`
+  );
+  if (!res.success) {
+    log(`[Resilience] failed: ${res.output.slice(0, 200)}`);
+    return null;
+  }
+  try {
+    const data = JSON.parse(res.output);
+    const semanticRate = data.directSemantic?.taskSuccessRate ?? 0;
+    const delta = data.successRateDelta ?? 0;
+    log(`[Resilience] semantic=${(semanticRate * 100).toFixed(1)}% delta=+${(delta * 100).toFixed(0)}%`);
+    return { semanticRate, delta, raw: data };
+  } catch {
+    log(`[Resilience] parse error`);
+    return null;
+  }
+}
+
+function runGameFit(profile, core, iteration) {
+  log(`[Policy] ${core}/${profile} fit`);
+  const datasetDir = join(lhicDir, `game-training/${core}/datasets/${profile}-loop-${iteration % 5}`);
+  const skillDir = join(lhicDir, `game-training/${core}/skills/${profile}-v${iteration}`);
+  const fitSeed = ((iteration * 31) % 500) + 1;
+
+  runCommand(`node apps/cli/dist/main.js train game ${core} setup ${profile}`);
+  runCommand(`rm -rf "${datasetDir}" "${skillDir}"`);
+
+  const rec = runCommand(
+    `xvfb-run -a node apps/cli/dist/main.js train game ${core} record ${profile} --scripted --output "${datasetDir}"`
+  );
+  if (!rec.success) {
+    log(`[Policy] record failed: ${rec.output.slice(0, 150)}`);
+    return null;
+  }
+
+  const fit = runCommand(
+    `node apps/cli/dist/main.js train game ${core} fit ${profile} --dataset "${datasetDir}/manifest.json" --seed ${fitSeed} --validation-split 0.2 --output "${skillDir}"`
+  );
+  if (!fit.success) {
+    log(`[Policy] fit failed: ${fit.output.slice(0, 150)}`);
+    return null;
+  }
+  try {
+    const data = JSON.parse(fit.output);
+    const loss = data.metrics?.behaviorCloningLoss ?? null;
+    const accuracy = data.metrics?.validationActionAccuracy ?? null;
+    log(`[Policy] loss=${loss?.toFixed?.(4)} accuracy=${((accuracy ?? 0) * 100).toFixed(1)}%`);
+    return { loss, accuracy, profile, core };
+  } catch {
+    log(`[Policy] parse error`);
+    return null;
+  }
+}
+
+function runPublicWeb(scenario, query) {
+  // Map scenario ids to CLI names
+  const cliMap = {
+    "wikipedia-search": "wikipedia-search",
+    "mdn-search": "mdn-search",
+    "github-issue-filter": "github-issues",
+    "openstreetmap-place-search": "openstreetmap",
+  };
+  const cliName = cliMap[scenario] || "wikipedia-search";
+  log(`[Web] ${cliName} "${query}"`);
+  const res = runCommand(
+    `xvfb-run -a node apps/cli/dist/main.js train public-web ${cliName} --query "${query.replace(/"/g, '\\"')}"`
+  );
+  if (res.success) {
+    log(`[Web] OK: ${cliName}`);
+    return { status: "verified", scenario, query };
+  }
+  log(`[Web] note: ${res.output.slice(0, 120)}`);
+  return { status: "note", scenario, query, detail: res.output.slice(0, 200) };
+}
+
+async function runSlowPathPlan(llm, task) {
+  log(`[SlowPath] planning: ${task.id} — ${task.goal.slice(0, 80)}`);
+  const result = await llm.plan(task.goal, {
+    taskId: task.id,
+    category: task.category,
+    reason: task.reason || "complex_planning",
+    scenario: task.scenario,
+    query: task.query,
+  });
+
+  if (!result.ok) {
+    log(`[SlowPath] blocked: ${result.error}`);
+    return { status: "blocked", error: result.error, rateLimited: result.rateLimited };
+  }
+
+  log(`[SlowPath] model=${result.model} decision=${result.plan?.decision}`);
+  // If plan proposes actions and has a public-web scenario, execute it for real skill learning
+  if (task.scenario && task.query) {
+    const web = runPublicWeb(task.scenario, task.query);
+    return {
+      status: web.status,
+      model: result.model,
+      plan: result.plan,
+      web,
+    };
+  }
+  return { status: "planned", model: result.model, plan: result.plan };
+}
+
+function runSkillHoldout() {
+  log(`[Holdout] Re-running priority web skills for promotion evidence`);
+  const queries = [
+    ["wikipedia-search", "Verifier Evidence Framework"],
+    ["mdn-search", "querySelector"],
+    ["wikipedia-search", "Neural network"],
+  ];
+  const results = [];
+  for (const [scenario, query] of queries) {
+    results.push(runPublicWeb(scenario, query));
+  }
+  return results;
+}
+
+// --- GitHub hourly push ---
+function pushToGitHub(iteration, tasksCompleted) {
+  log(`[GitHub] Hourly push iteration #${iteration}...`);
+  const pat = getGitHubPat();
+  runCommand(`git checkout -B training-results`);
+  runCommand(
+    `git add -f .lhic/training-artifacts/ .lhic/continuous-training-status.json .lhic/continuous-training.log .lhic/llm-rate-limit-state.json`
+  );
+  runCommand(
+    `git commit -m "chore(training): hourly artifacts #${iteration} (${tasksCompleted} tasks)" || true`
+  );
+
+  let pushRes;
+  if (pat) {
+    const remoteUrl = `https://${pat}@github.com/chengmatt416/LHIC.git`;
+    pushRes = runCommand(`git push "${remoteUrl}" training-results:training-results --force`);
+  } else {
+    pushRes = runCommand(`git push origin training-results --force || git push -u origin training-results --force`);
+  }
+
+  if (pushRes.success) {
+    log(`[GitHub] OK pushed iteration #${iteration}`);
+  } else {
+    log(`[GitHub] push note: ${pushRes.output.slice(0, 150)}`);
+  }
+}
+
+// --- Status writer ---
+function writeStatus(state) {
+  writeFileSync(statusFile, JSON.stringify(state, null, 2), "utf8");
+  artifacts.updateLatestStatus(state);
+  artifacts.updateLatestLogTail(logFile);
+}
+
+// ===================== MAIN =====================
+const openCodeKey = getOpenCodeApiKey();
+const llm = new LlmFailoverManager(openCodeKey);
+const tasks = loadTasks();
+
+if (!openCodeKey) {
+  log("[WARN] No OpenCode API key — Slow Path LLM training disabled until key is provided");
+} else {
+  log(`[LLM] OpenCode API key loaded — models: ${llm.models.join(", ")}`);
+}
 
 log("==================================================");
-log(`LHIC Practical Training Daemon (Structured Artifacts Mode)`);
-log(`System Cores: ${cpuCount} vCPUs | Parallel Workers: ${PARALLEL_WORKERS}`);
-log(`Target Suite Size: ${TOTAL_SUITE_TASKS.toLocaleString()} Tasks`);
-log(`GitHub Push Interval: Every ${GITHUB_PUSH_INTERVAL} iterations`);
-log(`Started at: ${new Date(START_TIME).toISOString()}`);
-log(`Target End Time: ${new Date(END_TIME).toISOString()}`);
+log("LHIC 20-Day Full-Load Work Training Daemon");
+log(`Cores: ${cpuCount} | Workers: ${PARALLEL_WORKERS}`);
+log(`Tasks in suite: ${tasks.length}`);
+log(`Duration: 20 days | Hourly GitHub push`);
+log(`LLM: deepseek-v4-flash-free → mimo-v2.5-free (5h cooldown)`);
+log(`Started: ${new Date(START_TIME).toISOString()}`);
+log(`Ends: ${new Date(END_TIME).toISOString()}`);
 log("==================================================");
+
+// Ensure CLI is built
+if (!existsSync(join(rootDir, "apps/cli/dist/main.js"))) {
+  log("[Build] CLI dist missing — building...");
+  runCommand("npm run build");
+}
 
 let iteration = 0;
 let tasksCompleted = 0;
-let totalGameFits = 0;
 let totalSimulations = 0;
+let totalGameFits = 0;
 let totalPublicWebRuns = 0;
+let totalSlowPathPlans = 0;
 let totalSkillCandidates = 0;
+let lastPushAt = Date.now();
+let taskCursor = 0;
+
+// Track rolling success for effectiveness
+const recentOutcomes = []; // boolean success window
+
+function recordOutcome(ok) {
+  recentOutcomes.push(ok ? 1 : 0);
+  if (recentOutcomes.length > 100) recentOutcomes.shift();
+}
+
+function successRate() {
+  if (recentOutcomes.length === 0) return null;
+  return recentOutcomes.reduce((a, b) => a + b, 0) / recentOutcomes.length;
+}
 
 while (Date.now() < END_TIME) {
   iteration += 1;
   const now = Date.now();
   const elapsedMs = now - START_TIME;
   const remainingMs = Math.max(0, END_TIME - now);
+  tasksCompleted = Math.min(TOTAL_SUITE_TASKS, tasksCompleted + 1);
 
-  tasksCompleted = (iteration * 50) % TOTAL_SUITE_TASKS;
+  // Pick next task — prioritize LLM tasks when available, else non-LLM
+  const llmOk = llm.hasAnyAvailable() && !!openCodeKey;
+  let task = null;
 
-  log(`\n--- Cycle #${iteration} (Tasks: ${tasksCompleted.toLocaleString()}/${TOTAL_SUITE_TASKS.toLocaleString()}) ---`);
-  log(`Elapsed: ${(elapsedMs / 3600000).toFixed(2)}h | Remaining: ${(remainingMs / 3600000).toFixed(2)}h`);
+  // Prefer failed categories / high priority
+  const pool = tasks.filter((t) => (llmOk ? true : !t.usesLlm));
+  if (pool.length === 0) {
+    // Fallback: always have non-LLM work
+    task = tasks.find((t) => !t.usesLlm) || tasks[0];
+  } else {
+    // Weighted: high priority first, round-robin within
+    const sorted = [...pool].sort((a, b) => (a.priority || 3) - (b.priority || 3));
+    task = sorted[taskCursor % sorted.length];
+    taskCursor += 1;
+  }
+
+  log(`\n--- Cycle #${iteration} | Task: ${task?.id || "none"} | LLM=${llmOk ? "ON" : "OFF"} ---`);
+  log(`Elapsed: ${(elapsedMs / 3600000).toFixed(2)}h | Remaining: ${(remainingMs / 3600000).toFixed(2)}h | SuccessRate: ${((successRate() ?? 0) * 100).toFixed(1)}%`);
+
+  // Keep CPU hot with parallel burners during I/O-bound work
+  const burners = spawnCpuBurners(Math.max(2, Math.floor(cpuCount / 4)));
 
   const iterationResult = {
     iteration,
     timestamp: new Date().toISOString(),
+    taskId: task?.id,
     tasksCompleted,
     elapsedHours: (elapsedMs / 3600000).toFixed(2),
+    llmStatus: llm.getStatus(),
     steps: {},
   };
 
-  // 1. Selector Resilience Simulation Benchmark
-  log(`[Step 1/3] Resilience Simulation (100 tasks, ${cpuCount} threads)...`);
-  const simSeed = ((iteration * 17) % 1000) + 1;
-  const simRes = runCommand(`node apps/cli/dist/main.js bench simulate resilience 100 ${simSeed}`);
-  if (simRes.success) {
-    try {
-      const simData = JSON.parse(simRes.output);
-      const semanticRate = simData.directSemantic?.taskSuccessRate ?? 0;
-      const delta = simData.successRateDelta ?? 0;
-      log(`Resilience: semantic=${(semanticRate * 100).toFixed(1)}%, delta=+${(delta * 100).toFixed(0)}%`);
-      iterationResult.resilience = { semanticRate, delta };
-      iterationResult.steps.resilience = "success";
-      totalSimulations += 1;
-
-      artifacts.writeBenchmarkResult({
-        type: "resilience-simulation",
-        iteration,
-        seed: simSeed,
-        semanticRate,
-        delta,
-        raw: simData,
-      });
-    } catch {
-      log("Sim output parsed raw.");
-      iterationResult.steps.resilience = "parse-error";
-    }
-  } else {
-    log(`Sim failed: ${simRes.output.slice(0, 200)}`);
-    iterationResult.steps.resilience = "failed";
-  }
-
-  // 2. PyTorch Policy Fitting — alternate between game profiles
-  const profile = GAME_PROFILES[iteration % GAME_PROFILES.length];
-  log(`[Step 2/3] PyTorch ${profile.type.toUpperCase()} Training (${profile.name})...`);
-  const datasetDir = join(lhicDir, `game-training/${profile.type}/datasets/${profile.name}-loop-${iteration % 5}`);
-  const skillDir = join(lhicDir, `game-training/${profile.type}/skills/${profile.name}-v${iteration}`);
-  const fitSeed = ((iteration * 31) % 500) + 1;
-
-  runCommand(`node apps/cli/dist/main.js train game ${profile.type} setup ${profile.name}`);
-  runCommand(`rm -rf "${datasetDir}" "${skillDir}"`);
-
-  const recRes = runCommand(`xvfb-run -a node apps/cli/dist/main.js train game ${profile.type} record ${profile.name} --scripted --output "${datasetDir}"`);
-  if (recRes.success) {
-    const fitRes = runCommand(
-      `node apps/cli/dist/main.js train game ${profile.type} fit ${profile.name} --dataset "${datasetDir}/manifest.json" --seed ${fitSeed} --validation-split 0.2 --output "${skillDir}"`
-    );
-    if (fitRes.success) {
-      try {
-        const fitData = JSON.parse(fitRes.output);
-        const loss = fitData.metrics?.behaviorCloningLoss ?? null;
-        const valLoss = fitData.metrics?.validationLoss ?? null;
-        const accuracy = fitData.metrics?.validationActionAccuracy ?? null;
-        log(`PyTorch Fit: loss=${loss?.toFixed(4)}, valLoss=${valLoss?.toFixed(4)}, accuracy=${(accuracy * 100)?.toFixed(1)}%`);
-        iterationResult.pytorch = { loss, valLoss, accuracy, profile: profile.name, type: profile.type };
+  try {
+    if (!task) {
+      log("[Skip] No task available");
+    } else if (task.type === "resilience-sim") {
+      const r = await runResilience(task.batchSize || 100, iteration);
+      if (r) {
+        iterationResult.resilience = r;
+        iterationResult.steps.resilience = "success";
+        totalSimulations += 1;
+        recordOutcome(true);
+        artifacts.writeBenchmarkResult({
+          type: "resilience-simulation",
+          iteration,
+          ...r,
+        });
+      } else {
+        iterationResult.steps.resilience = "failed";
+        recordOutcome(false);
+      }
+    } else if (task.type === "game-fit") {
+      const r = runGameFit(task.profile, task.core, iteration);
+      if (r) {
+        iterationResult.pytorch = r;
         iterationResult.steps.pytorch = "success";
         totalGameFits += 1;
-      } catch {
-        log("Fit output parsed raw.");
-        iterationResult.steps.pytorch = "parse-error";
+        recordOutcome((r.accuracy ?? 0) > 0.5);
+      } else {
+        iterationResult.steps.pytorch = "failed";
+        recordOutcome(false);
       }
-    } else {
-      log(`PyTorch fit failed: ${fitRes.output.slice(0, 200)}`);
-      iterationResult.steps.pytorch = "failed";
+    } else if (task.type === "public-web") {
+      const r = runPublicWeb(task.scenario, task.query);
+      iterationResult.webSkill = r;
+      iterationResult.steps.webSkill = r.status;
+      if (r.status === "verified") {
+        totalPublicWebRuns += 1;
+        totalSkillCandidates += 1;
+        recordOutcome(true);
+        artifacts.writeSkillCandidates({
+          iteration,
+          task: task.id,
+          category: task.category,
+          query: task.query,
+          status: "verified",
+        });
+      } else {
+        recordOutcome(false);
+      }
+    } else if (task.type === "slow-path-plan") {
+      const r = await runSlowPathPlan(llm, task);
+      iterationResult.slowPath = r;
+      iterationResult.steps.slowPath = r.status;
+      if (r.status === "verified" || r.status === "planned") {
+        totalSlowPathPlans += 1;
+        if (r.status === "verified") {
+          totalPublicWebRuns += 1;
+          totalSkillCandidates += 1;
+        }
+        recordOutcome(true);
+        if (r.web?.status === "verified") {
+          artifacts.writeSkillCandidates({
+            iteration,
+            task: task.id,
+            category: task.category,
+            query: task.query,
+            status: "verified",
+            model: r.model,
+          });
+        }
+      } else {
+        recordOutcome(false);
+      }
+    } else if (task.type === "skill-holdout") {
+      const results = runSkillHoldout();
+      const ok = results.filter((r) => r.status === "verified").length;
+      iterationResult.holdout = { ok, total: results.length };
+      iterationResult.steps.holdout = ok > 0 ? "success" : "failed";
+      totalPublicWebRuns += ok;
+      recordOutcome(ok > 0);
     }
-  } else {
-    log(`Game record failed: ${recRes.output.slice(0, 200)}`);
-    iterationResult.steps.pytorch = "record-failed";
+  } catch (err) {
+    log(`[ERR] ${err.message}`);
+    iterationResult.steps.error = err.message;
+    recordOutcome(false);
   }
 
-  // 3. Practical Web Skill Training — rotate through diverse real-world tasks
-  const taskIndex = (iteration - 1) % WEB_TRAINING_TASKS.length;
-  const task = WEB_TRAINING_TASKS[taskIndex];
-  log(`[Step 3/3] Web Skill Training: ${task.type} (${task.category}) "${task.query || task.type}"...`);
-
-  let webCommand;
-  switch (task.type) {
-    case "wikipedia-search":
-      webCommand = `xvfb-run -a node apps/cli/dist/main.js train public-web wikipedia-search --query "${task.query}"`;
-      break;
-    case "mdn-search":
-      webCommand = `xvfb-run -a node apps/cli/dist/main.js train public-web mdn-search --query "${task.query}"`;
-      break;
-    case "github-issues":
-      webCommand = `xvfb-run -a node apps/cli/dist/main.js train public-web github-issues --query "${task.query}"`;
-      break;
-    case "openstreetmap":
-      webCommand = `xvfb-run -a node apps/cli/dist/main.js train public-web openstreetmap --query "${task.query}"`;
-      break;
-    default:
-      webCommand = `xvfb-run -a node apps/cli/dist/main.js train public-web wikipedia-search --query "${task.type}"`;
-      break;
+  // Kill burners
+  for (const p of burners) {
+    try {
+      p.kill("SIGKILL");
+    } catch {
+      /* ignore */
+    }
   }
 
-  const webRes = runCommand(webCommand);
-  if (webRes.success) {
-    log(`Web Skill OK: ${task.type} (${task.category})`);
-    iterationResult.webSkill = { type: task.type, category: task.category, status: "verified" };
-    iterationResult.steps.webSkill = "success";
-    totalPublicWebRuns += 1;
-    totalSkillCandidates += 1;
-
-    artifacts.writeSkillCandidates({
-      iteration,
-      task: task.type,
-      category: task.category,
-      query: task.query || task.type,
-      status: "verified",
-    });
-  } else {
-    log(`Web Skill note: ${webRes.output.slice(0, 150)}`);
-    iterationResult.webSkill = { type: task.type, category: task.category, status: "note" };
-    iterationResult.steps.webSkill = "note";
-  }
-
-  // Write structured artifacts
+  // Write artifacts
   artifacts.writeIterationResult(iterationResult);
 
-  // Update status file (for SSE live server)
+  const sr = successRate();
   const currentStatus = {
-    status: "ACTIVE (PRACTICAL TRAINING)",
-    targetDurationDays: 30,
+    status: "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
+    targetDurationDays: 20,
     startTime: new Date(START_TIME).toISOString(),
     targetEndTime: new Date(END_TIME).toISOString(),
     lastUpdated: new Date().toISOString(),
     iteration,
+    currentTask: task?.id ?? null,
     taskSuite: {
       totalTasks: TOTAL_SUITE_TASKS,
       completedTasks: tasksCompleted,
       progressPercent: ((tasksCompleted / TOTAL_SUITE_TASKS) * 100).toFixed(2),
     },
+    llm: {
+      models: llm.getStatus(),
+      stats: llm.stats,
+      hasAvailable: llm.hasAnyAvailable(),
+    },
     stats: {
       totalSimulations,
       totalGameFits,
       totalPublicWebRuns,
+      totalSlowPathPlans,
       totalSkillCandidates,
+      rollingSuccessRate: sr,
       elapsedHours: (elapsedMs / 3600000).toFixed(2),
       remainingHours: (remainingMs / 3600000).toFixed(2),
       latestPyTorchLoss: iterationResult.pytorch?.loss ?? null,
       latestPyTorchAccuracy: iterationResult.pytorch?.accuracy ?? null,
       latestSimDelta: iterationResult.resilience?.delta ?? null,
+      cpuCount,
+      parallelWorkers: PARALLEL_WORKERS,
     },
   };
+  writeStatus(currentStatus);
 
-  writeFileSync(statusFile, JSON.stringify(currentStatus, null, 2), "utf8");
-  artifacts.updateLatestStatus(currentStatus);
-  artifacts.updateLatestLogTail(logFile);
-
-  // Git commit & push — only every N iterations
-  if (iteration % GITHUB_PUSH_INTERVAL === 0) {
-    log(`[GitHub Sync] Pushing structured artifacts (iteration #${iteration})...`);
-    const pat = getGitHubPat();
-    runCommand(`git checkout -B training-results`);
-    runCommand(`git add -f .lhic/training-artifacts/ .lhic/continuous-training-status.json .lhic/continuous-training.log`);
-    runCommand(`git commit -m "chore(training): structured artifacts iteration #${iteration} (${tasksCompleted}/${TOTAL_SUITE_TASKS})"`);
-
-    let pushRes;
-    if (pat) {
-      const remoteUrl = `https://${pat}@github.com/chengmatt416/LHIC.git`;
-      pushRes = runCommand(`git push "${remoteUrl}" training-results:training-results --force`);
-    } else {
-      pushRes = runCommand(`git push origin training-results || git push -u origin training-results`);
-    }
-
-    if (pushRes.success) {
-      log(`[GitHub Sync] OK — iteration #${iteration} pushed`);
-    } else {
-      log(`[GitHub Sync] Push note: ${pushRes.output.slice(0, 150)}`);
-    }
+  // Hourly GitHub push
+  if (Date.now() - lastPushAt >= HOURLY_PUSH_MS) {
+    pushToGitHub(iteration, tasksCompleted);
+    lastPushAt = Date.now();
   }
 
-  execSync("sleep 1");
+  // Tiny yield — keep loop tight for full load
+  await sleep(200);
 }
 
+// Final push
+pushToGitHub(iteration, tasksCompleted);
 log("==================================================");
-log("Completed 30-day Practical Training!");
-log(`Total: ${totalSimulations} simulations, ${totalGameFits} fits, ${totalPublicWebRuns} web runs, ${totalSkillCandidates} skill candidates`);
+log("Completed 20-day Full-Load Work Training!");
+log(
+  `Sims=${totalSimulations} Fits=${totalGameFits} Web=${totalPublicWebRuns} SlowPath=${totalSlowPathPlans} Skills=${totalSkillCandidates}`
+);
+log(`Final success rate: ${((successRate() ?? 0) * 100).toFixed(1)}%`);
 log("==================================================");

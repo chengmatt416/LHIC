@@ -4,6 +4,7 @@ export * from "./demo-learning.js";
 export * from "./demo-model-provider.js";
 export * from "./claude-provider.js";
 export * from "./openai-provider.js";
+export * from "./opencode-provider.js";
 export * from "./confidence-scorer.js";
 export * from "./context-engine.js";
 export * from "./fast-path-router.js";
