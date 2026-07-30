@@ -22743,3 +22743,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #347 | Task: github-enhancements | LLM=ON ---
 [2026-07-30T10:11:28.732Z] Elapsed: 1.16h | Remaining: 478.84h | SuccessRate: 57.0%
 [2026-07-30T10:11:28.752Z] [Web] github-issues "is:open label:enhancement"
+[2026-07-30T10:11:32.251Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:11:32.463Z] 
+--- Cycle #348 | Task: osm-taipei | LLM=ON ---
+[2026-07-30T10:11:32.463Z] Elapsed: 1.16h | Remaining: 478.84h | SuccessRate: 56.0%
+[2026-07-30T10:11:32.485Z] [Web] openstreetmap "Taipei 101"
+[2026-07-30T10:11:36.012Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:11:36.223Z] 
+--- Cycle #349 | Task: osm-central-park | LLM=ON ---
+[2026-07-30T10:11:36.224Z] Elapsed: 1.16h | Remaining: 478.84h | SuccessRate: 55.0%
+[2026-07-30T10:11:36.245Z] [Web] openstreetmap "Central Park New York"
