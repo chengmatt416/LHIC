@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T11:43:46.389Z",
-  "iteration": 15,
-  "currentTask": "skill-holdout-eval",
+  "lastUpdated": "2026-07-30T11:44:08.969Z",
+  "iteration": 18,
+  "currentTask": "osm-taipei",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 15,
-    "progressPercent": "0.01"
+    "completedTasks": 18,
+    "progressPercent": "0.02"
   },
   "llm": {
     "models": [
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 1,
     "totalGameFits": 1,
-    "totalPublicWebRuns": 14,
+    "totalPublicWebRuns": 17,
     "totalSlowPathPlans": 4,
-    "totalSkillCandidates": 11,
+    "totalSkillCandidates": 14,
     "rollingSuccessRate": 1,
-    "elapsedHours": "0.05",
-    "remainingHours": "479.95",
+    "elapsedHours": "0.06",
+    "remainingHours": "479.94",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
