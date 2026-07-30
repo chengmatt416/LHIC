@@ -25831,3 +25831,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #121 | Task: slow-plan-form-recovery | LLM=ON ---
 [2026-07-30T12:05:11.846Z] Elapsed: 0.41h | Remaining: 479.59h | SuccessRate: 95.0%
 [2026-07-30T12:05:11.868Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
+[2026-07-30T12:05:23.472Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T12:05:23.688Z] 
+--- Cycle #122 | Task: slow-plan-complex-nav | LLM=ON ---
+[2026-07-30T12:05:23.688Z] Elapsed: 0.42h | Remaining: 479.58h | SuccessRate: 95.0%
+[2026-07-30T12:05:23.710Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
