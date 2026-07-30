@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:27:27.976Z",
-  "iteration": 129,
-  "currentTask": "osm-central-park",
+  "lastUpdated": "2026-07-30T09:28:02.446Z",
+  "iteration": 132,
+  "currentTask": "policy-2d-fit",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 129,
+    "completedTasks": 132,
     "progressPercent": "0.13"
   },
   "llm": {
@@ -27,26 +27,26 @@
     "stats": {
       "deepseek": {
         "ok": 4,
-        "fail": 25,
+        "fail": 26,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 25,
+        "fail": 26,
         "rateLimit": 0
       }
     },
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 11,
+    "totalSimulations": 12,
     "totalGameFits": 6,
     "totalPublicWebRuns": 69,
     "totalSlowPathPlans": 3,
     "totalSkillCandidates": 51,
     "rollingSuccessRate": 0.53,
-    "elapsedHours": "0.42",
-    "remainingHours": "479.58",
+    "elapsedHours": "0.43",
+    "remainingHours": "479.57",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
