@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T07:38:46+08:00",
-  "iteration": 2056,
-  "currentTask": "policy-curriculum-3d",
+  "lastUpdated": "2026-07-31T07:42:51+08:00",
+  "iteration": 2084,
+  "currentTask": "docs-accessibility-tree",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 2056,
-    "progressPercent": "2.06"
+    "completedTasks": 2084,
+    "progressPercent": "2.08"
   },
   "llm": {
     "models": [
@@ -39,16 +39,16 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 383,
-    "totalGameFits": 127,
-    "totalPublicWebRuns": 1663,
+    "totalSimulations": 387,
+    "totalGameFits": 128,
+    "totalPublicWebRuns": 1688,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 1663,
-    "rollingSuccessRate": 0.87,
-    "elapsedHours": "5.69",
-    "remainingHours": "474.31",
-    "latestPyTorchLoss": 6.578822135925293,
-    "latestPyTorchAccuracy": 0.6727941176470589,
+    "totalSkillCandidates": 1688,
+    "rollingSuccessRate": 0.88,
+    "elapsedHours": "5.77",
+    "remainingHours": "474.23",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
