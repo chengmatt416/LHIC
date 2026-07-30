@@ -258,38 +258,58 @@ class LlmFailoverManager {
       }
 
       const body = await res.json();
+      if (body.error) {
+        const rl = /rate.?limit|quota|too many|internal server error/i.test(body.error.message || "");
+        return { ok: false, error: `API: ${body.error.message}`, rateLimited: rl || res.status === 503 };
+      }
       const msg = body.choices?.[0]?.message || {};
-      const content = [msg.content, msg.reasoning_content]
-        .filter((s) => typeof s === "string" && s.trim())
-        .join("\n")
-        .trim();
-      if (!content) return { ok: false, error: "Empty response", rateLimited: false };
+      // OpenCode free models put answer in content; reasoning/reasoning_details have chain-of-thought
+      const content = msg.content?.trim?.() || "";
+      const reasoning = msg.reasoning?.trim?.() || msg.reasoning_content?.trim?.() || "";
+      // Try to find JSON in content first, then reasoning
+      const searchTexts = [content, reasoning].filter(Boolean);
 
       let parsed = null;
-      const candidates = [];
-      const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (fenced?.[1]) candidates.push(fenced[1].trim());
-      const braces = content.match(/\{[\s\S]*\}/g) || [];
-      candidates.push(...braces);
-      candidates.push(content);
-      for (const c of candidates) {
-        try {
-          const obj = JSON.parse(c);
-          if (obj && typeof obj === "object" && (obj.decision || obj.proposedActions || obj.message)) {
-            parsed = {
-              decision: obj.decision || "propose_plan",
-              message: obj.message || "planned",
-              proposedActions: Array.isArray(obj.proposedActions) ? obj.proposedActions : [],
-            };
-            break;
+      for (const text of searchTexts) {
+        const candidates = [];
+        const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (fenced?.[1]) candidates.push(fenced[1].trim());
+        const braces = text.match(/\{[\s\S]*\}/g) || [];
+        candidates.push(...braces);
+        for (const c of candidates) {
+          try {
+            const obj = JSON.parse(c);
+            if (obj && typeof obj === "object" && (obj.decision || obj.proposedActions || obj.message)) {
+              parsed = {
+                decision: obj.decision || "propose_plan",
+                message: obj.message || "planned",
+                proposedActions: Array.isArray(obj.proposedActions) ? obj.proposedActions : [],
+              };
+              break;
+            }
+          } catch {
+            /* try next */
           }
-        } catch {
-          /* try next */
+        }
+        if (parsed) break;
+      }
+
+      if (!parsed) {
+        // Accept reasoning as valid plan evidence even if not JSON — still useful for skill learning
+        if (reasoning.length > 50) {
+          parsed = {
+            decision: "propose_plan",
+            message: reasoning.slice(0, 200),
+            proposedActions: [],
+          };
+          log(`[LLM] ${model} accepted reasoning-as-plan: ${reasoning.slice(0, 80)}...`);
+        } else {
+          return { ok: false, error: `No valid JSON (reasoning=${reasoning.length}ch content=${content.length}ch)`, rateLimited: false };
         }
       }
-      if (!parsed) return { ok: false, error: "Invalid JSON", rateLimited: false };
 
-      return { ok: true, plan: parsed, raw: content.slice(0, 500) };
+      const combined = [content, reasoning].filter(Boolean).join("\n").trim();
+      return { ok: true, plan: parsed, raw: combined.slice(0, 500) };
     } catch (e) {
       return {
         ok: false,
