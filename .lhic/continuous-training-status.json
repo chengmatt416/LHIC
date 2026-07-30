@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T11:42:33.724Z",
-  "iteration": 12,
-  "currentTask": "slow-plan-complex-nav",
+  "lastUpdated": "2026-07-30T11:42:36.854Z",
+  "iteration": 13,
+  "currentTask": "resilience-batch-100",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 12,
+    "completedTasks": 13,
     "progressPercent": "0.01"
   },
   "llm": {
@@ -39,7 +39,7 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 0,
+    "totalSimulations": 1,
     "totalGameFits": 0,
     "totalPublicWebRuns": 11,
     "totalSlowPathPlans": 4,
@@ -49,7 +49,7 @@
     "remainingHours": "479.97",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
