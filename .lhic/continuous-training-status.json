@@ -1,24 +1,56 @@
 {
-  "status": "ACTIVE (PRACTICAL TRAINING)",
-  "targetDurationDays": 30,
-  "startTime": "2026-07-30T07:06:58.240Z",
-  "targetEndTime": "2026-08-29T07:06:58.240Z",
-  "lastUpdated": "2026-07-30T09:01:38.762Z",
-  "iteration": 191,
+  "status": "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
+  "targetDurationDays": 20,
+  "startTime": "2026-07-30T09:02:08.659Z",
+  "targetEndTime": "2026-08-19T09:02:08.659Z",
+  "lastUpdated": "2026-07-30T09:02:15.427Z",
+  "iteration": 1,
+  "currentTask": "wiki-search-agentic",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 9550,
-    "progressPercent": "9.55"
+    "completedTasks": 1,
+    "progressPercent": "0.00"
+  },
+  "llm": {
+    "models": [
+      {
+        "model": "deepseek-v4-flash-free",
+        "available": true,
+        "rateLimitedUntil": null
+      },
+      {
+        "model": "mimo-v2.5-free",
+        "available": true,
+        "rateLimitedUntil": null
+      }
+    ],
+    "stats": {
+      "deepseek": {
+        "ok": 0,
+        "fail": 0,
+        "rateLimit": 0
+      },
+      "mimo": {
+        "ok": 0,
+        "fail": 0,
+        "rateLimit": 0
+      }
+    },
+    "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 191,
-    "totalGameFits": 94,
-    "totalPublicWebRuns": 155,
-    "totalSkillCandidates": 155,
-    "elapsedHours": "1.91",
-    "remainingHours": "718.09",
+    "totalSimulations": 0,
+    "totalGameFits": 0,
+    "totalPublicWebRuns": 1,
+    "totalSlowPathPlans": 0,
+    "totalSkillCandidates": 1,
+    "rollingSuccessRate": 1,
+    "elapsedHours": "0.00",
+    "remainingHours": "480.00",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8
+    "latestSimDelta": null,
+    "cpuCount": 20,
+    "parallelWorkers": 20
   }
 }
