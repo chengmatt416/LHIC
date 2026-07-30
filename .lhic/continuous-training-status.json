@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:18:58.226Z",
-  "iteration": 85,
-  "currentTask": "osm-central-park",
+  "lastUpdated": "2026-07-30T09:19:24.386Z",
+  "iteration": 87,
+  "currentTask": "resilience-batch-200",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 85,
-    "progressPercent": "0.08"
+    "completedTasks": 87,
+    "progressPercent": "0.09"
   },
   "llm": {
     "models": [
@@ -27,29 +27,29 @@
     "stats": {
       "deepseek": {
         "ok": 2,
-        "fail": 17,
+        "fail": 18,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 17,
+        "fail": 18,
         "rateLimit": 0
       }
     },
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 7,
+    "totalSimulations": 8,
     "totalGameFits": 4,
     "totalPublicWebRuns": 46,
     "totalSlowPathPlans": 2,
     "totalSkillCandidates": 34,
-    "rollingSuccessRate": 0.5647058823529412,
-    "elapsedHours": "0.28",
-    "remainingHours": "479.72",
+    "rollingSuccessRate": 0.5632183908045977,
+    "elapsedHours": "0.29",
+    "remainingHours": "479.71",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
