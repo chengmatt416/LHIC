@@ -27649,3 +27649,9 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #211 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-30T13:17:26.267Z] Elapsed: 0.91h | Remaining: 479.09h | SuccessRate: 92.0%
 [2026-07-30T13:17:26.287Z] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-30T13:17:41.267Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan interaction with a modal dialog: 1) Detect modal over...
+[2026-07-30T13:17:41.268Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T13:17:41.479Z] 
+--- Cycle #212 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-30T13:17:41.480Z] Elapsed: 0.91h | Remaining: 479.09h | SuccessRate: 92.0%
+[2026-07-30T13:17:41.502Z] [Resilience] batch=300 seed=605 threads=20
