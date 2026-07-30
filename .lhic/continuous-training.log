@@ -23111,3 +23111,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T10:25:02.780Z] [Web] mdn-search "querySelector"
 [2026-07-30T10:25:08.925Z] [Web] OK: mdn-search
 [2026-07-30T10:25:08.926Z] [Web] wikipedia-search "Neural network"
+[2026-07-30T10:25:15.179Z] [Web] OK: wikipedia-search
+[2026-07-30T10:25:15.394Z] 
+--- Cycle #412 | Task: github-open-bugs | LLM=ON ---
+[2026-07-30T10:25:15.394Z] Elapsed: 1.39h | Remaining: 478.61h | SuccessRate: 57.0%
+[2026-07-30T10:25:15.416Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T10:25:18.926Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
