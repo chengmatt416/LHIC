@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T12:01:44.897Z",
-  "iteration": 104,
-  "currentTask": "github-open-bugs",
+  "lastUpdated": "2026-07-30T12:01:58.255Z",
+  "iteration": 106,
+  "currentTask": "osm-taipei",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 104,
-    "progressPercent": "0.10"
+    "completedTasks": 106,
+    "progressPercent": "0.11"
   },
   "llm": {
     "models": [
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 9,
     "totalGameFits": 5,
-    "totalPublicWebRuns": 91,
+    "totalPublicWebRuns": 93,
     "totalSlowPathPlans": 24,
-    "totalSkillCandidates": 76,
+    "totalSkillCandidates": 78,
     "rollingSuccessRate": 0.96,
-    "elapsedHours": "0.35",
-    "remainingHours": "479.65",
+    "elapsedHours": "0.36",
+    "remainingHours": "479.64",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
