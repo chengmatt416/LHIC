@@ -1,15 +1,15 @@
 {
   "status": "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
   "targetDurationDays": 20,
-  "startTime": "2026-07-30T12:23:07.674Z",
-  "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T13:59:17.143Z",
-  "iteration": 375,
-  "currentTask": "chain-github-to-wiki",
+  "startTime": "2026-07-30T21:59:19+08:00",
+  "targetEndTime": "2026-08-19T21:59:19+08:00",
+  "lastUpdated": "2026-07-30T21:59:33+08:00",
+  "iteration": 2,
+  "currentTask": "chain-mdn-to-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 375,
-    "progressPercent": "0.38"
+    "completedTasks": 2,
+    "progressPercent": "0.00"
   },
   "llm": {
     "models": [
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 36,
-    "totalGameFits": 11,
-    "totalPublicWebRuns": 243,
-    "totalSlowPathPlans": 180,
-    "totalSkillCandidates": 243,
-    "rollingSuccessRate": 0.93,
-    "elapsedHours": "1.60",
-    "remainingHours": "478.40",
+    "totalSimulations": 0,
+    "totalGameFits": 0,
+    "totalPublicWebRuns": 2,
+    "totalSlowPathPlans": 0,
+    "totalSkillCandidates": 2,
+    "rollingSuccessRate": 1,
+    "elapsedHours": "0.00",
+    "remainingHours": "480.00",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
