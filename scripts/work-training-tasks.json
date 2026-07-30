@@ -214,14 +214,14 @@
       "core": "3d"
     },
     {
-      "id": "policy-2d-fit",
+      "id": "policy-star-trooper-fit",
       "category": "policy",
       "type": "game-fit",
-      "goal": "Record and fit 2D game behavior cloning policy",
+      "goal": "Record and fit star-trooper behavior cloning policy",
       "priority": 2,
       "usesLlm": false,
-      "profile": "space-invaders-2d",
-      "core": "2d"
+      "profile": "star-trooper",
+      "core": "3d"
     },
     {
       "id": "skill-holdout-eval",

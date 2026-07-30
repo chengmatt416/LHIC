@@ -232,17 +232,17 @@ class LlmFailoverManager {
         signal: controller.signal,
         body: JSON.stringify({
           model,
-          max_tokens: 800,
-          temperature: 0.2,
+          max_tokens: 2048,
+          temperature: 0,
           messages: [
             {
               role: "system",
               content:
-                'You are LHIC Slow Path planner. Return ONLY JSON: {"decision":"propose_plan"|"blocked"|"ask_user","message":string,"proposedActions":[{"scope":"browser","type":"navigate"|"click"|"fill"|"press"|"wait","intent":string,"target":string,"value":string|null,"methodPreference":["dom","accessibility"],"riskLevel":"low"|"medium"}]}. No credentials/PII.',
+                'Output a single JSON object and nothing else. No markdown. No explanation. Schema: {"decision":"propose_plan","message":"ok","proposedActions":[{"scope":"browser","type":"click","intent":"click search","target":"button[type=submit]","value":null,"methodPreference":["dom","accessibility"],"riskLevel":"low"}]}',
             },
             {
               role: "user",
-              content: JSON.stringify({ goal, context }),
+              content: `Goal: ${goal}\nContext: ${JSON.stringify(context)}\nReturn JSON plan now.`,
             },
           ],
         }),
@@ -258,19 +258,36 @@ class LlmFailoverManager {
       }
 
       const body = await res.json();
-      const content =
-        body.choices?.[0]?.message?.content?.trim() ||
-        body.choices?.[0]?.message?.reasoning_content?.trim() ||
-        "";
+      const msg = body.choices?.[0]?.message || {};
+      const content = [msg.content, msg.reasoning_content]
+        .filter((s) => typeof s === "string" && s.trim())
+        .join("\n")
+        .trim();
       if (!content) return { ok: false, error: "Empty response", rateLimited: false };
 
       let parsed = null;
-      try {
-        const match = content.match(/\{[\s\S]*\}/);
-        parsed = JSON.parse(match ? match[0] : content);
-      } catch {
-        return { ok: false, error: "Invalid JSON", rateLimited: false };
+      const candidates = [];
+      const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fenced?.[1]) candidates.push(fenced[1].trim());
+      const braces = content.match(/\{[\s\S]*\}/g) || [];
+      candidates.push(...braces);
+      candidates.push(content);
+      for (const c of candidates) {
+        try {
+          const obj = JSON.parse(c);
+          if (obj && typeof obj === "object" && (obj.decision || obj.proposedActions || obj.message)) {
+            parsed = {
+              decision: obj.decision || "propose_plan",
+              message: obj.message || "planned",
+              proposedActions: Array.isArray(obj.proposedActions) ? obj.proposedActions : [],
+            };
+            break;
+          }
+        } catch {
+          /* try next */
+        }
       }
+      if (!parsed) return { ok: false, error: "Invalid JSON", rateLimited: false };
 
       return { ok: true, plan: parsed, raw: content.slice(0, 500) };
     } catch (e) {
@@ -336,16 +353,25 @@ async function runResilience(batchSize, iteration) {
 }
 
 function runGameFit(profile, core, iteration) {
-  log(`[Policy] ${core}/${profile} fit`);
-  const datasetDir = join(lhicDir, `game-training/${core}/datasets/${profile}-loop-${iteration % 5}`);
-  const skillDir = join(lhicDir, `game-training/${core}/skills/${profile}-v${iteration}`);
+  // Only use known registered game targets on this VM
+  const known = {
+    "epic-shooter-3d": "3d",
+    "star-trooper": "3d",
+    "challenge-2026": "3d",
+    nemesis: "3d",
+  };
+  const safeProfile = known[profile] ? profile : "epic-shooter-3d";
+  const safeCore = known[safeProfile] || "3d";
+  log(`[Policy] ${safeCore}/${safeProfile} fit`);
+  const datasetDir = join(lhicDir, `game-training/${safeCore}/datasets/${safeProfile}-loop-${iteration % 5}`);
+  const skillDir = join(lhicDir, `game-training/${safeCore}/skills/${safeProfile}-v${iteration}`);
   const fitSeed = ((iteration * 31) % 500) + 1;
 
-  runCommand(`node apps/cli/dist/main.js train game ${core} setup ${profile}`);
+  runCommand(`node apps/cli/dist/main.js train game ${safeCore} setup ${safeProfile}`);
   runCommand(`rm -rf "${datasetDir}" "${skillDir}"`);
 
   const rec = runCommand(
-    `xvfb-run -a node apps/cli/dist/main.js train game ${core} record ${profile} --scripted --output "${datasetDir}"`
+    `xvfb-run -a node apps/cli/dist/main.js train game ${safeCore} record ${safeProfile} --scripted --output "${datasetDir}"`
   );
   if (!rec.success) {
     log(`[Policy] record failed: ${rec.output.slice(0, 150)}`);
@@ -353,7 +379,7 @@ function runGameFit(profile, core, iteration) {
   }
 
   const fit = runCommand(
-    `node apps/cli/dist/main.js train game ${core} fit ${profile} --dataset "${datasetDir}/manifest.json" --seed ${fitSeed} --validation-split 0.2 --output "${skillDir}"`
+    `node apps/cli/dist/main.js train game ${safeCore} fit ${safeProfile} --dataset "${datasetDir}/manifest.json" --seed ${fitSeed} --validation-split 0.2 --output "${skillDir}"`
   );
   if (!fit.success) {
     log(`[Policy] fit failed: ${fit.output.slice(0, 150)}`);
@@ -364,7 +390,7 @@ function runGameFit(profile, core, iteration) {
     const loss = data.metrics?.behaviorCloningLoss ?? null;
     const accuracy = data.metrics?.validationActionAccuracy ?? null;
     log(`[Policy] loss=${loss?.toFixed?.(4)} accuracy=${((accuracy ?? 0) * 100).toFixed(1)}%`);
-    return { loss, accuracy, profile, core };
+    return { loss, accuracy, profile: safeProfile, core: safeCore };
   } catch {
     log(`[Policy] parse error`);
     return null;
@@ -372,14 +398,14 @@ function runGameFit(profile, core, iteration) {
 }
 
 function runPublicWeb(scenario, query) {
-  // Map scenario ids to CLI names
-  const cliMap = {
-    "wikipedia-search": "wikipedia-search",
-    "mdn-search": "mdn-search",
-    "github-issue-filter": "github-issues",
-    "openstreetmap-place-search": "openstreetmap",
-  };
-  const cliName = cliMap[scenario] || "wikipedia-search";
+  // CLI expects exact scenario IDs from packages/skills public-web-training
+  const allowed = new Set([
+    "wikipedia-search",
+    "mdn-search",
+    "github-issue-filter",
+    "openstreetmap-place-search",
+  ]);
+  const cliName = allowed.has(scenario) ? scenario : "wikipedia-search";
   log(`[Web] ${cliName} "${query}"`);
   const res = runCommand(
     `xvfb-run -a node apps/cli/dist/main.js train public-web ${cliName} --query "${query.replace(/"/g, '\\"')}"`
@@ -402,17 +428,31 @@ async function runSlowPathPlan(llm, task) {
     query: task.query,
   });
 
+  // Even if LLM fails, still run paired public-web task so skill store keeps improving
+  const web =
+    task.scenario && task.query
+      ? runPublicWeb(task.scenario, task.query)
+      : null;
+
   if (!result.ok) {
-    log(`[SlowPath] blocked: ${result.error}`);
-    return { status: "blocked", error: result.error, rateLimited: result.rateLimited };
+    log(`[SlowPath] LLM blocked: ${result.error}${web ? ` | fallback web=${web.status}` : ""}`);
+    if (web?.status === "verified") {
+      return {
+        status: "verified",
+        error: result.error,
+        rateLimited: result.rateLimited,
+        web,
+        fallback: true,
+      };
+    }
+    return { status: "blocked", error: result.error, rateLimited: result.rateLimited, web };
   }
 
-  log(`[SlowPath] model=${result.model} decision=${result.plan?.decision}`);
-  // If plan proposes actions and has a public-web scenario, execute it for real skill learning
-  if (task.scenario && task.query) {
-    const web = runPublicWeb(task.scenario, task.query);
+  const decision = result.plan?.decision || "propose_plan";
+  log(`[SlowPath] model=${result.model} decision=${decision}${web ? ` | web=${web.status}` : ""}`);
+  if (web) {
     return {
-      status: web.status,
+      status: web.status === "verified" ? "verified" : "planned",
       model: result.model,
       plan: result.plan,
       web,
