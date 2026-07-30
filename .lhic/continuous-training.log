@@ -39859,3 +39859,130 @@ fatal: could not read Username for 'https://gi
 --- Cycle #1048 | Task: policy-curriculum-3d | LLM=OFF ---
 [2026-07-31T04:54:01+08:00] Elapsed: 2.96h | Remaining: 477.04h | SuccessRate: 87.0%
 [2026-07-31T04:54:01+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T04:54:53+08:00] [Policy] loss=6.7701 accuracy=46.3%
+[2026-07-31T04:54:53+08:00] 
+--- Cycle #1049 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T04:54:53+08:00] Elapsed: 2.97h | Remaining: 477.03h | SuccessRate: 86.0%
+[2026-07-31T04:54:53+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T04:55:00+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:55:00+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T04:55:06+08:00] [Web] OK: mdn-search
+[2026-07-31T04:55:06+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T04:55:14+08:00] [Web] OK: github-issue-filter
+[2026-07-31T04:55:14+08:00] 
+--- Cycle #1050 | Task: skill-chain-docs-to-code | LLM=OFF ---
+[2026-07-31T04:55:14+08:00] Elapsed: 2.98h | Remaining: 477.02h | SuccessRate: 86.0%
+[2026-07-31T04:55:14+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T04:55:20+08:00] [Web] OK: mdn-search
+[2026-07-31T04:55:20+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T04:55:26+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:55:27+08:00] 
+--- Cycle #1051 | Task: docs-entry-type-wiki | LLM=OFF ---
+[2026-07-31T04:55:27+08:00] Elapsed: 2.98h | Remaining: 477.02h | SuccessRate: 86.0%
+[2026-07-31T04:55:27+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T04:55:33+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:55:34+08:00] 
+--- Cycle #1052 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-07-31T04:55:34+08:00] Elapsed: 2.98h | Remaining: 477.02h | SuccessRate: 86.0%
+[2026-07-31T04:55:34+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T04:55:39+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:55:39+08:00] 
+--- Cycle #1053 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T04:55:39+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 86.0%
+[2026-07-31T04:55:39+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T04:55:45+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:55:45+08:00] 
+--- Cycle #1054 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T04:55:45+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 86.0%
+[2026-07-31T04:55:45+08:00] [Resilience] batch=300 seed=919 threads=20
+[2026-07-31T04:55:52+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T04:55:52+08:00] 
+--- Cycle #1055 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T04:55:52+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 86.0%
+[2026-07-31T04:55:52+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T04:55:56+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T04:55:56+08:00] 
+--- Cycle #1056 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T04:55:56+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 85.0%
+[2026-07-31T04:55:56+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T04:56:00+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T04:56:00+08:00] 
+--- Cycle #1057 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T04:56:00+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 84.0%
+[2026-07-31T04:56:00+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T04:56:07+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:56:07+08:00] 
+--- Cycle #1058 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T04:56:07+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 84.0%
+[2026-07-31T04:56:07+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T04:56:13+08:00] [Web] OK: mdn-search
+[2026-07-31T04:56:14+08:00] 
+--- Cycle #1059 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T04:56:14+08:00] Elapsed: 2.99h | Remaining: 477.01h | SuccessRate: 84.0%
+[2026-07-31T04:56:14+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T04:56:20+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:56:20+08:00] 
+--- Cycle #1060 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T04:56:20+08:00] Elapsed: 3.00h | Remaining: 477.00h | SuccessRate: 85.0%
+[2026-07-31T04:56:20+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T04:56:26+08:00] [Web] OK: mdn-search
+[2026-07-31T04:56:26+08:00] 
+--- Cycle #1061 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T04:56:26+08:00] Elapsed: 3.00h | Remaining: 477.00h | SuccessRate: 86.0%
+[2026-07-31T04:56:26+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T04:56:32+08:00] [Web] OK: mdn-search
+[2026-07-31T04:56:33+08:00] 
+--- Cycle #1062 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T04:56:33+08:00] Elapsed: 3.00h | Remaining: 477.00h | SuccessRate: 86.0%
+[2026-07-31T04:56:33+08:00] [Resilience] batch=50 seed=55 threads=20
+[2026-07-31T04:56:35+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T04:56:35+08:00] 
+--- Cycle #1063 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T04:56:35+08:00] Elapsed: 3.00h | Remaining: 477.00h | SuccessRate: 86.0%
+[2026-07-31T04:56:35+08:00] [Resilience] batch=150 seed=72 threads=20
+[2026-07-31T04:56:38+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T04:56:39+08:00] 
+--- Cycle #1064 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T04:56:39+08:00] Elapsed: 3.00h | Remaining: 477.00h | SuccessRate: 86.0%
+[2026-07-31T04:56:39+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T04:57:29+08:00] [Policy] loss=6.5225 accuracy=67.3%
+[2026-07-31T04:57:29+08:00] 
+--- Cycle #1065 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T04:57:29+08:00] Elapsed: 3.02h | Remaining: 476.98h | SuccessRate: 86.0%
+[2026-07-31T04:57:29+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T04:57:35+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:57:35+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T04:57:41+08:00] [Web] OK: mdn-search
+[2026-07-31T04:57:41+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T04:57:50+08:00] [Web] OK: github-issue-filter
+[2026-07-31T04:57:50+08:00] [GitHub] Hourly push iteration #1065...
+[2026-07-31T04:57:51+08:00] [GitHub] push note: Command failed: git push origin training-results --force || git push -u origin training-results --force
+fatal: could not read Username for 'https://gi
+[2026-07-31T04:57:51+08:00] 
+--- Cycle #1066 | Task: skill-chain-docs-to-code | LLM=OFF ---
+[2026-07-31T04:57:51+08:00] Elapsed: 3.02h | Remaining: 476.98h | SuccessRate: 86.0%
+[2026-07-31T04:57:51+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T04:57:57+08:00] [Web] OK: mdn-search
+[2026-07-31T04:57:57+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T04:58:03+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:58:03+08:00] 
+--- Cycle #1067 | Task: docs-entry-type-wiki | LLM=OFF ---
+[2026-07-31T04:58:03+08:00] Elapsed: 3.03h | Remaining: 476.97h | SuccessRate: 86.0%
+[2026-07-31T04:58:03+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T04:58:10+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:58:10+08:00] 
+--- Cycle #1068 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-07-31T04:58:10+08:00] Elapsed: 3.03h | Remaining: 476.97h | SuccessRate: 86.0%
+[2026-07-31T04:58:10+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T04:58:16+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:58:16+08:00] 
+--- Cycle #1069 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T04:58:16+08:00] Elapsed: 3.03h | Remaining: 476.97h | SuccessRate: 86.0%
+[2026-07-31T04:58:16+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T04:58:22+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:58:22+08:00] 
+--- Cycle #1070 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T04:58:22+08:00] Elapsed: 3.03h | Remaining: 476.97h | SuccessRate: 86.0%
+[2026-07-31T04:58:22+08:00] [Resilience] batch=300 seed=191 threads=20
