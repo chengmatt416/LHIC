@@ -21751,3 +21751,10 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #174 | Task: slow-plan-github-triage | LLM=ON ---
 [2026-07-30T09:36:20.482Z] Elapsed: 0.57h | Remaining: 479.43h | SuccessRate: 53.0%
 [2026-07-30T09:36:20.501Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T09:36:27.692Z] [SlowPath] model=deepseek-v4-flash-free decision=undefined
+[2026-07-30T09:36:27.693Z] [Web] github-issues "is:open label:bug sort:updated-desc"
+[2026-07-30T09:36:31.207Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:36:31.416Z] 
+--- Cycle #175 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T09:36:31.417Z] Elapsed: 0.57h | Remaining: 479.43h | SuccessRate: 52.0%
+[2026-07-30T09:36:31.438Z] [Resilience] batch=200 seed=976 threads=20
