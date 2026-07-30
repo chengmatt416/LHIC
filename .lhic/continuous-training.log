@@ -27761,3 +27761,19 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #229 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-30T13:21:59.417Z] Elapsed: 0.98h | Remaining: 479.02h | SuccessRate: 92.0%
 [2026-07-30T13:21:59.438Z] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-30T13:22:15.209Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan a hybrid API+browser flow: 1) Fetch GitHub API for re...
+[2026-07-30T13:22:15.209Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T13:22:15.428Z] 
+--- Cycle #230 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-30T13:22:15.428Z] Elapsed: 0.99h | Remaining: 479.01h | SuccessRate: 92.0%
+[2026-07-30T13:22:15.448Z] [Resilience] batch=50 seed=911 threads=20
+[2026-07-30T13:22:17.209Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T13:22:17.430Z] 
+--- Cycle #231 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-30T13:22:17.431Z] Elapsed: 0.99h | Remaining: 479.01h | SuccessRate: 92.0%
+[2026-07-30T13:22:17.451Z] [Resilience] batch=150 seed=928 threads=20
+[2026-07-30T13:22:20.933Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T13:22:21.152Z] 
+--- Cycle #232 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-30T13:22:21.153Z] Elapsed: 0.99h | Remaining: 479.01h | SuccessRate: 92.0%
+[2026-07-30T13:22:21.172Z] [Policy] 3d/epic-shooter-3d fit
