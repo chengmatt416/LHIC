@@ -21758,3 +21758,8 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #175 | Task: resilience-batch-200 | LLM=ON ---
 [2026-07-30T09:36:31.417Z] Elapsed: 0.57h | Remaining: 479.43h | SuccessRate: 52.0%
 [2026-07-30T09:36:31.438Z] [Resilience] batch=200 seed=976 threads=20
+[2026-07-30T09:36:35.940Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T09:36:36.160Z] 
+--- Cycle #176 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T09:36:36.161Z] Elapsed: 0.57h | Remaining: 479.43h | SuccessRate: 53.0%
+[2026-07-30T09:36:36.181Z] [Policy] 2d/space-invaders-2d fit
