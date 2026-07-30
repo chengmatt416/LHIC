@@ -26135,3 +26135,20 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T12:16:13.475Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 96.0%
 [2026-07-30T12:16:13.495Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T12:16:26.178Z] [Web] github-issue-filter "is:open label:bug sort:updated-desc"
+[2026-07-30T12:16:35.305Z] [Web] OK: github-issue-filter
+[2026-07-30T12:16:35.306Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T12:16:35.523Z] 
+--- Cycle #175 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T12:16:35.524Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 96.0%
+[2026-07-30T12:16:35.545Z] [Resilience] batch=200 seed=976 threads=20
+[2026-07-30T12:16:40.089Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T12:16:40.314Z] 
+--- Cycle #176 | Task: policy-star-trooper-fit | LLM=ON ---
+[2026-07-30T12:16:40.314Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 96.0%
+[2026-07-30T12:16:40.334Z] [Policy] 3d/star-trooper fit
+[2026-07-30T12:16:44.367Z] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-30T12:16:44.578Z] 
+--- Cycle #177 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T12:16:44.579Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 95.0%
+[2026-07-30T12:16:44.600Z] [Web] wikipedia-search "Agentic coding systems"
