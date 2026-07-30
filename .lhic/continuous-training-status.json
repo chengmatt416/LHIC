@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T11:57:47.758Z",
-  "iteration": 85,
-  "currentTask": "osm-central-park",
+  "lastUpdated": "2026-07-30T11:58:15.925Z",
+  "iteration": 88,
+  "currentTask": "policy-star-trooper-fit",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 85,
-    "progressPercent": "0.08"
+    "completedTasks": 88,
+    "progressPercent": "0.09"
   },
   "llm": {
     "models": [
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 35,
+        "ok": 36,
         "fail": 159,
         "rateLimit": 0
       },
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 7,
+    "totalSimulations": 8,
     "totalGameFits": 4,
-    "totalPublicWebRuns": 75,
-    "totalSlowPathPlans": 19,
-    "totalSkillCandidates": 63,
-    "rollingSuccessRate": 0.9647058823529412,
-    "elapsedHours": "0.29",
-    "remainingHours": "479.71",
+    "totalPublicWebRuns": 76,
+    "totalSlowPathPlans": 20,
+    "totalSkillCandidates": 64,
+    "rollingSuccessRate": 0.9545454545454546,
+    "elapsedHours": "0.30",
+    "remainingHours": "479.70",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
