@@ -22218,3 +22218,9 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #256 | Task: policy-3d-fit | LLM=ON ---
 [2026-07-30T09:51:50.343Z] Elapsed: 0.83h | Remaining: 479.17h | SuccessRate: 58.0%
 [2026-07-30T09:51:50.365Z] [Policy] 3d/epic-shooter-3d fit
+[2026-07-30T09:52:41.643Z] [Policy] loss=6.6973 accuracy=66.0%
+[2026-07-30T09:52:41.852Z] 
+--- Cycle #257 | Task: skill-holdout-eval | LLM=ON ---
+[2026-07-30T09:52:41.853Z] Elapsed: 0.84h | Remaining: 479.16h | SuccessRate: 58.0%
+[2026-07-30T09:52:41.873Z] [Holdout] Re-running priority web skills for promotion evidence
+[2026-07-30T09:52:41.873Z] [Web] wikipedia-search "Verifier Evidence Framework"
