@@ -21996,3 +21996,8 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #217 | Task: osm-central-park | LLM=ON ---
 [2026-07-30T09:44:32.575Z] Elapsed: 0.71h | Remaining: 479.29h | SuccessRate: 55.0%
 [2026-07-30T09:44:32.595Z] [Web] openstreetmap "Central Park New York"
+[2026-07-30T09:44:36.108Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:44:36.316Z] 
+--- Cycle #218 | Task: slow-plan-github-triage | LLM=ON ---
+[2026-07-30T09:44:36.317Z] Elapsed: 0.71h | Remaining: 479.29h | SuccessRate: 54.0%
+[2026-07-30T09:44:36.337Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
