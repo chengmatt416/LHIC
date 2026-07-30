@@ -25046,3 +25046,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #16 | Task: github-open-bugs | LLM=ON ---
 [2026-07-30T11:36:35.029Z] Elapsed: 0.10h | Remaining: 479.90h | SuccessRate: 93.3%
 [2026-07-30T11:36:35.049Z] [Web] github-issue-filter "is:open label:bug"
+[2026-07-30T11:36:43.812Z] [Web] OK: github-issue-filter
+[2026-07-30T11:36:44.031Z] 
+--- Cycle #17 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T11:36:44.032Z] Elapsed: 0.10h | Remaining: 479.90h | SuccessRate: 93.8%
+[2026-07-30T11:36:44.052Z] [Web] github-issue-filter "is:open label:enhancement"
