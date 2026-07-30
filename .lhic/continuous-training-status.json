@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T21:59:19+08:00",
   "targetEndTime": "2026-08-19T21:59:19+08:00",
-  "lastUpdated": "2026-07-30T22:07:49+08:00",
-  "iteration": 35,
-  "currentTask": "docs-accessibility-tree",
+  "lastUpdated": "2026-07-30T22:07:55+08:00",
+  "iteration": 36,
+  "currentTask": "docs-perf-observer-chain",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 35,
-    "progressPercent": "0.03"
+    "completedTasks": 36,
+    "progressPercent": "0.04"
   },
   "llm": {
     "models": [
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 3,
     "totalGameFits": 1,
-    "totalPublicWebRuns": 24,
+    "totalPublicWebRuns": 25,
     "totalSlowPathPlans": 15,
-    "totalSkillCandidates": 24,
-    "rollingSuccessRate": 0.9428571428571428,
+    "totalSkillCandidates": 25,
+    "rollingSuccessRate": 0.9444444444444444,
     "elapsedHours": "0.14",
     "remainingHours": "479.86",
     "latestPyTorchLoss": null,
