@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T12:23:07.674Z",
   "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T13:25:47.617Z",
-  "iteration": 242,
-  "currentTask": "dynamic-modal-interaction",
+  "lastUpdated": "2026-07-30T13:25:58.456Z",
+  "iteration": 244,
+  "currentTask": "policy-curriculum-star",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 242,
+    "completedTasks": 244,
     "progressPercent": "0.24"
   },
   "llm": {
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 23,
+    "totalSimulations": 24,
     "totalGameFits": 7,
     "totalPublicWebRuns": 158,
     "totalSlowPathPlans": 117,
     "totalSkillCandidates": 158,
-    "rollingSuccessRate": 0.93,
-    "elapsedHours": "1.04",
-    "remainingHours": "478.96",
+    "rollingSuccessRate": 0.92,
+    "elapsedHours": "1.05",
+    "remainingHours": "478.95",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
