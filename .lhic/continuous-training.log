@@ -20844,3 +20844,13 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T09:05:29.358Z] [Web] mdn-search "querySelector"
 [2026-07-30T09:05:35.458Z] [Web] OK: mdn-search
 [2026-07-30T09:05:35.459Z] [Web] wikipedia-search "Neural network"
+[2026-07-30T09:05:41.918Z] [Web] OK: wikipedia-search
+[2026-07-30T09:05:42.130Z] 
+--- Cycle #16 | Task: github-open-bugs | LLM=ON ---
+[2026-07-30T09:05:42.131Z] Elapsed: 0.06h | Remaining: 479.94h | SuccessRate: 80.0%
+[2026-07-30T09:05:42.148Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T09:05:45.664Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:05:45.872Z] 
+--- Cycle #17 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T09:05:45.873Z] Elapsed: 0.06h | Remaining: 479.94h | SuccessRate: 75.0%
+[2026-07-30T09:05:45.891Z] [Web] github-issues "is:open label:enhancement"
