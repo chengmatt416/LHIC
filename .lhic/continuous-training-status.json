@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:38:17.502Z",
-  "iteration": 186,
-  "currentTask": "slow-plan-mdn-deep",
+  "lastUpdated": "2026-07-30T09:38:39.558Z",
+  "iteration": 187,
+  "currentTask": "slow-plan-form-recovery",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 186,
+    "completedTasks": 187,
     "progressPercent": "0.19"
   },
   "llm": {
@@ -27,12 +27,12 @@
     "stats": {
       "deepseek": {
         "ok": 5,
-        "fail": 37,
+        "fail": 38,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 37,
+        "fail": 38,
         "rateLimit": 0
       }
     },
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 99,
     "totalSlowPathPlans": 3,
     "totalSkillCandidates": 75,
-    "rollingSuccessRate": 0.58,
+    "rollingSuccessRate": 0.57,
     "elapsedHours": "0.60",
     "remainingHours": "479.40",
     "latestPyTorchLoss": null,
