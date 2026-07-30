@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T10:39:06.966Z",
-  "iteration": 481,
-  "currentTask": "osm-central-park",
+  "lastUpdated": "2026-07-30T10:39:22.536Z",
+  "iteration": 483,
+  "currentTask": "resilience-batch-200",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 481,
+    "completedTasks": 483,
     "progressPercent": "0.48"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 10,
+        "ok": 11,
         "fail": 99,
         "rateLimit": 0
       },
@@ -39,7 +39,7 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 43,
+    "totalSimulations": 44,
     "totalGameFits": 22,
     "totalPublicWebRuns": 248,
     "totalSlowPathPlans": 8,
@@ -49,7 +49,7 @@
     "remainingHours": "478.38",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }

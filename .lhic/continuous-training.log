@@ -23516,3 +23516,13 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T10:39:07.197Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T10:39:14.362Z] [SlowPath] model=deepseek-v4-flash-free decision=undefined
 [2026-07-30T10:39:14.362Z] [Web] github-issues "is:open label:bug sort:updated-desc"
+[2026-07-30T10:39:17.876Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:39:18.090Z] 
+--- Cycle #483 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T10:39:18.091Z] Elapsed: 1.62h | Remaining: 478.38h | SuccessRate: 51.0%
+[2026-07-30T10:39:18.111Z] [Resilience] batch=200 seed=212 threads=20
+[2026-07-30T10:39:22.526Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T10:39:22.749Z] 
+--- Cycle #484 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T10:39:22.749Z] Elapsed: 1.62h | Remaining: 478.38h | SuccessRate: 52.0%
+[2026-07-30T10:39:22.769Z] [Policy] 2d/space-invaders-2d fit
