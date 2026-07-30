@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:57:47.190Z",
-  "iteration": 284,
-  "currentTask": "slow-plan-github-triage",
+  "lastUpdated": "2026-07-30T09:57:56.278Z",
+  "iteration": 286,
+  "currentTask": "policy-2d-fit",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 284,
-    "progressPercent": "0.28"
+    "completedTasks": 286,
+    "progressPercent": "0.29"
   },
   "llm": {
     "models": [
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 25,
+    "totalSimulations": 26,
     "totalGameFits": 13,
     "totalPublicWebRuns": 147,
     "totalSlowPathPlans": 6,
     "totalSkillCandidates": 108,
-    "rollingSuccessRate": 0.54,
-    "elapsedHours": "0.92",
-    "remainingHours": "479.08",
+    "rollingSuccessRate": 0.55,
+    "elapsedHours": "0.93",
+    "remainingHours": "479.07",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
