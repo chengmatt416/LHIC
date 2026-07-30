@@ -20955,3 +20955,8 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #35 | Task: resilience-batch-100 | LLM=ON ---
 [2026-07-30T09:08:55.428Z] Elapsed: 0.11h | Remaining: 479.89h | SuccessRate: 61.8%
 [2026-07-30T09:08:55.450Z] [Resilience] batch=100 seed=596 threads=20
+[2026-07-30T09:08:58.344Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T09:08:58.561Z] 
+--- Cycle #36 | Task: policy-3d-fit | LLM=ON ---
+[2026-07-30T09:08:58.561Z] Elapsed: 0.11h | Remaining: 479.89h | SuccessRate: 62.9%
+[2026-07-30T09:08:58.583Z] [Policy] 3d/epic-shooter-3d fit
