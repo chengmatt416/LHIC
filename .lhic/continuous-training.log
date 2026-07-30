@@ -32373,3 +32373,29 @@ fatal: could not read Username for 'https://gi
 --- Cycle #227 | Task: plan-wikipedia-deep-dive | LLM=ON ---
 [2026-07-31T00:39:33+08:00] Elapsed: 1.01h | Remaining: 478.99h | SuccessRate: 93.0%
 [2026-07-31T00:39:33+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
+[2026-07-31T00:39:52+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need to generate a JSON plan for a deep Wikipedia research flow. The goal is ...
+[2026-07-31T00:39:52+08:00] [Web] wikipedia-search "Distributed systems"
+[2026-07-31T00:39:58+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:39:58+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:39:58+08:00] 
+--- Cycle #228 | Task: plan-cross-site-verification | LLM=ON ---
+[2026-07-31T00:39:58+08:00] Elapsed: 1.02h | Remaining: 478.98h | SuccessRate: 93.0%
+[2026-07-31T00:39:58+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
+[2026-07-31T00:40:18+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-site data verification: 1) Search Wikipedia for...
+[2026-07-31T00:40:18+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T00:40:25+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:40:25+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:40:25+08:00] 
+--- Cycle #229 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T00:40:25+08:00] Elapsed: 1.02h | Remaining: 478.98h | SuccessRate: 93.0%
+[2026-07-31T00:40:25+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T00:40:43+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:40:43+08:00] 
+--- Cycle #230 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T00:40:43+08:00] Elapsed: 1.03h | Remaining: 478.97h | SuccessRate: 93.0%
+[2026-07-31T00:40:43+08:00] [Resilience] batch=50 seed=911 threads=20
+[2026-07-31T00:40:45+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:40:45+08:00] 
+--- Cycle #231 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T00:40:45+08:00] Elapsed: 1.03h | Remaining: 478.97h | SuccessRate: 93.0%
+[2026-07-31T00:40:45+08:00] [Resilience] batch=150 seed=928 threads=20
