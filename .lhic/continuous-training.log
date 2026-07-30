@@ -24846,3 +24846,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:27:38.564Z] Elapsed: 2.42h | Remaining: 477.58h | SuccessRate: 59.0%
 [2026-07-30T11:27:38.587Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
 [2026-07-30T11:27:45.818Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:28:00.986Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:28:00.986Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:28:01.199Z] 
+--- Cycle #716 | Task: slow-plan-complex-nav | LLM=ON ---
+[2026-07-30T11:28:01.199Z] Elapsed: 2.43h | Remaining: 477.57h | SuccessRate: 58.0%
+[2026-07-30T11:28:01.222Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
