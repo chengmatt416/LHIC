@@ -33483,3 +33483,88 @@ fatal: could not read Username for 'https://gi
 --- Cycle #408 | Task: docs-perf-observer-chain | LLM=ON ---
 [2026-07-31T01:29:16+08:00] Elapsed: 1.84h | Remaining: 478.16h | SuccessRate: 94.0%
 [2026-07-31T01:29:16+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T01:29:25+08:00] [Web] OK: mdn-search
+[2026-07-31T01:29:25+08:00] 
+--- Cycle #409 | Task: triage-bug-escalation | LLM=ON ---
+[2026-07-31T01:29:25+08:00] Elapsed: 1.84h | Remaining: 478.16h | SuccessRate: 94.0%
+[2026-07-31T01:29:25+08:00] [SlowPath] planning: triage-bug-escalation — Plan a GitHub issue triage flow: 1) List open bugs sorted by creation date, 2) F
+[2026-07-31T01:29:48+08:00] [Web] github-issue-filter "is:open label:bug sort:created-asc"
+[2026-07-31T01:29:57+08:00] [Web] OK: github-issue-filter
+[2026-07-31T01:29:57+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T01:29:57+08:00] 
+--- Cycle #410 | Task: triage-cross-reference | LLM=ON ---
+[2026-07-31T01:29:57+08:00] Elapsed: 1.85h | Remaining: 478.15h | SuccessRate: 94.0%
+[2026-07-31T01:29:57+08:00] [SlowPath] planning: triage-cross-reference — Plan cross-referencing GitHub issues with pull requests: find issues that mentio
+[2026-07-31T01:30:20+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-referencing GitHub issues with pull requests: f...
+[2026-07-31T01:30:20+08:00] [Web] github-issue-filter "is:open is:issue"
+[2026-07-31T01:30:27+08:00] [Web] OK: github-issue-filter
+[2026-07-31T01:30:27+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T01:30:27+08:00] 
+--- Cycle #411 | Task: form-multi-step-registration | LLM=ON ---
+[2026-07-31T01:30:27+08:00] Elapsed: 1.86h | Remaining: 478.14h | SuccessRate: 94.0%
+[2026-07-31T01:30:27+08:00] [SlowPath] planning: form-multi-step-registration — Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dr
+[2026-07-31T01:30:50+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to return a JSON plan for a 4-step registration form flow. The goal...
+[2026-07-31T01:30:50+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T01:30:50+08:00] 
+--- Cycle #412 | Task: form-error-recovery | LLM=ON ---
+[2026-07-31T01:30:50+08:00] Elapsed: 1.86h | Remaining: 478.14h | SuccessRate: 94.0%
+[2026-07-31T01:30:50+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
+[2026-07-31T01:31:10+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given: "Goal: Plan recovery for a form that rejected input: 1) Identify w...
+[2026-07-31T01:31:10+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T01:31:10+08:00] 
+--- Cycle #413 | Task: plan-wikipedia-deep-dive | LLM=ON ---
+[2026-07-31T01:31:10+08:00] Elapsed: 1.87h | Remaining: 478.13h | SuccessRate: 94.0%
+[2026-07-31T01:31:10+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
+[2026-07-31T01:31:32+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan a deep Wikipedia research flow: 1) Search for 'Distri...
+[2026-07-31T01:31:32+08:00] [Web] wikipedia-search "Distributed systems"
+[2026-07-31T01:31:38+08:00] [Web] OK: wikipedia-search
+[2026-07-31T01:31:38+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T01:31:39+08:00] 
+--- Cycle #414 | Task: plan-cross-site-verification | LLM=ON ---
+[2026-07-31T01:31:39+08:00] Elapsed: 1.88h | Remaining: 478.12h | SuccessRate: 94.0%
+[2026-07-31T01:31:39+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
+[2026-07-31T01:31:59+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-site data verification: 1) Search Wikipedia for...
+[2026-07-31T01:31:59+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T01:32:06+08:00] [Web] OK: wikipedia-search
+[2026-07-31T01:32:06+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T01:32:06+08:00] 
+--- Cycle #415 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T01:32:06+08:00] Elapsed: 1.89h | Remaining: 478.11h | SuccessRate: 94.0%
+[2026-07-31T01:32:06+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T01:32:25+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given the goal: "Plan a hybrid API+browser flow: 1) Fetch GitHub API for ...
+[2026-07-31T01:32:25+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T01:32:25+08:00] 
+--- Cycle #416 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T01:32:25+08:00] Elapsed: 1.89h | Remaining: 478.11h | SuccessRate: 94.0%
+[2026-07-31T01:32:25+08:00] [Resilience] batch=50 seed=73 threads=20
+[2026-07-31T01:32:27+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T01:32:27+08:00] 
+--- Cycle #417 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T01:32:27+08:00] Elapsed: 1.89h | Remaining: 478.11h | SuccessRate: 94.0%
+[2026-07-31T01:32:27+08:00] [Resilience] batch=150 seed=90 threads=20
+[2026-07-31T01:32:31+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T01:32:31+08:00] 
+--- Cycle #418 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-31T01:32:31+08:00] Elapsed: 1.89h | Remaining: 478.11h | SuccessRate: 94.0%
+[2026-07-31T01:32:31+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T01:33:20+08:00] [Policy] loss=6.5741 accuracy=66.8%
+[2026-07-31T01:33:20+08:00] 
+--- Cycle #419 | Task: skill-chain-wiki-mdn-github | LLM=ON ---
+[2026-07-31T01:33:20+08:00] Elapsed: 1.91h | Remaining: 478.09h | SuccessRate: 94.0%
+[2026-07-31T01:33:20+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T01:33:26+08:00] [Web] OK: wikipedia-search
+[2026-07-31T01:33:26+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T01:33:32+08:00] [Web] OK: mdn-search
+[2026-07-31T01:33:32+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T01:33:41+08:00] [Web] OK: github-issue-filter
+[2026-07-31T01:33:41+08:00] 
+--- Cycle #420 | Task: skill-chain-docs-to-code | LLM=ON ---
+[2026-07-31T01:33:41+08:00] Elapsed: 1.91h | Remaining: 478.09h | SuccessRate: 94.0%
+[2026-07-31T01:33:42+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T01:33:51+08:00] [Web] OK: mdn-search
+[2026-07-31T01:33:51+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T01:33:57+08:00] [Web] OK: wikipedia-search
+[2026-07-31T01:33:58+08:00] 
+--- Cycle #421 | Task: recovery-network-timeout | LLM=ON ---
+[2026-07-31T01:33:58+08:00] Elapsed: 1.92h | Remaining: 478.08h | SuccessRate: 94.0%
+[2026-07-31T01:33:58+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
