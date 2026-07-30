@@ -24940,3 +24940,17 @@ fatal: could not read Username for 'https://gi
 --- Cycle #14 | Task: policy-3d-fit | LLM=ON ---
 [2026-07-30T11:30:38.991Z] Elapsed: 0.04h | Remaining: 479.96h | SuccessRate: 69.2%
 [2026-07-30T11:30:39.012Z] [Policy] 3d/epic-shooter-3d fit
+[2026-07-30T11:30:45.284Z] [LLM] OpenCode API key loaded — models: deepseek-v4-flash-free, mimo-v2.5-free
+[2026-07-30T11:30:45.286Z] ==================================================
+[2026-07-30T11:30:45.286Z] LHIC 20-Day Full-Load Work Training Daemon
+[2026-07-30T11:30:45.286Z] Cores: 20 | Workers: 20
+[2026-07-30T11:30:45.286Z] Tasks in suite: 22
+[2026-07-30T11:30:45.286Z] Duration: 20 days | Hourly GitHub push
+[2026-07-30T11:30:45.286Z] LLM: deepseek-v4-flash-free → mimo-v2.5-free (5h cooldown)
+[2026-07-30T11:30:45.286Z] Started: 2026-07-30T11:30:45.283Z
+[2026-07-30T11:30:45.287Z] Ends: 2026-08-19T11:30:45.283Z
+[2026-07-30T11:30:45.287Z] ==================================================
+[2026-07-30T11:30:45.287Z] 
+--- Cycle #1 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T11:30:45.287Z] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 0.0%
+[2026-07-30T11:30:45.296Z] [Web] wikipedia-search "Agentic coding systems"
