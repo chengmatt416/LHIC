@@ -29186,3 +29186,25 @@ fatal: could not read Username for 'https://gi
 --- Cycle #85 | Task: geo-landmark-comparison | LLM=ON ---
 [2026-07-30T22:22:21+08:00] Elapsed: 0.38h | Remaining: 479.62h | SuccessRate: 95.2%
 [2026-07-30T22:22:21+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-30T22:22:27+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-30T22:22:27+08:00] 
+--- Cycle #86 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-30T22:22:27+08:00] Elapsed: 0.39h | Remaining: 479.61h | SuccessRate: 95.3%
+[2026-07-30T22:22:27+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-30T22:22:48+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to produce a JSON plan for "extraction from an infinite-scroll page...
+[2026-07-30T22:22:48+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T22:22:48+08:00] 
+--- Cycle #87 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-30T22:22:48+08:00] Elapsed: 0.39h | Remaining: 479.61h | SuccessRate: 95.3%
+[2026-07-30T22:22:48+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-30T22:23:08+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given an instruction: "Plan interaction with a modal dialog: 1) Detect mo...
+[2026-07-30T22:23:08+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T22:23:08+08:00] 
+--- Cycle #88 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-30T22:23:08+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.4%
+[2026-07-30T22:23:08+08:00] [Resilience] batch=300 seed=497 threads=20
+[2026-07-30T22:23:14+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T22:23:15+08:00] 
+--- Cycle #89 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-30T22:23:15+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.5%
+[2026-07-30T22:23:15+08:00] [Policy] 3d/star-trooper fit
