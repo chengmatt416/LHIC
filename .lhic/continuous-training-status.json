@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T10:30:44.490Z",
-  "iteration": 439,
-  "currentTask": "resilience-batch-200",
+  "lastUpdated": "2026-07-30T10:30:55.447Z",
+  "iteration": 441,
+  "currentTask": "wiki-search-agentic",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 439,
+    "completedTasks": 441,
     "progressPercent": "0.44"
   },
   "llm": {
@@ -41,15 +41,15 @@
   "stats": {
     "totalSimulations": 40,
     "totalGameFits": 20,
-    "totalPublicWebRuns": 226,
+    "totalPublicWebRuns": 227,
     "totalSlowPathPlans": 8,
-    "totalSkillCandidates": 166,
-    "rollingSuccessRate": 0.53,
+    "totalSkillCandidates": 167,
+    "rollingSuccessRate": 0.54,
     "elapsedHours": "1.48",
     "remainingHours": "478.52",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
