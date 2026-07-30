@@ -21558,3 +21558,10 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T09:28:57.673Z] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 59.0%
 [2026-07-30T09:28:57.693Z] [SlowPath] planning: slow-plan-multi-step-search — Plan a multi-step browser flow: open Wikipedia, search for 'Local Human Intent C
 [2026-07-30T09:29:04.975Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T09:29:20.716Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T09:29:20.716Z] [SlowPath] blocked: All available models failed
+[2026-07-30T09:29:20.926Z] 
+--- Cycle #142 | Task: slow-plan-mdn-deep | LLM=ON ---
+[2026-07-30T09:29:20.926Z] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 59.0%
+[2026-07-30T09:29:20.949Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
+[2026-07-30T09:29:27.412Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
