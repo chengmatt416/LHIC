@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T06:30:02+08:00",
-  "iteration": 1637,
-  "currentTask": "docs-perf-observer-chain",
+  "lastUpdated": "2026-07-31T06:31:00+08:00",
+  "iteration": 1640,
+  "currentTask": "policy-curriculum-3d",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 1637,
+    "completedTasks": 1640,
     "progressPercent": "1.64"
   },
   "llm": {
@@ -39,16 +39,16 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 303,
-    "totalGameFits": 100,
+    "totalSimulations": 305,
+    "totalGameFits": 101,
     "totalPublicWebRuns": 1325,
     "totalSlowPathPlans": 15,
     "totalSkillCandidates": 1325,
     "rollingSuccessRate": 0.88,
     "elapsedHours": "4.56",
     "remainingHours": "475.44",
-    "latestPyTorchLoss": null,
-    "latestPyTorchAccuracy": null,
+    "latestPyTorchLoss": 6.6667680740356445,
+    "latestPyTorchAccuracy": 0.6801470588235294,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20

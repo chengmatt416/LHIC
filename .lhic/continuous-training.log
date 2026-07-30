@@ -43111,3 +43111,20 @@ fatal: could not read Username for 'https://gi
 --- Cycle #1638 | Task: resilience-adversarial-50 | LLM=OFF ---
 [2026-07-31T06:30:03+08:00] Elapsed: 4.56h | Remaining: 475.44h | SuccessRate: 88.0%
 [2026-07-31T06:30:03+08:00] [Resilience] batch=50 seed=847 threads=20
+[2026-07-31T06:30:05+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T06:30:05+08:00] 
+--- Cycle #1639 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T06:30:05+08:00] Elapsed: 4.56h | Remaining: 475.44h | SuccessRate: 88.0%
+[2026-07-31T06:30:05+08:00] [Resilience] batch=150 seed=864 threads=20
+[2026-07-31T06:30:08+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T06:30:09+08:00] 
+--- Cycle #1640 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T06:30:09+08:00] Elapsed: 4.56h | Remaining: 475.44h | SuccessRate: 88.0%
+[2026-07-31T06:30:09+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T06:31:00+08:00] [Policy] loss=6.6668 accuracy=68.0%
+[2026-07-31T06:31:01+08:00] 
+--- Cycle #1641 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T06:31:01+08:00] Elapsed: 4.57h | Remaining: 475.43h | SuccessRate: 88.0%
+[2026-07-31T06:31:01+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T06:31:07+08:00] [Web] OK: wikipedia-search
+[2026-07-31T06:31:07+08:00] [Web] mdn-search "Service Worker"
