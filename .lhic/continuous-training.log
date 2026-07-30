@@ -42392,3 +42392,28 @@ fatal: could not read Username for 'https://gi
 --- Cycle #1507 | Task: chain-github-to-wiki | LLM=OFF ---
 [2026-07-31T06:08:55+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 86.0%
 [2026-07-31T06:08:55+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T06:09:02+08:00] [Web] OK: wikipedia-search
+[2026-07-31T06:09:02+08:00] 
+--- Cycle #1508 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T06:09:02+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 87.0%
+[2026-07-31T06:09:02+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T06:09:08+08:00] [Web] OK: mdn-search
+[2026-07-31T06:09:08+08:00] 
+--- Cycle #1509 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T06:09:08+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 88.0%
+[2026-07-31T06:09:08+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T06:09:14+08:00] [Web] OK: mdn-search
+[2026-07-31T06:09:15+08:00] 
+--- Cycle #1510 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T06:09:15+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 88.0%
+[2026-07-31T06:09:15+08:00] [Resilience] batch=50 seed=671 threads=20
+[2026-07-31T06:09:16+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T06:09:17+08:00] 
+--- Cycle #1511 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T06:09:17+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 88.0%
+[2026-07-31T06:09:17+08:00] [Resilience] batch=150 seed=688 threads=20
+[2026-07-31T06:09:20+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T06:09:20+08:00] 
+--- Cycle #1512 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T06:09:20+08:00] Elapsed: 4.21h | Remaining: 475.79h | SuccessRate: 88.0%
+[2026-07-31T06:09:20+08:00] [Policy] 3d/epic-shooter-3d fit
