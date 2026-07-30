@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T23:38:57+08:00",
   "targetEndTime": "2026-08-19T23:38:57+08:00",
-  "lastUpdated": "2026-07-31T00:06:55+08:00",
-  "iteration": 101,
-  "currentTask": "form-multi-step-registration",
+  "lastUpdated": "2026-07-31T00:16:03+08:00",
+  "iteration": 139,
+  "currentTask": "policy-curriculum-3d",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 101,
-    "progressPercent": "0.10"
+    "completedTasks": 139,
+    "progressPercent": "0.14"
   },
   "llm": {
     "models": [
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 472,
+        "ok": 491,
         "fail": 160,
         "rateLimit": 0
       },
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 9,
-    "totalGameFits": 3,
-    "totalPublicWebRuns": 67,
-    "totalSlowPathPlans": 48,
-    "totalSkillCandidates": 67,
-    "rollingSuccessRate": 0.94,
-    "elapsedHours": "0.46",
-    "remainingHours": "479.54",
+    "totalSimulations": 14,
+    "totalGameFits": 4,
+    "totalPublicWebRuns": 89,
+    "totalSlowPathPlans": 67,
+    "totalSkillCandidates": 89,
+    "rollingSuccessRate": 0.93,
+    "elapsedHours": "0.61",
+    "remainingHours": "479.39",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
