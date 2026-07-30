@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:05:45.665Z",
-  "iteration": 16,
-  "currentTask": "github-open-bugs",
+  "lastUpdated": "2026-07-30T09:05:56.939Z",
+  "iteration": 19,
+  "currentTask": "osm-central-park",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 16,
+    "completedTasks": 19,
     "progressPercent": "0.02"
   },
   "llm": {
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 12,
     "totalSlowPathPlans": 1,
     "totalSkillCandidates": 9,
-    "rollingSuccessRate": 0.75,
+    "rollingSuccessRate": 0.631578947368421,
     "elapsedHours": "0.06",
     "remainingHours": "479.94",
     "latestPyTorchLoss": null,
