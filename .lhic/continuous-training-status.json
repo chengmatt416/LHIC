@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T12:17:37.986Z",
-  "iteration": 184,
-  "currentTask": "mdn-performance-observer",
+  "lastUpdated": "2026-07-30T12:18:02.096Z",
+  "iteration": 185,
+  "currentTask": "slow-plan-multi-step-search",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 184,
+    "completedTasks": 185,
     "progressPercent": "0.18"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 55,
+        "ok": 56,
         "fail": 160,
         "rateLimit": 0
       },
@@ -41,9 +41,9 @@
   "stats": {
     "totalSimulations": 16,
     "totalGameFits": 8,
-    "totalPublicWebRuns": 160,
-    "totalSlowPathPlans": 40,
-    "totalSkillCandidates": 136,
+    "totalPublicWebRuns": 161,
+    "totalSlowPathPlans": 41,
+    "totalSkillCandidates": 137,
     "rollingSuccessRate": 0.95,
     "elapsedHours": "0.62",
     "remainingHours": "479.38",
