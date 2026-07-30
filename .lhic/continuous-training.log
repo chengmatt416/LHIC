@@ -24915,3 +24915,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:29:25.368Z] Elapsed: 0.02h | Remaining: 479.98h | SuccessRate: 88.9%
 [2026-07-30T11:29:25.390Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
 [2026-07-30T11:29:32.674Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:29:48.738Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:29:48.738Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:29:48.952Z] 
+--- Cycle #11 | Task: slow-plan-form-recovery | LLM=ON ---
+[2026-07-30T11:29:48.952Z] Elapsed: 0.03h | Remaining: 479.97h | SuccessRate: 80.0%
+[2026-07-30T11:29:48.972Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
