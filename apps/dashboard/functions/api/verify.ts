@@ -1,12 +1,22 @@
 interface Env {
   LHIC_PIN_HASH: string;
   LHIC_SESSION_SECRET: string;
+  LHIC_KV: KVNamespace;
 }
 
-const STORED_PIN_HASH_FALLALL =
+const STORED_PIN_HASH_DEFAULT =
   "158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab";
 
 const attempts = new Map<string, { count: number; ts: number }>();
+
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Pragma": "no-cache",
+};
 
 export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const ip =
@@ -17,12 +27,9 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const record = attempts.get(ip);
   const now = Date.now();
   if (record && now - record.ts < 60000 && record.count >= 5) {
-    return Response.json(
-      {
-        success: false,
-        error: "Too many attempts. Try again in 60 seconds.",
-      },
-      { status: 429 }
+    return new Response(
+      JSON.stringify({ success: false, error: "Too many attempts. Try again in 60 seconds." }),
+      { status: 429, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
     );
   }
 
@@ -31,20 +38,39 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     const body = (await ctx.request.json()) as { pinHash?: string };
     pinHash = body.pinHash;
   } catch {
-    return Response.json(
-      { success: false, error: "Invalid JSON body." },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid JSON body." }),
+      { status: 400, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
     );
   }
 
   if (!pinHash || typeof pinHash !== "string" || pinHash.length !== 64) {
-    return Response.json(
-      { success: false, error: "Invalid PIN hash format." },
-      { status: 400 }
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid PIN hash format." }),
+      { status: 400, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
     );
   }
 
-  const storedHash = ctx.env.LHIC_PIN_HASH || STORED_PIN_HASH_FALLALL;
+  // Validate hex format to prevent injection
+  if (!/^[0-9a-f]{64}$/.test(pinHash)) {
+    return new Response(
+      JSON.stringify({ success: false, error: "PIN hash must be lowercase hex." }),
+      { status: 400, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
+    );
+  }
+
+  // Get stored hash: KV first, then env, then default
+  let storedHash = STORED_PIN_HASH_DEFAULT;
+  try {
+    const kvHash = await ctx.env.LHIC_KV?.get("pin-hash");
+    if (kvHash) {
+      storedHash = kvHash;
+    } else {
+      storedHash = ctx.env.LHIC_PIN_HASH || STORED_PIN_HASH_DEFAULT;
+    }
+  } catch {
+    storedHash = ctx.env.LHIC_PIN_HASH || STORED_PIN_HASH_DEFAULT;
+  }
 
   // Timing-safe comparison
   const a = new TextEncoder().encode(pinHash);
@@ -64,12 +90,9 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
       prev.count++;
     }
     const remaining = Math.max(0, 5 - (attempts.get(ip)?.count ?? 1));
-    return Response.json(
-      {
-        success: false,
-        error: `Invalid PIN. ${remaining} attempt(s) remaining.`,
-      },
-      { status: 401 }
+    return new Response(
+      JSON.stringify({ success: false, error: `Invalid PIN. ${remaining} attempt(s) remaining.` }),
+      { status: 401, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
     );
   }
 
@@ -78,7 +101,6 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
   const secret = ctx.env.LHIC_SESSION_SECRET || "lhic-session-secret-32bytes-fill";
   const sessionData = `${ip}:${now}`;
 
-  // HMAC-SHA256 using Web Crypto
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -91,19 +113,20 @@ export const onRequestPost: PagesFunction<Env> = async (ctx) => {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  return Response.json({
-    success: true,
-    token,
-    expiresAt: now + 3600000,
-  });
+  return new Response(
+    JSON.stringify({ success: true, token, expiresAt: now + 3600000 }),
+    { status: 200, headers: { "Content-Type": "application/json", ...SECURITY_HEADERS } }
+  );
 };
 
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://lhic-dashboard.pages.dev",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+      ...SECURITY_HEADERS,
     },
   });
 };

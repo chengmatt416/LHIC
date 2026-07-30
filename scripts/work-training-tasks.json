@@ -1,235 +1,354 @@
 {
-  "version": 1,
-  "description": "Practical work-training task suite for LHIC Fast/Slow Path skill acquisition",
+  "version": 2,
+  "description": "Complex multi-step training suite for LHIC Fast/Slow Path skill acquisition — v2 with chained workflows, error recovery, and cross-site reasoning",
   "categories": {
-    "search": "Public information retrieval",
-    "docs": "Developer documentation navigation",
-    "project": "Issue tracking and repo navigation",
-    "geo": "Maps and place search",
-    "commerce": "Product discovery flows",
-    "interaction": "Form fill and multi-step UI",
-    "navigation": "Multi-page and tab flows",
-    "dynamic": "Lazy load and scroll content",
-    "planning": "Slow Path LLM complex planning",
-    "resilience": "Selector resilience benchmarks",
-    "policy": "Game policy neural training"
+    "search-chain": "Multi-hop search: result from step N feeds query for step N+1",
+    "docs-deep": "Deep documentation traversal with verification gates",
+    "project-triage": "GitHub issue analysis with cross-reference and resolution planning",
+    "geo-routing": "Multi-waypoint geographic navigation with constraint solving",
+    "form-wizard": "Multi-step form flows with validation, rollback, and recovery",
+    "dynamic-extract": "Lazy-loaded content extraction with scroll and wait strategies",
+    "planning-complex": "Slow Path multi-stage planning with branching decisions",
+    "resilience-adversarial": "Adversarial selector mutation with recovery benchmarking",
+    "policy-advanced": "Multi-profile neural policy training with curriculum learning",
+    "skill-composition": "Chained skill execution: output of one skill seeds the next",
+    "error-recovery": "Intentional failure injection with automated recovery",
+    "cross-modal": "Web + API + local file cross-modal data fusion"
   },
   "tasks": [
     {
-      "id": "wiki-search-agentic",
-      "category": "search",
+      "id": "chain-wiki-to-mdn",
+      "category": "search-chain",
       "type": "public-web",
       "scenario": "wikipedia-search",
-      "query": "Agentic coding systems",
-      "goal": "Find and verify Wikipedia search results for agentic coding",
+      "query": "Web Component",
+      "goal": "Step 1: Search Wikipedia for 'Web Component', extract the first heading. Step 2: Use that heading as a query for MDN search. Verify both results returned non-empty.",
       "priority": 1,
-      "usesLlm": false
+      "usesLlm": false,
+      "chain": {
+        "nextTask": "chain-mdn-to-github",
+        "extractField": "firstHeading",
+        "passAs": "query"
+      }
     },
     {
-      "id": "wiki-search-automation",
-      "category": "search",
-      "type": "public-web",
-      "scenario": "wikipedia-search",
-      "query": "Deterministic computer automation",
-      "goal": "Search Wikipedia for automation concepts",
-      "priority": 1,
-      "usesLlm": false
-    },
-    {
-      "id": "wiki-search-verifier",
-      "category": "search",
-      "type": "public-web",
-      "scenario": "wikipedia-search",
-      "query": "Software testing verification",
-      "goal": "Search Wikipedia for verification concepts",
-      "priority": 1,
-      "usesLlm": false
-    },
-    {
-      "id": "wiki-search-playwright",
-      "category": "search",
-      "type": "public-web",
-      "scenario": "wikipedia-search",
-      "query": "Browser automation",
-      "goal": "Search Wikipedia for browser automation",
-      "priority": 1,
-      "usesLlm": false
-    },
-    {
-      "id": "mdn-mutation-observer",
-      "category": "docs",
+      "id": "chain-mdn-to-github",
+      "category": "search-chain",
       "type": "public-web",
       "scenario": "mdn-search",
-      "query": "MutationObserver",
-      "goal": "Locate MDN MutationObserver documentation",
+      "query": "Shadow DOM",
+      "goal": "Step 1: Search MDN for 'Shadow DOM', extract the first result URL. Step 2: Search GitHub issues mentioning that URL. Verify cross-reference found.",
+      "priority": 1,
+      "usesLlm": false,
+      "chain": {
+        "nextTask": "chain-github-to-wiki",
+        "extractField": "firstResultUrl",
+        "passAs": "query"
+      }
+    },
+    {
+      "id": "chain-github-to-wiki",
+      "category": "search-chain",
+      "type": "public-web",
+      "scenario": "wikipedia-search",
+      "query": "Polyfill",
+      "goal": "Step 1: Search GitHub for issues about polyfills. Step 2: Search Wikipedia for the top mentioned concept. Verify both chains complete.",
       "priority": 1,
       "usesLlm": false
     },
     {
-      "id": "mdn-intersection-observer",
-      "category": "docs",
+      "id": "docs-accessibility-tree",
+      "category": "docs-deep",
       "type": "public-web",
       "scenario": "mdn-search",
-      "query": "IntersectionObserver",
-      "goal": "Locate MDN IntersectionObserver documentation",
+      "query": "Accessibility tree",
+      "goal": "Navigate MDN accessibility tree docs: find the page, locate the 'Roles' section, extract the first 3 ARIA role names listed. Verify they match known ARIA roles.",
       "priority": 1,
-      "usesLlm": false
+      "usesLlm": false,
+      "verification": {
+        "type": "contains",
+        "expectedRoles": ["alert", "button", "checkbox", "dialog", "grid", "link", "menu", "navigation", "tab"]
+      }
     },
     {
-      "id": "mdn-raf",
-      "category": "docs",
-      "type": "public-web",
-      "scenario": "mdn-search",
-      "query": "requestAnimationFrame",
-      "goal": "Locate MDN requestAnimationFrame docs",
-      "priority": 1,
-      "usesLlm": false
-    },
-    {
-      "id": "mdn-performance-observer",
-      "category": "docs",
+      "id": "docs-perf-observer-chain",
+      "category": "docs-deep",
       "type": "public-web",
       "scenario": "mdn-search",
       "query": "PerformanceObserver",
-      "goal": "Locate MDN PerformanceObserver docs",
+      "goal": "Find PerformanceObserver docs, extract the list of supported entry types, then search Wikipedia for the first entry type to find its specification origin.",
       "priority": 1,
-      "usesLlm": false
+      "usesLlm": false,
+      "chain": {
+        "nextTask": "docs-entry-type-wiki",
+        "extractField": "firstEntryType",
+        "passAs": "query"
+      }
     },
     {
-      "id": "github-open-bugs",
-      "category": "project",
+      "id": "docs-entry-type-wiki",
+      "category": "docs-deep",
       "type": "public-web",
-      "scenario": "github-issue-filter",
-      "query": "is:open label:bug",
-      "goal": "Filter GitHub issues by open bugs",
+      "scenario": "wikipedia-search",
+      "query": "Navigation Timing",
+      "goal": "Search Wikipedia for the PerformanceObserver entry type extracted from previous step. Verify article exists.",
       "priority": 2,
       "usesLlm": false
     },
     {
-      "id": "github-enhancements",
-      "category": "project",
-      "type": "public-web",
-      "scenario": "github-issue-filter",
-      "query": "is:open label:enhancement",
-      "goal": "Filter GitHub issues by enhancements",
-      "priority": 2,
-      "usesLlm": false
-    },
-    {
-      "id": "osm-taipei",
-      "category": "geo",
-      "type": "public-web",
-      "scenario": "openstreetmap-place-search",
-      "query": "Taipei 101",
-      "goal": "Search OpenStreetMap for Taipei 101",
-      "priority": 2,
-      "usesLlm": false
-    },
-    {
-      "id": "osm-central-park",
-      "category": "geo",
-      "type": "public-web",
-      "scenario": "openstreetmap-place-search",
-      "query": "Central Park New York",
-      "goal": "Search OpenStreetMap for Central Park",
-      "priority": 2,
-      "usesLlm": false
-    },
-    {
-      "id": "slow-plan-multi-step-search",
-      "category": "planning",
+      "id": "triage-bug-escalation",
+      "category": "project-triage",
       "type": "slow-path-plan",
-      "goal": "Plan a multi-step browser flow: open Wikipedia, search for 'Local Human Intent Controller', open first result, extract title",
+      "goal": "Plan a GitHub issue triage flow: 1) List open bugs sorted by creation date, 2) For each bug, check if it has been referenced in commits, 3) Escalate bugs older than 7 days with no activity, 4) Generate a summary report of escalation candidates.",
+      "priority": 1,
+      "usesLlm": true,
+      "scenario": "github-issue-filter",
+      "query": "is:open label:bug sort:created-asc",
+      "reason": "multi_step_triage"
+    },
+    {
+      "id": "triage-cross-reference",
+      "category": "project-triage",
+      "type": "slow-path-plan",
+      "goal": "Plan cross-referencing GitHub issues with pull requests: find issues that mention PR numbers, check if those PRs are merged, close issues that are resolved.",
+      "priority": 1,
+      "usesLlm": true,
+      "scenario": "github-issue-filter",
+      "query": "is:open is:issue",
+      "reason": "cross_reference_analysis"
+    },
+    {
+      "id": "geo-multi-stop-route",
+      "category": "geo-routing",
+      "type": "public-web",
+      "scenario": "openstreetmap-place-search",
+      "query": "Taipei Main Station",
+      "goal": "Plan a 3-stop route: 1) Find Taipei Main Station on OSM, 2) Find the nearest MRT station, 3) Find a restaurant within 500m. Extract coordinates for each.",
+      "priority": 2,
+      "usesLlm": false,
+      "chain": {
+        "stops": ["Taipei Main Station", "Nearest MRT", "Nearby restaurant"],
+        "extractField": "coordinates"
+      }
+    },
+    {
+      "id": "geo-landmark-comparison",
+      "category": "geo-routing",
+      "type": "public-web",
+      "scenario": "openstreetmap-place-search",
+      "query": "Eiffel Tower",
+      "goal": "Search OSM for Eiffel Tower, then search for its coordinates, then search Wikipedia for its height. Cross-verify the data is consistent.",
+      "priority": 2,
+      "usesLlm": false
+    },
+    {
+      "id": "form-multi-step-registration",
+      "category": "form-wizard",
+      "type": "slow-path-plan",
+      "goal": "Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dropdown, 3) Accept terms checkbox, 4) Submit and verify confirmation. Include rollback if step 3 validation fails.",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "form_validation_complex"
+    },
+    {
+      "id": "form-error-recovery",
+      "category": "form-wizard",
+      "type": "slow-path-plan",
+      "goal": "Plan recovery for a form that rejected input: 1) Identify which field failed, 2) Parse error message, 3) Propose corrected input, 4) Re-submit with corrected values.",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "form_error_recovery"
+    },
+    {
+      "id": "dynamic-infinite-scroll",
+      "category": "dynamic-extract",
+      "type": "slow-path-plan",
+      "goal": "Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy load, 2) Wait for new DOM nodes, 3) Extract data from loaded items, 4) Continue scrolling until 50 items collected, 5) Deduplicate results.",
+      "priority": 2,
+      "usesLlm": true,
+      "reason": "dynamic_content_strategy"
+    },
+    {
+      "id": "dynamic-modal-interaction",
+      "category": "dynamic-extract",
+      "type": "slow-path-plan",
+      "goal": "Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close button, 3) Extract modal content, 4) Decide action based on content, 5) Close modal and verify return to main page.",
+      "priority": 2,
+      "usesLlm": true,
+      "reason": "modal_state_machine"
+    },
+    {
+      "id": "plan-wikipedia-deep-dive",
+      "category": "planning-complex",
+      "type": "slow-path-plan",
+      "goal": "Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Open article, 3) Follow internal link to 'CAP theorem', 4) Extract the 3 properties, 5) Search for each property on MDN to find implementation patterns.",
       "priority": 1,
       "usesLlm": true,
       "scenario": "wikipedia-search",
-      "query": "Local Human Intent Controller"
+      "query": "Distributed systems",
+      "reason": "multi_hop_research"
     },
     {
-      "id": "slow-plan-mdn-deep",
-      "category": "planning",
+      "id": "plan-cross-site-verification",
+      "category": "planning-complex",
       "type": "slow-path-plan",
-      "goal": "Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verify heading",
+      "goal": "Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN for 'HTTP', 3) Compare the descriptions, 4) Identify discrepancies, 5) Generate a reconciliation report.",
       "priority": 1,
       "usesLlm": true,
-      "scenario": "mdn-search",
-      "query": "ARIA roles"
+      "scenario": "wikipedia-search",
+      "query": "HTTP protocol",
+      "reason": "cross_site_verification"
     },
     {
-      "id": "slow-plan-form-recovery",
-      "category": "planning",
+      "id": "plan-api-then-browser",
+      "category": "planning-complex",
       "type": "slow-path-plan",
-      "goal": "Given a failed form submit verification, propose recovery actions with alternative selectors",
+      "goal": "Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the response for issue count, 3) Open the repo in browser, 4) Navigate to issues tab, 5) Verify API count matches browser display.",
       "priority": 1,
       "usesLlm": true,
-      "reason": "verification_failed"
+      "reason": "hybrid_api_browser"
     },
     {
-      "id": "slow-plan-complex-nav",
-      "category": "planning",
-      "type": "slow-path-plan",
-      "goal": "Plan complex navigation across public docs site with low confidence stage classification",
-      "priority": 1,
-      "usesLlm": true,
-      "reason": "low_confidence",
-      "scenario": "mdn-search",
-      "query": "CSS selectors"
-    },
-    {
-      "id": "slow-plan-github-triage",
-      "category": "planning",
-      "type": "slow-path-plan",
-      "goal": "Plan GitHub issue triage: filter open bugs, sort by recently updated, open first issue",
-      "priority": 2,
-      "usesLlm": true,
-      "scenario": "github-issue-filter",
-      "query": "is:open label:bug sort:updated-desc"
-    },
-    {
-      "id": "resilience-batch-100",
-      "category": "resilience",
+      "id": "resilience-adversarial-50",
+      "category": "resilience-adversarial",
       "type": "resilience-sim",
-      "goal": "Run 100-task selector resilience simulation",
+      "goal": "Run 50-task adversarial resilience simulation with aggressive selector mutations",
       "priority": 1,
       "usesLlm": false,
-      "batchSize": 100
+      "batchSize": 50
     },
     {
-      "id": "resilience-batch-200",
-      "category": "resilience",
+      "id": "resilience-adversarial-150",
+      "category": "resilience-adversarial",
       "type": "resilience-sim",
-      "goal": "Run 200-task selector resilience simulation under load",
+      "goal": "Run 150-task resilience simulation testing selector recovery under high mutation rate",
+      "priority": 1,
+      "usesLlm": false,
+      "batchSize": 150
+    },
+    {
+      "id": "resilience-adversarial-300",
+      "category": "resilience-adversarial",
+      "type": "resilience-sim",
+      "goal": "Run 300-task stress resilience simulation with cascading selector failures",
       "priority": 2,
       "usesLlm": false,
-      "batchSize": 200
+      "batchSize": 300
     },
     {
-      "id": "policy-3d-fit",
-      "category": "policy",
+      "id": "policy-curriculum-3d",
+      "category": "policy-advanced",
       "type": "game-fit",
-      "goal": "Record and fit 3D shooter behavior cloning policy",
+      "goal": "Record and fit 3D shooter policy with curriculum learning (easy→medium→hard scenarios)",
       "priority": 1,
       "usesLlm": false,
       "profile": "epic-shooter-3d",
       "core": "3d"
     },
     {
-      "id": "policy-star-trooper-fit",
-      "category": "policy",
+      "id": "policy-curriculum-star",
+      "category": "policy-advanced",
       "type": "game-fit",
-      "goal": "Record and fit star-trooper behavior cloning policy",
+      "goal": "Record and fit star-trooper policy with progressive difficulty scaling",
       "priority": 2,
       "usesLlm": false,
       "profile": "star-trooper",
       "core": "3d"
     },
     {
-      "id": "skill-holdout-eval",
-      "category": "search",
-      "type": "skill-holdout",
-      "goal": "Re-run top skill candidates for holdout verification promotion",
+      "id": "policy-nemesis-advanced",
+      "category": "policy-advanced",
+      "type": "game-fit",
+      "goal": "Record and fit nemesis policy with multi-seed validation",
+      "priority": 2,
+      "usesLlm": false,
+      "profile": "nemesis",
+      "core": "3d"
+    },
+    {
+      "id": "skill-chain-wiki-mdn-github",
+      "category": "skill-composition",
+      "type": "skill-chain",
+      "goal": "Execute skill chain: Wikipedia search → extract topic → MDN search for that topic → extract API name → GitHub search for API usage examples. Verify all 3 steps produce results.",
       "priority": 1,
-      "usesLlm": false
+      "usesLlm": false,
+      "chainSteps": [
+        { "scenario": "wikipedia-search", "query": "Service Worker" },
+        { "scenario": "mdn-search", "query": "Service Worker API" },
+        { "scenario": "github-issue-filter", "query": "service worker bug" }
+      ]
+    },
+    {
+      "id": "skill-chain-docs-to-code",
+      "category": "skill-composition",
+      "type": "skill-chain",
+      "goal": "Execute skill chain: MDN docs lookup → extract function signature → search Wikipedia for algorithm behind it → verify mathematical basis.",
+      "priority": 1,
+      "usesLlm": false,
+      "chainSteps": [
+        { "scenario": "mdn-search", "query": "Web Crypto API" },
+        { "scenario": "wikipedia-search", "query": "AES encryption" }
+      ]
+    },
+    {
+      "id": "recovery-network-timeout",
+      "category": "error-recovery",
+      "type": "slow-path-plan",
+      "goal": "Plan recovery for network timeout during browser automation: 1) Detect timeout error, 2) Check if page partially loaded, 3) Retry with exponential backoff, 4) If 3 retries fail, fallback to cached data, 5) Log recovery metrics.",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "network_recovery"
+    },
+    {
+      "id": "recovery-stale-element",
+      "category": "error-recovery",
+      "type": "slow-path-plan",
+      "goal": "Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-locate element using alternative selector, 3) Verify element state matches expected, 4) Resume action from checkpoint.",
+      "priority": 1,
+      "usesLlm": true,
+      "reason": "stale_element_recovery"
+    },
+    {
+      "id": "recovery-session-expired",
+      "category": "error-recovery",
+      "type": "slow-path-plan",
+      "goal": "Plan recovery for expired session during multi-step flow: 1) Detect 401/403 response, 2) Store current progress, 3) Re-authenticate, 4) Restore progress, 5) Resume from last checkpoint.",
+      "priority": 2,
+      "usesLlm": true,
+      "reason": "session_recovery"
+    },
+    {
+      "id": "crossmodal-api-plus-web",
+      "category": "cross-modal",
+      "type": "slow-path-plan",
+      "goal": "Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Open repo page in browser, 3) Compare API data with rendered page, 4) Identify any data not shown on web UI, 5) Generate unified report.",
+      "priority": 1,
+      "usesLlm": true,
+      "scenario": "github-issue-filter",
+      "query": "is:open",
+      "reason": "cross_modal_fusion"
+    },
+    {
+      "id": "crossmodal-wiki-then-osm",
+      "category": "cross-modal",
+      "type": "slow-path-plan",
+      "goal": "Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of China', 2) Extract geographic coordinates from infobox, 3) Search OSM for those coordinates, 4) Verify the wall segment exists on the map.",
+      "priority": 2,
+      "usesLlm": true,
+      "scenario": "openstreetmap-place-search",
+      "query": "Great Wall of China",
+      "reason": "wiki_to_geo_bridge"
+    },
+    {
+      "id": "crossmodal-mdn-to-wiki-spec",
+      "category": "cross-modal",
+      "type": "slow-path-plan",
+      "goal": "Plan specification cross-reference: 1) Search MDN for 'WebSocket', 2) Extract the RFC number mentioned, 3) Search Wikipedia for that RFC, 4) Verify the protocol name matches.",
+      "priority": 2,
+      "usesLlm": true,
+      "scenario": "mdn-search",
+      "query": "WebSocket",
+      "reason": "spec_cross_reference"
     }
   ]
 }

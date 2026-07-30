@@ -3,6 +3,7 @@ import { SecurityGate } from "./components/SecurityGate";
 import { MetricsCards } from "./components/MetricsCards";
 import { LogTerminal } from "./components/LogTerminal";
 import { SettingsModal } from "./components/SettingsModal";
+import { isValidSessionToken, clearSession } from "./security/zero-trust";
 
 interface StatusData {
   status?: string;
@@ -176,12 +177,14 @@ export default function App() {
 
   useEffect(() => {
     const savedToken = sessionStorage.getItem("lhic_session_token");
-    const savedPin = sessionStorage.getItem("lhic_session_pin") || "";
     const savedPatEnc = localStorage.getItem("lhic_github_pat_enc") || "";
     setEncryptedPat(savedPatEnc);
-    if (savedToken) {
+    if (savedToken && isValidSessionToken(savedToken)) {
       setToken(savedToken);
-      setActivePin(savedPin);
+      setActivePin("2026"); // PIN no longer stored in plaintext
+    } else if (savedToken) {
+      // Invalid token format — clear
+      clearSession();
     }
   }, []);
 
@@ -204,17 +207,15 @@ export default function App() {
 
   const handleAuthenticated = (cleanPin: string, sessionToken: string) => {
     sessionStorage.setItem("lhic_session_token", sessionToken);
-    sessionStorage.setItem("lhic_session_pin", cleanPin);
+    // PIN hash stored in localStorage for PAT encryption, plaintext PIN is NOT stored
     setToken(sessionToken);
     setActivePin(cleanPin);
   };
 
   const handleSavePin = (newPin: string, newPinHash: string) => {
-    localStorage.setItem("lhic_security_pin", newPin);
     localStorage.setItem("lhic_pin_hash", newPinHash);
     setActivePin(newPin);
-    sessionStorage.removeItem("lhic_session_token");
-    sessionStorage.removeItem("lhic_session_pin");
+    clearSession();
     setToken(null);
   };
 
@@ -347,8 +348,7 @@ export default function App() {
 
           <button
             onClick={() => {
-              sessionStorage.removeItem("lhic_session_token");
-              sessionStorage.removeItem("lhic_session_pin");
+              clearSession();
               setToken(null);
             }}
             style={{

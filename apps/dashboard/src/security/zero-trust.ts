@@ -42,10 +42,75 @@ export async function encryptSecret(
   };
 }
 
+export async function decryptSecret(
+  ciphertextHex: string,
+  ivHex: string,
+  passKey: string
+): Promise<string | null> {
+  try {
+    const encoder = new TextEncoder();
+    const passKeyData = encoder.encode(passKey.padStart(32, "0").slice(0, 32));
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      passKeyData,
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"]
+    );
+
+    const ciphertext = hexToBytes(ciphertextHex);
+    const iv = hexToBytes(ivHex);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      cryptoKey,
+      ciphertext
+    );
+
+    return new TextDecoder().decode(decrypted);
+  } catch {
+    return null;
+  }
+}
+
+function hexToBytes(hex: string): ArrayBuffer {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+  }
+  return bytes.buffer;
+}
+
 export function sanitizeInput(input: string, maxLength = 256): string {
   if (typeof input !== "string") return "";
   return input
     .slice(0, maxLength)
     .replace(/[<>'"&]/g, "")
     .trim();
+}
+
+/**
+ * Validate session token format (64-char hex HMAC).
+ * Server-side expiry is enforced; this is client-side format check.
+ */
+export function isValidSessionToken(token: string | null): boolean {
+  if (!token || typeof token !== "string") return false;
+  return /^[0-9a-f]{64}$/.test(token);
+}
+
+/**
+ * Securely clear all session data from storage.
+ */
+export function clearSession(): void {
+  sessionStorage.removeItem("lhic_session_token");
+  sessionStorage.removeItem("lhic_session_pin");
+  sessionStorage.removeItem("lhic_session_expiry");
+}
+
+/**
+ * Get stored session PIN hash (never plaintext).
+ */
+export function getStoredPinHash(): string | null {
+  return localStorage.getItem("lhic_pin_hash");
 }

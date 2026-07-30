@@ -438,6 +438,21 @@ function runPublicWeb(scenario, query) {
   return { status: "note", scenario, query, detail: res.output.slice(0, 200) };
 }
 
+// Run a chain of web skills sequentially — each step's result seeds the next
+function runSkillChain(chainSteps) {
+  if (!Array.isArray(chainSteps) || chainSteps.length === 0) return [];
+  const results = [];
+  let lastQuery = null;
+  for (const step of chainSteps) {
+    const q = lastQuery || step.query;
+    const r = runPublicWeb(step.scenario, q);
+    results.push({ ...r, step: step.scenario });
+    lastQuery = r.status === "verified" ? q : lastQuery;
+    if (r.status !== "verified") break; // chain broken
+  }
+  return results;
+}
+
 async function runSlowPathPlan(llm, task) {
   log(`[SlowPath] planning: ${task.id} — ${task.goal.slice(0, 80)}`);
   const result = await llm.plan(task.goal, {
@@ -697,6 +712,25 @@ while (Date.now() < END_TIME) {
       iterationResult.steps.holdout = ok > 0 ? "success" : "failed";
       totalPublicWebRuns += ok;
       recordOutcome(ok > 0);
+    } else if (task.type === "skill-chain") {
+      // Chained web skill execution
+      const chainResults = runSkillChain(task.chainSteps || []);
+      const ok = chainResults.filter((r) => r.status === "verified").length;
+      iterationResult.skillChain = { results: chainResults, ok, total: chainResults.length };
+      iterationResult.steps.skillChain = ok > 0 ? "success" : "failed";
+      totalPublicWebRuns += ok;
+      totalSkillCandidates += ok;
+      recordOutcome(ok > 0);
+      if (ok > 0) {
+        artifacts.writeSkillCandidates({
+          iteration,
+          task: task.id,
+          category: task.category,
+          query: task.chainSteps?.map((s) => s.query).join(" → ") || "",
+          status: "verified",
+          chainSteps: ok,
+        });
+      }
     }
   } catch (err) {
     log(`[ERR] ${err.message}`);

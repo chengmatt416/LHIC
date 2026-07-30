@@ -3,5 +3,11 @@
   "name": "lhic-dashboard",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2025-01-01",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "LHIC_KV",
+      "id": "51c6b5ead470459a84b2f2e25324d535"
+    }
+  ]
 }
