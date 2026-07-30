@@ -27858,3 +27858,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #245 | Task: policy-nemesis-advanced | LLM=ON ---
 [2026-07-30T13:25:58.671Z] Elapsed: 1.05h | Remaining: 478.95h | SuccessRate: 92.0%
 [2026-07-30T13:25:58.692Z] [Policy] 3d/nemesis fit
+[2026-07-30T13:26:02.720Z] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-30T13:26:02.935Z] 
+--- Cycle #246 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-30T13:26:02.936Z] Elapsed: 1.05h | Remaining: 478.95h | SuccessRate: 91.0%
+[2026-07-30T13:26:02.957Z] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
