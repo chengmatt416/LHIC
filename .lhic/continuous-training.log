@@ -28802,3 +28802,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #22 | Task: geo-multi-stop-route | LLM=ON ---
 [2026-07-30T22:05:18+08:00] Elapsed: 0.10h | Remaining: 479.90h | SuccessRate: 100.0%
 [2026-07-30T22:05:18+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-30T22:05:23+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-30T22:05:23+08:00] 
+--- Cycle #23 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-30T22:05:23+08:00] Elapsed: 0.10h | Remaining: 479.90h | SuccessRate: 100.0%
+[2026-07-30T22:05:23+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
