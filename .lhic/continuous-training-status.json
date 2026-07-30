@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T12:23:07.674Z",
   "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T12:41:14.585Z",
-  "iteration": 69,
-  "currentTask": "triage-cross-reference",
+  "lastUpdated": "2026-07-30T12:41:33.351Z",
+  "iteration": 70,
+  "currentTask": "form-multi-step-registration",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 69,
+    "completedTasks": 70,
     "progressPercent": "0.07"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 95,
+        "ok": 96,
         "fail": 160,
         "rateLimit": 0
       },
@@ -42,11 +42,11 @@
     "totalSimulations": 6,
     "totalGameFits": 2,
     "totalPublicWebRuns": 47,
-    "totalSlowPathPlans": 32,
+    "totalSlowPathPlans": 33,
     "totalSkillCandidates": 47,
-    "rollingSuccessRate": 0.9420289855072463,
-    "elapsedHours": "0.29",
-    "remainingHours": "479.71",
+    "rollingSuccessRate": 0.9428571428571428,
+    "elapsedHours": "0.30",
+    "remainingHours": "479.70",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
