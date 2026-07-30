@@ -1,15 +1,15 @@
 {
   "status": "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
   "targetDurationDays": 20,
-  "startTime": "2026-07-30T21:59:19+08:00",
-  "targetEndTime": "2026-08-19T21:59:19+08:00",
-  "lastUpdated": "2026-07-30T23:22:10+08:00",
-  "iteration": 315,
-  "currentTask": "docs-perf-observer-chain",
+  "startTime": "2026-07-30T23:38:57+08:00",
+  "targetEndTime": "2026-08-19T23:38:57+08:00",
+  "lastUpdated": "2026-07-31T00:02:29+08:00",
+  "iteration": 81,
+  "currentTask": "recovery-stale-element",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 315,
-    "progressPercent": "0.32"
+    "completedTasks": 81,
+    "progressPercent": "0.08"
   },
   "llm": {
     "models": [
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 393,
+        "ok": 463,
         "fail": 160,
         "rateLimit": 0
       },
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 30,
-    "totalGameFits": 10,
-    "totalPublicWebRuns": 205,
-    "totalSlowPathPlans": 150,
-    "totalSkillCandidates": 205,
-    "rollingSuccessRate": 0.94,
-    "elapsedHours": "1.38",
-    "remainingHours": "478.62",
+    "totalSimulations": 8,
+    "totalGameFits": 3,
+    "totalPublicWebRuns": 54,
+    "totalSlowPathPlans": 39,
+    "totalSkillCandidates": 54,
+    "rollingSuccessRate": 0.9506172839506173,
+    "elapsedHours": "0.39",
+    "remainingHours": "479.61",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
