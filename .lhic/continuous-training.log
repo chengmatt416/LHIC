@@ -22859,3 +22859,18 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T10:15:56.063Z] [Web] mdn-search "querySelector"
 [2026-07-30T10:16:02.021Z] [Web] OK: mdn-search
 [2026-07-30T10:16:02.021Z] [Web] wikipedia-search "Neural network"
+[2026-07-30T10:16:08.049Z] [Web] OK: wikipedia-search
+[2026-07-30T10:16:08.263Z] 
+--- Cycle #368 | Task: github-open-bugs | LLM=ON ---
+[2026-07-30T10:16:08.264Z] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 58.0%
+[2026-07-30T10:16:08.284Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T10:16:11.783Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:16:11.993Z] 
+--- Cycle #369 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T10:16:11.994Z] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 57.0%
+[2026-07-30T10:16:12.015Z] [Web] github-issues "is:open label:enhancement"
+[2026-07-30T10:16:15.539Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:16:15.749Z] 
+--- Cycle #370 | Task: osm-taipei | LLM=ON ---
+[2026-07-30T10:16:15.750Z] Elapsed: 1.24h | Remaining: 478.76h | SuccessRate: 56.0%
+[2026-07-30T10:16:15.771Z] [Web] openstreetmap "Taipei 101"
