@@ -23647,3 +23647,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #505 | Task: resilience-batch-200 | LLM=ON ---
 [2026-07-30T10:43:41.212Z] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 51.0%
 [2026-07-30T10:43:41.234Z] [Resilience] batch=200 seed=586 threads=20
+[2026-07-30T10:43:45.962Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T10:43:46.182Z] 
+--- Cycle #506 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T10:43:46.183Z] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 52.0%
+[2026-07-30T10:43:46.204Z] [Policy] 2d/space-invaders-2d fit
