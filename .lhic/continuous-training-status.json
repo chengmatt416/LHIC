@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T12:21:03.244Z",
-  "iteration": 196,
-  "currentTask": "slow-plan-github-triage",
+  "lastUpdated": "2026-07-30T12:21:12.141Z",
+  "iteration": 198,
+  "currentTask": "policy-star-trooper-fit",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 196,
+    "completedTasks": 198,
     "progressPercent": "0.20"
   },
   "llm": {
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 17,
+    "totalSimulations": 18,
     "totalGameFits": 9,
     "totalPublicWebRuns": 171,
     "totalSlowPathPlans": 45,
     "totalSkillCandidates": 144,
-    "rollingSuccessRate": 0.96,
-    "elapsedHours": "0.67",
-    "remainingHours": "479.33",
+    "rollingSuccessRate": 0.95,
+    "elapsedHours": "0.68",
+    "remainingHours": "479.32",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
