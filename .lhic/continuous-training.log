@@ -22080,3 +22080,15 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #232 | Task: slow-plan-complex-nav | LLM=ON ---
 [2026-07-30T09:47:16.728Z] Elapsed: 0.75h | Remaining: 479.25h | SuccessRate: 57.0%
 [2026-07-30T09:47:16.749Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
+[2026-07-30T09:47:22.337Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T09:47:22.337Z] [Web] mdn-search "CSS selectors"
+[2026-07-30T09:47:28.460Z] [Web] OK: mdn-search
+[2026-07-30T09:47:28.675Z] 
+--- Cycle #233 | Task: resilience-batch-100 | LLM=ON ---
+[2026-07-30T09:47:28.675Z] Elapsed: 0.76h | Remaining: 479.24h | SuccessRate: 58.0%
+[2026-07-30T09:47:28.695Z] [Resilience] batch=100 seed=962 threads=20
+[2026-07-30T09:47:31.493Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T09:47:31.714Z] 
+--- Cycle #234 | Task: policy-3d-fit | LLM=ON ---
+[2026-07-30T09:47:31.714Z] Elapsed: 0.76h | Remaining: 479.24h | SuccessRate: 58.0%
+[2026-07-30T09:47:31.736Z] [Policy] 3d/epic-shooter-3d fit
