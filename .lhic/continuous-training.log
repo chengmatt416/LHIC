@@ -28639,3 +28639,7 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T13:58:48.104Z] [Web] mdn-search "WebSocket"
 [2026-07-30T13:58:54.117Z] [Web] OK: mdn-search
 [2026-07-30T13:58:54.118Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T13:58:54.338Z] 
+--- Cycle #373 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-30T13:58:54.339Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 92.0%
+[2026-07-30T13:58:54.359Z] [Web] wikipedia-search "Web Component"
