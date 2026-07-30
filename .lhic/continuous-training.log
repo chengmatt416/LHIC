@@ -26334,3 +26334,27 @@ fatal: could not read Username for 'https://gi
 --- Cycle #209 | Task: slow-plan-form-recovery | LLM=ON ---
 [2026-07-30T12:22:52.687Z] Elapsed: 0.71h | Remaining: 479.29h | SuccessRate: 95.0%
 [2026-07-30T12:22:52.708Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
+[2026-07-30T12:23:02.981Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T12:23:03.198Z] 
+--- Cycle #210 | Task: slow-plan-complex-nav | LLM=ON ---
+[2026-07-30T12:23:03.198Z] Elapsed: 0.71h | Remaining: 479.29h | SuccessRate: 95.0%
+[2026-07-30T12:23:03.219Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
+[2026-07-30T12:23:07.676Z] [LLM] OpenCode API key loaded — models: deepseek-v4-flash-free, mimo-v2.5-free
+[2026-07-30T12:23:07.678Z] ==================================================
+[2026-07-30T12:23:07.678Z] LHIC 20-Day Full-Load Work Training Daemon
+[2026-07-30T12:23:07.678Z] Cores: 20 | Workers: 20
+[2026-07-30T12:23:07.678Z] Tasks in suite: 31
+[2026-07-30T12:23:07.678Z] Duration: 20 days | Hourly GitHub push
+[2026-07-30T12:23:07.678Z] LLM: deepseek-v4-flash-free → mimo-v2.5-free (5h cooldown)
+[2026-07-30T12:23:07.678Z] Started: 2026-07-30T12:23:07.674Z
+[2026-07-30T12:23:07.678Z] Ends: 2026-08-19T12:23:07.674Z
+[2026-07-30T12:23:07.678Z] ==================================================
+[2026-07-30T12:23:07.678Z] 
+--- Cycle #1 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-30T12:23:07.678Z] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 0.0%
+[2026-07-30T12:23:07.687Z] [Web] wikipedia-search "Web Component"
+[2026-07-30T12:23:13.927Z] [Web] OK: wikipedia-search
+[2026-07-30T12:23:14.147Z] 
+--- Cycle #2 | Task: chain-mdn-to-github | LLM=ON ---
+[2026-07-30T12:23:14.147Z] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 100.0%
+[2026-07-30T12:23:14.156Z] [Web] mdn-search "Shadow DOM"

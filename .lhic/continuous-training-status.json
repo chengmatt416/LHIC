@@ -1,15 +1,15 @@
 {
   "status": "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
   "targetDurationDays": 20,
-  "startTime": "2026-07-30T11:40:28.497Z",
-  "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T12:22:52.469Z",
-  "iteration": 208,
-  "currentTask": "slow-plan-mdn-deep",
+  "startTime": "2026-07-30T12:23:07.674Z",
+  "targetEndTime": "2026-08-19T12:23:07.674Z",
+  "lastUpdated": "2026-07-30T12:23:13.933Z",
+  "iteration": 1,
+  "currentTask": "chain-wiki-to-mdn",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 208,
-    "progressPercent": "0.21"
+    "completedTasks": 1,
+    "progressPercent": "0.00"
   },
   "llm": {
     "models": [
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 62,
+        "ok": 63,
         "fail": 160,
         "rateLimit": 0
       },
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 18,
-    "totalGameFits": 9,
-    "totalPublicWebRuns": 181,
-    "totalSlowPathPlans": 47,
-    "totalSkillCandidates": 154,
-    "rollingSuccessRate": 0.95,
-    "elapsedHours": "0.70",
-    "remainingHours": "479.30",
+    "totalSimulations": 0,
+    "totalGameFits": 0,
+    "totalPublicWebRuns": 1,
+    "totalSlowPathPlans": 0,
+    "totalSkillCandidates": 1,
+    "rollingSuccessRate": 1,
+    "elapsedHours": "0.00",
+    "remainingHours": "480.00",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
