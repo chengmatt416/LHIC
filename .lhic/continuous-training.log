@@ -24305,3 +24305,13 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:07:23.603Z] Elapsed: 2.09h | Remaining: 477.91h | SuccessRate: 56.0%
 [2026-07-30T11:07:23.624Z] [Web] wikipedia-search "Browser automation"
 [2026-07-30T11:07:29.675Z] [Web] OK: wikipedia-search
+[2026-07-30T11:07:29.894Z] 
+--- Cycle #621 | Task: mdn-mutation-observer | LLM=ON ---
+[2026-07-30T11:07:29.895Z] Elapsed: 2.09h | Remaining: 477.91h | SuccessRate: 56.0%
+[2026-07-30T11:07:29.916Z] [Web] mdn-search "MutationObserver"
+[2026-07-30T11:07:35.916Z] [Web] OK: mdn-search
+[2026-07-30T11:07:36.134Z] 
+--- Cycle #622 | Task: mdn-intersection-observer | LLM=ON ---
+[2026-07-30T11:07:36.135Z] Elapsed: 2.09h | Remaining: 477.91h | SuccessRate: 56.0%
+[2026-07-30T11:07:36.157Z] [Web] mdn-search "IntersectionObserver"
+[2026-07-30T11:07:42.265Z] [Web] OK: mdn-search
