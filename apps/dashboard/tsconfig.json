@@ -14,8 +14,9 @@
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src"],
+  "include": ["src", "functions"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
