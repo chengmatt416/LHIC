@@ -31483,3 +31483,120 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T00:02:29+08:00] [SlowPath] planning: crossmodal-api-plus-web — Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Op
 [2026-07-31T00:02:44+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal and context, and we need to output a JSON object with the sc...
 [2026-07-31T00:02:44+08:00] [Web] github-issue-filter "is:open"
+[2026-07-31T00:02:53+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:02:53+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:02:53+08:00] 
+--- Cycle #83 | Task: docs-entry-type-wiki | LLM=ON ---
+[2026-07-31T00:02:53+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.1%
+[2026-07-31T00:02:53+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T00:03:00+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:03:00+08:00] 
+--- Cycle #84 | Task: geo-multi-stop-route | LLM=ON ---
+[2026-07-31T00:03:00+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.2%
+[2026-07-31T00:03:00+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T00:03:06+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:03:06+08:00] 
+--- Cycle #85 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-31T00:03:06+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.2%
+[2026-07-31T00:03:06+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T00:03:12+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:03:12+08:00] 
+--- Cycle #86 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T00:03:12+08:00] Elapsed: 0.40h | Remaining: 479.60h | SuccessRate: 95.3%
+[2026-07-31T00:03:12+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T00:03:31+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan extraction from an infinite-scroll page: 1) Initial s...
+[2026-07-31T00:03:31+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:03:32+08:00] 
+--- Cycle #87 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T00:03:32+08:00] Elapsed: 0.41h | Remaining: 479.59h | SuccessRate: 95.3%
+[2026-07-31T00:03:32+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T00:03:47+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:03:47+08:00] 
+--- Cycle #88 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T00:03:47+08:00] Elapsed: 0.41h | Remaining: 479.59h | SuccessRate: 95.4%
+[2026-07-31T00:03:47+08:00] [Resilience] batch=300 seed=497 threads=20
+[2026-07-31T00:03:53+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:03:54+08:00] 
+--- Cycle #89 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T00:03:54+08:00] Elapsed: 0.42h | Remaining: 479.58h | SuccessRate: 95.5%
+[2026-07-31T00:03:54+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T00:03:58+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T00:03:58+08:00] 
+--- Cycle #90 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-31T00:03:58+08:00] Elapsed: 0.42h | Remaining: 479.58h | SuccessRate: 94.4%
+[2026-07-31T00:03:58+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T00:04:02+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T00:04:02+08:00] 
+--- Cycle #91 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-31T00:04:02+08:00] Elapsed: 0.42h | Remaining: 479.58h | SuccessRate: 93.3%
+[2026-07-31T00:04:02+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
+[2026-07-31T00:04:19+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal and context. The goal is to "Plan recovery for expired sessi...
+[2026-07-31T00:04:19+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:04:20+08:00] 
+--- Cycle #92 | Task: crossmodal-wiki-then-osm | LLM=ON ---
+[2026-07-31T00:04:20+08:00] Elapsed: 0.42h | Remaining: 479.58h | SuccessRate: 93.4%
+[2026-07-31T00:04:20+08:00] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
+[2026-07-31T00:04:38+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: Plan cross-modal geographic research: 1) Search Wikipedia f...
+[2026-07-31T00:04:38+08:00] [Web] openstreetmap-place-search "Great Wall of China"
+[2026-07-31T00:04:44+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:04:44+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:04:44+08:00] 
+--- Cycle #93 | Task: crossmodal-mdn-to-wiki-spec | LLM=ON ---
+[2026-07-31T00:04:44+08:00] Elapsed: 0.43h | Remaining: 479.57h | SuccessRate: 93.5%
+[2026-07-31T00:04:44+08:00] [SlowPath] planning: crossmodal-mdn-to-wiki-spec — Plan specification cross-reference: 1) Search MDN for 'WebSocket', 2) Extract th
+[2026-07-31T00:05:04+08:00] [Web] mdn-search "WebSocket"
+[2026-07-31T00:05:10+08:00] [Web] OK: mdn-search
+[2026-07-31T00:05:10+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:05:10+08:00] 
+--- Cycle #94 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-31T00:05:10+08:00] Elapsed: 0.44h | Remaining: 479.56h | SuccessRate: 93.5%
+[2026-07-31T00:05:10+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T00:05:17+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:05:17+08:00] 
+--- Cycle #95 | Task: chain-mdn-to-github | LLM=ON ---
+[2026-07-31T00:05:17+08:00] Elapsed: 0.44h | Remaining: 479.56h | SuccessRate: 93.6%
+[2026-07-31T00:05:17+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T00:05:24+08:00] [Web] OK: mdn-search
+[2026-07-31T00:05:24+08:00] 
+--- Cycle #96 | Task: chain-github-to-wiki | LLM=ON ---
+[2026-07-31T00:05:24+08:00] Elapsed: 0.44h | Remaining: 479.56h | SuccessRate: 93.7%
+[2026-07-31T00:05:24+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T00:05:30+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:05:30+08:00] 
+--- Cycle #97 | Task: docs-accessibility-tree | LLM=ON ---
+[2026-07-31T00:05:30+08:00] Elapsed: 0.44h | Remaining: 479.56h | SuccessRate: 93.8%
+[2026-07-31T00:05:30+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T00:05:36+08:00] [Web] OK: mdn-search
+[2026-07-31T00:05:37+08:00] 
+--- Cycle #98 | Task: docs-perf-observer-chain | LLM=ON ---
+[2026-07-31T00:05:37+08:00] Elapsed: 0.44h | Remaining: 479.56h | SuccessRate: 93.8%
+[2026-07-31T00:05:37+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T00:05:43+08:00] [Web] OK: mdn-search
+[2026-07-31T00:05:43+08:00] 
+--- Cycle #99 | Task: triage-bug-escalation | LLM=ON ---
+[2026-07-31T00:05:43+08:00] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 93.9%
+[2026-07-31T00:05:43+08:00] [SlowPath] planning: triage-bug-escalation — Plan a GitHub issue triage flow: 1) List open bugs sorted by creation date, 2) F
+[2026-07-31T00:06:01+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given: "Goal: Plan a GitHub issue triage flow: 1) List open bugs sorted b...
+[2026-07-31T00:06:01+08:00] [Web] github-issue-filter "is:open label:bug sort:created-asc"
+[2026-07-31T00:06:10+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:06:10+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:06:10+08:00] 
+--- Cycle #100 | Task: triage-cross-reference | LLM=ON ---
+[2026-07-31T00:06:10+08:00] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 93.9%
+[2026-07-31T00:06:10+08:00] [SlowPath] planning: triage-cross-reference — Plan cross-referencing GitHub issues with pull requests: find issues that mentio
+[2026-07-31T00:06:30+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-referencing GitHub issues with pull requests: f...
+[2026-07-31T00:06:30+08:00] [Web] github-issue-filter "is:open is:issue"
+[2026-07-31T00:06:37+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:06:37+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:06:37+08:00] 
+--- Cycle #101 | Task: form-multi-step-registration | LLM=ON ---
+[2026-07-31T00:06:37+08:00] Elapsed: 0.46h | Remaining: 479.54h | SuccessRate: 94.0%
+[2026-07-31T00:06:37+08:00] [SlowPath] planning: form-multi-step-registration — Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dr
+[2026-07-31T00:06:55+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan a 4-step registration form flow: 1) Fill name/email, ...
+[2026-07-31T00:06:55+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:06:55+08:00] 
+--- Cycle #102 | Task: form-error-recovery | LLM=ON ---
+[2026-07-31T00:06:55+08:00] Elapsed: 0.47h | Remaining: 479.53h | SuccessRate: 94.0%
+[2026-07-31T00:06:55+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
