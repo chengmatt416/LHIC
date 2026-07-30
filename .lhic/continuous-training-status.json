@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T11:16:44.358Z",
-  "iteration": 653,
-  "currentTask": "skill-holdout-eval",
+  "lastUpdated": "2026-07-30T11:16:59.407Z",
+  "iteration": 657,
+  "currentTask": "osm-central-park",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 653,
-    "progressPercent": "0.65"
+    "completedTasks": 657,
+    "progressPercent": "0.66"
   },
   "llm": {
     "models": [
@@ -44,9 +44,9 @@
     "totalPublicWebRuns": 337,
     "totalSlowPathPlans": 10,
     "totalSkillCandidates": 247,
-    "rollingSuccessRate": 0.57,
-    "elapsedHours": "2.24",
-    "remainingHours": "477.76",
+    "rollingSuccessRate": 0.53,
+    "elapsedHours": "2.25",
+    "remainingHours": "477.75",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
