@@ -26996,3 +26996,20 @@ fatal: could not read Username for 'https://gi
 --- Cycle #105 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-30T12:50:32.873Z] Elapsed: 0.46h | Remaining: 479.54h | SuccessRate: 94.0%
 [2026-07-30T12:50:32.893Z] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-30T12:50:48.166Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to plan a hybrid API+browser flow. The goal is: 
+1) Fetch GitHub AP...
+[2026-07-30T12:50:48.167Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T12:50:48.381Z] 
+--- Cycle #106 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-30T12:50:48.382Z] Elapsed: 0.46h | Remaining: 479.54h | SuccessRate: 94.0%
+[2026-07-30T12:50:48.403Z] [Resilience] batch=50 seed=803 threads=20
+[2026-07-30T12:50:50.223Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T12:50:50.449Z] 
+--- Cycle #107 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-30T12:50:50.449Z] Elapsed: 0.46h | Remaining: 479.54h | SuccessRate: 94.0%
+[2026-07-30T12:50:50.470Z] [Resilience] batch=150 seed=820 threads=20
+[2026-07-30T12:50:53.982Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T12:50:54.207Z] 
+--- Cycle #108 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-30T12:50:54.207Z] Elapsed: 0.46h | Remaining: 479.54h | SuccessRate: 94.0%
+[2026-07-30T12:50:54.229Z] [Policy] 3d/epic-shooter-3d fit
