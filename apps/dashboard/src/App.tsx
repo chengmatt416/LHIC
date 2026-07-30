@@ -30,7 +30,7 @@ interface StatusData {
 
 type ConnectionSource = "sse" | "rest" | "github" | "disconnected";
 
-const VM_BASE_URL = "http://92.5.142.29:3008";
+const VM_BASE_URL = "https://planet-rover-gourmet-gourmet.trycloudflare.com";
 const GITHUB_STATUS_URL =
   "https://raw.githubusercontent.com/chengmatt416/LHIC/training-results/.lhic/training-artifacts/latest/status.json";
 const GITHUB_LOG_URL =
