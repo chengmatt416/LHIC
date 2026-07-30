@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T10:06:43.633Z",
-  "iteration": 323,
-  "currentTask": "skill-holdout-eval",
+  "lastUpdated": "2026-07-30T10:06:51.120Z",
+  "iteration": 325,
+  "currentTask": "github-enhancements",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 323,
-    "progressPercent": "0.32"
+    "completedTasks": 325,
+    "progressPercent": "0.33"
   },
   "llm": {
     "models": [
@@ -44,9 +44,9 @@
     "totalPublicWebRuns": 170,
     "totalSlowPathPlans": 7,
     "totalSkillCandidates": 125,
-    "rollingSuccessRate": 0.59,
-    "elapsedHours": "1.07",
-    "remainingHours": "478.93",
+    "rollingSuccessRate": 0.57,
+    "elapsedHours": "1.08",
+    "remainingHours": "478.92",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
