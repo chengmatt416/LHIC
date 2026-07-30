@@ -21615,3 +21615,13 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #150 | Task: osm-taipei | LLM=ON ---
 [2026-07-30T09:31:51.259Z] Elapsed: 0.50h | Remaining: 479.50h | SuccessRate: 56.0%
 [2026-07-30T09:31:51.278Z] [Web] openstreetmap "Taipei 101"
+[2026-07-30T09:31:54.802Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:31:55.011Z] 
+--- Cycle #151 | Task: osm-central-park | LLM=ON ---
+[2026-07-30T09:31:55.012Z] Elapsed: 0.50h | Remaining: 479.50h | SuccessRate: 55.0%
+[2026-07-30T09:31:55.032Z] [Web] openstreetmap "Central Park New York"
+[2026-07-30T09:31:58.571Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:31:58.785Z] 
+--- Cycle #152 | Task: slow-plan-github-triage | LLM=ON ---
+[2026-07-30T09:31:58.786Z] Elapsed: 0.50h | Remaining: 479.50h | SuccessRate: 54.0%
+[2026-07-30T09:31:58.806Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
