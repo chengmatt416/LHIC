@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T10:56:49.385Z",
-  "iteration": 570,
-  "currentTask": "slow-plan-github-triage",
+  "lastUpdated": "2026-07-30T10:57:04.935Z",
+  "iteration": 573,
+  "currentTask": "wiki-search-agentic",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 570,
+    "completedTasks": 573,
     "progressPercent": "0.57"
   },
   "llm": {
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 51,
+    "totalSimulations": 52,
     "totalGameFits": 26,
-    "totalPublicWebRuns": 293,
+    "totalPublicWebRuns": 294,
     "totalSlowPathPlans": 9,
-    "totalSkillCandidates": 215,
-    "rollingSuccessRate": 0.51,
-    "elapsedHours": "1.90",
-    "remainingHours": "478.10",
+    "totalSkillCandidates": 216,
+    "rollingSuccessRate": 0.53,
+    "elapsedHours": "1.91",
+    "remainingHours": "478.09",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,

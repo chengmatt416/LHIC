@@ -24025,3 +24025,19 @@ fatal: could not read Username for 'https://gi
 --- Cycle #571 | Task: resilience-batch-200 | LLM=ON ---
 [2026-07-30T10:56:49.596Z] Elapsed: 1.91h | Remaining: 478.09h | SuccessRate: 51.0%
 [2026-07-30T10:56:49.618Z] [Resilience] batch=200 seed=708 threads=20
+[2026-07-30T10:56:54.144Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T10:56:54.364Z] 
+--- Cycle #572 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T10:56:54.365Z] Elapsed: 1.91h | Remaining: 478.09h | SuccessRate: 52.0%
+[2026-07-30T10:56:54.385Z] [Policy] 2d/space-invaders-2d fit
+[2026-07-30T10:56:58.442Z] [Policy] record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T10:56:58.652Z] 
+--- Cycle #573 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T10:56:58.652Z] Elapsed: 1.91h | Remaining: 478.09h | SuccessRate: 52.0%
+[2026-07-30T10:56:58.674Z] [Web] wikipedia-search "Agentic coding systems"
+[2026-07-30T10:57:04.931Z] [Web] OK: wikipedia-search
+[2026-07-30T10:57:05.144Z] 
+--- Cycle #574 | Task: wiki-search-automation | LLM=ON ---
+[2026-07-30T10:57:05.145Z] Elapsed: 1.92h | Remaining: 478.08h | SuccessRate: 53.0%
+[2026-07-30T10:57:05.166Z] [Web] wikipedia-search "Deterministic computer automation"
