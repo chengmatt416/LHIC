@@ -28643,3 +28643,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #373 | Task: chain-wiki-to-mdn | LLM=ON ---
 [2026-07-30T13:58:54.339Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 92.0%
 [2026-07-30T13:58:54.359Z] [Web] wikipedia-search "Web Component"
+[2026-07-30T13:59:00.728Z] [Web] OK: wikipedia-search
+[2026-07-30T13:59:00.952Z] 
+--- Cycle #374 | Task: chain-mdn-to-github | LLM=ON ---
+[2026-07-30T13:59:00.953Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 92.0%
+[2026-07-30T13:59:00.974Z] [Web] mdn-search "Shadow DOM"
+[2026-07-30T13:59:10.628Z] [Web] OK: mdn-search
+[2026-07-30T13:59:10.850Z] 
+--- Cycle #375 | Task: chain-github-to-wiki | LLM=ON ---
+[2026-07-30T13:59:10.851Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 92.0%
+[2026-07-30T13:59:10.871Z] [Web] wikipedia-search "Polyfill"
