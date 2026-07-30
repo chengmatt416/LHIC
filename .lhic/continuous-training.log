@@ -23678,3 +23678,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #511 | Task: mdn-mutation-observer | LLM=ON ---
 [2026-07-30T10:44:16.643Z] Elapsed: 1.70h | Remaining: 478.30h | SuccessRate: 53.0%
 [2026-07-30T10:44:16.663Z] [Web] mdn-search "MutationObserver"
+[2026-07-30T10:44:22.752Z] [Web] OK: mdn-search
+[2026-07-30T10:44:22.972Z] 
+--- Cycle #512 | Task: mdn-intersection-observer | LLM=ON ---
+[2026-07-30T10:44:22.973Z] Elapsed: 1.70h | Remaining: 478.30h | SuccessRate: 53.0%
+[2026-07-30T10:44:22.994Z] [Web] mdn-search "IntersectionObserver"
+[2026-07-30T10:44:30.847Z] [Web] OK: mdn-search
+[2026-07-30T10:44:31.063Z] 
+--- Cycle #513 | Task: mdn-raf | LLM=ON ---
+[2026-07-30T10:44:31.064Z] Elapsed: 1.71h | Remaining: 478.29h | SuccessRate: 54.0%
+[2026-07-30T10:44:31.085Z] [Web] mdn-search "requestAnimationFrame"
