@@ -27442,3 +27442,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #178 | Task: geo-landmark-comparison | LLM=ON ---
 [2026-07-30T13:09:34.623Z] Elapsed: 0.77h | Remaining: 479.23h | SuccessRate: 93.0%
 [2026-07-30T13:09:34.643Z] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-30T13:09:40.359Z] [Web] OK: openstreetmap-place-search
+[2026-07-30T13:09:40.580Z] 
+--- Cycle #179 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-30T13:09:40.581Z] Elapsed: 0.78h | Remaining: 479.22h | SuccessRate: 93.0%
+[2026-07-30T13:09:40.601Z] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
