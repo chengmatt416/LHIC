@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:14:33.734Z",
-  "iteration": 62,
-  "currentTask": "osm-taipei",
+  "lastUpdated": "2026-07-30T09:14:37.512Z",
+  "iteration": 63,
+  "currentTask": "osm-central-park",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 62,
+    "completedTasks": 63,
     "progressPercent": "0.06"
   },
   "llm": {
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 35,
     "totalSlowPathPlans": 2,
     "totalSkillCandidates": 26,
-    "rollingSuccessRate": 0.5806451612903226,
+    "rollingSuccessRate": 0.5714285714285714,
     "elapsedHours": "0.21",
     "remainingHours": "479.79",
     "latestPyTorchLoss": null,
