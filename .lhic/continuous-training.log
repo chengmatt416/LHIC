@@ -22483,3 +22483,8 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #302 | Task: github-open-bugs | LLM=ON ---
 [2026-07-30T10:01:42.597Z] Elapsed: 0.99h | Remaining: 479.01h | SuccessRate: 60.0%
 [2026-07-30T10:01:42.616Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T10:01:46.140Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T10:01:46.348Z] 
+--- Cycle #303 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T10:01:46.349Z] Elapsed: 0.99h | Remaining: 479.01h | SuccessRate: 59.0%
+[2026-07-30T10:01:46.368Z] [Web] github-issues "is:open label:enhancement"
