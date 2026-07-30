@@ -28421,3 +28421,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #337 | Task: policy-curriculum-star | LLM=ON ---
 [2026-07-30T13:49:34.735Z] Elapsed: 1.44h | Remaining: 478.56h | SuccessRate: 94.0%
 [2026-07-30T13:49:34.757Z] [Policy] 3d/star-trooper fit
+[2026-07-30T13:49:38.783Z] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-30T13:49:39.001Z] 
+--- Cycle #338 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-30T13:49:39.002Z] Elapsed: 1.44h | Remaining: 478.56h | SuccessRate: 93.0%
+[2026-07-30T13:49:39.023Z] [Policy] 3d/nemesis fit
