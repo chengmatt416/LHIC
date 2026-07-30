@@ -40,7 +40,7 @@ interface StatusData {
 
 type ConnectionSource = "sse" | "rest" | "github" | "disconnected";
 
-const VM_BASE_URL = "https://relatively-winds-assignment-class.trycloudflare.com";
+const VM_BASE_URL = "https://lhic-vm-live.techtools.qzz.io";
 const GITHUB_STATUS_URL =
   "https://raw.githubusercontent.com/chengmatt416/LHIC/training-results/.lhic/training-artifacts/latest/status.json";
 const GITHUB_LOG_URL =
