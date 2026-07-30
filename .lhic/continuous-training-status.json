@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T11:53:43.639Z",
-  "iteration": 64,
-  "currentTask": "slow-plan-github-triage",
+  "lastUpdated": "2026-07-30T11:53:48.450Z",
+  "iteration": 65,
+  "currentTask": "resilience-batch-200",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 64,
-    "progressPercent": "0.06"
+    "completedTasks": 65,
+    "progressPercent": "0.07"
   },
   "llm": {
     "models": [
@@ -39,17 +39,17 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 5,
+    "totalSimulations": 6,
     "totalGameFits": 3,
     "totalPublicWebRuns": 57,
     "totalSlowPathPlans": 15,
     "totalSkillCandidates": 48,
-    "rollingSuccessRate": 0.96875,
-    "elapsedHours": "0.21",
-    "remainingHours": "479.79",
+    "rollingSuccessRate": 0.9692307692307692,
+    "elapsedHours": "0.22",
+    "remainingHours": "479.78",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
