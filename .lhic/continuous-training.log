@@ -29020,3 +29020,15 @@ fatal: could not read Username for 'https://gi
 --- Cycle #58 | Task: policy-curriculum-star | LLM=ON ---
 [2026-07-30T22:14:33+08:00] Elapsed: 0.25h | Remaining: 479.75h | SuccessRate: 96.5%
 [2026-07-30T22:14:33+08:00] [Policy] 3d/star-trooper fit
+[2026-07-30T22:14:37+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-30T22:14:37+08:00] 
+--- Cycle #59 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-30T22:14:37+08:00] Elapsed: 0.26h | Remaining: 479.74h | SuccessRate: 94.8%
+[2026-07-30T22:14:37+08:00] [Policy] 3d/nemesis fit
+[2026-07-30T22:14:42+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-30T22:14:42+08:00] 
+--- Cycle #60 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-30T22:14:42+08:00] Elapsed: 0.26h | Remaining: 479.74h | SuccessRate: 93.2%
+[2026-07-30T22:14:42+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
