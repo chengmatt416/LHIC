@@ -28459,3 +28459,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #343 | Task: chain-mdn-to-github | LLM=ON ---
 [2026-07-30T13:51:00.872Z] Elapsed: 1.46h | Remaining: 478.54h | SuccessRate: 92.0%
 [2026-07-30T13:51:00.893Z] [Web] mdn-search "Shadow DOM"
+[2026-07-30T13:51:06.969Z] [Web] OK: mdn-search
+[2026-07-30T13:51:07.191Z] 
+--- Cycle #344 | Task: chain-github-to-wiki | LLM=ON ---
+[2026-07-30T13:51:07.192Z] Elapsed: 1.47h | Remaining: 478.53h | SuccessRate: 92.0%
+[2026-07-30T13:51:07.212Z] [Web] wikipedia-search "Polyfill"
