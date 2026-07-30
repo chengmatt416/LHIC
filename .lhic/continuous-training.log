@@ -25825,3 +25825,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T12:04:20.487Z] [LLM] deepseek-v4-flash-free failed: HTTP 500: {"type":"error","error":{"type":"error","message":"Internal server error"}}
 [2026-07-30T12:05:05.490Z] [LLM] mimo-v2.5-free failed: timeout
 [2026-07-30T12:05:05.491Z] [Web] mdn-search "ARIA roles"
+[2026-07-30T12:05:11.625Z] [Web] OK: mdn-search
+[2026-07-30T12:05:11.626Z] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-07-30T12:05:11.846Z] 
+--- Cycle #121 | Task: slow-plan-form-recovery | LLM=ON ---
+[2026-07-30T12:05:11.846Z] Elapsed: 0.41h | Remaining: 479.59h | SuccessRate: 95.0%
+[2026-07-30T12:05:11.868Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
