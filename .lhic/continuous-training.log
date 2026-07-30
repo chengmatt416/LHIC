@@ -23983,3 +23983,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #564 | Task: policy-3d-fit | LLM=ON ---
 [2026-07-30T10:54:56.555Z] Elapsed: 1.88h | Remaining: 478.12h | SuccessRate: 56.0%
 [2026-07-30T10:54:56.575Z] [Policy] 3d/epic-shooter-3d fit
+[2026-07-30T10:55:48.522Z] [Policy] loss=6.5234 accuracy=66.9%
+[2026-07-30T10:55:48.732Z] 
+--- Cycle #565 | Task: skill-holdout-eval | LLM=ON ---
+[2026-07-30T10:55:48.733Z] Elapsed: 1.89h | Remaining: 478.11h | SuccessRate: 56.0%
+[2026-07-30T10:55:48.755Z] [Holdout] Re-running priority web skills for promotion evidence
+[2026-07-30T10:55:48.755Z] [Web] wikipedia-search "Verifier Evidence Framework"
