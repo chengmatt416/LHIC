@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T10:12:59.482Z",
-  "iteration": 358,
-  "currentTask": "mdn-intersection-observer",
+  "lastUpdated": "2026-07-30T10:13:12.092Z",
+  "iteration": 360,
+  "currentTask": "mdn-performance-observer",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 358,
+    "completedTasks": 360,
     "progressPercent": "0.36"
   },
   "llm": {
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 32,
     "totalGameFits": 16,
-    "totalPublicWebRuns": 187,
+    "totalPublicWebRuns": 189,
     "totalSlowPathPlans": 7,
-    "totalSkillCandidates": 139,
-    "rollingSuccessRate": 0.57,
+    "totalSkillCandidates": 141,
+    "rollingSuccessRate": 0.59,
     "elapsedHours": "1.18",
     "remainingHours": "478.82",
     "latestPyTorchLoss": null,
