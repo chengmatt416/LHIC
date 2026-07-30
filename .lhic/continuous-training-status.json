@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:37:37.658Z",
   "targetEndTime": "2026-08-19T11:37:37.658Z",
-  "lastUpdated": "2026-07-30T11:37:44.053Z",
-  "iteration": 1,
-  "currentTask": "wiki-search-agentic",
+  "lastUpdated": "2026-07-30T11:38:03.416Z",
+  "iteration": 4,
+  "currentTask": "wiki-search-playwright",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 1,
+    "completedTasks": 4,
     "progressPercent": "0.00"
   },
   "llm": {
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 0,
     "totalGameFits": 0,
-    "totalPublicWebRuns": 1,
+    "totalPublicWebRuns": 4,
     "totalSlowPathPlans": 0,
-    "totalSkillCandidates": 1,
+    "totalSkillCandidates": 4,
     "rollingSuccessRate": 1,
-    "elapsedHours": "0.00",
-    "remainingHours": "480.00",
+    "elapsedHours": "0.01",
+    "remainingHours": "479.99",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
