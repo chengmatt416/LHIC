@@ -20996,3 +20996,9 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T09:10:24.937Z] Elapsed: 0.14h | Remaining: 479.86h | SuccessRate: 56.1%
 [2026-07-30T09:10:24.957Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T09:10:31.925Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T09:10:45.807Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T09:10:45.807Z] [SlowPath] blocked: All available models failed
+[2026-07-30T09:10:46.016Z] 
+--- Cycle #43 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T09:10:46.017Z] Elapsed: 0.14h | Remaining: 479.86h | SuccessRate: 54.8%
+[2026-07-30T09:10:46.037Z] [Resilience] batch=200 seed=732 threads=20
