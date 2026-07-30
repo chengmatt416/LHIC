@@ -28653,3 +28653,22 @@ fatal: could not read Username for 'https://gi
 --- Cycle #375 | Task: chain-github-to-wiki | LLM=ON ---
 [2026-07-30T13:59:10.851Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 92.0%
 [2026-07-30T13:59:10.871Z] [Web] wikipedia-search "Polyfill"
+[2026-07-30T13:59:17.137Z] [Web] OK: wikipedia-search
+[2026-07-30T13:59:17.361Z] 
+--- Cycle #376 | Task: docs-accessibility-tree | LLM=ON ---
+[2026-07-30T13:59:17.362Z] Elapsed: 1.60h | Remaining: 478.40h | SuccessRate: 93.0%
+[2026-07-30T13:59:17.383Z] [Web] mdn-search "Accessibility tree"
+[2026-07-30T21:59:19+08:00] [LLM] OpenCode API key loaded — models: deepseek-v4-flash-free, mimo-v2.5-free
+[2026-07-30T21:59:19+08:00] ==================================================
+[2026-07-30T21:59:19+08:00] LHIC 20-Day Full-Load Work Training Daemon
+[2026-07-30T21:59:19+08:00] Cores: 20 | Workers: 20
+[2026-07-30T21:59:19+08:00] Tasks in suite: 31
+[2026-07-30T21:59:19+08:00] Duration: 20 days | Hourly GitHub push
+[2026-07-30T21:59:19+08:00] LLM: deepseek-v4-flash-free → mimo-v2.5-free (5h cooldown)
+[2026-07-30T21:59:19+08:00] Started: 2026-07-30T21:59:19+08:00
+[2026-07-30T21:59:19+08:00] Ends: 2026-08-19T21:59:19+08:00
+[2026-07-30T21:59:19+08:00] ==================================================
+[2026-07-30T21:59:19+08:00] 
+--- Cycle #1 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-30T21:59:19+08:00] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 0.0%
+[2026-07-30T21:59:19+08:00] [Web] wikipedia-search "Web Component"
