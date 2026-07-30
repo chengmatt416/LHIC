@@ -25005,3 +25005,10 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:32:46.797Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
 [2026-07-30T11:33:24.708Z] [LLM] mimo-v2.5-free failed: Empty response
 [2026-07-30T11:33:24.709Z] [Web] mdn-search "ARIA roles"
+[2026-07-30T11:33:30.748Z] [Web] OK: mdn-search
+[2026-07-30T11:33:30.749Z] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-07-30T11:33:30.967Z] 
+--- Cycle #11 | Task: slow-plan-form-recovery | LLM=ON ---
+[2026-07-30T11:33:30.968Z] Elapsed: 0.05h | Remaining: 479.95h | SuccessRate: 100.0%
+[2026-07-30T11:33:30.986Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
+[2026-07-30T11:33:42.388Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
