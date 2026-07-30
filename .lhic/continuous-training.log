@@ -24330,3 +24330,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:07:55.063Z] Elapsed: 2.10h | Remaining: 477.90h | SuccessRate: 59.0%
 [2026-07-30T11:07:55.085Z] [SlowPath] planning: slow-plan-multi-step-search — Plan a multi-step browser flow: open Wikipedia, search for 'Local Human Intent C
 [2026-07-30T11:08:03.647Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:08:41.778Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:08:41.779Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:08:41.990Z] 
+--- Cycle #626 | Task: slow-plan-mdn-deep | LLM=ON ---
+[2026-07-30T11:08:41.990Z] Elapsed: 2.11h | Remaining: 477.89h | SuccessRate: 59.0%
+[2026-07-30T11:08:42.013Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
