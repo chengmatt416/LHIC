@@ -23848,3 +23848,7 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T10:50:21.955Z] [SlowPath] model=deepseek-v4-flash-free decision=undefined
 [2026-07-30T10:50:21.955Z] [Web] mdn-search "CSS selectors"
 [2026-07-30T10:50:28.306Z] [Web] OK: mdn-search
+[2026-07-30T10:50:28.522Z] 
+--- Cycle #541 | Task: resilience-batch-100 | LLM=ON ---
+[2026-07-30T10:50:28.523Z] Elapsed: 1.81h | Remaining: 478.19h | SuccessRate: 56.0%
+[2026-07-30T10:50:28.542Z] [Resilience] batch=100 seed=198 threads=20
