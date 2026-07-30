@@ -22013,3 +22013,14 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #220 | Task: policy-2d-fit | LLM=ON ---
 [2026-07-30T09:45:07.648Z] Elapsed: 0.72h | Remaining: 479.28h | SuccessRate: 54.0%
 [2026-07-30T09:45:07.669Z] [Policy] 2d/space-invaders-2d fit
+[2026-07-30T09:45:11.716Z] [Policy] record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T09:45:11.926Z] 
+--- Cycle #221 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T09:45:11.927Z] Elapsed: 0.72h | Remaining: 479.28h | SuccessRate: 54.0%
+[2026-07-30T09:45:11.948Z] [Web] wikipedia-search "Agentic coding systems"
+[2026-07-30T09:45:18.096Z] [Web] OK: wikipedia-search
+[2026-07-30T09:45:18.311Z] 
+--- Cycle #222 | Task: wiki-search-automation | LLM=ON ---
+[2026-07-30T09:45:18.312Z] Elapsed: 0.72h | Remaining: 479.28h | SuccessRate: 55.0%
+[2026-07-30T09:45:18.332Z] [Web] wikipedia-search "Deterministic computer automation"
