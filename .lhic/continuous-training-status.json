@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T07:46:51+08:00",
-  "iteration": 2105,
-  "currentTask": "skill-chain-wiki-mdn-github",
+  "lastUpdated": "2026-07-31T07:50:52+08:00",
+  "iteration": 2135,
+  "currentTask": "resilience-adversarial-150",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 2105,
-    "progressPercent": "2.10"
+    "completedTasks": 2135,
+    "progressPercent": "2.14"
   },
   "llm": {
     "models": [
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 392,
-    "totalGameFits": 130,
-    "totalPublicWebRuns": 1705,
+    "totalSimulations": 398,
+    "totalGameFits": 131,
+    "totalPublicWebRuns": 1728,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 1705,
+    "totalSkillCandidates": 1728,
     "rollingSuccessRate": 0.87,
-    "elapsedHours": "5.83",
-    "remainingHours": "474.17",
+    "elapsedHours": "5.90",
+    "remainingHours": "474.10",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
