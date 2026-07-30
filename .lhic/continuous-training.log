@@ -21884,3 +21884,14 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #197 | Task: resilience-batch-200 | LLM=ON ---
 [2026-07-30T09:40:52.574Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 52.0%
 [2026-07-30T09:40:52.595Z] [Resilience] batch=200 seed=350 threads=20
+[2026-07-30T09:40:57.189Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T09:40:57.408Z] 
+--- Cycle #198 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T09:40:57.409Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 53.0%
+[2026-07-30T09:40:57.431Z] [Policy] 2d/space-invaders-2d fit
+[2026-07-30T09:41:01.465Z] [Policy] record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T09:41:01.679Z] 
+--- Cycle #199 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T09:41:01.680Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 53.0%
+[2026-07-30T09:41:01.700Z] [Web] wikipedia-search "Agentic coding systems"
