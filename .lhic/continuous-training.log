@@ -35604,3 +35604,28 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #275 | Task: chain-github-to-wiki | LLM=OFF ---
 [2026-07-31T02:48:03+08:00] Elapsed: 0.86h | Remaining: 479.14h | SuccessRate: 85.0%
 [2026-07-31T02:48:03+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T02:48:09+08:00] [Web] OK: wikipedia-search
+[2026-07-31T02:48:09+08:00] 
+--- Cycle #276 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T02:48:09+08:00] Elapsed: 0.86h | Remaining: 479.14h | SuccessRate: 86.0%
+[2026-07-31T02:48:09+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T02:48:19+08:00] [Web] OK: mdn-search
+[2026-07-31T02:48:19+08:00] 
+--- Cycle #277 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T02:48:19+08:00] Elapsed: 0.86h | Remaining: 479.14h | SuccessRate: 87.0%
+[2026-07-31T02:48:19+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T02:48:28+08:00] [Web] OK: mdn-search
+[2026-07-31T02:48:28+08:00] 
+--- Cycle #278 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T02:48:28+08:00] Elapsed: 0.87h | Remaining: 479.13h | SuccessRate: 87.0%
+[2026-07-31T02:48:28+08:00] [Resilience] batch=50 seed=727 threads=20
+[2026-07-31T02:48:30+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T02:48:30+08:00] 
+--- Cycle #279 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T02:48:30+08:00] Elapsed: 0.87h | Remaining: 479.13h | SuccessRate: 87.0%
+[2026-07-31T02:48:30+08:00] [Resilience] batch=150 seed=744 threads=20
+[2026-07-31T02:48:34+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T02:48:34+08:00] 
+--- Cycle #280 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T02:48:34+08:00] Elapsed: 0.87h | Remaining: 479.13h | SuccessRate: 87.0%
+[2026-07-31T02:48:34+08:00] [Policy] 3d/epic-shooter-3d fit
