@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:06:26.202Z",
-  "iteration": 21,
-  "currentTask": "resilience-batch-200",
+  "lastUpdated": "2026-07-30T09:06:30.468Z",
+  "iteration": 22,
+  "currentTask": "policy-2d-fit",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 21,
+    "completedTasks": 22,
     "progressPercent": "0.02"
   },
   "llm": {
@@ -44,12 +44,12 @@
     "totalPublicWebRuns": 12,
     "totalSlowPathPlans": 1,
     "totalSkillCandidates": 9,
-    "rollingSuccessRate": 0.6190476190476191,
+    "rollingSuccessRate": 0.5909090909090909,
     "elapsedHours": "0.07",
     "remainingHours": "479.93",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
