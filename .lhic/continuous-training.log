@@ -28621,3 +28621,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #370 | Task: recovery-session-expired | LLM=ON ---
 [2026-07-30T13:57:44.922Z] Elapsed: 1.58h | Remaining: 478.42h | SuccessRate: 92.0%
 [2026-07-30T13:57:44.943Z] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
+[2026-07-30T13:58:02.456Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan recovery for expired session during multi-step flow: ...
+[2026-07-30T13:58:02.457Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T13:58:02.671Z] 
+--- Cycle #371 | Task: crossmodal-wiki-then-osm | LLM=ON ---
+[2026-07-30T13:58:02.671Z] Elapsed: 1.58h | Remaining: 478.42h | SuccessRate: 92.0%
+[2026-07-30T13:58:02.693Z] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
