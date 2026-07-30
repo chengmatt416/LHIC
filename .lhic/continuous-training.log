@@ -24145,3 +24145,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:01:12.506Z] Elapsed: 1.98h | Remaining: 478.02h | SuccessRate: 53.0%
 [2026-07-30T11:01:12.527Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T11:01:20.984Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:02:00.769Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:02:00.770Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:02:00.983Z] 
+--- Cycle #593 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T11:02:00.983Z] Elapsed: 2.00h | Remaining: 478.00h | SuccessRate: 52.0%
+[2026-07-30T11:02:01.007Z] [Resilience] batch=200 seed=82 threads=20
