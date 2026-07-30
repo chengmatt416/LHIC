@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T11:20:41.911Z",
-  "iteration": 674,
-  "currentTask": "policy-3d-fit",
+  "lastUpdated": "2026-07-30T11:21:04.832Z",
+  "iteration": 676,
+  "currentTask": "github-open-bugs",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 674,
-    "progressPercent": "0.67"
+    "completedTasks": 676,
+    "progressPercent": "0.68"
   },
   "llm": {
     "models": [
@@ -41,14 +41,14 @@
   "stats": {
     "totalSimulations": 61,
     "totalGameFits": 31,
-    "totalPublicWebRuns": 346,
+    "totalPublicWebRuns": 349,
     "totalSlowPathPlans": 11,
     "totalSkillCandidates": 256,
-    "rollingSuccessRate": 0.58,
-    "elapsedHours": "2.29",
-    "remainingHours": "477.71",
-    "latestPyTorchLoss": 6.530431747436523,
-    "latestPyTorchAccuracy": 0.6838235294117647,
+    "rollingSuccessRate": 0.57,
+    "elapsedHours": "2.31",
+    "remainingHours": "477.69",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
