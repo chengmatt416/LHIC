@@ -25756,3 +25756,4 @@ fatal: could not read Username for 'https://gi
 --- Cycle #108 | Task: slow-plan-github-triage | LLM=ON ---
 [2026-07-30T12:02:04.410Z] Elapsed: 0.36h | Remaining: 479.64h | SuccessRate: 96.0%
 [2026-07-30T12:02:04.432Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T12:02:23.511Z] [Web] github-issue-filter "is:open label:bug sort:updated-desc"
