@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T23:38:57+08:00",
   "targetEndTime": "2026-08-19T23:38:57+08:00",
-  "lastUpdated": "2026-07-31T00:31:13+08:00",
-  "iteration": 196,
-  "currentTask": "plan-wikipedia-deep-dive",
+  "lastUpdated": "2026-07-31T00:37:34+08:00",
+  "iteration": 219,
+  "currentTask": "chain-mdn-to-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 196,
-    "progressPercent": "0.20"
+    "completedTasks": 219,
+    "progressPercent": "0.22"
   },
   "llm": {
     "models": [
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 519,
+        "ok": 529,
         "fail": 160,
         "rateLimit": 0
       },
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 18,
-    "totalGameFits": 5,
-    "totalPublicWebRuns": 128,
-    "totalSlowPathPlans": 95,
-    "totalSkillCandidates": 128,
-    "rollingSuccessRate": 0.93,
-    "elapsedHours": "0.86",
-    "remainingHours": "479.14",
+    "totalSimulations": 21,
+    "totalGameFits": 6,
+    "totalPublicWebRuns": 142,
+    "totalSlowPathPlans": 105,
+    "totalSkillCandidates": 142,
+    "rollingSuccessRate": 0.91,
+    "elapsedHours": "0.98",
+    "remainingHours": "479.02",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
