@@ -20975,3 +20975,18 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #38 | Task: github-open-bugs | LLM=ON ---
 [2026-07-30T09:10:09.922Z] Elapsed: 0.13h | Remaining: 479.87h | SuccessRate: 62.2%
 [2026-07-30T09:10:09.942Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T09:10:13.459Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:10:13.668Z] 
+--- Cycle #39 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T09:10:13.669Z] Elapsed: 0.13h | Remaining: 479.87h | SuccessRate: 60.5%
+[2026-07-30T09:10:13.690Z] [Web] github-issues "is:open label:enhancement"
+[2026-07-30T09:10:17.215Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:10:17.426Z] 
+--- Cycle #40 | Task: osm-taipei | LLM=ON ---
+[2026-07-30T09:10:17.427Z] Elapsed: 0.14h | Remaining: 479.86h | SuccessRate: 59.0%
+[2026-07-30T09:10:17.447Z] [Web] openstreetmap "Taipei 101"
+[2026-07-30T09:10:20.968Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:10:21.179Z] 
+--- Cycle #41 | Task: osm-central-park | LLM=ON ---
+[2026-07-30T09:10:21.180Z] Elapsed: 0.14h | Remaining: 479.86h | SuccessRate: 57.5%
+[2026-07-30T09:10:21.200Z] [Web] openstreetmap "Central Park New York"
