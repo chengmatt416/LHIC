@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T12:23:07.674Z",
   "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T12:42:12.875Z",
-  "iteration": 72,
-  "currentTask": "plan-wikipedia-deep-dive",
+  "lastUpdated": "2026-07-30T12:42:35.652Z",
+  "iteration": 73,
+  "currentTask": "plan-cross-site-verification",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 72,
+    "completedTasks": 73,
     "progressPercent": "0.07"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 98,
+        "ok": 99,
         "fail": 160,
         "rateLimit": 0
       },
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 6,
     "totalGameFits": 2,
-    "totalPublicWebRuns": 48,
-    "totalSlowPathPlans": 35,
-    "totalSkillCandidates": 48,
-    "rollingSuccessRate": 0.9444444444444444,
-    "elapsedHours": "0.31",
-    "remainingHours": "479.69",
+    "totalPublicWebRuns": 49,
+    "totalSlowPathPlans": 36,
+    "totalSkillCandidates": 49,
+    "rollingSuccessRate": 0.9452054794520548,
+    "elapsedHours": "0.32",
+    "remainingHours": "479.68",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
