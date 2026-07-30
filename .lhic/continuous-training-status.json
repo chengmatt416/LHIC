@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T11:12:24.427Z",
-  "iteration": 635,
-  "currentTask": "osm-central-park",
+  "lastUpdated": "2026-07-30T11:12:54.122Z",
+  "iteration": 636,
+  "currentTask": "slow-plan-github-triage",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 635,
+    "completedTasks": 636,
     "progressPercent": "0.64"
   },
   "llm": {
@@ -27,12 +27,12 @@
     "stats": {
       "deepseek": {
         "ok": 14,
-        "fail": 130,
+        "fail": 131,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 130,
+        "fail": 131,
         "rateLimit": 0
       }
     },
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 326,
     "totalSlowPathPlans": 10,
     "totalSkillCandidates": 239,
-    "rollingSuccessRate": 0.54,
+    "rollingSuccessRate": 0.53,
     "elapsedHours": "2.17",
     "remainingHours": "477.83",
     "latestPyTorchLoss": null,
