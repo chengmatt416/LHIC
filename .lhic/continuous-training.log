@@ -37274,3 +37274,33 @@ fatal: could not read Username for 'https://gi
 --- Cycle #578 | Task: chain-mdn-to-github | LLM=OFF ---
 [2026-07-31T03:37:54+08:00] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 85.0%
 [2026-07-31T03:37:54+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T03:38:00+08:00] [Web] OK: mdn-search
+[2026-07-31T03:38:01+08:00] 
+--- Cycle #579 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T03:38:01+08:00] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 85.0%
+[2026-07-31T03:38:01+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T03:38:07+08:00] [Web] OK: wikipedia-search
+[2026-07-31T03:38:07+08:00] 
+--- Cycle #580 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T03:38:07+08:00] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 86.0%
+[2026-07-31T03:38:07+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T03:38:13+08:00] [Web] OK: mdn-search
+[2026-07-31T03:38:13+08:00] 
+--- Cycle #581 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T03:38:13+08:00] Elapsed: 1.69h | Remaining: 478.31h | SuccessRate: 87.0%
+[2026-07-31T03:38:13+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T03:38:19+08:00] [Web] OK: mdn-search
+[2026-07-31T03:38:20+08:00] 
+--- Cycle #582 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T03:38:20+08:00] Elapsed: 1.70h | Remaining: 478.30h | SuccessRate: 87.0%
+[2026-07-31T03:38:20+08:00] [Resilience] batch=50 seed=895 threads=20
+[2026-07-31T03:38:21+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T03:38:22+08:00] 
+--- Cycle #583 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T03:38:22+08:00] Elapsed: 1.70h | Remaining: 478.30h | SuccessRate: 87.0%
+[2026-07-31T03:38:22+08:00] [Resilience] batch=150 seed=912 threads=20
+[2026-07-31T03:38:25+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T03:38:25+08:00] 
+--- Cycle #584 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T03:38:25+08:00] Elapsed: 1.70h | Remaining: 478.30h | SuccessRate: 87.0%
+[2026-07-31T03:38:26+08:00] [Policy] 3d/epic-shooter-3d fit
