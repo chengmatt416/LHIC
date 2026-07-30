@@ -27,8 +27,8 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onAuthenticated }) =
         body: JSON.stringify({ pinHash }),
       });
 
-      const data = await res.json();
-      if (data.success) {
+      const data = (await res.json()) as { success: boolean; token?: string; error?: string };
+      if (data.success && data.token) {
         onAuthenticated(pin.trim(), data.token);
       } else {
         setError(data.error || "Authentication failed");

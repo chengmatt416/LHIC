@@ -104,14 +104,14 @@ export default function App() {
         ]);
 
         if (statusRes.ok) {
-          const json = await statusRes.json();
+          const json = (await statusRes.json()) as { success: boolean } & StatusData;
           if (json.success) {
             setData(json);
             setConnectionSource("rest");
           }
         }
         if (logRes.ok) {
-          const json = await logRes.json();
+          const json = (await logRes.json()) as { success: boolean; logs: string[] };
           if (json.success && Array.isArray(json.logs)) {
             setLogs(json.logs.slice(-MAX_LOG_LINES));
           }
@@ -144,7 +144,7 @@ export default function App() {
         }
 
         if (statusRes.ok) {
-          const json = await statusRes.json();
+          const json = (await statusRes.json()) as StatusData;
           setData(json);
         }
         if (logRes.ok) {
