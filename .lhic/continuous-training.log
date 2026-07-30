@@ -20902,3 +20902,8 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #26 | Task: wiki-search-playwright | LLM=ON ---
 [2026-07-30T09:06:50.425Z] Elapsed: 0.08h | Remaining: 479.92h | SuccessRate: 64.0%
 [2026-07-30T09:06:50.445Z] [Web] wikipedia-search "Browser automation"
+[2026-07-30T09:06:56.700Z] [Web] OK: wikipedia-search
+[2026-07-30T09:06:56.915Z] 
+--- Cycle #27 | Task: mdn-mutation-observer | LLM=ON ---
+[2026-07-30T09:06:56.916Z] Elapsed: 0.08h | Remaining: 479.92h | SuccessRate: 65.4%
+[2026-07-30T09:06:56.934Z] [Web] mdn-search "MutationObserver"
