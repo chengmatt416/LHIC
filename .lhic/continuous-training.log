@@ -21605,3 +21605,13 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #148 | Task: github-open-bugs | LLM=ON ---
 [2026-07-30T09:31:43.773Z] Elapsed: 0.49h | Remaining: 479.51h | SuccessRate: 58.0%
 [2026-07-30T09:31:43.792Z] [Web] github-issues "is:open label:bug"
+[2026-07-30T09:31:47.295Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:31:47.507Z] 
+--- Cycle #149 | Task: github-enhancements | LLM=ON ---
+[2026-07-30T09:31:47.507Z] Elapsed: 0.49h | Remaining: 479.51h | SuccessRate: 57.0%
+[2026-07-30T09:31:47.529Z] [Web] github-issues "is:open label:enhancement"
+[2026-07-30T09:31:51.045Z] [Web] note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:31:51.258Z] 
+--- Cycle #150 | Task: osm-taipei | LLM=ON ---
+[2026-07-30T09:31:51.259Z] Elapsed: 0.50h | Remaining: 479.50h | SuccessRate: 56.0%
+[2026-07-30T09:31:51.278Z] [Web] openstreetmap "Taipei 101"
