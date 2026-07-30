@@ -38907,3 +38907,60 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T04:26:38+08:00] [Web] mdn-search "Web Crypto API"
 [2026-07-31T04:26:45+08:00] [Web] OK: mdn-search
 [2026-07-31T04:26:45+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T04:26:51+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:26:51+08:00] 
+--- Cycle #875 | Task: docs-entry-type-wiki | LLM=OFF ---
+[2026-07-31T04:26:51+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 88.0%
+[2026-07-31T04:26:51+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T04:26:57+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:26:58+08:00] 
+--- Cycle #876 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-07-31T04:26:58+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 88.0%
+[2026-07-31T04:26:58+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T04:27:03+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:27:04+08:00] 
+--- Cycle #877 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T04:27:04+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 88.0%
+[2026-07-31T04:27:04+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T04:27:09+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T04:27:09+08:00] 
+--- Cycle #878 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T04:27:09+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 88.0%
+[2026-07-31T04:27:09+08:00] [Resilience] batch=300 seed=927 threads=20
+[2026-07-31T04:27:16+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T04:27:16+08:00] 
+--- Cycle #879 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T04:27:16+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 88.0%
+[2026-07-31T04:27:16+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T04:27:20+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T04:27:20+08:00] 
+--- Cycle #880 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T04:27:20+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 87.0%
+[2026-07-31T04:27:20+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T04:27:25+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T04:27:25+08:00] 
+--- Cycle #881 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T04:27:25+08:00] Elapsed: 2.51h | Remaining: 477.49h | SuccessRate: 86.0%
+[2026-07-31T04:27:25+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T04:27:31+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:27:31+08:00] 
+--- Cycle #882 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T04:27:31+08:00] Elapsed: 2.52h | Remaining: 477.48h | SuccessRate: 86.0%
+[2026-07-31T04:27:31+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T04:27:37+08:00] [Web] OK: mdn-search
+[2026-07-31T04:27:38+08:00] 
+--- Cycle #883 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T04:27:38+08:00] Elapsed: 2.52h | Remaining: 477.48h | SuccessRate: 86.0%
+[2026-07-31T04:27:38+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T04:27:44+08:00] [Web] OK: wikipedia-search
+[2026-07-31T04:27:44+08:00] 
+--- Cycle #884 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T04:27:44+08:00] Elapsed: 2.52h | Remaining: 477.48h | SuccessRate: 87.0%
+[2026-07-31T04:27:44+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T04:27:50+08:00] [Web] OK: mdn-search
+[2026-07-31T04:27:50+08:00] 
+--- Cycle #885 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T04:27:50+08:00] Elapsed: 2.52h | Remaining: 477.48h | SuccessRate: 88.0%
+[2026-07-31T04:27:50+08:00] [Web] mdn-search "PerformanceObserver"
