@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T02:03:18+08:00",
-  "iteration": 17,
-  "currentTask": "skill-chain-docs-to-code",
+  "lastUpdated": "2026-07-31T02:07:05+08:00",
+  "iteration": 28,
+  "currentTask": "policy-nemesis-advanced",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 17,
-    "progressPercent": "0.02"
+    "completedTasks": 28,
+    "progressPercent": "0.03"
   },
   "llm": {
     "models": [
@@ -31,7 +31,7 @@
         "rateLimit": 1
       },
       "mimo": {
-        "ok": 9,
+        "ok": 14,
         "fail": 155,
         "rateLimit": 0
       }
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 2,
+    "totalSimulations": 3,
     "totalGameFits": 1,
-    "totalPublicWebRuns": 14,
-    "totalSlowPathPlans": 7,
-    "totalSkillCandidates": 14,
-    "rollingSuccessRate": 1,
-    "elapsedHours": "0.11",
-    "remainingHours": "479.89",
+    "totalPublicWebRuns": 18,
+    "totalSlowPathPlans": 12,
+    "totalSkillCandidates": 18,
+    "rollingSuccessRate": 0.9285714285714286,
+    "elapsedHours": "0.17",
+    "remainingHours": "479.83",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
