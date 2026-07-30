@@ -28531,3 +28531,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #355 | Task: resilience-adversarial-150 | LLM=ON ---
 [2026-07-30T13:53:58.312Z] Elapsed: 1.51h | Remaining: 478.49h | SuccessRate: 94.0%
 [2026-07-30T13:53:58.333Z] [Resilience] batch=150 seed=36 threads=20
+[2026-07-30T13:54:02.099Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T13:54:02.321Z] 
+--- Cycle #356 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-30T13:54:02.321Z] Elapsed: 1.52h | Remaining: 478.48h | SuccessRate: 94.0%
+[2026-07-30T13:54:02.342Z] [Policy] 3d/epic-shooter-3d fit

@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T12:23:07.674Z",
   "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T13:53:58.097Z",
-  "iteration": 354,
-  "currentTask": "resilience-adversarial-50",
+  "lastUpdated": "2026-07-30T13:54:02.109Z",
+  "iteration": 355,
+  "currentTask": "resilience-adversarial-150",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 354,
-    "progressPercent": "0.35"
+    "completedTasks": 355,
+    "progressPercent": "0.36"
   },
   "llm": {
     "models": [
@@ -39,7 +39,7 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 34,
+    "totalSimulations": 35,
     "totalGameFits": 10,
     "totalPublicWebRuns": 229,
     "totalSlowPathPlans": 172,
