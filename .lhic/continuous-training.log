@@ -21705,3 +21705,14 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T09:34:29.097Z] Elapsed: 0.54h | Remaining: 479.46h | SuccessRate: 57.0%
 [2026-07-30T09:34:29.118Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
 [2026-07-30T09:34:35.859Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T09:34:53.139Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T09:34:53.140Z] [SlowPath] blocked: All available models failed
+[2026-07-30T09:34:53.351Z] 
+--- Cycle #167 | Task: resilience-batch-100 | LLM=ON ---
+[2026-07-30T09:34:53.351Z] Elapsed: 0.55h | Remaining: 479.45h | SuccessRate: 57.0%
+[2026-07-30T09:34:53.374Z] [Resilience] batch=100 seed=840 threads=20
+[2026-07-30T09:34:56.148Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T09:34:56.366Z] 
+--- Cycle #168 | Task: policy-3d-fit | LLM=ON ---
+[2026-07-30T09:34:56.367Z] Elapsed: 0.55h | Remaining: 479.45h | SuccessRate: 57.0%
+[2026-07-30T09:34:56.387Z] [Policy] 3d/epic-shooter-3d fit
