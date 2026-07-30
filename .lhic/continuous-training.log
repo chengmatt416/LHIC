@@ -23043,3 +23043,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #400 | Task: wiki-search-playwright | LLM=ON ---
 [2026-07-30T10:21:55.343Z] Elapsed: 1.33h | Remaining: 478.67h | SuccessRate: 54.0%
 [2026-07-30T10:21:55.363Z] [Web] wikipedia-search "Browser automation"
+[2026-07-30T10:22:01.584Z] [Web] OK: wikipedia-search
+[2026-07-30T10:22:01.800Z] 
+--- Cycle #401 | Task: mdn-mutation-observer | LLM=ON ---
+[2026-07-30T10:22:01.801Z] Elapsed: 1.33h | Remaining: 478.67h | SuccessRate: 54.0%
+[2026-07-30T10:22:01.822Z] [Web] mdn-search "MutationObserver"
+[2026-07-30T10:22:07.874Z] [Web] OK: mdn-search
+[2026-07-30T10:22:08.090Z] 
+--- Cycle #402 | Task: mdn-intersection-observer | LLM=ON ---
+[2026-07-30T10:22:08.091Z] Elapsed: 1.33h | Remaining: 478.67h | SuccessRate: 54.0%
+[2026-07-30T10:22:08.112Z] [Web] mdn-search "IntersectionObserver"
