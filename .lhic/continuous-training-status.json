@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:41:53.011Z",
-  "iteration": 206,
-  "currentTask": "mdn-performance-observer",
+  "lastUpdated": "2026-07-30T09:42:17.902Z",
+  "iteration": 207,
+  "currentTask": "slow-plan-multi-step-search",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 206,
+    "completedTasks": 207,
     "progressPercent": "0.21"
   },
   "llm": {
@@ -27,12 +27,12 @@
     "stats": {
       "deepseek": {
         "ok": 5,
-        "fail": 40,
+        "fail": 41,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 40,
+        "fail": 41,
         "rateLimit": 0
       }
     },
