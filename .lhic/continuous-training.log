@@ -28038,3 +28038,20 @@ fatal: could not read Username for 'https://gi
 --- Cycle #274 | Task: resilience-adversarial-300 | LLM=ON ---
 [2026-07-30T13:33:43.058Z] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 93.0%
 [2026-07-30T13:33:43.079Z] [Resilience] batch=300 seed=659 threads=20
+[2026-07-30T13:33:49.856Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T13:33:50.081Z] 
+--- Cycle #275 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-30T13:33:50.082Z] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 93.0%
+[2026-07-30T13:33:50.104Z] [Policy] 3d/star-trooper fit
+[2026-07-30T13:33:54.139Z] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-30T13:33:54.355Z] 
+--- Cycle #276 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-30T13:33:54.355Z] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 92.0%
+[2026-07-30T13:33:54.376Z] [Policy] 3d/nemesis fit
+[2026-07-30T13:33:58.401Z] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-30T13:33:58.613Z] 
+--- Cycle #277 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-30T13:33:58.614Z] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 91.0%
+[2026-07-30T13:33:58.635Z] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
