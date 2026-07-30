@@ -1,15 +1,15 @@
 {
   "status": "ACTIVE (20-DAY FULL-LOAD WORK TRAINING)",
   "targetDurationDays": 20,
-  "startTime": "2026-07-30T11:30:45.283Z",
-  "targetEndTime": "2026-08-19T11:30:45.283Z",
-  "lastUpdated": "2026-07-30T11:37:02.980Z",
-  "iteration": 19,
-  "currentTask": "osm-central-park",
+  "startTime": "2026-07-30T11:37:37.658Z",
+  "targetEndTime": "2026-08-19T11:37:37.658Z",
+  "lastUpdated": "2026-07-30T11:37:44.053Z",
+  "iteration": 1,
+  "currentTask": "wiki-search-agentic",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 19,
-    "progressPercent": "0.02"
+    "completedTasks": 1,
+    "progressPercent": "0.00"
   },
   "llm": {
     "models": [
@@ -27,7 +27,7 @@
     "stats": {
       "deepseek": {
         "ok": 16,
-        "fail": 156,
+        "fail": 157,
         "rateLimit": 0
       },
       "mimo": {
@@ -39,14 +39,14 @@
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 1,
-    "totalGameFits": 1,
-    "totalPublicWebRuns": 18,
-    "totalSlowPathPlans": 3,
-    "totalSkillCandidates": 15,
-    "rollingSuccessRate": 0.9473684210526315,
-    "elapsedHours": "0.10",
-    "remainingHours": "479.90",
+    "totalSimulations": 0,
+    "totalGameFits": 0,
+    "totalPublicWebRuns": 1,
+    "totalSlowPathPlans": 0,
+    "totalSkillCandidates": 1,
+    "rollingSuccessRate": 1,
+    "elapsedHours": "0.00",
+    "remainingHours": "480.00",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,

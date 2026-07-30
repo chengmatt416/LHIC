@@ -25067,3 +25067,22 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:37:03.197Z] Elapsed: 0.10h | Remaining: 479.90h | SuccessRate: 94.7%
 [2026-07-30T11:37:03.217Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T11:37:21.829Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:37:37.660Z] [LLM] OpenCode API key loaded — models: deepseek-v4-flash-free, mimo-v2.5-free
+[2026-07-30T11:37:37.662Z] ==================================================
+[2026-07-30T11:37:37.662Z] LHIC 20-Day Full-Load Work Training Daemon
+[2026-07-30T11:37:37.662Z] Cores: 20 | Workers: 20
+[2026-07-30T11:37:37.662Z] Tasks in suite: 22
+[2026-07-30T11:37:37.662Z] Duration: 20 days | Hourly GitHub push
+[2026-07-30T11:37:37.662Z] LLM: deepseek-v4-flash-free → mimo-v2.5-free (5h cooldown)
+[2026-07-30T11:37:37.662Z] Started: 2026-07-30T11:37:37.658Z
+[2026-07-30T11:37:37.662Z] Ends: 2026-08-19T11:37:37.658Z
+[2026-07-30T11:37:37.662Z] ==================================================
+[2026-07-30T11:37:37.662Z] 
+--- Cycle #1 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T11:37:37.662Z] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 0.0%
+[2026-07-30T11:37:37.671Z] [Web] wikipedia-search "Agentic coding systems"
+[2026-07-30T11:37:44.048Z] [Web] OK: wikipedia-search
+[2026-07-30T11:37:44.265Z] 
+--- Cycle #2 | Task: wiki-search-automation | LLM=ON ---
+[2026-07-30T11:37:44.266Z] Elapsed: 0.00h | Remaining: 480.00h | SuccessRate: 100.0%
+[2026-07-30T11:37:44.274Z] [Web] wikipedia-search "Deterministic computer automation"
