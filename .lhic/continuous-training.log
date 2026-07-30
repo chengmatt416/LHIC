@@ -32564,3 +32564,89 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T00:48:34+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
 [2026-07-31T00:48:55+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to plan a deep Wikipedia research flow. The goal is: 1) Search for ...
 [2026-07-31T00:48:55+08:00] [Web] wikipedia-search "Distributed systems"
+[2026-07-31T00:49:01+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:49:01+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:49:01+08:00] 
+--- Cycle #259 | Task: plan-cross-site-verification | LLM=ON ---
+[2026-07-31T00:49:01+08:00] Elapsed: 1.17h | Remaining: 478.83h | SuccessRate: 94.0%
+[2026-07-31T00:49:01+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
+[2026-07-31T00:49:19+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a task: "Plan cross-site data verification: 1) Search Wikipedia for...
+[2026-07-31T00:49:19+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T00:49:25+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:49:25+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:49:26+08:00] 
+--- Cycle #260 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T00:49:26+08:00] Elapsed: 1.17h | Remaining: 478.83h | SuccessRate: 94.0%
+[2026-07-31T00:49:26+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T00:49:47+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan a hybrid API+browser flow: 1) Fetch GitHub API for re...
+[2026-07-31T00:49:47+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:49:48+08:00] 
+--- Cycle #261 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T00:49:48+08:00] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 94.0%
+[2026-07-31T00:49:48+08:00] [Resilience] batch=50 seed=438 threads=20
+[2026-07-31T00:49:49+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:49:50+08:00] 
+--- Cycle #262 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T00:49:50+08:00] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 94.0%
+[2026-07-31T00:49:50+08:00] [Resilience] batch=150 seed=455 threads=20
+[2026-07-31T00:49:53+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:49:53+08:00] 
+--- Cycle #263 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-31T00:49:53+08:00] Elapsed: 1.18h | Remaining: 478.82h | SuccessRate: 94.0%
+[2026-07-31T00:49:53+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T00:50:41+08:00] [Policy] loss=6.5920 accuracy=67.9%
+[2026-07-31T00:50:41+08:00] 
+--- Cycle #264 | Task: skill-chain-wiki-mdn-github | LLM=ON ---
+[2026-07-31T00:50:41+08:00] Elapsed: 1.20h | Remaining: 478.80h | SuccessRate: 94.0%
+[2026-07-31T00:50:41+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T00:50:48+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:50:48+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T00:50:54+08:00] [Web] OK: mdn-search
+[2026-07-31T00:50:54+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T00:51:02+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:51:03+08:00] 
+--- Cycle #265 | Task: skill-chain-docs-to-code | LLM=ON ---
+[2026-07-31T00:51:03+08:00] Elapsed: 1.20h | Remaining: 478.80h | SuccessRate: 94.0%
+[2026-07-31T00:51:03+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T00:51:09+08:00] [Web] OK: mdn-search
+[2026-07-31T00:51:09+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T00:51:15+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:51:15+08:00] 
+--- Cycle #266 | Task: recovery-network-timeout | LLM=ON ---
+[2026-07-31T00:51:15+08:00] Elapsed: 1.20h | Remaining: 478.80h | SuccessRate: 94.0%
+[2026-07-31T00:51:15+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T00:51:39+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan recovery for network timeout during browser automatio...
+[2026-07-31T00:51:39+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:51:39+08:00] 
+--- Cycle #267 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T00:51:39+08:00] Elapsed: 1.21h | Remaining: 478.79h | SuccessRate: 94.0%
+[2026-07-31T00:51:39+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
+[2026-07-31T00:52:00+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to return a JSON object with a specific schema. The schema includes...
+[2026-07-31T00:52:00+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:52:00+08:00] 
+--- Cycle #268 | Task: crossmodal-api-plus-web | LLM=ON ---
+[2026-07-31T00:52:00+08:00] Elapsed: 1.22h | Remaining: 478.78h | SuccessRate: 94.0%
+[2026-07-31T00:52:00+08:00] [SlowPath] planning: crossmodal-api-plus-web — Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Op
+[2026-07-31T00:52:23+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a task to plan cross-modal data fusion. The steps are: 1) Fetch Git...
+[2026-07-31T00:52:23+08:00] [Web] github-issue-filter "is:open"
+[2026-07-31T00:52:31+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:52:31+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:52:32+08:00] 
+--- Cycle #269 | Task: docs-entry-type-wiki | LLM=ON ---
+[2026-07-31T00:52:32+08:00] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 94.0%
+[2026-07-31T00:52:32+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T00:52:38+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:52:38+08:00] 
+--- Cycle #270 | Task: geo-multi-stop-route | LLM=ON ---
+[2026-07-31T00:52:38+08:00] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 94.0%
+[2026-07-31T00:52:38+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T00:52:44+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:52:45+08:00] 
+--- Cycle #271 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-31T00:52:45+08:00] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 94.0%
+[2026-07-31T00:52:45+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T00:52:50+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:52:50+08:00] 
+--- Cycle #272 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T00:52:50+08:00] Elapsed: 1.23h | Remaining: 478.77h | SuccessRate: 94.0%
+[2026-07-31T00:52:50+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
