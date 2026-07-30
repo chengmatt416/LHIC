@@ -21373,3 +21373,5 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #108 | Task: slow-plan-github-triage | LLM=ON ---
 [2026-07-30T09:23:19.347Z] Elapsed: 0.35h | Remaining: 479.65h | SuccessRate: 53.0%
 [2026-07-30T09:23:19.366Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T09:23:25.716Z] [SlowPath] model=deepseek-v4-flash-free decision=undefined
+[2026-07-30T09:23:25.716Z] [Web] github-issues "is:open label:bug sort:updated-desc"
