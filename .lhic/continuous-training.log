@@ -25951,3 +25951,14 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T12:09:11.626Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
 [2026-07-30T12:09:30.579Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan MDN docs navigation: search Accessibility tree, open ...
 [2026-07-30T12:09:30.580Z] [Web] mdn-search "ARIA roles"
+[2026-07-30T12:09:36.691Z] [Web] OK: mdn-search
+[2026-07-30T12:09:36.692Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T12:09:36.909Z] 
+--- Cycle #143 | Task: slow-plan-form-recovery | LLM=ON ---
+[2026-07-30T12:09:36.910Z] Elapsed: 0.49h | Remaining: 479.51h | SuccessRate: 95.0%
+[2026-07-30T12:09:36.931Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
+[2026-07-30T12:09:47.281Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T12:09:47.497Z] 
+--- Cycle #144 | Task: slow-plan-complex-nav | LLM=ON ---
+[2026-07-30T12:09:47.497Z] Elapsed: 0.49h | Remaining: 479.51h | SuccessRate: 95.0%
+[2026-07-30T12:09:47.519Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
