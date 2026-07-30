@@ -31837,3 +31837,87 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #140 | Task: skill-chain-wiki-mdn-github | LLM=ON ---
 [2026-07-31T00:16:03+08:00] Elapsed: 0.62h | Remaining: 479.38h | SuccessRate: 93.0%
 [2026-07-31T00:16:03+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T00:16:10+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:16:10+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T00:16:16+08:00] [Web] OK: mdn-search
+[2026-07-31T00:16:16+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T00:16:25+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:16:25+08:00] 
+--- Cycle #141 | Task: skill-chain-docs-to-code | LLM=ON ---
+[2026-07-31T00:16:25+08:00] Elapsed: 0.62h | Remaining: 479.38h | SuccessRate: 93.0%
+[2026-07-31T00:16:25+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T00:16:31+08:00] [Web] OK: mdn-search
+[2026-07-31T00:16:31+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T00:16:38+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:16:38+08:00] 
+--- Cycle #142 | Task: recovery-network-timeout | LLM=ON ---
+[2026-07-31T00:16:38+08:00] Elapsed: 0.63h | Remaining: 479.37h | SuccessRate: 93.0%
+[2026-07-31T00:16:38+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T00:16:57+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a task: "Plan recovery for network timeout during browser automatio...
+[2026-07-31T00:16:57+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:16:57+08:00] 
+--- Cycle #143 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T00:16:57+08:00] Elapsed: 0.63h | Remaining: 479.37h | SuccessRate: 93.0%
+[2026-07-31T00:16:57+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
+[2026-07-31T00:17:12+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:17:13+08:00] 
+--- Cycle #144 | Task: crossmodal-api-plus-web | LLM=ON ---
+[2026-07-31T00:17:13+08:00] Elapsed: 0.64h | Remaining: 479.36h | SuccessRate: 93.0%
+[2026-07-31T00:17:13+08:00] [SlowPath] planning: crossmodal-api-plus-web — Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Op
+[2026-07-31T00:17:31+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-modal data fusion: 1) Fetch GitHub API for repo...
+[2026-07-31T00:17:31+08:00] [Web] github-issue-filter "is:open"
+[2026-07-31T00:17:40+08:00] [Web] OK: github-issue-filter
+[2026-07-31T00:17:40+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T00:17:41+08:00] 
+--- Cycle #145 | Task: docs-entry-type-wiki | LLM=ON ---
+[2026-07-31T00:17:41+08:00] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-31T00:17:41+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T00:17:47+08:00] [Web] OK: wikipedia-search
+[2026-07-31T00:17:47+08:00] 
+--- Cycle #146 | Task: geo-multi-stop-route | LLM=ON ---
+[2026-07-31T00:17:47+08:00] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-31T00:17:47+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T00:17:53+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:17:53+08:00] 
+--- Cycle #147 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-31T00:17:53+08:00] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-31T00:17:53+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T00:17:59+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T00:17:59+08:00] 
+--- Cycle #148 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T00:17:59+08:00] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-31T00:17:59+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T00:18:17+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: Plan extraction from an infinite-scroll page. Steps: 1) Ini...
+[2026-07-31T00:18:17+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:18:17+08:00] 
+--- Cycle #149 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T00:18:17+08:00] Elapsed: 0.66h | Remaining: 479.34h | SuccessRate: 93.0%
+[2026-07-31T00:18:17+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T00:18:35+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:18:35+08:00] 
+--- Cycle #150 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T00:18:35+08:00] Elapsed: 0.66h | Remaining: 479.34h | SuccessRate: 93.0%
+[2026-07-31T00:18:35+08:00] [Resilience] batch=300 seed=551 threads=20
+[2026-07-31T00:18:42+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T00:18:42+08:00] 
+--- Cycle #151 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T00:18:42+08:00] Elapsed: 0.66h | Remaining: 479.34h | SuccessRate: 93.0%
+[2026-07-31T00:18:42+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T00:18:46+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T00:18:46+08:00] 
+--- Cycle #152 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-31T00:18:46+08:00] Elapsed: 0.66h | Remaining: 479.34h | SuccessRate: 92.0%
+[2026-07-31T00:18:46+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T00:18:50+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T00:18:50+08:00] 
+--- Cycle #153 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-31T00:18:50+08:00] Elapsed: 0.66h | Remaining: 479.34h | SuccessRate: 91.0%
+[2026-07-31T00:18:50+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
+[2026-07-31T00:19:10+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan recovery for expired session during multi-step flow: ...
+[2026-07-31T00:19:10+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T00:19:10+08:00] 
+--- Cycle #154 | Task: crossmodal-wiki-then-osm | LLM=ON ---
+[2026-07-31T00:19:10+08:00] Elapsed: 0.67h | Remaining: 479.33h | SuccessRate: 91.0%
+[2026-07-31T00:19:10+08:00] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
