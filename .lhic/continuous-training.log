@@ -23904,3 +23904,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #550 | Task: policy-2d-fit | LLM=ON ---
 [2026-07-30T10:52:21.352Z] Elapsed: 1.84h | Remaining: 478.16h | SuccessRate: 52.0%
 [2026-07-30T10:52:21.374Z] [Policy] 2d/space-invaders-2d fit
+[2026-07-30T10:52:25.423Z] [Policy] record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T10:52:25.634Z] 
+--- Cycle #551 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T10:52:25.635Z] Elapsed: 1.84h | Remaining: 478.16h | SuccessRate: 52.0%
+[2026-07-30T10:52:25.655Z] [Web] wikipedia-search "Agentic coding systems"
