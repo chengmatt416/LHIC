@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T21:59:19+08:00",
   "targetEndTime": "2026-08-19T21:59:19+08:00",
-  "lastUpdated": "2026-07-30T22:23:23+08:00",
-  "iteration": 90,
-  "currentTask": "policy-nemesis-advanced",
+  "lastUpdated": "2026-07-30T22:24:00+08:00",
+  "iteration": 92,
+  "currentTask": "crossmodal-wiki-then-osm",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 90,
+    "completedTasks": 92,
     "progressPercent": "0.09"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 285,
+        "ok": 287,
         "fail": 160,
         "rateLimit": 0
       },
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 9,
     "totalGameFits": 3,
-    "totalPublicWebRuns": 58,
-    "totalSlowPathPlans": 42,
-    "totalSkillCandidates": 58,
-    "rollingSuccessRate": 0.9333333333333333,
-    "elapsedHours": "0.40",
-    "remainingHours": "479.60",
+    "totalPublicWebRuns": 59,
+    "totalSlowPathPlans": 44,
+    "totalSkillCandidates": 59,
+    "rollingSuccessRate": 0.9347826086956522,
+    "elapsedHours": "0.41",
+    "remainingHours": "479.59",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
