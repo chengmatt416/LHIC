@@ -25204,3 +25204,10 @@ fatal: could not read Username for 'https://gi
 --- Cycle #12 | Task: slow-plan-complex-nav | LLM=ON ---
 [2026-07-30T11:42:18.182Z] Elapsed: 0.03h | Remaining: 479.97h | SuccessRate: 100.0%
 [2026-07-30T11:42:18.201Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
+[2026-07-30T11:42:27.709Z] [Web] mdn-search "CSS selectors"
+[2026-07-30T11:42:33.721Z] [Web] OK: mdn-search
+[2026-07-30T11:42:33.721Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T11:42:33.939Z] 
+--- Cycle #13 | Task: resilience-batch-100 | LLM=ON ---
+[2026-07-30T11:42:33.940Z] Elapsed: 0.03h | Remaining: 479.97h | SuccessRate: 100.0%
+[2026-07-30T11:42:33.959Z] [Resilience] batch=100 seed=222 threads=20
