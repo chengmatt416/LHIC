@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:30:45.283Z",
   "targetEndTime": "2026-08-19T11:30:45.283Z",
-  "lastUpdated": "2026-07-30T11:36:15.586Z",
-  "iteration": 14,
-  "currentTask": "policy-3d-fit",
+  "lastUpdated": "2026-07-30T11:36:34.817Z",
+  "iteration": 15,
+  "currentTask": "skill-holdout-eval",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 14,
+    "completedTasks": 15,
     "progressPercent": "0.01"
   },
   "llm": {
@@ -41,14 +41,14 @@
   "stats": {
     "totalSimulations": 1,
     "totalGameFits": 1,
-    "totalPublicWebRuns": 11,
+    "totalPublicWebRuns": 14,
     "totalSlowPathPlans": 3,
     "totalSkillCandidates": 11,
-    "rollingSuccessRate": 0.9285714285714286,
-    "elapsedHours": "0.08",
-    "remainingHours": "479.92",
-    "latestPyTorchLoss": 6.650541305541992,
-    "latestPyTorchAccuracy": 0.5882352941176471,
+    "rollingSuccessRate": 0.9333333333333333,
+    "elapsedHours": "0.09",
+    "remainingHours": "479.91",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
