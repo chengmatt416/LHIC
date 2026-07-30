@@ -25883,3 +25883,10 @@ fatal: could not read Username for 'https://gi
 --- Cycle #130 | Task: slow-plan-github-triage | LLM=ON ---
 [2026-07-30T12:07:19.685Z] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 96.0%
 [2026-07-30T12:07:19.705Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T12:07:34.394Z] [Web] github-issue-filter "is:open label:bug sort:updated-desc"
+[2026-07-30T12:07:43.452Z] [Web] OK: github-issue-filter
+[2026-07-30T12:07:43.453Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T12:07:43.673Z] 
+--- Cycle #131 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T12:07:43.673Z] Elapsed: 0.45h | Remaining: 479.55h | SuccessRate: 96.0%
+[2026-07-30T12:07:43.694Z] [Resilience] batch=200 seed=228 threads=20
