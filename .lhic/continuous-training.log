@@ -21121,3 +21121,4 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #64 | Task: slow-plan-github-triage | LLM=ON ---
 [2026-07-30T09:14:37.721Z] Elapsed: 0.21h | Remaining: 479.79h | SuccessRate: 57.1%
 [2026-07-30T09:14:37.740Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T09:14:45.086Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
