@@ -37568,3 +37568,39 @@ fatal: could not read Username for 'https://gi
 --- Cycle #632 | Task: policy-curriculum-3d | LLM=OFF ---
 [2026-07-31T03:46:19+08:00] Elapsed: 1.83h | Remaining: 478.17h | SuccessRate: 87.0%
 [2026-07-31T03:46:19+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T03:47:08+08:00] [Policy] loss=6.6049 accuracy=68.0%
+[2026-07-31T03:47:08+08:00] 
+--- Cycle #633 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T03:47:08+08:00] Elapsed: 1.84h | Remaining: 478.16h | SuccessRate: 87.0%
+[2026-07-31T03:47:08+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T03:47:15+08:00] [Web] OK: wikipedia-search
+[2026-07-31T03:47:15+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T03:47:21+08:00] [Web] OK: mdn-search
+[2026-07-31T03:47:21+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T03:47:30+08:00] [Web] OK: github-issue-filter
+[2026-07-31T03:47:30+08:00] 
+--- Cycle #634 | Task: skill-chain-docs-to-code | LLM=OFF ---
+[2026-07-31T03:47:30+08:00] Elapsed: 1.85h | Remaining: 478.15h | SuccessRate: 87.0%
+[2026-07-31T03:47:30+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T03:47:36+08:00] [Web] OK: mdn-search
+[2026-07-31T03:47:36+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T03:47:42+08:00] [Web] OK: wikipedia-search
+[2026-07-31T03:47:42+08:00] 
+--- Cycle #635 | Task: docs-entry-type-wiki | LLM=OFF ---
+[2026-07-31T03:47:42+08:00] Elapsed: 1.85h | Remaining: 478.15h | SuccessRate: 87.0%
+[2026-07-31T03:47:42+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T03:47:49+08:00] [Web] OK: wikipedia-search
+[2026-07-31T03:47:49+08:00] 
+--- Cycle #636 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-07-31T03:47:49+08:00] Elapsed: 1.85h | Remaining: 478.15h | SuccessRate: 87.0%
+[2026-07-31T03:47:49+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T03:47:55+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T03:47:55+08:00] 
+--- Cycle #637 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T03:47:55+08:00] Elapsed: 1.86h | Remaining: 478.14h | SuccessRate: 88.0%
+[2026-07-31T03:47:55+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T03:48:01+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T03:48:01+08:00] 
+--- Cycle #638 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T03:48:01+08:00] Elapsed: 1.86h | Remaining: 478.14h | SuccessRate: 88.0%
+[2026-07-31T03:48:01+08:00] [Resilience] batch=300 seed=847 threads=20
