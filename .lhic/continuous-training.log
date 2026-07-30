@@ -27264,3 +27264,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #149 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-30T13:01:52.168Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
 [2026-07-30T13:01:52.190Z] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-30T13:02:11.828Z] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal and a context. The goal is a plan for interacting with a mod...
+[2026-07-30T13:02:11.829Z] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T13:02:12.044Z] 
+--- Cycle #150 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-30T13:02:12.044Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-30T13:02:12.065Z] [Resilience] batch=300 seed=551 threads=20
+[2026-07-30T13:02:18.397Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T13:02:18.623Z] 
+--- Cycle #151 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-30T13:02:18.624Z] Elapsed: 0.65h | Remaining: 479.35h | SuccessRate: 93.0%
+[2026-07-30T13:02:18.645Z] [Policy] 3d/star-trooper fit
