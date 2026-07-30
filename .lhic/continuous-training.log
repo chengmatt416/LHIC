@@ -22759,3 +22759,14 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T10:11:39.986Z] Elapsed: 1.16h | Remaining: 478.84h | SuccessRate: 54.0%
 [2026-07-30T10:11:40.006Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T10:11:47.670Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T10:12:05.997Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T10:12:05.998Z] [SlowPath] blocked: All available models failed
+[2026-07-30T10:12:06.213Z] 
+--- Cycle #351 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T10:12:06.214Z] Elapsed: 1.17h | Remaining: 478.83h | SuccessRate: 53.0%
+[2026-07-30T10:12:06.237Z] [Resilience] batch=200 seed=968 threads=20
+[2026-07-30T10:12:10.791Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T10:12:11.012Z] 
+--- Cycle #352 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T10:12:11.013Z] Elapsed: 1.17h | Remaining: 478.83h | SuccessRate: 54.0%
+[2026-07-30T10:12:11.034Z] [Policy] 2d/space-invaders-2d fit
