@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T12:23:07.674Z",
   "targetEndTime": "2026-08-19T12:23:07.674Z",
-  "lastUpdated": "2026-07-30T13:02:46.434Z",
-  "iteration": 153,
-  "currentTask": "recovery-session-expired",
+  "lastUpdated": "2026-07-30T13:03:10.624Z",
+  "iteration": 154,
+  "currentTask": "crossmodal-wiki-then-osm",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 153,
+    "completedTasks": 154,
     "progressPercent": "0.15"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 136,
+        "ok": 137,
         "fail": 160,
         "rateLimit": 0
       },
@@ -41,9 +41,9 @@
   "stats": {
     "totalSimulations": 15,
     "totalGameFits": 5,
-    "totalPublicWebRuns": 98,
-    "totalSlowPathPlans": 73,
-    "totalSkillCandidates": 98,
+    "totalPublicWebRuns": 99,
+    "totalSlowPathPlans": 74,
+    "totalSkillCandidates": 99,
     "rollingSuccessRate": 0.91,
     "elapsedHours": "0.66",
     "remainingHours": "479.34",
