@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T11:40:28.497Z",
   "targetEndTime": "2026-08-19T11:40:28.497Z",
-  "lastUpdated": "2026-07-30T12:20:05.991Z",
-  "iteration": 191,
-  "currentTask": "skill-holdout-eval",
+  "lastUpdated": "2026-07-30T12:20:15.041Z",
+  "iteration": 192,
+  "currentTask": "github-open-bugs",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 191,
+    "completedTasks": 192,
     "progressPercent": "0.19"
   },
   "llm": {
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 17,
     "totalGameFits": 9,
-    "totalPublicWebRuns": 166,
+    "totalPublicWebRuns": 167,
     "totalSlowPathPlans": 44,
-    "totalSkillCandidates": 139,
+    "totalSkillCandidates": 140,
     "rollingSuccessRate": 0.96,
-    "elapsedHours": "0.65",
-    "remainingHours": "479.35",
+    "elapsedHours": "0.66",
+    "remainingHours": "479.34",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
