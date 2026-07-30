@@ -25823,3 +25823,5 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T12:04:02.546Z] Elapsed: 0.39h | Remaining: 479.61h | SuccessRate: 95.0%
 [2026-07-30T12:04:02.565Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
 [2026-07-30T12:04:20.487Z] [LLM] deepseek-v4-flash-free failed: HTTP 500: {"type":"error","error":{"type":"error","message":"Internal server error"}}
+[2026-07-30T12:05:05.490Z] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-30T12:05:05.491Z] [Web] mdn-search "ARIA roles"
