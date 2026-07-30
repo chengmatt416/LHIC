@@ -29383,3 +29383,42 @@ fatal: could not read Username for 'https://gi
 --- Cycle #118 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-30T22:31:30+08:00] Elapsed: 0.54h | Remaining: 479.46h | SuccessRate: 94.0%
 [2026-07-30T22:31:30+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-30T22:31:52+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to output a JSON object with a specific schema. The schema is: {"de...
+[2026-07-30T22:31:52+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T22:31:52+08:00] 
+--- Cycle #119 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-30T22:31:52+08:00] Elapsed: 0.54h | Remaining: 479.46h | SuccessRate: 94.0%
+[2026-07-30T22:31:52+08:00] [Resilience] batch=300 seed=24 threads=20
+[2026-07-30T22:31:59+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T22:31:59+08:00] 
+--- Cycle #120 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-30T22:31:59+08:00] Elapsed: 0.54h | Remaining: 479.46h | SuccessRate: 94.0%
+[2026-07-30T22:31:59+08:00] [Policy] 3d/star-trooper fit
+[2026-07-30T22:32:03+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-30T22:32:03+08:00] 
+--- Cycle #121 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-30T22:32:03+08:00] Elapsed: 0.55h | Remaining: 479.45h | SuccessRate: 93.0%
+[2026-07-30T22:32:03+08:00] [Policy] 3d/nemesis fit
+[2026-07-30T22:32:07+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-30T22:32:07+08:00] 
+--- Cycle #122 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-30T22:32:07+08:00] Elapsed: 0.55h | Remaining: 479.45h | SuccessRate: 92.0%
+[2026-07-30T22:32:08+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
+[2026-07-30T22:32:30+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are asked to generate a JSON plan for session recovery. The goal is to plan r...
+[2026-07-30T22:32:30+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-30T22:32:31+08:00] 
+--- Cycle #123 | Task: crossmodal-wiki-then-osm | LLM=ON ---
+[2026-07-30T22:32:31+08:00] Elapsed: 0.55h | Remaining: 479.45h | SuccessRate: 92.0%
+[2026-07-30T22:32:31+08:00] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
+[2026-07-30T22:32:52+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan cross-modal geographic research: 1) Search Wikipedia ...
+[2026-07-30T22:32:52+08:00] [Web] openstreetmap-place-search "Great Wall of China"
+[2026-07-30T22:32:58+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-30T22:32:58+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-30T22:32:58+08:00] 
+--- Cycle #124 | Task: crossmodal-mdn-to-wiki-spec | LLM=ON ---
+[2026-07-30T22:32:58+08:00] Elapsed: 0.56h | Remaining: 479.44h | SuccessRate: 92.0%
+[2026-07-30T22:32:58+08:00] [SlowPath] planning: crossmodal-mdn-to-wiki-spec — Plan specification cross-reference: 1) Search MDN for 'WebSocket', 2) Extract th
+[2026-07-30T22:33:19+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We are given a goal: "Plan specification cross-reference: 1) Search MDN for 'Web...
+[2026-07-30T22:33:19+08:00] [Web] mdn-search "WebSocket"
