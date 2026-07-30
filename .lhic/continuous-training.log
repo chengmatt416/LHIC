@@ -24524,3 +24524,20 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:16:59.622Z] Elapsed: 2.25h | Remaining: 477.75h | SuccessRate: 53.0%
 [2026-07-30T11:16:59.645Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
 [2026-07-30T11:17:08.165Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:17:26.105Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:17:26.106Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:17:26.321Z] 
+--- Cycle #659 | Task: resilience-batch-200 | LLM=ON ---
+[2026-07-30T11:17:26.322Z] Elapsed: 2.25h | Remaining: 477.75h | SuccessRate: 52.0%
+[2026-07-30T11:17:26.346Z] [Resilience] batch=200 seed=204 threads=20
+[2026-07-30T11:17:30.739Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T11:17:30.966Z] 
+--- Cycle #660 | Task: policy-2d-fit | LLM=ON ---
+[2026-07-30T11:17:30.966Z] Elapsed: 2.26h | Remaining: 477.74h | SuccessRate: 53.0%
+[2026-07-30T11:17:30.987Z] [Policy] 2d/space-invaders-2d fit
+[2026-07-30T11:17:35.017Z] [Policy] record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T11:17:35.229Z] 
+--- Cycle #661 | Task: wiki-search-agentic | LLM=ON ---
+[2026-07-30T11:17:35.230Z] Elapsed: 2.26h | Remaining: 477.74h | SuccessRate: 53.0%
+[2026-07-30T11:17:35.249Z] [Web] wikipedia-search "Agentic coding systems"
