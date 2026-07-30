@@ -21817,3 +21817,9 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T09:37:56.671Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 58.0%
 [2026-07-30T09:37:56.693Z] [SlowPath] planning: slow-plan-mdn-deep — Plan MDN docs navigation: search Accessibility tree, open ARIA roles page, verif
 [2026-07-30T09:38:03.166Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T09:38:17.501Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T09:38:17.502Z] [SlowPath] blocked: All available models failed
+[2026-07-30T09:38:17.712Z] 
+--- Cycle #187 | Task: slow-plan-form-recovery | LLM=ON ---
+[2026-07-30T09:38:17.712Z] Elapsed: 0.60h | Remaining: 479.40h | SuccessRate: 58.0%
+[2026-07-30T09:38:17.734Z] [SlowPath] planning: slow-plan-form-recovery — Given a failed form submit verification, propose recovery actions with alternati
