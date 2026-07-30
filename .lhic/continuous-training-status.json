@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T07:03:30+08:00",
-  "iteration": 1841,
-  "currentTask": "chain-wiki-to-mdn",
+  "lastUpdated": "2026-07-31T07:09:13+08:00",
+  "iteration": 1879,
+  "currentTask": "resilience-adversarial-150",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 1841,
-    "progressPercent": "1.84"
+    "completedTasks": 1879,
+    "progressPercent": "1.88"
   },
   "llm": {
     "models": [
@@ -21,7 +21,7 @@
       {
         "model": "mimo-v2.5-free",
         "available": false,
-        "rateLimitedUntil": "2026-07-31T07:08:23+08:00"
+        "rateLimitedUntil": "2026-07-31T12:08:25+08:00"
       }
     ],
     "stats": {
@@ -33,23 +33,23 @@
       "mimo": {
         "ok": 16,
         "fail": 155,
-        "rateLimit": 1
+        "rateLimit": 2
       }
     },
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 342,
-    "totalGameFits": 113,
-    "totalPublicWebRuns": 1489,
-    "totalSlowPathPlans": 15,
-    "totalSkillCandidates": 1489,
-    "rollingSuccessRate": 0.84,
-    "elapsedHours": "5.11",
-    "remainingHours": "474.89",
+    "totalSimulations": 350,
+    "totalGameFits": 115,
+    "totalPublicWebRuns": 1520,
+    "totalSlowPathPlans": 16,
+    "totalSkillCandidates": 1520,
+    "rollingSuccessRate": 0.87,
+    "elapsedHours": "5.21",
+    "remainingHours": "474.79",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
