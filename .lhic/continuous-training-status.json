@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T11:19:24.804Z",
-  "iteration": 671,
-  "currentTask": "slow-plan-form-recovery",
+  "lastUpdated": "2026-07-30T11:19:49.549Z",
+  "iteration": 673,
+  "currentTask": "resilience-batch-100",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 671,
+    "completedTasks": 673,
     "progressPercent": "0.67"
   },
   "llm": {
@@ -27,29 +27,29 @@
     "stats": {
       "deepseek": {
         "ok": 15,
-        "fail": 138,
+        "fail": 139,
         "rateLimit": 0
       },
       "mimo": {
         "ok": 0,
-        "fail": 138,
+        "fail": 139,
         "rateLimit": 0
       }
     },
     "hasAvailable": true
   },
   "stats": {
-    "totalSimulations": 60,
+    "totalSimulations": 61,
     "totalGameFits": 30,
     "totalPublicWebRuns": 346,
     "totalSlowPathPlans": 11,
     "totalSkillCandidates": 256,
     "rollingSuccessRate": 0.58,
-    "elapsedHours": "2.28",
-    "remainingHours": "477.72",
+    "elapsedHours": "2.29",
+    "remainingHours": "477.71",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }

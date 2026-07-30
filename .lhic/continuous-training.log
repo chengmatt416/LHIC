@@ -24603,3 +24603,14 @@ fatal: could not read Username for 'https://gi
 [2026-07-30T11:19:25.016Z] Elapsed: 2.29h | Remaining: 477.71h | SuccessRate: 58.0%
 [2026-07-30T11:19:25.040Z] [SlowPath] planning: slow-plan-complex-nav — Plan complex navigation across public docs site with low confidence stage classi
 [2026-07-30T11:19:32.908Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
+[2026-07-30T11:19:46.610Z] [LLM] mimo-v2.5-free failed: Empty response
+[2026-07-30T11:19:46.610Z] [SlowPath] blocked: All available models failed
+[2026-07-30T11:19:46.821Z] 
+--- Cycle #673 | Task: resilience-batch-100 | LLM=ON ---
+[2026-07-30T11:19:46.821Z] Elapsed: 2.29h | Remaining: 477.71h | SuccessRate: 58.0%
+[2026-07-30T11:19:46.845Z] [Resilience] batch=100 seed=442 threads=20
+[2026-07-30T11:19:49.540Z] [Resilience] semantic=100.0% delta=+80%
+[2026-07-30T11:19:49.764Z] 
+--- Cycle #674 | Task: policy-3d-fit | LLM=ON ---
+[2026-07-30T11:19:49.765Z] Elapsed: 2.29h | Remaining: 477.71h | SuccessRate: 58.0%
+[2026-07-30T11:19:49.786Z] [Policy] 3d/epic-shooter-3d fit
