@@ -20045,3 +20045,18 @@ fatal: could not read Username for 'https://github.com': No su
 [2026-07-30T08:20:56.895Z] [Step 3/3] Web Skill Training: github-issues (project) "is:open label:enhancement"...
 [2026-07-30T08:21:00.432Z] Web Skill note: Unknown public-web training scenario "github-issues". Choose one of: wikipedia-search, mdn-search, github-issue-filter, openstreetmap-place-search.
 
+[2026-07-30T08:21:01.446Z] 
+--- Cycle #123 (Tasks: 6,150/100,000) ---
+[2026-07-30T08:21:01.446Z] Elapsed: 1.23h | Remaining: 718.77h
+[2026-07-30T08:21:01.446Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
+[2026-07-30T08:21:03.961Z] Resilience: semantic=100.0%, delta=+80%
+[2026-07-30T08:21:03.970Z] [Step 2/3] PyTorch 2D Training (space-invaders-2d)...
+[2026-07-30T08:21:07.971Z] Game record failed: Unknown game target space-invaders-2d. Available targets: star-trooper, challenge-2026, nemesis, epic-shooter-3d.
+
+[2026-07-30T08:21:07.972Z] [Step 3/3] Web Skill Training: openstreetmap (geo) "search for Taipei 101"...
+[2026-07-30T08:21:11.484Z] Web Skill note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, openstreetmap-place-search.
+
+[2026-07-30T08:21:12.496Z] 
+--- Cycle #124 (Tasks: 6,200/100,000) ---
+[2026-07-30T08:21:12.496Z] Elapsed: 1.24h | Remaining: 718.76h
+[2026-07-30T08:21:12.496Z] [Step 1/3] Resilience Simulation (100 tasks, 20 threads)...
