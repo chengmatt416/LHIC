@@ -22248,3 +22248,9 @@ fatal: could not read Username for 'https://github.com': No su
 --- Cycle #261 | Task: osm-central-park | LLM=ON ---
 [2026-07-30T09:53:12.302Z] Elapsed: 0.85h | Remaining: 479.15h | SuccessRate: 55.0%
 [2026-07-30T09:53:12.324Z] [Web] openstreetmap "Central Park New York"
+[2026-07-30T09:53:15.840Z] [Web] note: Unknown public-web training scenario "openstreetmap". Choose one of: wikipedia-search, mdn-search, github-issue-filter, 
+[2026-07-30T09:53:16.049Z] 
+--- Cycle #262 | Task: slow-plan-github-triage | LLM=ON ---
+[2026-07-30T09:53:16.050Z] Elapsed: 0.85h | Remaining: 479.15h | SuccessRate: 54.0%
+[2026-07-30T09:53:16.070Z] [SlowPath] planning: slow-plan-github-triage — Plan GitHub issue triage: filter open bugs, sort by recently updated, open first
+[2026-07-30T09:53:22.404Z] [LLM] deepseek-v4-flash-free failed: Invalid JSON
