@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-30T09:02:08.659Z",
   "targetEndTime": "2026-08-19T09:02:08.659Z",
-  "lastUpdated": "2026-07-30T09:57:56.278Z",
-  "iteration": 286,
-  "currentTask": "policy-2d-fit",
+  "lastUpdated": "2026-07-30T09:58:03.406Z",
+  "iteration": 287,
+  "currentTask": "wiki-search-agentic",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 286,
+    "completedTasks": 287,
     "progressPercent": "0.29"
   },
   "llm": {
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 26,
     "totalGameFits": 13,
-    "totalPublicWebRuns": 147,
+    "totalPublicWebRuns": 148,
     "totalSlowPathPlans": 6,
-    "totalSkillCandidates": 108,
-    "rollingSuccessRate": 0.55,
+    "totalSkillCandidates": 109,
+    "rollingSuccessRate": 0.56,
     "elapsedHours": "0.93",
     "remainingHours": "479.07",
     "latestPyTorchLoss": null,
