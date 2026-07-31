@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:05:57+08:00",
-  "iteration": 8015,
-  "currentTask": "policy-curriculum-star",
+  "lastUpdated": "2026-08-01T04:06:08+08:00",
+  "iteration": 8017,
+  "currentTask": "chain-wiki-to-mdn",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8015,
+    "completedTasks": 8017,
     "progressPercent": "8.02"
   },
   "llm": {
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 1312,
     "totalGameFits": 435,
-    "totalPublicWebRuns": 6157,
+    "totalPublicWebRuns": 6158,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 6157,
-    "rollingSuccessRate": 0.85,
+    "totalSkillCandidates": 6158,
+    "rollingSuccessRate": 0.84,
     "elapsedHours": "26.16",
     "remainingHours": "453.84",
     "latestPyTorchLoss": null,
