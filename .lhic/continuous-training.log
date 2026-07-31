@@ -60609,3 +60609,7 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T17:14:26+08:00] Elapsed: 15.30h | Remaining: 464.70h | SuccessRate: 77.0%
 [2026-07-31T17:14:26+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
 [2026-07-31T17:14:31+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T17:14:32+08:00] 
+--- Cycle #4705 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T17:14:32+08:00] Elapsed: 15.30h | Remaining: 464.70h | SuccessRate: 77.0%
+[2026-07-31T17:14:32+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
