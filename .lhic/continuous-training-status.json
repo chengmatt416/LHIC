@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T17:23:43+08:00",
-  "iteration": 4723,
-  "currentTask": "plan-cross-site-verification",
+  "lastUpdated": "2026-07-31T17:24:22+08:00",
+  "iteration": 4724,
+  "currentTask": "plan-api-then-browser",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 4723,
+    "completedTasks": 4724,
     "progressPercent": "4.72"
   },
   "llm": {
@@ -31,7 +31,7 @@
         "rateLimit": 3
       },
       "mimo": {
-        "ok": 77,
+        "ok": 78,
         "fail": 213,
         "rateLimit": 2
       }
@@ -42,11 +42,11 @@
     "totalSimulations": 784,
     "totalGameFits": 260,
     "totalPublicWebRuns": 3650,
-    "totalSlowPathPlans": 507,
+    "totalSlowPathPlans": 508,
     "totalSkillCandidates": 3650,
     "rollingSuccessRate": 0.77,
-    "elapsedHours": "15.44",
-    "remainingHours": "464.56",
+    "elapsedHours": "15.45",
+    "remainingHours": "464.55",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
