@@ -61596,3 +61596,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4865 | Task: recovery-session-expired | LLM=ON ---
 [2026-07-31T18:07:05+08:00] Elapsed: 16.18h | Remaining: 463.82h | SuccessRate: 92.0%
 [2026-07-31T18:07:05+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
+[2026-07-31T18:07:22+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user wants a JSON plan for handling an expired session during a multi...
+[2026-07-31T18:07:22+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T18:07:22+08:00] 
+--- Cycle #4866 | Task: crossmodal-wiki-then-osm | LLM=ON ---
+[2026-07-31T18:07:22+08:00] Elapsed: 16.18h | Remaining: 463.82h | SuccessRate: 92.0%
+[2026-07-31T18:07:22+08:00] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
