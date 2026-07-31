@@ -64395,3 +64395,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5319 | Task: recovery-network-timeout | LLM=ON ---
 [2026-07-31T20:05:25+08:00] Elapsed: 18.15h | Remaining: 461.85h | SuccessRate: 94.0%
 [2026-07-31T20:05:25+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T20:05:42+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has specified that I must return a single JSON object and nothin...
+[2026-07-31T20:05:42+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T20:05:42+08:00] 
+--- Cycle #5320 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T20:05:42+08:00] Elapsed: 18.15h | Remaining: 461.85h | SuccessRate: 94.0%
+[2026-07-31T20:05:42+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
