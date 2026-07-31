@@ -85823,3 +85823,13 @@ Call log:
 --- Cycle #9164 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-08-01T07:14:47+08:00] Elapsed: 29.30h | Remaining: 450.70h | SuccessRate: 88.0%
 [2026-08-01T07:14:47+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T07:14:52+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:14:52+08:00] 
+--- Cycle #9165 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T07:14:52+08:00] Elapsed: 29.31h | Remaining: 450.69h | SuccessRate: 88.0%
+[2026-08-01T07:14:52+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:14:58+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:14:58+08:00] 
+--- Cycle #9166 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:14:58+08:00] Elapsed: 29.31h | Remaining: 450.69h | SuccessRate: 88.0%
+[2026-08-01T07:14:58+08:00] [Resilience] batch=300 seed=823 threads=20
