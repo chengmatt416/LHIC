@@ -60035,3 +60035,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4612 | Task: dynamic-infinite-scroll | LLM=ON ---
 [2026-07-31T16:31:26+08:00] Elapsed: 14.58h | Remaining: 465.42h | SuccessRate: 82.0%
 [2026-07-31T16:31:26+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T16:32:10+08:00] [LLM] mimo-v2.5-free failed: HTTP 500: {"type":"error","error":{"type":"error","message":"Internal server error"}}
+[2026-07-31T16:32:10+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T16:32:10+08:00] 
+--- Cycle #4613 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T16:32:10+08:00] Elapsed: 14.59h | Remaining: 465.41h | SuccessRate: 81.0%
+[2026-07-31T16:32:10+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
