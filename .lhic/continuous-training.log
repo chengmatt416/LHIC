@@ -69153,3 +69153,19 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6141 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-07-31T22:57:17+08:00] Elapsed: 21.01h | Remaining: 458.99h | SuccessRate: 87.0%
 [2026-07-31T22:57:17+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T22:57:22+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T22:57:22+08:00] 
+--- Cycle #6142 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T22:57:22+08:00] Elapsed: 21.01h | Remaining: 458.99h | SuccessRate: 87.0%
+[2026-07-31T22:57:22+08:00] [Resilience] batch=300 seed=415 threads=20
+[2026-07-31T22:57:29+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T22:57:29+08:00] 
+--- Cycle #6143 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T22:57:29+08:00] Elapsed: 21.02h | Remaining: 458.98h | SuccessRate: 87.0%
+[2026-07-31T22:57:29+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T22:57:33+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T22:57:33+08:00] 
+--- Cycle #6144 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T22:57:33+08:00] Elapsed: 21.02h | Remaining: 458.98h | SuccessRate: 86.0%
+[2026-07-31T22:57:33+08:00] [Policy] 3d/nemesis fit
