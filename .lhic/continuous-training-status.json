@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T19:23:00+08:00",
-  "iteration": 5154,
-  "currentTask": "form-multi-step-registration",
+  "lastUpdated": "2026-07-31T19:23:17+08:00",
+  "iteration": 5155,
+  "currentTask": "form-error-recovery",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5154,
-    "progressPercent": "5.15"
+    "completedTasks": 5155,
+    "progressPercent": "5.16"
   },
   "llm": {
     "models": [
@@ -31,7 +31,7 @@
         "rateLimit": 3
       },
       "mimo": {
-        "ok": 282,
+        "ok": 283,
         "fail": 215,
         "rateLimit": 2
       }
@@ -42,7 +42,7 @@
     "totalSimulations": 826,
     "totalGameFits": 274,
     "totalPublicWebRuns": 3928,
-    "totalSlowPathPlans": 714,
+    "totalSlowPathPlans": 715,
     "totalSkillCandidates": 3928,
     "rollingSuccessRate": 0.93,
     "elapsedHours": "17.44",
