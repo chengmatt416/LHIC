@@ -54489,3 +54489,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3697 | Task: form-multi-step-registration | LLM=ON ---
 [2026-07-31T12:10:13+08:00] Elapsed: 10.23h | Remaining: 469.77h | SuccessRate: 90.0%
 [2026-07-31T12:10:13+08:00] [SlowPath] planning: form-multi-step-registration — Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dr
+[2026-07-31T12:10:29+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need output JSON with decision propose_plan, message ok, proposedActions list...
+[2026-07-31T12:10:29+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T12:10:29+08:00] 
+--- Cycle #3698 | Task: form-error-recovery | LLM=ON ---
+[2026-07-31T12:10:29+08:00] Elapsed: 10.23h | Remaining: 469.77h | SuccessRate: 90.0%
+[2026-07-31T12:10:29+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
+[2026-07-31T12:10:48+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T12:10:48+08:00] 
+--- Cycle #3699 | Task: plan-wikipedia-deep-dive | LLM=ON ---
+[2026-07-31T12:10:48+08:00] Elapsed: 10.24h | Remaining: 469.76h | SuccessRate: 90.0%
+[2026-07-31T12:10:48+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
