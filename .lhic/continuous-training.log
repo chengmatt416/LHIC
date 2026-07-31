@@ -84717,3 +84717,17 @@ fatal: could not read Username for 'https://gi
 [2026-08-01T06:41:17+08:00] Elapsed: 28.75h | Remaining: 451.25h | SuccessRate: 87.0%
 [2026-08-01T06:41:17+08:00] [Web] mdn-search "Accessibility tree"
 [2026-08-01T06:41:23+08:00] [Web] OK: mdn-search
+[2026-08-01T06:41:23+08:00] 
+--- Cycle #8965 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T06:41:23+08:00] Elapsed: 28.75h | Remaining: 451.25h | SuccessRate: 88.0%
+[2026-08-01T06:41:23+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T06:41:29+08:00] [Web] OK: mdn-search
+[2026-08-01T06:41:30+08:00] 
+--- Cycle #8966 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T06:41:30+08:00] Elapsed: 28.75h | Remaining: 451.25h | SuccessRate: 88.0%
+[2026-08-01T06:41:30+08:00] [Resilience] batch=50 seed=423 threads=20
+[2026-08-01T06:41:31+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T06:41:32+08:00] 
+--- Cycle #8967 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T06:41:32+08:00] Elapsed: 28.75h | Remaining: 451.25h | SuccessRate: 88.0%
+[2026-08-01T06:41:32+08:00] [Resilience] batch=150 seed=440 threads=20
