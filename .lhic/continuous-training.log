@@ -56006,3 +56006,11 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3948 | Task: plan-cross-site-verification | LLM=ON ---
 [2026-07-31T13:13:08+08:00] Elapsed: 11.28h | Remaining: 468.72h | SuccessRate: 94.0%
 [2026-07-31T13:13:08+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
+[2026-07-31T13:13:29+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need answer with JSON object only. Need propose plan actions maybe multi-step...
+[2026-07-31T13:13:29+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T13:13:35+08:00] [Web] OK: wikipedia-search
+[2026-07-31T13:13:35+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T13:13:35+08:00] 
+--- Cycle #3949 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T13:13:35+08:00] Elapsed: 11.28h | Remaining: 468.72h | SuccessRate: 94.0%
+[2026-07-31T13:13:35+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
