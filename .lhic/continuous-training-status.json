@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:50:17+08:00",
-  "iteration": 8284,
-  "currentTask": "geo-multi-stop-route",
+  "lastUpdated": "2026-08-01T04:50:29+08:00",
+  "iteration": 8286,
+  "currentTask": "resilience-adversarial-300",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8284,
-    "progressPercent": "8.28"
+    "completedTasks": 8286,
+    "progressPercent": "8.29"
   },
   "llm": {
     "models": [
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1362,
+    "totalSimulations": 1363,
     "totalGameFits": 452,
-    "totalPublicWebRuns": 6377,
+    "totalPublicWebRuns": 6378,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 6377,
+    "totalSkillCandidates": 6378,
     "rollingSuccessRate": 0.88,
-    "elapsedHours": "26.89",
-    "remainingHours": "453.11",
+    "elapsedHours": "26.90",
+    "remainingHours": "453.10",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
