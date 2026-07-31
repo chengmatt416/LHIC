@@ -3,50 +3,50 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T21:46:08+08:00",
-  "iteration": 5710,
-  "currentTask": "triage-bug-escalation",
+  "lastUpdated": "2026-07-31T21:46:29+08:00",
+  "iteration": 5712,
+  "currentTask": "form-multi-step-registration",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5710,
+    "completedTasks": 5712,
     "progressPercent": "5.71"
   },
   "llm": {
     "models": [
       {
         "model": "deepseek-v4-flash-free",
-        "available": true,
-        "rateLimitedUntil": null
+        "available": false,
+        "rateLimitedUntil": "2026-08-01T02:46:29+08:00"
       },
       {
         "model": "mimo-v2.5-free",
-        "available": true,
-        "rateLimitedUntil": null
+        "available": false,
+        "rateLimitedUntil": "2026-08-01T02:46:29+08:00"
       }
     ],
     "stats": {
       "deepseek": {
-        "ok": 1208,
+        "ok": 1209,
         "fail": 160,
-        "rateLimit": 3
+        "rateLimit": 4
       },
       "mimo": {
         "ok": 410,
         "fail": 216,
-        "rateLimit": 2
+        "rateLimit": 3
       }
     },
-    "hasAvailable": true
+    "hasAvailable": false
   },
   "stats": {
     "totalSimulations": 880,
     "totalGameFits": 292,
-    "totalPublicWebRuns": 4287,
-    "totalSlowPathPlans": 981,
-    "totalSkillCandidates": 4287,
-    "rollingSuccessRate": 0.94,
-    "elapsedHours": "19.82",
-    "remainingHours": "460.18",
+    "totalPublicWebRuns": 4288,
+    "totalSlowPathPlans": 982,
+    "totalSkillCandidates": 4288,
+    "rollingSuccessRate": 0.93,
+    "elapsedHours": "19.83",
+    "remainingHours": "460.17",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
