@@ -56074,3 +56074,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3959 | Task: geo-multi-stop-route | LLM=ON ---
 [2026-07-31T13:16:24+08:00] Elapsed: 11.33h | Remaining: 468.67h | SuccessRate: 94.0%
 [2026-07-31T13:16:24+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T13:16:30+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T13:16:30+08:00] 
+--- Cycle #3960 | Task: geo-landmark-comparison | LLM=ON ---
+[2026-07-31T13:16:30+08:00] Elapsed: 11.33h | Remaining: 468.67h | SuccessRate: 94.0%
+[2026-07-31T13:16:30+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T13:16:36+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T13:16:36+08:00] 
+--- Cycle #3961 | Task: dynamic-infinite-scroll | LLM=ON ---
+[2026-07-31T13:16:36+08:00] Elapsed: 11.33h | Remaining: 468.67h | SuccessRate: 94.0%
+[2026-07-31T13:16:36+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
