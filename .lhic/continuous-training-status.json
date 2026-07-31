@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T06:43:20+08:00",
-  "iteration": 8973,
-  "currentTask": "geo-landmark-comparison",
+  "lastUpdated": "2026-08-01T06:43:31+08:00",
+  "iteration": 8975,
+  "currentTask": "policy-curriculum-star",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8973,
+    "completedTasks": 8975,
     "progressPercent": "8.97"
   },
   "llm": {
@@ -39,12 +39,12 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1491,
+    "totalSimulations": 1492,
     "totalGameFits": 495,
     "totalPublicWebRuns": 6937,
     "totalSlowPathPlans": 983,
     "totalSkillCandidates": 6937,
-    "rollingSuccessRate": 0.88,
+    "rollingSuccessRate": 0.87,
     "elapsedHours": "28.78",
     "remainingHours": "451.22",
     "latestPyTorchLoss": null,
