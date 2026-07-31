@@ -81257,3 +81257,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #8336 | Task: policy-nemesis-advanced | LLM=OFF ---
 [2026-08-01T04:58:25+08:00] Elapsed: 27.03h | Remaining: 452.97h | SuccessRate: 87.0%
 [2026-08-01T04:58:25+08:00] [Policy] 3d/nemesis fit
+[2026-08-01T04:58:29+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-08-01T04:58:29+08:00] 
+--- Cycle #8337 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-08-01T04:58:29+08:00] Elapsed: 27.03h | Remaining: 452.97h | SuccessRate: 86.0%
+[2026-08-01T04:58:29+08:00] [Web] wikipedia-search "Web Component"
+[2026-08-01T04:58:36+08:00] [Web] OK: wikipedia-search
+[2026-08-01T04:58:36+08:00] 
+--- Cycle #8338 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-08-01T04:58:36+08:00] Elapsed: 27.03h | Remaining: 452.97h | SuccessRate: 86.0%
+[2026-08-01T04:58:36+08:00] [Web] mdn-search "Shadow DOM"
