@@ -53859,3 +53859,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3588 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-07-31T11:47:37+08:00] Elapsed: 9.85h | Remaining: 470.15h | SuccessRate: 87.0%
 [2026-07-31T11:47:37+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T11:47:43+08:00] [Web] OK: mdn-search
+[2026-07-31T11:47:43+08:00] 
+--- Cycle #3589 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T11:47:43+08:00] Elapsed: 9.85h | Remaining: 470.15h | SuccessRate: 88.0%
+[2026-07-31T11:47:43+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T11:47:49+08:00] [Web] OK: mdn-search
+[2026-07-31T11:47:49+08:00] 
+--- Cycle #3590 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T11:47:49+08:00] Elapsed: 9.85h | Remaining: 470.15h | SuccessRate: 88.0%
+[2026-07-31T11:47:49+08:00] [Resilience] batch=50 seed=31 threads=20
