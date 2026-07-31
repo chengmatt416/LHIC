@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T23:13:13+08:00",
-  "iteration": 6238,
-  "currentTask": "resilience-adversarial-300",
+  "lastUpdated": "2026-07-31T23:13:18+08:00",
+  "iteration": 6239,
+  "currentTask": "policy-curriculum-star",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 6238,
+    "completedTasks": 6239,
     "progressPercent": "6.24"
   },
   "llm": {
@@ -44,12 +44,12 @@
     "totalPublicWebRuns": 4717,
     "totalSlowPathPlans": 982,
     "totalSkillCandidates": 4717,
-    "rollingSuccessRate": 0.88,
+    "rollingSuccessRate": 0.87,
     "elapsedHours": "21.28",
     "remainingHours": "458.72",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
