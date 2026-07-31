@@ -65012,3 +65012,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5419 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T20:31:43+08:00] Elapsed: 18.59h | Remaining: 461.41h | SuccessRate: 93.0%
 [2026-07-31T20:31:43+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T20:31:59+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has given a goal: Plan interaction with a modal dialog with spec...
+[2026-07-31T20:31:59+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T20:32:00+08:00] 
+--- Cycle #5420 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T20:32:00+08:00] Elapsed: 18.59h | Remaining: 461.41h | SuccessRate: 93.0%
+[2026-07-31T20:32:00+08:00] [Resilience] batch=300 seed=141 threads=20
+[2026-07-31T20:32:06+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T20:32:06+08:00] 
+--- Cycle #5421 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T20:32:06+08:00] Elapsed: 18.59h | Remaining: 461.41h | SuccessRate: 93.0%
+[2026-07-31T20:32:06+08:00] [Policy] 3d/star-trooper fit
