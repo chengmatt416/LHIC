@@ -52606,3 +52606,19 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3360 | Task: policy-nemesis-advanced | LLM=OFF ---
 [2026-07-31T11:10:27+08:00] Elapsed: 9.23h | Remaining: 470.77h | SuccessRate: 86.0%
 [2026-07-31T11:10:27+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T11:10:31+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T11:10:31+08:00] 
+--- Cycle #3361 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T11:10:31+08:00] Elapsed: 9.23h | Remaining: 470.77h | SuccessRate: 85.0%
+[2026-07-31T11:10:31+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T11:10:38+08:00] [Web] OK: wikipedia-search
+[2026-07-31T11:10:38+08:00] 
+--- Cycle #3362 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T11:10:38+08:00] Elapsed: 9.23h | Remaining: 470.77h | SuccessRate: 85.0%
+[2026-07-31T11:10:38+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T11:10:44+08:00] [Web] OK: mdn-search
+[2026-07-31T11:10:45+08:00] 
+--- Cycle #3363 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T11:10:45+08:00] Elapsed: 9.24h | Remaining: 470.76h | SuccessRate: 85.0%
+[2026-07-31T11:10:45+08:00] [Web] wikipedia-search "Polyfill"
