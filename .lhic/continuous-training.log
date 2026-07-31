@@ -67256,3 +67256,21 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5797 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-07-31T21:59:58+08:00] Elapsed: 20.06h | Remaining: 459.94h | SuccessRate: 87.0%
 [2026-07-31T21:59:58+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T22:00:05+08:00] [Web] OK: mdn-search
+[2026-07-31T22:00:05+08:00] [GitHub] Hourly push iteration #5797...
+[2026-07-31T22:00:06+08:00] [GitHub] push note: Command failed: git push origin training-results --force || git push -u origin training-results --force
+fatal: could not read Username for 'https://gi
+[2026-07-31T22:00:06+08:00] 
+--- Cycle #5798 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T22:00:06+08:00] Elapsed: 20.06h | Remaining: 459.94h | SuccessRate: 87.0%
+[2026-07-31T22:00:06+08:00] [Resilience] batch=50 seed=567 threads=20
+[2026-07-31T22:00:08+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T22:00:08+08:00] 
+--- Cycle #5799 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T22:00:08+08:00] Elapsed: 20.06h | Remaining: 459.94h | SuccessRate: 87.0%
+[2026-07-31T22:00:08+08:00] [Resilience] batch=150 seed=584 threads=20
+[2026-07-31T22:00:12+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T22:00:12+08:00] 
+--- Cycle #5800 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T22:00:12+08:00] Elapsed: 20.06h | Remaining: 459.94h | SuccessRate: 87.0%
+[2026-07-31T22:00:12+08:00] [Policy] 3d/epic-shooter-3d fit
