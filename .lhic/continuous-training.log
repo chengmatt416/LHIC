@@ -81329,3 +81329,16 @@ fatal: could not read Username for 'https://gi
 --- Cycle #8349 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T05:00:47+08:00] Elapsed: 27.07h | Remaining: 452.93h | SuccessRate: 88.0%
 [2026-08-01T05:00:47+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T05:00:52+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T05:00:53+08:00] 
+--- Cycle #8350 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T05:00:53+08:00] Elapsed: 27.07h | Remaining: 452.93h | SuccessRate: 88.0%
+[2026-08-01T05:00:53+08:00] [Resilience] batch=300 seed=951 threads=20
+[2026-08-01T05:00:59+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T05:00:59+08:00] [GitHub] Hourly push iteration #8350...
+[2026-08-01T05:01:00+08:00] [GitHub] push note: Command failed: git push origin training-results --force || git push -u origin training-results --force
+fatal: could not read Username for 'https://gi
+[2026-08-01T05:01:00+08:00] 
+--- Cycle #8351 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T05:01:00+08:00] Elapsed: 27.07h | Remaining: 452.93h | SuccessRate: 88.0%
+[2026-08-01T05:01:00+08:00] [Policy] 3d/star-trooper fit
