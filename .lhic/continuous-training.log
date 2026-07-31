@@ -86351,3 +86351,13 @@ Call log:
 --- Cycle #9260 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-08-01T07:30:30+08:00] Elapsed: 29.57h | Remaining: 450.43h | SuccessRate: 88.0%
 [2026-08-01T07:30:30+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T07:30:36+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:30:36+08:00] 
+--- Cycle #9261 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T07:30:36+08:00] Elapsed: 29.57h | Remaining: 450.43h | SuccessRate: 88.0%
+[2026-08-01T07:30:36+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:30:42+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:30:42+08:00] 
+--- Cycle #9262 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:30:42+08:00] Elapsed: 29.57h | Remaining: 450.43h | SuccessRate: 88.0%
+[2026-08-01T07:30:42+08:00] [Resilience] batch=300 seed=455 threads=20
