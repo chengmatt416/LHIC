@@ -86041,3 +86041,13 @@ Call log:
 --- Cycle #9204 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-08-01T07:20:50+08:00] Elapsed: 29.40h | Remaining: 450.60h | SuccessRate: 87.0%
 [2026-08-01T07:20:50+08:00] [Web] mdn-search "Accessibility tree"
+[2026-08-01T07:20:56+08:00] [Web] OK: mdn-search
+[2026-08-01T07:20:56+08:00] 
+--- Cycle #9205 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T07:20:56+08:00] Elapsed: 29.41h | Remaining: 450.59h | SuccessRate: 88.0%
+[2026-08-01T07:20:56+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T07:21:02+08:00] [Web] OK: mdn-search
+[2026-08-01T07:21:03+08:00] 
+--- Cycle #9206 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:21:03+08:00] Elapsed: 29.41h | Remaining: 450.59h | SuccessRate: 88.0%
+[2026-08-01T07:21:03+08:00] [Resilience] batch=50 seed=503 threads=20
