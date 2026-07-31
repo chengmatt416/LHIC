@@ -62483,3 +62483,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5009 | Task: recovery-network-timeout | LLM=ON ---
 [2026-07-31T18:45:09+08:00] Elapsed: 16.81h | Remaining: 463.19h | SuccessRate: 93.0%
 [2026-07-31T18:45:09+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T18:45:26+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has given me a goal: Plan recovery for network timeout during br...
+[2026-07-31T18:45:26+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T18:45:26+08:00] 
+--- Cycle #5010 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T18:45:26+08:00] Elapsed: 16.82h | Remaining: 463.18h | SuccessRate: 93.0%
+[2026-07-31T18:45:26+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
