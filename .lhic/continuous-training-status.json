@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T19:09:57+08:00",
-  "iteration": 5101,
-  "currentTask": "skill-chain-docs-to-code",
+  "lastUpdated": "2026-07-31T19:10:14+08:00",
+  "iteration": 5102,
+  "currentTask": "recovery-network-timeout",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5101,
+    "completedTasks": 5102,
     "progressPercent": "5.10"
   },
   "llm": {
@@ -31,7 +31,7 @@
         "rateLimit": 3
       },
       "mimo": {
-        "ok": 256,
+        "ok": 257,
         "fail": 215,
         "rateLimit": 2
       }
@@ -42,7 +42,7 @@
     "totalSimulations": 822,
     "totalGameFits": 273,
     "totalPublicWebRuns": 3895,
-    "totalSlowPathPlans": 688,
+    "totalSlowPathPlans": 689,
     "totalSkillCandidates": 3895,
     "rollingSuccessRate": 0.92,
     "elapsedHours": "17.22",
