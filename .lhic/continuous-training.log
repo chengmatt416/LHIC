@@ -86444,3 +86444,13 @@ Call log:
 --- Cycle #9277 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T07:33:13+08:00] Elapsed: 29.61h | Remaining: 450.39h | SuccessRate: 87.0%
 [2026-08-01T07:33:13+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:33:19+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:33:19+08:00] 
+--- Cycle #9278 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:33:19+08:00] Elapsed: 29.61h | Remaining: 450.39h | SuccessRate: 87.0%
+[2026-08-01T07:33:19+08:00] [Resilience] batch=300 seed=727 threads=20
+[2026-08-01T07:33:25+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:33:26+08:00] 
+--- Cycle #9279 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T07:33:26+08:00] Elapsed: 29.61h | Remaining: 450.39h | SuccessRate: 87.0%
+[2026-08-01T07:33:26+08:00] [Policy] 3d/star-trooper fit
