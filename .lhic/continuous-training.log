@@ -59231,3 +59231,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T15:31:49+08:00] Elapsed: 13.59h | Remaining: 466.41h | SuccessRate: 94.0%
 [2026-07-31T15:31:49+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
 [2026-07-31T15:31:50+08:00] [LLM] deepseek-v4-flash-free rate-limited for 5h until 2026-07-31T20:31:50+08:00
+[2026-07-31T15:32:35+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T15:32:35+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T15:32:35+08:00] 
+--- Cycle #4483 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T15:32:35+08:00] Elapsed: 13.60h | Remaining: 466.40h | SuccessRate: 93.0%
+[2026-07-31T15:32:35+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
