@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T16:03:47+08:00",
-  "iteration": 4549,
-  "currentTask": "geo-landmark-comparison",
+  "lastUpdated": "2026-07-31T16:04:32+08:00",
+  "iteration": 4550,
+  "currentTask": "dynamic-infinite-scroll",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 4549,
+    "completedTasks": 4550,
     "progressPercent": "4.55"
   },
   "llm": {
@@ -32,7 +32,7 @@
       },
       "mimo": {
         "ok": 24,
-        "fail": 180,
+        "fail": 181,
         "rateLimit": 2
       }
     },
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 3539,
     "totalSlowPathPlans": 441,
     "totalSkillCandidates": 3539,
-    "rollingSuccessRate": 0.81,
+    "rollingSuccessRate": 0.8,
     "elapsedHours": "14.12",
     "remainingHours": "465.88",
     "latestPyTorchLoss": null,
