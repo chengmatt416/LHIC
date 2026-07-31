@@ -61468,3 +61468,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4844 | Task: form-multi-step-registration | LLM=ON ---
 [2026-07-31T18:01:33+08:00] Elapsed: 16.08h | Remaining: 463.92h | SuccessRate: 94.0%
 [2026-07-31T18:01:33+08:00] [SlowPath] planning: form-multi-step-registration — Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dr
+[2026-07-31T18:01:50+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T18:01:51+08:00] 
+--- Cycle #4845 | Task: form-error-recovery | LLM=ON ---
+[2026-07-31T18:01:51+08:00] Elapsed: 16.09h | Remaining: 463.91h | SuccessRate: 94.0%
+[2026-07-31T18:01:51+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
