@@ -60341,3 +60341,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T16:54:47+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
 [2026-07-31T16:55:32+08:00] [LLM] mimo-v2.5-free failed: timeout
 [2026-07-31T16:55:32+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T16:55:38+08:00] [Web] OK: wikipedia-search
+[2026-07-31T16:55:38+08:00] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-07-31T16:55:39+08:00] 
+--- Cycle #4662 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T16:55:39+08:00] Elapsed: 14.99h | Remaining: 465.01h | SuccessRate: 83.0%
+[2026-07-31T16:55:39+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
