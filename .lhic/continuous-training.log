@@ -74125,3 +74125,17 @@ Call log:
 [2026-08-01T01:25:17+08:00] Elapsed: 23.48h | Remaining: 456.52h | SuccessRate: 85.0%
 [2026-08-01T01:25:17+08:00] [Web] wikipedia-search "Polyfill"
 [2026-08-01T01:25:24+08:00] [Web] OK: wikipedia-search
+[2026-08-01T01:25:24+08:00] 
+--- Cycle #7044 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-08-01T01:25:24+08:00] Elapsed: 23.48h | Remaining: 456.52h | SuccessRate: 86.0%
+[2026-08-01T01:25:24+08:00] [Web] mdn-search "Accessibility tree"
+[2026-08-01T01:25:30+08:00] [Web] OK: mdn-search
+[2026-08-01T01:25:31+08:00] 
+--- Cycle #7045 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T01:25:31+08:00] Elapsed: 23.48h | Remaining: 456.52h | SuccessRate: 87.0%
+[2026-08-01T01:25:31+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T01:25:37+08:00] [Web] OK: mdn-search
+[2026-08-01T01:25:37+08:00] 
+--- Cycle #7046 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T01:25:37+08:00] Elapsed: 23.48h | Remaining: 456.52h | SuccessRate: 87.0%
+[2026-08-01T01:25:37+08:00] [Resilience] batch=50 seed=783 threads=20
