@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:18:47+08:00",
-  "iteration": 8093,
-  "currentTask": "geo-landmark-comparison",
+  "lastUpdated": "2026-08-01T04:19:03+08:00",
+  "iteration": 8096,
+  "currentTask": "policy-nemesis-advanced",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8093,
-    "progressPercent": "8.09"
+    "completedTasks": 8096,
+    "progressPercent": "8.10"
   },
   "llm": {
     "models": [
@@ -39,12 +39,12 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1326,
+    "totalSimulations": 1327,
     "totalGameFits": 440,
     "totalPublicWebRuns": 6222,
     "totalSlowPathPlans": 983,
     "totalSkillCandidates": 6222,
-    "rollingSuccessRate": 0.87,
+    "rollingSuccessRate": 0.85,
     "elapsedHours": "26.37",
     "remainingHours": "453.63",
     "latestPyTorchLoss": null,
