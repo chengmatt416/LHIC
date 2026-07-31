@@ -70161,3 +70161,23 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6324 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-07-31T23:26:51+08:00] Elapsed: 21.51h | Remaining: 458.49h | SuccessRate: 87.0%
 [2026-07-31T23:26:51+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T23:26:57+08:00] [Web] OK: mdn-search
+[2026-07-31T23:26:57+08:00] 
+--- Cycle #6325 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T23:26:57+08:00] Elapsed: 21.51h | Remaining: 458.49h | SuccessRate: 88.0%
+[2026-07-31T23:26:57+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T23:27:03+08:00] [Web] OK: mdn-search
+[2026-07-31T23:27:03+08:00] 
+--- Cycle #6326 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T23:27:03+08:00] Elapsed: 21.51h | Remaining: 458.49h | SuccessRate: 88.0%
+[2026-07-31T23:27:04+08:00] [Resilience] batch=50 seed=543 threads=20
+[2026-07-31T23:27:05+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T23:27:06+08:00] 
+--- Cycle #6327 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T23:27:06+08:00] Elapsed: 21.51h | Remaining: 458.49h | SuccessRate: 88.0%
+[2026-07-31T23:27:06+08:00] [Resilience] batch=150 seed=560 threads=20
+[2026-07-31T23:27:09+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T23:27:09+08:00] 
+--- Cycle #6328 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T23:27:09+08:00] Elapsed: 21.51h | Remaining: 458.49h | SuccessRate: 88.0%
+[2026-07-31T23:27:09+08:00] [Policy] 3d/epic-shooter-3d fit
