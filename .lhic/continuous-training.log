@@ -78501,3 +78501,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #7836 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-08-01T03:36:05+08:00] Elapsed: 25.66h | Remaining: 454.34h | SuccessRate: 87.0%
 [2026-08-01T03:36:05+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T03:36:11+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T03:36:11+08:00] 
+--- Cycle #7837 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T03:36:11+08:00] Elapsed: 25.66h | Remaining: 454.34h | SuccessRate: 87.0%
+[2026-08-01T03:36:11+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T03:36:17+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T03:36:17+08:00] 
+--- Cycle #7838 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T03:36:17+08:00] Elapsed: 25.66h | Remaining: 454.34h | SuccessRate: 87.0%
+[2026-08-01T03:36:17+08:00] [Resilience] batch=300 seed=247 threads=20
