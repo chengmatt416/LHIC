@@ -74092,3 +74092,13 @@ Call log:
 --- Cycle #7037 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T01:24:43+08:00] Elapsed: 23.47h | Remaining: 456.53h | SuccessRate: 87.0%
 [2026-08-01T01:24:43+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T01:24:49+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T01:24:49+08:00] 
+--- Cycle #7038 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T01:24:49+08:00] Elapsed: 23.47h | Remaining: 456.53h | SuccessRate: 87.0%
+[2026-08-01T01:24:49+08:00] [Resilience] batch=300 seed=647 threads=20
+[2026-08-01T01:24:55+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T01:24:56+08:00] 
+--- Cycle #7039 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T01:24:56+08:00] Elapsed: 23.47h | Remaining: 456.53h | SuccessRate: 87.0%
+[2026-08-01T01:24:56+08:00] [Policy] 3d/star-trooper fit
