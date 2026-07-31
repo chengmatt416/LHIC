@@ -56084,3 +56084,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3961 | Task: dynamic-infinite-scroll | LLM=ON ---
 [2026-07-31T13:16:36+08:00] Elapsed: 11.33h | Remaining: 468.67h | SuccessRate: 94.0%
 [2026-07-31T13:16:36+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T13:16:43+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T13:16:43+08:00] 
+--- Cycle #3962 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T13:16:43+08:00] Elapsed: 11.34h | Remaining: 468.66h | SuccessRate: 94.0%
+[2026-07-31T13:16:43+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
