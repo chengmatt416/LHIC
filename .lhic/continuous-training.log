@@ -65572,3 +65572,20 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5512 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T20:55:50+08:00] Elapsed: 18.99h | Remaining: 461.01h | SuccessRate: 94.0%
 [2026-07-31T20:55:50+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T20:56:09+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need produce JSON only. Need follow schema. User asks "Return JSON plan now."...
+[2026-07-31T20:56:09+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T20:56:09+08:00] 
+--- Cycle #5513 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T20:56:09+08:00] Elapsed: 18.99h | Remaining: 461.01h | SuccessRate: 94.0%
+[2026-07-31T20:56:09+08:00] [Resilience] batch=300 seed=722 threads=20
+[2026-07-31T20:56:16+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T20:56:16+08:00] 
+--- Cycle #5514 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T20:56:16+08:00] Elapsed: 19.00h | Remaining: 461.00h | SuccessRate: 94.0%
+[2026-07-31T20:56:16+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T20:56:20+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T20:56:20+08:00] 
+--- Cycle #5515 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-31T20:56:20+08:00] Elapsed: 19.00h | Remaining: 461.00h | SuccessRate: 93.0%
+[2026-07-31T20:56:20+08:00] [Policy] 3d/nemesis fit
