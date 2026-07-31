@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T09:34:25+08:00",
-  "iteration": 2765,
-  "currentTask": "geo-landmark-comparison",
+  "lastUpdated": "2026-07-31T09:39:22+08:00",
+  "iteration": 2794,
+  "currentTask": "skill-chain-docs-to-code",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 2765,
-    "progressPercent": "2.77"
+    "completedTasks": 2794,
+    "progressPercent": "2.79"
   },
   "llm": {
     "models": [
@@ -39,14 +39,14 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 515,
-    "totalGameFits": 171,
-    "totalPublicWebRuns": 2243,
+    "totalSimulations": 521,
+    "totalGameFits": 173,
+    "totalPublicWebRuns": 2266,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 2243,
+    "totalSkillCandidates": 2266,
     "rollingSuccessRate": 0.88,
-    "elapsedHours": "7.63",
-    "remainingHours": "472.37",
+    "elapsedHours": "7.71",
+    "remainingHours": "472.29",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
