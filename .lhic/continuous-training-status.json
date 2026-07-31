@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T17:05:12+08:00",
-  "iteration": 4686,
-  "currentTask": "docs-perf-observer-chain",
+  "lastUpdated": "2026-07-31T17:06:06+08:00",
+  "iteration": 4687,
+  "currentTask": "triage-bug-escalation",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 4686,
+    "completedTasks": 4687,
     "progressPercent": "4.69"
   },
   "llm": {
@@ -31,7 +31,7 @@
         "rateLimit": 3
       },
       "mimo": {
-        "ok": 58,
+        "ok": 59,
         "fail": 211,
         "rateLimit": 2
       }
@@ -41,9 +41,9 @@
   "stats": {
     "totalSimulations": 781,
     "totalGameFits": 259,
-    "totalPublicWebRuns": 3626,
-    "totalSlowPathPlans": 488,
-    "totalSkillCandidates": 3626,
+    "totalPublicWebRuns": 3627,
+    "totalSlowPathPlans": 489,
+    "totalSkillCandidates": 3627,
     "rollingSuccessRate": 0.78,
     "elapsedHours": "15.14",
     "remainingHours": "464.86",
