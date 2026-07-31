@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T01:50:19+08:00",
-  "iteration": 7194,
-  "currentTask": "skill-chain-docs-to-code",
+  "lastUpdated": "2026-08-01T01:50:25+08:00",
+  "iteration": 7195,
+  "currentTask": "docs-entry-type-wiki",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 7194,
-    "progressPercent": "7.19"
+    "completedTasks": 7195,
+    "progressPercent": "7.20"
   },
   "llm": {
     "models": [
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 1158,
     "totalGameFits": 384,
-    "totalPublicWebRuns": 5493,
+    "totalPublicWebRuns": 5494,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 5493,
+    "totalSkillCandidates": 5494,
     "rollingSuccessRate": 0.87,
-    "elapsedHours": "23.89",
-    "remainingHours": "456.11",
+    "elapsedHours": "23.90",
+    "remainingHours": "456.10",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
