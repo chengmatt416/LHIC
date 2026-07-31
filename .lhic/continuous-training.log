@@ -62901,3 +62901,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5077 | Task: dynamic-infinite-scroll | LLM=ON ---
 [2026-07-31T19:03:03+08:00] Elapsed: 17.11h | Remaining: 462.89h | SuccessRate: 93.0%
 [2026-07-31T19:03:03+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T19:03:20+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user wants a JSON response with a specific schema: {"decision":"propo...
+[2026-07-31T19:03:20+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T19:03:21+08:00] 
+--- Cycle #5078 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T19:03:21+08:00] Elapsed: 17.11h | Remaining: 462.89h | SuccessRate: 93.0%
+[2026-07-31T19:03:21+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
