@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T14:36:07+08:00",
-  "iteration": 4266,
-  "currentTask": "recovery-stale-element",
+  "lastUpdated": "2026-07-31T14:36:44+08:00",
+  "iteration": 4268,
+  "currentTask": "docs-entry-type-wiki",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 4266,
+    "completedTasks": 4268,
     "progressPercent": "4.27"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 966,
+        "ok": 967,
         "fail": 160,
         "rateLimit": 2
       },
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 741,
     "totalGameFits": 246,
-    "totalPublicWebRuns": 3355,
-    "totalSlowPathPlans": 318,
-    "totalSkillCandidates": 3355,
+    "totalPublicWebRuns": 3357,
+    "totalSlowPathPlans": 319,
+    "totalSkillCandidates": 3357,
     "rollingSuccessRate": 0.93,
-    "elapsedHours": "12.65",
-    "remainingHours": "467.35",
+    "elapsedHours": "12.67",
+    "remainingHours": "467.33",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
