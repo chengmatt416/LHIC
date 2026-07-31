@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T18:58:48+08:00",
-  "iteration": 5062,
-  "currentTask": "form-error-recovery",
+  "lastUpdated": "2026-07-31T18:59:11+08:00",
+  "iteration": 5063,
+  "currentTask": "plan-wikipedia-deep-dive",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5062,
+    "completedTasks": 5063,
     "progressPercent": "5.06"
   },
   "llm": {
@@ -31,7 +31,7 @@
         "rateLimit": 3
       },
       "mimo": {
-        "ok": 239,
+        "ok": 240,
         "fail": 214,
         "rateLimit": 2
       }
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 817,
     "totalGameFits": 271,
-    "totalPublicWebRuns": 3868,
-    "totalSlowPathPlans": 670,
-    "totalSkillCandidates": 3868,
+    "totalPublicWebRuns": 3869,
+    "totalSlowPathPlans": 671,
+    "totalSkillCandidates": 3869,
     "rollingSuccessRate": 0.93,
-    "elapsedHours": "17.03",
-    "remainingHours": "462.97",
+    "elapsedHours": "17.04",
+    "remainingHours": "462.96",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
