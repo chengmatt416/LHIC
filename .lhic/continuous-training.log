@@ -55713,3 +55713,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3900 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T13:01:15+08:00] Elapsed: 11.08h | Remaining: 468.92h | SuccessRate: 94.0%
 [2026-07-31T13:01:15+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T13:01:25+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T13:01:25+08:00] 
+--- Cycle #3901 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T13:01:25+08:00] Elapsed: 11.08h | Remaining: 468.92h | SuccessRate: 94.0%
+[2026-07-31T13:01:25+08:00] [Resilience] batch=300 seed=318 threads=20
