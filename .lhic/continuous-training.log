@@ -87108,3 +87108,13 @@ Call log:
 --- Cycle #9398 | Task: resilience-adversarial-50 | LLM=OFF ---
 [2026-08-01T07:52:29+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 88.0%
 [2026-08-01T07:52:29+08:00] [Resilience] batch=50 seed=767 threads=20
+[2026-08-01T07:52:30+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:52:31+08:00] 
+--- Cycle #9399 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T07:52:31+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 88.0%
+[2026-08-01T07:52:31+08:00] [Resilience] batch=150 seed=784 threads=20
+[2026-08-01T07:52:34+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:52:35+08:00] 
+--- Cycle #9400 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-08-01T07:52:35+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 88.0%
+[2026-08-01T07:52:35+08:00] [Policy] 3d/epic-shooter-3d fit
