@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:45:21+08:00",
-  "iteration": 8255,
-  "currentTask": "policy-curriculum-star",
+  "lastUpdated": "2026-08-01T04:45:25+08:00",
+  "iteration": 8256,
+  "currentTask": "policy-nemesis-advanced",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8255,
-    "progressPercent": "8.25"
+    "completedTasks": 8256,
+    "progressPercent": "8.26"
   },
   "llm": {
     "models": [
@@ -44,7 +44,7 @@
     "totalPublicWebRuns": 6352,
     "totalSlowPathPlans": 983,
     "totalSkillCandidates": 6352,
-    "rollingSuccessRate": 0.87,
+    "rollingSuccessRate": 0.86,
     "elapsedHours": "26.81",
     "remainingHours": "453.19",
     "latestPyTorchLoss": null,
