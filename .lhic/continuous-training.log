@@ -86481,3 +86481,18 @@ Call log:
 --- Cycle #9284 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-08-01T07:33:54+08:00] Elapsed: 29.62h | Remaining: 450.38h | SuccessRate: 86.0%
 [2026-08-01T07:33:54+08:00] [Web] mdn-search "Accessibility tree"
+[2026-08-01T07:34:00+08:00] [Web] OK: mdn-search
+[2026-08-01T07:34:00+08:00] 
+--- Cycle #9285 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T07:34:00+08:00] Elapsed: 29.62h | Remaining: 450.38h | SuccessRate: 87.0%
+[2026-08-01T07:34:00+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T07:34:06+08:00] [Web] OK: mdn-search
+[2026-08-01T07:34:07+08:00] 
+--- Cycle #9286 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:34:07+08:00] Elapsed: 29.63h | Remaining: 450.37h | SuccessRate: 87.0%
+[2026-08-01T07:34:07+08:00] [Resilience] batch=50 seed=863 threads=20
+[2026-08-01T07:34:09+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:34:09+08:00] 
+--- Cycle #9287 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T07:34:09+08:00] Elapsed: 29.63h | Remaining: 450.37h | SuccessRate: 87.0%
+[2026-08-01T07:34:09+08:00] [Resilience] batch=150 seed=880 threads=20
