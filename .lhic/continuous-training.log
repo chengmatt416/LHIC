@@ -81601,3 +81601,20 @@ fatal: could not read Username for 'https://gi
 --- Cycle #8398 | Task: resilience-adversarial-300 | LLM=OFF ---
 [2026-08-01T05:08:47+08:00] Elapsed: 27.20h | Remaining: 452.80h | SuccessRate: 87.0%
 [2026-08-01T05:08:47+08:00] [Resilience] batch=300 seed=767 threads=20
+[2026-08-01T05:08:54+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T05:08:54+08:00] 
+--- Cycle #8399 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T05:08:54+08:00] Elapsed: 27.21h | Remaining: 452.79h | SuccessRate: 87.0%
+[2026-08-01T05:08:54+08:00] [Policy] 3d/star-trooper fit
+[2026-08-01T05:08:58+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-08-01T05:08:58+08:00] 
+--- Cycle #8400 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-08-01T05:08:58+08:00] Elapsed: 27.21h | Remaining: 452.79h | SuccessRate: 86.0%
+[2026-08-01T05:08:59+08:00] [Policy] 3d/nemesis fit
+[2026-08-01T05:09:03+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-08-01T05:09:03+08:00] 
+--- Cycle #8401 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-08-01T05:09:03+08:00] Elapsed: 27.21h | Remaining: 452.79h | SuccessRate: 85.0%
+[2026-08-01T05:09:03+08:00] [Web] wikipedia-search "Web Component"
