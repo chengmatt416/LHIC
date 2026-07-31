@@ -59457,3 +59457,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4519 | Task: dynamic-infinite-scroll | LLM=ON ---
 [2026-07-31T15:49:06+08:00] Elapsed: 13.88h | Remaining: 466.12h | SuccessRate: 88.0%
 [2026-07-31T15:49:06+08:00] [SlowPath] planning: dynamic-infinite-scroll — Plan extraction from an infinite-scroll page: 1) Initial scroll to trigger lazy 
+[2026-07-31T15:49:51+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T15:49:51+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T15:49:51+08:00] 
+--- Cycle #4520 | Task: dynamic-modal-interaction | LLM=ON ---
+[2026-07-31T15:49:51+08:00] Elapsed: 13.89h | Remaining: 466.11h | SuccessRate: 87.0%
+[2026-07-31T15:49:51+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
