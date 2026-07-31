@@ -59422,3 +59422,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4513 | Task: recovery-network-timeout | LLM=ON ---
 [2026-07-31T15:46:22+08:00] Elapsed: 13.83h | Remaining: 466.17h | SuccessRate: 90.0%
 [2026-07-31T15:46:22+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T15:47:07+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T15:47:07+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T15:47:08+08:00] 
+--- Cycle #4514 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T15:47:08+08:00] Elapsed: 13.84h | Remaining: 466.16h | SuccessRate: 89.0%
+[2026-07-31T15:47:08+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
