@@ -70445,3 +70445,10 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6376 | Task: policy-curriculum-3d | LLM=OFF ---
 [2026-07-31T23:35:03+08:00] Elapsed: 21.64h | Remaining: 458.36h | SuccessRate: 88.0%
 [2026-07-31T23:35:03+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T23:35:54+08:00] [Policy] loss=6.7370 accuracy=68.6%
+[2026-07-31T23:35:55+08:00] 
+--- Cycle #6377 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T23:35:55+08:00] Elapsed: 21.66h | Remaining: 458.34h | SuccessRate: 88.0%
+[2026-07-31T23:35:55+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T23:36:01+08:00] [Web] OK: wikipedia-search
+[2026-07-31T23:36:01+08:00] [Web] mdn-search "Service Worker"
