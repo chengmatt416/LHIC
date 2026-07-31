@@ -51522,3 +51522,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3164 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-07-31T10:39:24+08:00] Elapsed: 8.71h | Remaining: 471.29h | SuccessRate: 87.0%
 [2026-07-31T10:39:24+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T10:39:30+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T10:39:30+08:00] 
+--- Cycle #3165 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T10:39:30+08:00] Elapsed: 8.72h | Remaining: 471.28h | SuccessRate: 87.0%
+[2026-07-31T10:39:30+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T10:39:36+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T10:39:36+08:00] 
+--- Cycle #3166 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T10:39:36+08:00] Elapsed: 8.72h | Remaining: 471.28h | SuccessRate: 87.0%
+[2026-07-31T10:39:36+08:00] [Resilience] batch=300 seed=823 threads=20
+[2026-07-31T10:39:42+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:39:43+08:00] 
+--- Cycle #3167 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T10:39:43+08:00] Elapsed: 8.72h | Remaining: 471.28h | SuccessRate: 87.0%
+[2026-07-31T10:39:43+08:00] [Policy] 3d/star-trooper fit
