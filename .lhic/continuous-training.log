@@ -63020,3 +63020,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5096 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-31T19:08:09+08:00] Elapsed: 17.19h | Remaining: 462.81h | SuccessRate: 93.0%
 [2026-07-31T19:08:09+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T19:08:25+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has given a goal: Plan a hybrid API+browser flow with specific s...
+[2026-07-31T19:08:25+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T19:08:25+08:00] 
+--- Cycle #5097 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T19:08:25+08:00] Elapsed: 17.20h | Remaining: 462.80h | SuccessRate: 93.0%
+[2026-07-31T19:08:25+08:00] [Resilience] batch=50 seed=650 threads=20
+[2026-07-31T19:08:27+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T19:08:27+08:00] 
+--- Cycle #5098 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T19:08:27+08:00] Elapsed: 17.20h | Remaining: 462.80h | SuccessRate: 93.0%
+[2026-07-31T19:08:27+08:00] [Resilience] batch=150 seed=667 threads=20
