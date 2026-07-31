@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T06:22:49+08:00",
-  "iteration": 8851,
-  "currentTask": "chain-github-to-wiki",
+  "lastUpdated": "2026-08-01T06:23:04+08:00",
+  "iteration": 8854,
+  "currentTask": "resilience-adversarial-50",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8851,
+    "completedTasks": 8854,
     "progressPercent": "8.85"
   },
   "llm": {
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1468,
+    "totalSimulations": 1469,
     "totalGameFits": 487,
-    "totalPublicWebRuns": 6836,
+    "totalPublicWebRuns": 6838,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 6836,
-    "rollingSuccessRate": 0.87,
+    "totalSkillCandidates": 6838,
+    "rollingSuccessRate": 0.88,
     "elapsedHours": "28.44",
     "remainingHours": "451.56",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
