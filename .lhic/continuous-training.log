@@ -60139,3 +60139,5 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4629 | Task: plan-wikipedia-deep-dive | LLM=ON ---
 [2026-07-31T16:39:07+08:00] Elapsed: 14.71h | Remaining: 465.29h | SuccessRate: 85.0%
 [2026-07-31T16:39:07+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
+[2026-07-31T16:39:52+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T16:39:52+08:00] [Web] wikipedia-search "Distributed systems"
