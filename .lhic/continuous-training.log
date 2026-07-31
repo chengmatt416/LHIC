@@ -72161,3 +72161,15 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6687 | Task: policy-curriculum-star | LLM=OFF ---
 [2026-08-01T00:27:01+08:00] Elapsed: 22.51h | Remaining: 457.49h | SuccessRate: 88.0%
 [2026-08-01T00:27:01+08:00] [Policy] 3d/star-trooper fit
+[2026-08-01T00:27:05+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-08-01T00:27:05+08:00] 
+--- Cycle #6688 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-08-01T00:27:05+08:00] Elapsed: 22.51h | Remaining: 457.49h | SuccessRate: 87.0%
+[2026-08-01T00:27:05+08:00] [Policy] 3d/nemesis fit
+[2026-08-01T00:27:10+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-08-01T00:27:10+08:00] 
+--- Cycle #6689 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-08-01T00:27:10+08:00] Elapsed: 22.51h | Remaining: 457.49h | SuccessRate: 86.0%
+[2026-08-01T00:27:10+08:00] [Web] wikipedia-search "Web Component"
