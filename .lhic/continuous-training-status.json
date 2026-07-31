@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T23:18:35+08:00",
-  "iteration": 6272,
-  "currentTask": "policy-nemesis-advanced",
+  "lastUpdated": "2026-07-31T23:18:48+08:00",
+  "iteration": 6274,
+  "currentTask": "chain-mdn-to-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 6272,
+    "completedTasks": 6274,
     "progressPercent": "6.27"
   },
   "llm": {
@@ -41,9 +41,9 @@
   "stats": {
     "totalSimulations": 985,
     "totalGameFits": 327,
-    "totalPublicWebRuns": 4743,
+    "totalPublicWebRuns": 4745,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 4743,
+    "totalSkillCandidates": 4745,
     "rollingSuccessRate": 0.86,
     "elapsedHours": "21.37",
     "remainingHours": "458.63",
