@@ -76315,3 +76315,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #7440 | Task: policy-nemesis-advanced | LLM=OFF ---
 [2026-08-01T02:30:29+08:00] Elapsed: 24.57h | Remaining: 455.43h | SuccessRate: 86.0%
 [2026-08-01T02:30:29+08:00] [Policy] 3d/nemesis fit
+[2026-08-01T02:30:33+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-08-01T02:30:33+08:00] 
+--- Cycle #7441 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-08-01T02:30:33+08:00] Elapsed: 24.57h | Remaining: 455.43h | SuccessRate: 85.0%
+[2026-08-01T02:30:33+08:00] [Web] wikipedia-search "Web Component"
