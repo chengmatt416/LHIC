@@ -58858,3 +58858,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4420 | Task: recovery-network-timeout | LLM=ON ---
 [2026-07-31T15:16:36+08:00] Elapsed: 13.33h | Remaining: 466.67h | SuccessRate: 94.0%
 [2026-07-31T15:16:36+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T15:16:44+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T15:16:44+08:00] 
+--- Cycle #4421 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T15:16:44+08:00] Elapsed: 13.34h | Remaining: 466.66h | SuccessRate: 94.0%
+[2026-07-31T15:16:44+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
