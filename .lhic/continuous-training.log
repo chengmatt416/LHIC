@@ -59385,3 +59385,19 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4507 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-31T15:44:08+08:00] Elapsed: 13.79h | Remaining: 466.21h | SuccessRate: 90.0%
 [2026-07-31T15:44:08+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T15:44:53+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user wants a JSON object with no markdown or explanation. The schema ...
+[2026-07-31T15:44:53+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T15:44:53+08:00] 
+--- Cycle #4508 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T15:44:53+08:00] Elapsed: 13.81h | Remaining: 466.19h | SuccessRate: 90.0%
+[2026-07-31T15:44:53+08:00] [Resilience] batch=50 seed=637 threads=20
+[2026-07-31T15:44:55+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T15:44:55+08:00] 
+--- Cycle #4509 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T15:44:55+08:00] Elapsed: 13.81h | Remaining: 466.19h | SuccessRate: 90.0%
+[2026-07-31T15:44:55+08:00] [Resilience] batch=150 seed=654 threads=20
+[2026-07-31T15:44:59+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T15:44:59+08:00] 
+--- Cycle #4510 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-31T15:44:59+08:00] Elapsed: 13.81h | Remaining: 466.19h | SuccessRate: 90.0%
+[2026-07-31T15:44:59+08:00] [Policy] 3d/epic-shooter-3d fit
