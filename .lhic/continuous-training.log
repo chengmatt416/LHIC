@@ -85735,3 +85735,13 @@ Call log:
 --- Cycle #9148 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-08-01T07:12:07+08:00] Elapsed: 29.26h | Remaining: 450.74h | SuccessRate: 87.0%
 [2026-08-01T07:12:07+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T07:12:13+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:12:13+08:00] 
+--- Cycle #9149 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T07:12:13+08:00] Elapsed: 29.26h | Remaining: 450.74h | SuccessRate: 88.0%
+[2026-08-01T07:12:13+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:12:19+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:12:19+08:00] 
+--- Cycle #9150 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:12:19+08:00] Elapsed: 29.26h | Remaining: 450.74h | SuccessRate: 88.0%
+[2026-08-01T07:12:19+08:00] [Resilience] batch=300 seed=551 threads=20
