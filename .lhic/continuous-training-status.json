@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T13:07:14+08:00",
-  "iteration": 3922,
-  "currentTask": "skill-chain-wiki-mdn-github",
+  "lastUpdated": "2026-07-31T13:07:33+08:00",
+  "iteration": 3924,
+  "currentTask": "recovery-network-timeout",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 3922,
+    "completedTasks": 3924,
     "progressPercent": "3.92"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 799,
+        "ok": 800,
         "fail": 160,
         "rateLimit": 2
       },
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 708,
     "totalGameFits": 235,
-    "totalPublicWebRuns": 3133,
-    "totalSlowPathPlans": 151,
-    "totalSkillCandidates": 3133,
+    "totalPublicWebRuns": 3135,
+    "totalSlowPathPlans": 152,
+    "totalSkillCandidates": 3135,
     "rollingSuccessRate": 0.94,
-    "elapsedHours": "11.17",
-    "remainingHours": "468.83",
+    "elapsedHours": "11.18",
+    "remainingHours": "468.82",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
