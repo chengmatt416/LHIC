@@ -85782,3 +85782,13 @@ Call log:
 --- Cycle #9157 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-08-01T07:12:59+08:00] Elapsed: 29.27h | Remaining: 450.73h | SuccessRate: 88.0%
 [2026-08-01T07:13:00+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T07:13:06+08:00] [Web] OK: mdn-search
+[2026-08-01T07:13:06+08:00] 
+--- Cycle #9158 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:13:06+08:00] Elapsed: 29.28h | Remaining: 450.72h | SuccessRate: 88.0%
+[2026-08-01T07:13:06+08:00] [Resilience] batch=50 seed=687 threads=20
+[2026-08-01T07:13:08+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:13:08+08:00] 
+--- Cycle #9159 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T07:13:08+08:00] Elapsed: 29.28h | Remaining: 450.72h | SuccessRate: 88.0%
+[2026-08-01T07:13:08+08:00] [Resilience] batch=150 seed=704 threads=20
