@@ -72721,3 +72721,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6789 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-08-01T00:43:26+08:00] Elapsed: 22.78h | Remaining: 457.22h | SuccessRate: 88.0%
 [2026-08-01T00:43:26+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T00:43:32+08:00] [Web] OK: mdn-search
+[2026-08-01T00:43:32+08:00] 
+--- Cycle #6790 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T00:43:32+08:00] Elapsed: 22.78h | Remaining: 457.22h | SuccessRate: 88.0%
+[2026-08-01T00:43:32+08:00] [Resilience] batch=50 seed=431 threads=20
+[2026-08-01T00:43:34+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T00:43:34+08:00] 
+--- Cycle #6791 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T00:43:34+08:00] Elapsed: 22.78h | Remaining: 457.22h | SuccessRate: 88.0%
+[2026-08-01T00:43:34+08:00] [Resilience] batch=150 seed=448 threads=20
