@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T00:30:01+08:00",
-  "iteration": 6706,
-  "currentTask": "chain-mdn-to-github",
+  "lastUpdated": "2026-08-01T00:30:07+08:00",
+  "iteration": 6707,
+  "currentTask": "chain-github-to-wiki",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 6706,
+    "completedTasks": 6707,
     "progressPercent": "6.71"
   },
   "llm": {
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 1066,
     "totalGameFits": 354,
-    "totalPublicWebRuns": 5096,
+    "totalPublicWebRuns": 5097,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 5096,
-    "rollingSuccessRate": 0.86,
+    "totalSkillCandidates": 5097,
+    "rollingSuccessRate": 0.87,
     "elapsedHours": "22.56",
     "remainingHours": "457.44",
     "latestPyTorchLoss": null,
