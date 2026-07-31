@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T23:35:54+08:00",
-  "iteration": 6376,
-  "currentTask": "policy-curriculum-3d",
+  "lastUpdated": "2026-07-31T23:36:31+08:00",
+  "iteration": 6378,
+  "currentTask": "skill-chain-docs-to-code",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 6376,
+    "completedTasks": 6378,
     "progressPercent": "6.38"
   },
   "llm": {
@@ -41,14 +41,14 @@
   "stats": {
     "totalSimulations": 1005,
     "totalGameFits": 334,
-    "totalPublicWebRuns": 4826,
+    "totalPublicWebRuns": 4831,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 4826,
+    "totalSkillCandidates": 4831,
     "rollingSuccessRate": 0.88,
-    "elapsedHours": "21.64",
-    "remainingHours": "458.36",
-    "latestPyTorchLoss": 6.737022876739502,
-    "latestPyTorchAccuracy": 0.6856060606060606,
+    "elapsedHours": "21.66",
+    "remainingHours": "458.34",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
