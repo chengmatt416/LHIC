@@ -59658,3 +59658,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4551 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T16:04:32+08:00] Elapsed: 14.13h | Remaining: 465.87h | SuccessRate: 80.0%
 [2026-07-31T16:04:32+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T16:05:17+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T16:05:17+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T16:05:17+08:00] 
+--- Cycle #4552 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T16:05:17+08:00] Elapsed: 14.15h | Remaining: 465.85h | SuccessRate: 79.0%
+[2026-07-31T16:05:18+08:00] [Resilience] batch=300 seed=385 threads=20
