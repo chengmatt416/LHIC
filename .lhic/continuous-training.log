@@ -73797,3 +73797,10 @@ Call log:
 --- Cycle #6984 | Task: policy-curriculum-3d | LLM=OFF ---
 [2026-08-01T01:15:19+08:00] Elapsed: 23.31h | Remaining: 456.69h | SuccessRate: 88.0%
 [2026-08-01T01:15:19+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-08-01T01:16:10+08:00] [Policy] loss=6.5405 accuracy=68.7%
+[2026-08-01T01:16:10+08:00] 
+--- Cycle #6985 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-08-01T01:16:10+08:00] Elapsed: 23.33h | Remaining: 456.67h | SuccessRate: 88.0%
+[2026-08-01T01:16:10+08:00] [Web] wikipedia-search "Service Worker"
+[2026-08-01T01:16:16+08:00] [Web] OK: wikipedia-search
+[2026-08-01T01:16:16+08:00] [Web] mdn-search "Service Worker"
