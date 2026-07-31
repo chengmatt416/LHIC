@@ -69237,3 +69237,20 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T22:59:50+08:00] Elapsed: 21.05h | Remaining: 458.95h | SuccessRate: 87.0%
 [2026-07-31T22:59:50+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
 [2026-07-31T22:59:56+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T22:59:56+08:00] 
+--- Cycle #6157 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T22:59:56+08:00] Elapsed: 21.06h | Remaining: 458.94h | SuccessRate: 87.0%
+[2026-07-31T22:59:56+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T23:00:02+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T23:00:02+08:00] 
+--- Cycle #6158 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T23:00:02+08:00] Elapsed: 21.06h | Remaining: 458.94h | SuccessRate: 87.0%
+[2026-07-31T23:00:02+08:00] [Resilience] batch=300 seed=687 threads=20
+[2026-07-31T23:00:08+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T23:00:08+08:00] [GitHub] Hourly push iteration #6158...
+[2026-07-31T23:00:09+08:00] [GitHub] push note: Command failed: git push origin training-results --force || git push -u origin training-results --force
+fatal: could not read Username for 'https://gi
+[2026-07-31T23:00:09+08:00] 
+--- Cycle #6159 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T23:00:09+08:00] Elapsed: 21.06h | Remaining: 458.94h | SuccessRate: 87.0%
+[2026-07-31T23:00:09+08:00] [Policy] 3d/star-trooper fit
