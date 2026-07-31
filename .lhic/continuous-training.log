@@ -86703,3 +86703,13 @@ Call log:
 --- Cycle #9324 | Task: geo-multi-stop-route | LLM=OFF ---
 [2026-08-01T07:41:00+08:00] Elapsed: 29.74h | Remaining: 450.26h | SuccessRate: 87.0%
 [2026-08-01T07:41:00+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T07:41:05+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:41:06+08:00] 
+--- Cycle #9325 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T07:41:06+08:00] Elapsed: 29.74h | Remaining: 450.26h | SuccessRate: 87.0%
+[2026-08-01T07:41:06+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:41:11+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:41:12+08:00] 
+--- Cycle #9326 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:41:12+08:00] Elapsed: 29.74h | Remaining: 450.26h | SuccessRate: 87.0%
+[2026-08-01T07:41:12+08:00] [Resilience] batch=300 seed=543 threads=20
