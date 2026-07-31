@@ -54698,3 +54698,15 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T12:19:20+08:00] [SlowPath] planning: plan-cross-site-verification — Plan cross-site data verification: 1) Search Wikipedia for 'HTTP', 2) Search MDN
 [2026-07-31T12:19:39+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need produce JSON plan. Need obey "Return JSON plan now." We need propose act...
 [2026-07-31T12:19:39+08:00] [Web] wikipedia-search "HTTP protocol"
+[2026-07-31T12:19:45+08:00] [Web] OK: wikipedia-search
+[2026-07-31T12:19:45+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan | web=verified
+[2026-07-31T12:19:45+08:00] 
+--- Cycle #3732 | Task: plan-api-then-browser | LLM=ON ---
+[2026-07-31T12:19:45+08:00] Elapsed: 10.39h | Remaining: 469.61h | SuccessRate: 93.0%
+[2026-07-31T12:19:45+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T12:20:06+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need answer JSON plan only. Need obey schema? User asks plan hybrid API+brows...
+[2026-07-31T12:20:06+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T12:20:06+08:00] 
+--- Cycle #3733 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T12:20:06+08:00] Elapsed: 10.39h | Remaining: 469.61h | SuccessRate: 94.0%
+[2026-07-31T12:20:06+08:00] [Resilience] batch=50 seed=462 threads=20
