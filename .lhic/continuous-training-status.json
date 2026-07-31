@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T09:50:58+08:00",
-  "iteration": 2871,
-  "currentTask": "resilience-adversarial-150",
+  "lastUpdated": "2026-07-31T09:55:46+08:00",
+  "iteration": 2898,
+  "currentTask": "chain-mdn-to-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 2871,
-    "progressPercent": "2.87"
+    "completedTasks": 2898,
+    "progressPercent": "2.90"
   },
   "llm": {
     "models": [
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 536,
-    "totalGameFits": 177,
-    "totalPublicWebRuns": 2326,
+    "totalSimulations": 540,
+    "totalGameFits": 179,
+    "totalPublicWebRuns": 2349,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 2326,
-    "rollingSuccessRate": 0.88,
-    "elapsedHours": "7.91",
-    "remainingHours": "472.09",
+    "totalSkillCandidates": 2349,
+    "rollingSuccessRate": 0.86,
+    "elapsedHours": "7.99",
+    "remainingHours": "472.01",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
