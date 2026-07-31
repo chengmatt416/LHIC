@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T07:56:02+08:00",
-  "iteration": 2167,
-  "currentTask": "resilience-adversarial-150",
+  "lastUpdated": "2026-07-31T07:59:59+08:00",
+  "iteration": 2186,
+  "currentTask": "skill-chain-docs-to-code",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 2167,
-    "progressPercent": "2.17"
+    "completedTasks": 2186,
+    "progressPercent": "2.19"
   },
   "llm": {
     "models": [
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 404,
-    "totalGameFits": 133,
-    "totalPublicWebRuns": 1754,
+    "totalSimulations": 407,
+    "totalGameFits": 135,
+    "totalPublicWebRuns": 1772,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 1754,
+    "totalSkillCandidates": 1772,
     "rollingSuccessRate": 0.87,
-    "elapsedHours": "5.99",
-    "remainingHours": "474.01",
+    "elapsedHours": "6.05",
+    "remainingHours": "473.95",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
