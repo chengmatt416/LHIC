@@ -74800,3 +74800,8 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #7165 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T01:45:12+08:00] Elapsed: 23.81h | Remaining: 456.19h | SuccessRate: 86.0%
 [2026-08-01T01:45:12+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T01:45:18+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T01:45:18+08:00] 
+--- Cycle #7166 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T01:45:18+08:00] Elapsed: 23.81h | Remaining: 456.19h | SuccessRate: 86.0%
+[2026-08-01T01:45:18+08:00] [Resilience] batch=300 seed=823 threads=20
