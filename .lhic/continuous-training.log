@@ -55020,3 +55020,12 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T12:32:43+08:00] Elapsed: 10.60h | Remaining: 469.40h | SuccessRate: 92.0%
 [2026-07-31T12:32:43+08:00] [Web] wikipedia-search "Polyfill"
 [2026-07-31T12:32:49+08:00] [Web] OK: wikipedia-search
+[2026-07-31T12:32:49+08:00] 
+--- Cycle #3786 | Task: docs-accessibility-tree | LLM=ON ---
+[2026-07-31T12:32:49+08:00] Elapsed: 10.60h | Remaining: 469.40h | SuccessRate: 93.0%
+[2026-07-31T12:32:49+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T12:32:55+08:00] [Web] OK: mdn-search
+[2026-07-31T12:32:55+08:00] 
+--- Cycle #3787 | Task: docs-perf-observer-chain | LLM=ON ---
+[2026-07-31T12:32:55+08:00] Elapsed: 10.61h | Remaining: 469.39h | SuccessRate: 94.0%
+[2026-07-31T12:32:55+08:00] [Web] mdn-search "PerformanceObserver"
