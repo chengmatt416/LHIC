@@ -52189,3 +52189,21 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #3285 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-07-31T10:57:52+08:00] Elapsed: 9.02h | Remaining: 470.98h | SuccessRate: 86.0%
 [2026-07-31T10:57:52+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T10:57:58+08:00] [Web] OK: mdn-search
+[2026-07-31T10:57:59+08:00] 
+--- Cycle #3286 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T10:57:59+08:00] Elapsed: 9.02h | Remaining: 470.98h | SuccessRate: 86.0%
+[2026-07-31T10:57:59+08:00] [Resilience] batch=50 seed=863 threads=20
+[2026-07-31T10:58:00+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:58:01+08:00] 
+--- Cycle #3287 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T10:58:01+08:00] Elapsed: 9.02h | Remaining: 470.98h | SuccessRate: 86.0%
+[2026-07-31T10:58:01+08:00] [Resilience] batch=150 seed=880 threads=20
+[2026-07-31T10:58:04+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:58:04+08:00] [GitHub] Hourly push iteration #3287...
+[2026-07-31T10:58:05+08:00] [GitHub] push note: Command failed: git push origin training-results --force || git push -u origin training-results --force
+fatal: could not read Username for 'https://gi
+[2026-07-31T10:58:05+08:00] 
+--- Cycle #3288 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T10:58:05+08:00] Elapsed: 9.03h | Remaining: 470.97h | SuccessRate: 86.0%
+[2026-07-31T10:58:05+08:00] [Policy] 3d/epic-shooter-3d fit
