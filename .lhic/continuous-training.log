@@ -61452,3 +61452,5 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4842 | Task: triage-bug-escalation | LLM=ON ---
 [2026-07-31T18:00:35+08:00] Elapsed: 16.07h | Remaining: 463.93h | SuccessRate: 94.0%
 [2026-07-31T18:00:35+08:00] [SlowPath] planning: triage-bug-escalation — Plan a GitHub issue triage flow: 1) List open bugs sorted by creation date, 2) F
+[2026-07-31T18:00:54+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user wants a JSON plan for a GitHub issue triage flow. The schema is ...
+[2026-07-31T18:00:54+08:00] [Web] github-issue-filter "is:open label:bug sort:created-asc"
