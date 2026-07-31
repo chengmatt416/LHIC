@@ -57735,3 +57735,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4234 | Task: recovery-network-timeout | LLM=ON ---
 [2026-07-31T14:27:15+08:00] Elapsed: 12.51h | Remaining: 467.49h | SuccessRate: 93.0%
 [2026-07-31T14:27:15+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
+[2026-07-31T14:27:34+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need produce JSON. Need obey schema? User says Return JSON plan now. We need ...
+[2026-07-31T14:27:34+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T14:27:35+08:00] 
+--- Cycle #4235 | Task: recovery-stale-element | LLM=ON ---
+[2026-07-31T14:27:35+08:00] Elapsed: 12.52h | Remaining: 467.48h | SuccessRate: 93.0%
+[2026-07-31T14:27:35+08:00] [SlowPath] planning: recovery-stale-element — Plan recovery for stale element reference: 1) Catch stale element error, 2) Re-l
