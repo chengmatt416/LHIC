@@ -63402,3 +63402,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5158 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-31T19:24:06+08:00] Elapsed: 17.46h | Remaining: 462.54h | SuccessRate: 93.0%
 [2026-07-31T19:24:06+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T19:24:19+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T19:24:19+08:00] 
+--- Cycle #5159 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T19:24:19+08:00] Elapsed: 17.46h | Remaining: 462.54h | SuccessRate: 93.0%
+[2026-07-31T19:24:19+08:00] [Resilience] batch=50 seed=704 threads=20
+[2026-07-31T19:24:21+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T19:24:21+08:00] 
+--- Cycle #5160 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T19:24:21+08:00] Elapsed: 17.46h | Remaining: 462.54h | SuccessRate: 93.0%
+[2026-07-31T19:24:21+08:00] [Resilience] batch=150 seed=721 threads=20
+[2026-07-31T19:24:25+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T19:24:25+08:00] 
+--- Cycle #5161 | Task: policy-curriculum-3d | LLM=ON ---
+[2026-07-31T19:24:25+08:00] Elapsed: 17.46h | Remaining: 462.54h | SuccessRate: 93.0%
+[2026-07-31T19:24:25+08:00] [Policy] 3d/epic-shooter-3d fit
