@@ -87280,3 +87280,17 @@ Call log:
 [2026-08-01T07:57:33+08:00] Elapsed: 30.02h | Remaining: 449.98h | SuccessRate: 87.0%
 [2026-08-01T07:57:33+08:00] [Web] mdn-search "PerformanceObserver"
 [2026-08-01T07:57:40+08:00] [Web] OK: mdn-search
+[2026-08-01T07:57:40+08:00] 
+--- Cycle #9430 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:57:40+08:00] Elapsed: 30.02h | Remaining: 449.98h | SuccessRate: 87.0%
+[2026-08-01T07:57:40+08:00] [Resilience] batch=50 seed=311 threads=20
+[2026-08-01T07:57:42+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:57:42+08:00] 
+--- Cycle #9431 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T07:57:42+08:00] Elapsed: 30.02h | Remaining: 449.98h | SuccessRate: 87.0%
+[2026-08-01T07:57:42+08:00] [Resilience] batch=150 seed=328 threads=20
+[2026-08-01T07:57:46+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:57:46+08:00] 
+--- Cycle #9432 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-08-01T07:57:46+08:00] Elapsed: 30.02h | Remaining: 449.98h | SuccessRate: 87.0%
+[2026-08-01T07:57:46+08:00] [Policy] 3d/epic-shooter-3d fit
