@@ -59500,3 +59500,11 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4526 | Task: crossmodal-mdn-to-wiki-spec | LLM=ON ---
 [2026-07-31T15:52:27+08:00] Elapsed: 13.93h | Remaining: 466.07h | SuccessRate: 83.0%
 [2026-07-31T15:52:27+08:00] [SlowPath] planning: crossmodal-mdn-to-wiki-spec — Plan specification cross-reference: 1) Search MDN for 'WebSocket', 2) Extract th
+[2026-07-31T15:53:12+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T15:53:12+08:00] [Web] mdn-search "WebSocket"
+[2026-07-31T15:53:18+08:00] [Web] OK: mdn-search
+[2026-07-31T15:53:18+08:00] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-07-31T15:53:19+08:00] 
+--- Cycle #4527 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-31T15:53:19+08:00] Elapsed: 13.95h | Remaining: 466.05h | SuccessRate: 83.0%
+[2026-07-31T15:53:19+08:00] [Web] wikipedia-search "Web Component"
