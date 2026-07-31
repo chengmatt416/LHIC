@@ -73916,3 +73916,13 @@ Call log:
 --- Cycle #7005 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T01:19:33+08:00] Elapsed: 23.38h | Remaining: 456.62h | SuccessRate: 88.0%
 [2026-08-01T01:19:33+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T01:19:39+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T01:19:39+08:00] 
+--- Cycle #7006 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T01:19:39+08:00] Elapsed: 23.39h | Remaining: 456.61h | SuccessRate: 88.0%
+[2026-08-01T01:19:39+08:00] [Resilience] batch=300 seed=103 threads=20
+[2026-08-01T01:19:45+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T01:19:46+08:00] 
+--- Cycle #7007 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T01:19:46+08:00] Elapsed: 23.39h | Remaining: 456.61h | SuccessRate: 88.0%
+[2026-08-01T01:19:46+08:00] [Policy] 3d/star-trooper fit
