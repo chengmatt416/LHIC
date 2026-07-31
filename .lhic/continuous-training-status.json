@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T10:52:12+08:00",
-  "iteration": 3248,
-  "currentTask": "policy-nemesis-advanced",
+  "lastUpdated": "2026-07-31T10:52:31+08:00",
+  "iteration": 3251,
+  "currentTask": "chain-github-to-wiki",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 3248,
+    "completedTasks": 3251,
     "progressPercent": "3.25"
   },
   "llm": {
@@ -41,10 +41,10 @@
   "stats": {
     "totalSimulations": 606,
     "totalGameFits": 200,
-    "totalPublicWebRuns": 2633,
+    "totalPublicWebRuns": 2636,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 2633,
-    "rollingSuccessRate": 0.85,
+    "totalSkillCandidates": 2636,
+    "rollingSuccessRate": 0.86,
     "elapsedHours": "8.93",
     "remainingHours": "471.07",
     "latestPyTorchLoss": null,
