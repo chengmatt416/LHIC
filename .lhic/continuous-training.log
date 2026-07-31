@@ -62372,3 +62372,15 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T18:40:08+08:00] Elapsed: 16.73h | Remaining: 463.27h | SuccessRate: 92.0%
 [2026-07-31T18:40:08+08:00] [SlowPath] planning: crossmodal-mdn-to-wiki-spec — Plan specification cross-reference: 1) Search MDN for 'WebSocket', 2) Extract th
 [2026-07-31T18:40:26+08:00] [Web] mdn-search "WebSocket"
+[2026-07-31T18:40:32+08:00] [Web] OK: mdn-search
+[2026-07-31T18:40:32+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan | web=verified
+[2026-07-31T18:40:33+08:00] 
+--- Cycle #4992 | Task: chain-wiki-to-mdn | LLM=ON ---
+[2026-07-31T18:40:33+08:00] Elapsed: 16.73h | Remaining: 463.27h | SuccessRate: 92.0%
+[2026-07-31T18:40:33+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T18:40:39+08:00] [Web] OK: wikipedia-search
+[2026-07-31T18:40:39+08:00] 
+--- Cycle #4993 | Task: chain-mdn-to-github | LLM=ON ---
+[2026-07-31T18:40:39+08:00] Elapsed: 16.74h | Remaining: 463.26h | SuccessRate: 92.0%
+[2026-07-31T18:40:39+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T18:40:45+08:00] [Web] OK: mdn-search
