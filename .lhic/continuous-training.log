@@ -51263,3 +51263,40 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3117 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-07-31T10:31:41+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 86.0%
 [2026-07-31T10:31:41+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T10:31:46+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T10:31:46+08:00] 
+--- Cycle #3118 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T10:31:46+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 86.0%
+[2026-07-31T10:31:46+08:00] [Resilience] batch=300 seed=7 threads=20
+[2026-07-31T10:31:52+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:31:53+08:00] 
+--- Cycle #3119 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T10:31:53+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 86.0%
+[2026-07-31T10:31:53+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T10:31:57+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T10:31:57+08:00] 
+--- Cycle #3120 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T10:31:57+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 85.0%
+[2026-07-31T10:31:57+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T10:32:01+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T10:32:01+08:00] 
+--- Cycle #3121 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T10:32:01+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 84.0%
+[2026-07-31T10:32:01+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T10:32:08+08:00] [Web] OK: wikipedia-search
+[2026-07-31T10:32:08+08:00] 
+--- Cycle #3122 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T10:32:08+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 84.0%
+[2026-07-31T10:32:08+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T10:32:14+08:00] [Web] OK: mdn-search
+[2026-07-31T10:32:14+08:00] 
+--- Cycle #3123 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T10:32:14+08:00] Elapsed: 8.59h | Remaining: 471.41h | SuccessRate: 84.0%
+[2026-07-31T10:32:14+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T10:32:20+08:00] [Web] OK: wikipedia-search
+[2026-07-31T10:32:21+08:00] 
+--- Cycle #3124 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T10:32:21+08:00] Elapsed: 8.60h | Remaining: 471.40h | SuccessRate: 85.0%
+[2026-07-31T10:32:21+08:00] [Web] mdn-search "Accessibility tree"
