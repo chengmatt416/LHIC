@@ -51833,3 +51833,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3221 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-07-31T10:48:05+08:00] Elapsed: 8.86h | Remaining: 471.14h | SuccessRate: 88.0%
 [2026-07-31T10:48:05+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T10:48:11+08:00] [Web] OK: mdn-search
+[2026-07-31T10:48:11+08:00] 
+--- Cycle #3222 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T10:48:11+08:00] Elapsed: 8.86h | Remaining: 471.14h | SuccessRate: 88.0%
+[2026-07-31T10:48:11+08:00] [Resilience] batch=50 seed=775 threads=20
+[2026-07-31T10:48:13+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:48:13+08:00] 
+--- Cycle #3223 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T10:48:13+08:00] Elapsed: 8.86h | Remaining: 471.14h | SuccessRate: 88.0%
+[2026-07-31T10:48:13+08:00] [Resilience] batch=150 seed=792 threads=20
+[2026-07-31T10:48:17+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:48:17+08:00] 
+--- Cycle #3224 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T10:48:17+08:00] Elapsed: 8.86h | Remaining: 471.14h | SuccessRate: 88.0%
+[2026-07-31T10:48:17+08:00] [Policy] 3d/epic-shooter-3d fit
