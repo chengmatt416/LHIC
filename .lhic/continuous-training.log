@@ -87098,3 +87098,13 @@ Call log:
 --- Cycle #9396 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-08-01T07:52:16+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 87.0%
 [2026-08-01T07:52:16+08:00] [Web] mdn-search "Accessibility tree"
+[2026-08-01T07:52:22+08:00] [Web] OK: mdn-search
+[2026-08-01T07:52:22+08:00] 
+--- Cycle #9397 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T07:52:22+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 88.0%
+[2026-08-01T07:52:22+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T07:52:28+08:00] [Web] OK: mdn-search
+[2026-08-01T07:52:29+08:00] 
+--- Cycle #9398 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:52:29+08:00] Elapsed: 29.93h | Remaining: 450.07h | SuccessRate: 88.0%
+[2026-08-01T07:52:29+08:00] [Resilience] batch=50 seed=767 threads=20
