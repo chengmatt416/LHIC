@@ -60262,3 +60262,5 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4649 | Task: crossmodal-wiki-then-osm | LLM=ON ---
 [2026-07-31T16:48:23+08:00] Elapsed: 14.86h | Remaining: 465.14h | SuccessRate: 80.0%
 [2026-07-31T16:48:23+08:00] [SlowPath] planning: crossmodal-wiki-then-osm — Plan cross-modal geographic research: 1) Search Wikipedia for 'Great Wall of Chi
+[2026-07-31T16:49:08+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T16:49:08+08:00] [Web] openstreetmap-place-search "Great Wall of China"
