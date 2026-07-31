@@ -52008,3 +52008,18 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #3252 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-07-31T10:52:31+08:00] Elapsed: 8.93h | Remaining: 471.07h | SuccessRate: 86.0%
 [2026-07-31T10:52:31+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T10:52:38+08:00] [Web] OK: mdn-search
+[2026-07-31T10:52:38+08:00] 
+--- Cycle #3253 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T10:52:38+08:00] Elapsed: 8.93h | Remaining: 471.07h | SuccessRate: 87.0%
+[2026-07-31T10:52:38+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T10:52:44+08:00] [Web] OK: mdn-search
+[2026-07-31T10:52:44+08:00] 
+--- Cycle #3254 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T10:52:44+08:00] Elapsed: 8.94h | Remaining: 471.06h | SuccessRate: 87.0%
+[2026-07-31T10:52:44+08:00] [Resilience] batch=50 seed=319 threads=20
+[2026-07-31T10:52:46+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:52:46+08:00] 
+--- Cycle #3255 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T10:52:46+08:00] Elapsed: 8.94h | Remaining: 471.06h | SuccessRate: 87.0%
+[2026-07-31T10:52:46+08:00] [Resilience] batch=150 seed=336 threads=20
