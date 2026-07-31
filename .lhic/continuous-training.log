@@ -62998,3 +62998,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5093 | Task: form-error-recovery | LLM=ON ---
 [2026-07-31T19:06:36+08:00] Elapsed: 17.17h | Remaining: 462.83h | SuccessRate: 93.0%
 [2026-07-31T19:06:36+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
+[2026-07-31T19:06:53+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has given a goal: "Plan recovery for a form that rejected input:...
+[2026-07-31T19:06:53+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T19:06:53+08:00] 
+--- Cycle #5094 | Task: plan-wikipedia-deep-dive | LLM=ON ---
+[2026-07-31T19:06:53+08:00] Elapsed: 17.17h | Remaining: 462.83h | SuccessRate: 93.0%
+[2026-07-31T19:06:53+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
