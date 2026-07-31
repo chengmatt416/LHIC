@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:39:39+08:00",
-  "iteration": 8219,
-  "currentTask": "docs-entry-type-wiki",
+  "lastUpdated": "2026-08-01T04:40:07+08:00",
+  "iteration": 8224,
+  "currentTask": "policy-nemesis-advanced",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8219,
+    "completedTasks": 8224,
     "progressPercent": "8.22"
   },
   "llm": {
@@ -39,14 +39,14 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1350,
+    "totalSimulations": 1351,
     "totalGameFits": 448,
-    "totalPublicWebRuns": 6324,
+    "totalPublicWebRuns": 6326,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 6324,
-    "rollingSuccessRate": 0.88,
-    "elapsedHours": "26.72",
-    "remainingHours": "453.28",
+    "totalSkillCandidates": 6326,
+    "rollingSuccessRate": 0.86,
+    "elapsedHours": "26.73",
+    "remainingHours": "453.27",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
