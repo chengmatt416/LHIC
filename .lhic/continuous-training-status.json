@@ -3,25 +3,25 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T02:46:23+08:00",
-  "iteration": 7537,
-  "currentTask": "chain-wiki-to-mdn",
+  "lastUpdated": "2026-08-01T02:46:29+08:00",
+  "iteration": 7538,
+  "currentTask": "chain-mdn-to-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 7537,
+    "completedTasks": 7538,
     "progressPercent": "7.54"
   },
   "llm": {
     "models": [
       {
         "model": "deepseek-v4-flash-free",
-        "available": false,
-        "rateLimitedUntil": "2026-08-01T02:46:29+08:00"
+        "available": true,
+        "rateLimitedUntil": null
       },
       {
         "model": "mimo-v2.5-free",
-        "available": false,
-        "rateLimitedUntil": "2026-08-01T02:46:29+08:00"
+        "available": true,
+        "rateLimitedUntil": null
       }
     ],
     "stats": {
@@ -36,14 +36,14 @@
         "rateLimit": 3
       }
     },
-    "hasAvailable": false
+    "hasAvailable": true
   },
   "stats": {
     "totalSimulations": 1222,
     "totalGameFits": 405,
-    "totalPublicWebRuns": 5770,
+    "totalPublicWebRuns": 5771,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 5770,
+    "totalSkillCandidates": 5771,
     "rollingSuccessRate": 0.85,
     "elapsedHours": "24.83",
     "remainingHours": "455.17",
