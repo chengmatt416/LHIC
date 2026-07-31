@@ -66221,3 +66221,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5619 | Task: form-multi-step-registration | LLM=ON ---
 [2026-07-31T21:21:54+08:00] Elapsed: 19.42h | Remaining: 460.58h | SuccessRate: 94.0%
 [2026-07-31T21:21:54+08:00] [SlowPath] planning: form-multi-step-registration — Plan a 4-step registration form flow: 1) Fill name/email, 2) Select role from dr
+[2026-07-31T21:22:12+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need answer with JSON only. Need propose_plan. Need include multiple proposed...
+[2026-07-31T21:22:12+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T21:22:13+08:00] 
+--- Cycle #5620 | Task: form-error-recovery | LLM=ON ---
+[2026-07-31T21:22:13+08:00] Elapsed: 19.43h | Remaining: 460.57h | SuccessRate: 94.0%
+[2026-07-31T21:22:13+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
