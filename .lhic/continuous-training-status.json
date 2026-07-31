@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T16:05:24+08:00",
-  "iteration": 4552,
-  "currentTask": "resilience-adversarial-300",
+  "lastUpdated": "2026-07-31T16:05:32+08:00",
+  "iteration": 4554,
+  "currentTask": "policy-nemesis-advanced",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 4552,
+    "completedTasks": 4554,
     "progressPercent": "4.55"
   },
   "llm": {
@@ -44,12 +44,12 @@
     "totalPublicWebRuns": 3539,
     "totalSlowPathPlans": 441,
     "totalSkillCandidates": 3539,
-    "rollingSuccessRate": 0.79,
+    "rollingSuccessRate": 0.77,
     "elapsedHours": "14.15",
     "remainingHours": "465.85",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": 0.8,
+    "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
   }
