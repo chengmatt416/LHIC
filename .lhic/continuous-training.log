@@ -58781,3 +58781,4 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4408 | Task: triage-bug-escalation | LLM=ON ---
 [2026-07-31T15:12:27+08:00] Elapsed: 13.27h | Remaining: 466.73h | SuccessRate: 94.0%
 [2026-07-31T15:12:27+08:00] [SlowPath] planning: triage-bug-escalation — Plan a GitHub issue triage flow: 1) List open bugs sorted by creation date, 2) F
+[2026-07-31T15:12:43+08:00] [Web] github-issue-filter "is:open label:bug sort:created-asc"
