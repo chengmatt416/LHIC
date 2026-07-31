@@ -76862,3 +76862,14 @@ fatal: could not read Username for 'https://gi
 [2026-08-01T02:46:30+08:00] [LLM] deepseek-v4-flash-free rate-limited for 5h until 2026-08-01T07:46:30+08:00
 [2026-08-01T02:46:30+08:00] [LLM] mimo-v2.5-free rate-limited for 5h until 2026-08-01T07:46:30+08:00
 [2026-08-01T02:46:30+08:00] [Web] github-issue-filter "is:open label:bug sort:created-asc"
+[2026-08-01T02:46:39+08:00] [Web] OK: github-issue-filter
+[2026-08-01T02:46:39+08:00] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-08-01T02:46:40+08:00] 
+--- Cycle #7540 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-08-01T02:46:40+08:00] Elapsed: 24.84h | Remaining: 455.16h | SuccessRate: 86.0%
+[2026-08-01T02:46:40+08:00] [Web] mdn-search "Accessibility tree"
+[2026-08-01T02:46:46+08:00] [Web] OK: mdn-search
+[2026-08-01T02:46:46+08:00] 
+--- Cycle #7541 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-08-01T02:46:46+08:00] Elapsed: 24.84h | Remaining: 455.16h | SuccessRate: 87.0%
+[2026-08-01T02:46:46+08:00] [Web] mdn-search "PerformanceObserver"

@@ -3,50 +3,50 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T02:46:29+08:00",
-  "iteration": 7538,
-  "currentTask": "chain-mdn-to-github",
+  "lastUpdated": "2026-08-01T02:46:46+08:00",
+  "iteration": 7540,
+  "currentTask": "docs-accessibility-tree",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 7538,
+    "completedTasks": 7540,
     "progressPercent": "7.54"
   },
   "llm": {
     "models": [
       {
         "model": "deepseek-v4-flash-free",
-        "available": true,
-        "rateLimitedUntil": null
+        "available": false,
+        "rateLimitedUntil": "2026-08-01T07:46:30+08:00"
       },
       {
         "model": "mimo-v2.5-free",
-        "available": true,
-        "rateLimitedUntil": null
+        "available": false,
+        "rateLimitedUntil": "2026-08-01T07:46:30+08:00"
       }
     ],
     "stats": {
       "deepseek": {
         "ok": 1209,
         "fail": 160,
-        "rateLimit": 4
+        "rateLimit": 5
       },
       "mimo": {
         "ok": 410,
         "fail": 216,
-        "rateLimit": 3
+        "rateLimit": 4
       }
     },
-    "hasAvailable": true
+    "hasAvailable": false
   },
   "stats": {
     "totalSimulations": 1222,
     "totalGameFits": 405,
-    "totalPublicWebRuns": 5771,
-    "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 5771,
-    "rollingSuccessRate": 0.85,
-    "elapsedHours": "24.83",
-    "remainingHours": "455.17",
+    "totalPublicWebRuns": 5773,
+    "totalSlowPathPlans": 983,
+    "totalSkillCandidates": 5773,
+    "rollingSuccessRate": 0.87,
+    "elapsedHours": "24.84",
+    "remainingHours": "455.16",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
