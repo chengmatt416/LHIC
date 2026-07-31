@@ -63288,3 +63288,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5140 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T19:19:35+08:00] Elapsed: 17.38h | Remaining: 462.62h | SuccessRate: 93.0%
 [2026-07-31T19:19:35+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T19:19:53+08:00] [LLM] mimo-v2.5-free accepted reasoning-as-plan: First, the user has provided a goal and context, and I need to return a JSON pla...
+[2026-07-31T19:19:53+08:00] [SlowPath] model=mimo-v2.5-free decision=propose_plan
+[2026-07-31T19:19:54+08:00] 
+--- Cycle #5141 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T19:19:54+08:00] Elapsed: 17.39h | Remaining: 462.61h | SuccessRate: 93.0%
+[2026-07-31T19:19:54+08:00] [Resilience] batch=300 seed=398 threads=20
