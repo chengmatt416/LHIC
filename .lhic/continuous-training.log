@@ -54964,3 +54964,26 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3776 | Task: dynamic-modal-interaction | LLM=ON ---
 [2026-07-31T12:30:40+08:00] Elapsed: 10.57h | Remaining: 469.43h | SuccessRate: 94.0%
 [2026-07-31T12:30:40+08:00] [SlowPath] planning: dynamic-modal-interaction — Plan interaction with a modal dialog: 1) Detect modal overlay, 2) Find close but
+[2026-07-31T12:31:01+08:00] [LLM] deepseek-v4-flash-free accepted reasoning-as-plan: We need to plan interaction with modal dialog. Goal includes steps: detect overl...
+[2026-07-31T12:31:01+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T12:31:02+08:00] 
+--- Cycle #3777 | Task: resilience-adversarial-300 | LLM=ON ---
+[2026-07-31T12:31:02+08:00] Elapsed: 10.57h | Remaining: 469.43h | SuccessRate: 94.0%
+[2026-07-31T12:31:02+08:00] [Resilience] batch=300 seed=210 threads=20
+[2026-07-31T12:31:08+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T12:31:08+08:00] 
+--- Cycle #3778 | Task: policy-curriculum-star | LLM=ON ---
+[2026-07-31T12:31:08+08:00] Elapsed: 10.58h | Remaining: 469.42h | SuccessRate: 94.0%
+[2026-07-31T12:31:08+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T12:31:12+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T12:31:12+08:00] 
+--- Cycle #3779 | Task: policy-nemesis-advanced | LLM=ON ---
+[2026-07-31T12:31:12+08:00] Elapsed: 10.58h | Remaining: 469.42h | SuccessRate: 93.0%
+[2026-07-31T12:31:12+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T12:31:16+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T12:31:17+08:00] 
+--- Cycle #3780 | Task: recovery-session-expired | LLM=ON ---
+[2026-07-31T12:31:17+08:00] Elapsed: 10.58h | Remaining: 469.42h | SuccessRate: 92.0%
+[2026-07-31T12:31:17+08:00] [SlowPath] planning: recovery-session-expired — Plan recovery for expired session during multi-step flow: 1) Detect 401/403 resp
