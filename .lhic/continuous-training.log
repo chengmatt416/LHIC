@@ -48708,3 +48708,148 @@ fatal: could not read Username for 'https://gi
 --- Cycle #2653 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-07-31T09:15:58+08:00] Elapsed: 7.32h | Remaining: 472.68h | SuccessRate: 88.0%
 [2026-07-31T09:15:58+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T09:16:04+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T09:16:04+08:00] 
+--- Cycle #2654 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T09:16:04+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 88.0%
+[2026-07-31T09:16:04+08:00] [Resilience] batch=300 seed=119 threads=20
+[2026-07-31T09:16:10+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:16:10+08:00] 
+--- Cycle #2655 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T09:16:10+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 88.0%
+[2026-07-31T09:16:10+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T09:16:14+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T09:16:15+08:00] 
+--- Cycle #2656 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T09:16:15+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 87.0%
+[2026-07-31T09:16:15+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T09:16:19+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T09:16:19+08:00] 
+--- Cycle #2657 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T09:16:19+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 86.0%
+[2026-07-31T09:16:19+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T09:16:26+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:16:26+08:00] 
+--- Cycle #2658 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T09:16:26+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 86.0%
+[2026-07-31T09:16:26+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T09:16:32+08:00] [Web] OK: mdn-search
+[2026-07-31T09:16:32+08:00] 
+--- Cycle #2659 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T09:16:32+08:00] Elapsed: 7.33h | Remaining: 472.67h | SuccessRate: 86.0%
+[2026-07-31T09:16:32+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T09:16:39+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:16:39+08:00] 
+--- Cycle #2660 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T09:16:39+08:00] Elapsed: 7.34h | Remaining: 472.66h | SuccessRate: 87.0%
+[2026-07-31T09:16:39+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T09:16:46+08:00] [Web] OK: mdn-search
+[2026-07-31T09:16:46+08:00] 
+--- Cycle #2661 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T09:16:46+08:00] Elapsed: 7.34h | Remaining: 472.66h | SuccessRate: 88.0%
+[2026-07-31T09:16:46+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T09:16:52+08:00] [Web] OK: mdn-search
+[2026-07-31T09:16:53+08:00] 
+--- Cycle #2662 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T09:16:53+08:00] Elapsed: 7.34h | Remaining: 472.66h | SuccessRate: 88.0%
+[2026-07-31T09:16:53+08:00] [Resilience] batch=50 seed=255 threads=20
+[2026-07-31T09:16:54+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:16:55+08:00] 
+--- Cycle #2663 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T09:16:55+08:00] Elapsed: 7.34h | Remaining: 472.66h | SuccessRate: 88.0%
+[2026-07-31T09:16:55+08:00] [Resilience] batch=150 seed=272 threads=20
+[2026-07-31T09:16:58+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:16:59+08:00] 
+--- Cycle #2664 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T09:16:59+08:00] Elapsed: 7.34h | Remaining: 472.66h | SuccessRate: 88.0%
+[2026-07-31T09:16:59+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-07-31T09:17:47+08:00] [Policy] loss=6.5957 accuracy=68.4%
+[2026-07-31T09:17:47+08:00] 
+--- Cycle #2665 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-07-31T09:17:47+08:00] Elapsed: 7.35h | Remaining: 472.65h | SuccessRate: 88.0%
+[2026-07-31T09:17:47+08:00] [Web] wikipedia-search "Service Worker"
+[2026-07-31T09:17:53+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:17:53+08:00] [Web] mdn-search "Service Worker"
+[2026-07-31T09:17:59+08:00] [Web] OK: mdn-search
+[2026-07-31T09:17:59+08:00] [Web] github-issue-filter "Service Worker"
+[2026-07-31T09:18:08+08:00] [Web] OK: github-issue-filter
+[2026-07-31T09:18:08+08:00] 
+--- Cycle #2666 | Task: skill-chain-docs-to-code | LLM=OFF ---
+[2026-07-31T09:18:08+08:00] Elapsed: 7.36h | Remaining: 472.64h | SuccessRate: 88.0%
+[2026-07-31T09:18:08+08:00] [Web] mdn-search "Web Crypto API"
+[2026-07-31T09:18:14+08:00] [Web] OK: mdn-search
+[2026-07-31T09:18:14+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T09:18:21+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:18:21+08:00] 
+--- Cycle #2667 | Task: docs-entry-type-wiki | LLM=OFF ---
+[2026-07-31T09:18:21+08:00] Elapsed: 7.36h | Remaining: 472.64h | SuccessRate: 88.0%
+[2026-07-31T09:18:21+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-07-31T09:18:27+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:18:28+08:00] 
+--- Cycle #2668 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-07-31T09:18:28+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 88.0%
+[2026-07-31T09:18:28+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-07-31T09:18:33+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T09:18:34+08:00] 
+--- Cycle #2669 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-07-31T09:18:34+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 88.0%
+[2026-07-31T09:18:34+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T09:18:39+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T09:18:39+08:00] 
+--- Cycle #2670 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T09:18:39+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 88.0%
+[2026-07-31T09:18:39+08:00] [Resilience] batch=300 seed=391 threads=20
+[2026-07-31T09:18:46+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:18:46+08:00] 
+--- Cycle #2671 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T09:18:46+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 88.0%
+[2026-07-31T09:18:46+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T09:18:50+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T09:18:50+08:00] 
+--- Cycle #2672 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T09:18:50+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 87.0%
+[2026-07-31T09:18:50+08:00] [Policy] 3d/nemesis fit
+[2026-07-31T09:18:54+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-07-31T09:18:54+08:00] 
+--- Cycle #2673 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-07-31T09:18:54+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 86.0%
+[2026-07-31T09:18:54+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T09:19:01+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:19:01+08:00] 
+--- Cycle #2674 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T09:19:01+08:00] Elapsed: 7.37h | Remaining: 472.63h | SuccessRate: 86.0%
+[2026-07-31T09:19:01+08:00] [Web] mdn-search "Shadow DOM"
+[2026-07-31T09:19:07+08:00] [Web] OK: mdn-search
+[2026-07-31T09:19:07+08:00] 
+--- Cycle #2675 | Task: chain-github-to-wiki | LLM=OFF ---
+[2026-07-31T09:19:07+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 86.0%
+[2026-07-31T09:19:07+08:00] [Web] wikipedia-search "Polyfill"
+[2026-07-31T09:19:14+08:00] [Web] OK: wikipedia-search
+[2026-07-31T09:19:14+08:00] 
+--- Cycle #2676 | Task: docs-accessibility-tree | LLM=OFF ---
+[2026-07-31T09:19:14+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 87.0%
+[2026-07-31T09:19:14+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T09:19:20+08:00] [Web] OK: mdn-search
+[2026-07-31T09:19:20+08:00] 
+--- Cycle #2677 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T09:19:20+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 88.0%
+[2026-07-31T09:19:20+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T09:19:28+08:00] [Web] OK: mdn-search
+[2026-07-31T09:19:28+08:00] 
+--- Cycle #2678 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T09:19:28+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 88.0%
+[2026-07-31T09:19:28+08:00] [Resilience] batch=50 seed=527 threads=20
+[2026-07-31T09:19:30+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:19:30+08:00] 
+--- Cycle #2679 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T09:19:30+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 88.0%
+[2026-07-31T09:19:30+08:00] [Resilience] batch=150 seed=544 threads=20
+[2026-07-31T09:19:34+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T09:19:34+08:00] 
+--- Cycle #2680 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T09:19:34+08:00] Elapsed: 7.38h | Remaining: 472.62h | SuccessRate: 88.0%
+[2026-07-31T09:19:34+08:00] [Policy] 3d/epic-shooter-3d fit
