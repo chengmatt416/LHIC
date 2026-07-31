@@ -81039,3 +81039,7 @@ fatal: could not read Username for 'https://gi
 --- Cycle #8297 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
 [2026-08-01T04:52:03+08:00] Elapsed: 26.93h | Remaining: 453.07h | SuccessRate: 88.0%
 [2026-08-01T04:52:03+08:00] [Web] wikipedia-search "Service Worker"
+[2026-08-01T04:52:11+08:00] [Web] OK: wikipedia-search
+[2026-08-01T04:52:11+08:00] [Web] mdn-search "Service Worker"
+[2026-08-01T04:52:17+08:00] [Web] OK: mdn-search
+[2026-08-01T04:52:17+08:00] [Web] github-issue-filter "Service Worker"
