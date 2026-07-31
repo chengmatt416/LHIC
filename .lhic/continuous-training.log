@@ -73167,3 +73167,8 @@ fatal: could not read Username for 'https://gi
 [2026-08-01T00:56:41+08:00] Elapsed: 23.00h | Remaining: 457.00h | SuccessRate: 88.0%
 [2026-08-01T00:56:41+08:00] [Resilience] batch=50 seed=791 threads=20
 [2026-08-01T00:56:43+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T00:56:43+08:00] 
+--- Cycle #6871 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T00:56:43+08:00] Elapsed: 23.00h | Remaining: 457.00h | SuccessRate: 88.0%
+[2026-08-01T00:56:43+08:00] [Resilience] batch=150 seed=808 threads=20
+[2026-08-01T00:56:47+08:00] [Resilience] semantic=100.0% delta=+80%
