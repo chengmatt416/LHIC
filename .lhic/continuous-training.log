@@ -54867,3 +54867,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3760 | Task: form-error-recovery | LLM=ON ---
 [2026-07-31T12:26:20+08:00] Elapsed: 10.50h | Remaining: 469.50h | SuccessRate: 94.0%
 [2026-07-31T12:26:20+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
+[2026-07-31T12:26:37+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T12:26:37+08:00] 
+--- Cycle #3761 | Task: plan-wikipedia-deep-dive | LLM=ON ---
+[2026-07-31T12:26:37+08:00] Elapsed: 10.50h | Remaining: 469.50h | SuccessRate: 94.0%
+[2026-07-31T12:26:37+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
