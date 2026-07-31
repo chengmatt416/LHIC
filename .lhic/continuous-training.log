@@ -60400,3 +60400,9 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T16:59:17+08:00] [SlowPath] planning: crossmodal-api-plus-web — Plan cross-modal data fusion: 1) Fetch GitHub API for repository metadata, 2) Op
 [2026-07-31T17:00:02+08:00] [LLM] mimo-v2.5-free failed: timeout
 [2026-07-31T17:00:02+08:00] [Web] github-issue-filter "is:open"
+[2026-07-31T17:00:12+08:00] [Web] OK: github-issue-filter
+[2026-07-31T17:00:12+08:00] [SlowPath] LLM blocked: All available models failed | fallback web=verified
+[2026-07-31T17:00:12+08:00] 
+--- Cycle #4671 | Task: docs-entry-type-wiki | LLM=ON ---
+[2026-07-31T17:00:12+08:00] Elapsed: 15.06h | Remaining: 464.94h | SuccessRate: 81.0%
+[2026-07-31T17:00:12+08:00] [Web] wikipedia-search "Navigation Timing"
