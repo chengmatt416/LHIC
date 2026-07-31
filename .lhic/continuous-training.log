@@ -68185,3 +68185,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5965 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-07-31T22:28:26+08:00] Elapsed: 20.53h | Remaining: 459.47h | SuccessRate: 87.0%
 [2026-07-31T22:28:26+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T22:28:32+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T22:28:32+08:00] 
+--- Cycle #5966 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T22:28:32+08:00] Elapsed: 20.53h | Remaining: 459.47h | SuccessRate: 87.0%
+[2026-07-31T22:28:32+08:00] [Resilience] batch=300 seed=423 threads=20
