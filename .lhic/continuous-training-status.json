@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T07:14:04+08:00",
-  "iteration": 9160,
-  "currentTask": "policy-curriculum-3d",
+  "lastUpdated": "2026-08-01T07:14:27+08:00",
+  "iteration": 9161,
+  "currentTask": "skill-chain-wiki-mdn-github",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 9160,
+    "completedTasks": 9161,
     "progressPercent": "9.16"
   },
   "llm": {
@@ -41,14 +41,14 @@
   "stats": {
     "totalSimulations": 1527,
     "totalGameFits": 507,
-    "totalPublicWebRuns": 7084,
+    "totalPublicWebRuns": 7087,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 7084,
+    "totalSkillCandidates": 7087,
     "rollingSuccessRate": 0.88,
-    "elapsedHours": "29.28",
-    "remainingHours": "450.72",
-    "latestPyTorchLoss": 6.668686866760254,
-    "latestPyTorchAccuracy": 0.6838235294117647,
+    "elapsedHours": "29.29",
+    "remainingHours": "450.71",
+    "latestPyTorchLoss": null,
+    "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
     "cpuCount": 20,
     "parallelWorkers": 20
