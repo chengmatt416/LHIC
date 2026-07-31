@@ -3,13 +3,13 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T04:37:01+08:00",
-  "iteration": 8203,
-  "currentTask": "docs-entry-type-wiki",
+  "lastUpdated": "2026-08-01T04:37:13+08:00",
+  "iteration": 8205,
+  "currentTask": "geo-landmark-comparison",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 8203,
-    "progressPercent": "8.20"
+    "completedTasks": 8205,
+    "progressPercent": "8.21"
   },
   "llm": {
     "models": [
@@ -41,12 +41,12 @@
   "stats": {
     "totalSimulations": 1347,
     "totalGameFits": 447,
-    "totalPublicWebRuns": 6311,
+    "totalPublicWebRuns": 6313,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 6311,
+    "totalSkillCandidates": 6313,
     "rollingSuccessRate": 0.88,
-    "elapsedHours": "26.67",
-    "remainingHours": "453.33",
+    "elapsedHours": "26.68",
+    "remainingHours": "453.32",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
