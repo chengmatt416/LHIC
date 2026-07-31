@@ -56232,3 +56232,8 @@ fatal: could not read Username for 'https://gi
 [2026-07-31T13:22:51+08:00] [Web] mdn-search "Web Crypto API"
 [2026-07-31T13:22:57+08:00] [Web] OK: mdn-search
 [2026-07-31T13:22:57+08:00] [Web] wikipedia-search "Web Crypto API"
+[2026-07-31T13:23:03+08:00] [Web] OK: wikipedia-search
+[2026-07-31T13:23:03+08:00] 
+--- Cycle #3986 | Task: recovery-network-timeout | LLM=ON ---
+[2026-07-31T13:23:03+08:00] Elapsed: 11.44h | Remaining: 468.56h | SuccessRate: 94.0%
+[2026-07-31T13:23:03+08:00] [SlowPath] planning: recovery-network-timeout — Plan recovery for network timeout during browser automation: 1) Detect timeout e
