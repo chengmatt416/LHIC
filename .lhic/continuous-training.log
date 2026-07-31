@@ -73580,3 +73580,14 @@ Call log:
 --- Cycle #6944 | Task: policy-nemesis-advanced | LLM=OFF ---
 [2026-08-01T01:09:16+08:00] Elapsed: 23.21h | Remaining: 456.79h | SuccessRate: 87.0%
 [2026-08-01T01:09:16+08:00] [Policy] 3d/nemesis fit
+[2026-08-01T01:09:20+08:00] [Policy] record failed: ENOENT: no such file or directory, open '/home/opc/computerintent/.lhic/game-training/3d/targets/nemesis.json'
+
+[2026-08-01T01:09:20+08:00] 
+--- Cycle #6945 | Task: chain-wiki-to-mdn | LLM=OFF ---
+[2026-08-01T01:09:20+08:00] Elapsed: 23.21h | Remaining: 456.79h | SuccessRate: 86.0%
+[2026-08-01T01:09:20+08:00] [Web] wikipedia-search "Web Component"
+[2026-08-01T01:09:27+08:00] [Web] OK: wikipedia-search
+[2026-08-01T01:09:27+08:00] 
+--- Cycle #6946 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-08-01T01:09:27+08:00] Elapsed: 23.22h | Remaining: 456.78h | SuccessRate: 86.0%
+[2026-08-01T01:09:27+08:00] [Web] mdn-search "Shadow DOM"
