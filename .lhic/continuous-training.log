@@ -53118,3 +53118,15 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3453 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-07-31T11:25:53+08:00] Elapsed: 9.49h | Remaining: 470.51h | SuccessRate: 87.0%
 [2026-07-31T11:25:53+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-07-31T11:25:59+08:00] [Web] OK: openstreetmap-place-search
+[2026-07-31T11:25:59+08:00] 
+--- Cycle #3454 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-07-31T11:25:59+08:00] Elapsed: 9.49h | Remaining: 470.51h | SuccessRate: 87.0%
+[2026-07-31T11:25:59+08:00] [Resilience] batch=300 seed=719 threads=20
+[2026-07-31T11:26:05+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T11:26:05+08:00] 
+--- Cycle #3455 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T11:26:05+08:00] Elapsed: 9.49h | Remaining: 470.51h | SuccessRate: 87.0%
+[2026-07-31T11:26:05+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T11:26:09+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
