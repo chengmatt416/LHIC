@@ -59555,3 +59555,9 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4535 | Task: form-error-recovery | LLM=ON ---
 [2026-07-31T15:56:24+08:00] Elapsed: 14.00h | Remaining: 466.00h | SuccessRate: 84.0%
 [2026-07-31T15:56:24+08:00] [SlowPath] planning: form-error-recovery — Plan recovery for a form that rejected input: 1) Identify which field failed, 2)
+[2026-07-31T15:57:09+08:00] [LLM] mimo-v2.5-free failed: timeout
+[2026-07-31T15:57:09+08:00] [SlowPath] LLM blocked: All available models failed
+[2026-07-31T15:57:09+08:00] 
+--- Cycle #4536 | Task: plan-wikipedia-deep-dive | LLM=ON ---
+[2026-07-31T15:57:09+08:00] Elapsed: 14.01h | Remaining: 465.99h | SuccessRate: 83.0%
+[2026-07-31T15:57:09+08:00] [SlowPath] planning: plan-wikipedia-deep-dive — Plan a deep Wikipedia research flow: 1) Search for 'Distributed systems', 2) Ope
