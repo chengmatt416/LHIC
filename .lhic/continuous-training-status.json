@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-08-01T07:23:34+08:00",
-  "iteration": 9220,
-  "currentTask": "docs-accessibility-tree",
+  "lastUpdated": "2026-08-01T07:23:46+08:00",
+  "iteration": 9223,
+  "currentTask": "resilience-adversarial-150",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 9220,
+    "completedTasks": 9223,
     "progressPercent": "9.22"
   },
   "llm": {
@@ -39,17 +39,17 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 1537,
+    "totalSimulations": 1539,
     "totalGameFits": 510,
-    "totalPublicWebRuns": 7135,
+    "totalPublicWebRuns": 7136,
     "totalSlowPathPlans": 983,
-    "totalSkillCandidates": 7135,
+    "totalSkillCandidates": 7136,
     "rollingSuccessRate": 0.88,
     "elapsedHours": "29.45",
     "remainingHours": "450.55",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
-    "latestSimDelta": null,
+    "latestSimDelta": 0.8,
     "cpuCount": 20,
     "parallelWorkers": 20
   }

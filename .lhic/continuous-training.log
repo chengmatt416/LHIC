@@ -86134,3 +86134,18 @@ Call log:
 --- Cycle #9221 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-08-01T07:23:34+08:00] Elapsed: 29.45h | Remaining: 450.55h | SuccessRate: 88.0%
 [2026-08-01T07:23:34+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-08-01T07:23:40+08:00] [Web] OK: mdn-search
+[2026-08-01T07:23:40+08:00] 
+--- Cycle #9222 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-08-01T07:23:40+08:00] Elapsed: 29.45h | Remaining: 450.55h | SuccessRate: 88.0%
+[2026-08-01T07:23:40+08:00] [Resilience] batch=50 seed=775 threads=20
+[2026-08-01T07:23:42+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:23:42+08:00] 
+--- Cycle #9223 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-08-01T07:23:42+08:00] Elapsed: 29.45h | Remaining: 450.55h | SuccessRate: 88.0%
+[2026-08-01T07:23:42+08:00] [Resilience] batch=150 seed=792 threads=20
+[2026-08-01T07:23:46+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:23:46+08:00] 
+--- Cycle #9224 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-08-01T07:23:46+08:00] Elapsed: 29.45h | Remaining: 450.55h | SuccessRate: 88.0%
+[2026-08-01T07:23:46+08:00] [Policy] 3d/epic-shooter-3d fit
