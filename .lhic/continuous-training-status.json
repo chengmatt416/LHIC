@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T23:15:40+08:00",
-  "iteration": 6252,
-  "currentTask": "geo-multi-stop-route",
+  "lastUpdated": "2026-07-31T23:15:56+08:00",
+  "iteration": 6255,
+  "currentTask": "policy-curriculum-star",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 6252,
+    "completedTasks": 6255,
     "progressPercent": "6.25"
   },
   "llm": {
@@ -39,12 +39,12 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 981,
+    "totalSimulations": 982,
     "totalGameFits": 326,
-    "totalPublicWebRuns": 4729,
+    "totalPublicWebRuns": 4730,
     "totalSlowPathPlans": 982,
-    "totalSkillCandidates": 4729,
-    "rollingSuccessRate": 0.88,
+    "totalSkillCandidates": 4730,
+    "rollingSuccessRate": 0.87,
     "elapsedHours": "21.32",
     "remainingHours": "458.68",
     "latestPyTorchLoss": null,
