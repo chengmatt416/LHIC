@@ -57136,3 +57136,13 @@ fatal: could not read Username for 'https://gi
 --- Cycle #4135 | Task: plan-api-then-browser | LLM=ON ---
 [2026-07-31T14:01:34+08:00] Elapsed: 12.08h | Remaining: 467.92h | SuccessRate: 92.0%
 [2026-07-31T14:01:34+08:00] [SlowPath] planning: plan-api-then-browser — Plan a hybrid API+browser flow: 1) Fetch GitHub API for repo info, 2) Parse the 
+[2026-07-31T14:01:44+08:00] [SlowPath] model=deepseek-v4-flash-free decision=propose_plan
+[2026-07-31T14:01:45+08:00] 
+--- Cycle #4136 | Task: resilience-adversarial-50 | LLM=ON ---
+[2026-07-31T14:01:45+08:00] Elapsed: 12.09h | Remaining: 467.91h | SuccessRate: 92.0%
+[2026-07-31T14:01:45+08:00] [Resilience] batch=50 seed=313 threads=20
+[2026-07-31T14:01:47+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T14:01:47+08:00] 
+--- Cycle #4137 | Task: resilience-adversarial-150 | LLM=ON ---
+[2026-07-31T14:01:47+08:00] Elapsed: 12.09h | Remaining: 467.91h | SuccessRate: 92.0%
+[2026-07-31T14:01:47+08:00] [Resilience] batch=150 seed=330 threads=20
