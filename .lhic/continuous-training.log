@@ -68823,3 +68823,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #6081 | Task: chain-wiki-to-mdn | LLM=OFF ---
 [2026-07-31T22:47:04+08:00] Elapsed: 20.84h | Remaining: 459.16h | SuccessRate: 86.0%
 [2026-07-31T22:47:04+08:00] [Web] wikipedia-search "Web Component"
+[2026-07-31T22:47:10+08:00] [Web] OK: wikipedia-search
+[2026-07-31T22:47:11+08:00] 
+--- Cycle #6082 | Task: chain-mdn-to-github | LLM=OFF ---
+[2026-07-31T22:47:11+08:00] Elapsed: 20.84h | Remaining: 459.16h | SuccessRate: 86.0%
+[2026-07-31T22:47:11+08:00] [Web] mdn-search "Shadow DOM"
