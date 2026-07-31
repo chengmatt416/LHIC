@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T12:31:16+08:00",
-  "iteration": 3779,
-  "currentTask": "policy-nemesis-advanced",
+  "lastUpdated": "2026-07-31T12:31:37+08:00",
+  "iteration": 3780,
+  "currentTask": "recovery-session-expired",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 3779,
+    "completedTasks": 3780,
     "progressPercent": "3.78"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 729,
+        "ok": 730,
         "fail": 160,
         "rateLimit": 2
       },
@@ -42,7 +42,7 @@
     "totalSimulations": 694,
     "totalGameFits": 230,
     "totalPublicWebRuns": 3039,
-    "totalSlowPathPlans": 81,
+    "totalSlowPathPlans": 82,
     "totalSkillCandidates": 3039,
     "rollingSuccessRate": 0.92,
     "elapsedHours": "10.58",
