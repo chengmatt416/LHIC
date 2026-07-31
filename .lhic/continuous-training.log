@@ -51708,3 +51708,14 @@ fatal: could not read Username for 'https://gi
 --- Cycle #3198 | Task: resilience-adversarial-300 | LLM=OFF ---
 [2026-07-31T10:44:48+08:00] Elapsed: 8.80h | Remaining: 471.20h | SuccessRate: 88.0%
 [2026-07-31T10:44:48+08:00] [Resilience] batch=300 seed=367 threads=20
+[2026-07-31T10:44:54+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:44:54+08:00] 
+--- Cycle #3199 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-07-31T10:44:54+08:00] Elapsed: 8.81h | Remaining: 471.19h | SuccessRate: 88.0%
+[2026-07-31T10:44:54+08:00] [Policy] 3d/star-trooper fit
+[2026-07-31T10:44:58+08:00] [Policy] record failed: star-trooper is a 2d target, not a 3d target.
+
+[2026-07-31T10:44:58+08:00] 
+--- Cycle #3200 | Task: policy-nemesis-advanced | LLM=OFF ---
+[2026-07-31T10:44:58+08:00] Elapsed: 8.81h | Remaining: 471.19h | SuccessRate: 87.0%
+[2026-07-31T10:44:58+08:00] [Policy] 3d/nemesis fit
