@@ -52101,3 +52101,18 @@ page.waitForTimeout: Target page, context or brow
 --- Cycle #3269 | Task: docs-perf-observer-chain | LLM=OFF ---
 [2026-07-31T10:55:14+08:00] Elapsed: 8.98h | Remaining: 471.02h | SuccessRate: 87.0%
 [2026-07-31T10:55:14+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T10:55:20+08:00] [Web] OK: mdn-search
+[2026-07-31T10:55:21+08:00] 
+--- Cycle #3270 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T10:55:21+08:00] Elapsed: 8.98h | Remaining: 471.02h | SuccessRate: 87.0%
+[2026-07-31T10:55:21+08:00] [Resilience] batch=50 seed=591 threads=20
+[2026-07-31T10:55:22+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:55:23+08:00] 
+--- Cycle #3271 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T10:55:23+08:00] Elapsed: 8.98h | Remaining: 471.02h | SuccessRate: 87.0%
+[2026-07-31T10:55:23+08:00] [Resilience] batch=150 seed=608 threads=20
+[2026-07-31T10:55:26+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T10:55:26+08:00] 
+--- Cycle #3272 | Task: policy-curriculum-3d | LLM=OFF ---
+[2026-07-31T10:55:26+08:00] Elapsed: 8.98h | Remaining: 471.02h | SuccessRate: 87.0%
+[2026-07-31T10:55:26+08:00] [Policy] 3d/epic-shooter-3d fit
