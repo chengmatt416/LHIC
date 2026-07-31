@@ -76568,3 +76568,8 @@ fatal: could not read Username for 'https://gi
 --- Cycle #7486 | Task: resilience-adversarial-300 | LLM=OFF ---
 [2026-08-01T02:38:13+08:00] Elapsed: 24.69h | Remaining: 455.31h | SuccessRate: 86.0%
 [2026-08-01T02:38:13+08:00] [Resilience] batch=300 seed=263 threads=20
+[2026-08-01T02:38:19+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T02:38:20+08:00] 
+--- Cycle #7487 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T02:38:20+08:00] Elapsed: 24.70h | Remaining: 455.30h | SuccessRate: 86.0%
+[2026-08-01T02:38:20+08:00] [Policy] 3d/star-trooper fit
