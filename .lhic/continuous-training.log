@@ -86677,3 +86677,10 @@ Call log:
 --- Cycle #9320 | Task: policy-curriculum-3d | LLM=OFF ---
 [2026-08-01T07:39:30+08:00] Elapsed: 29.72h | Remaining: 450.28h | SuccessRate: 87.0%
 [2026-08-01T07:39:30+08:00] [Policy] 3d/epic-shooter-3d fit
+[2026-08-01T07:40:18+08:00] [Policy] loss=6.6903 accuracy=67.2%
+[2026-08-01T07:40:18+08:00] 
+--- Cycle #9321 | Task: skill-chain-wiki-mdn-github | LLM=OFF ---
+[2026-08-01T07:40:18+08:00] Elapsed: 29.73h | Remaining: 450.27h | SuccessRate: 87.0%
+[2026-08-01T07:40:18+08:00] [Web] wikipedia-search "Service Worker"
+[2026-08-01T07:40:25+08:00] [Web] OK: wikipedia-search
+[2026-08-01T07:40:25+08:00] [Web] mdn-search "Service Worker"
