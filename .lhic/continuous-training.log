@@ -86620,3 +86620,13 @@ Call log:
 --- Cycle #9309 | Task: geo-landmark-comparison | LLM=OFF ---
 [2026-08-01T07:38:28+08:00] Elapsed: 29.70h | Remaining: 450.30h | SuccessRate: 87.0%
 [2026-08-01T07:38:28+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T07:38:33+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T07:38:34+08:00] 
+--- Cycle #9310 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T07:38:34+08:00] Elapsed: 29.70h | Remaining: 450.30h | SuccessRate: 87.0%
+[2026-08-01T07:38:34+08:00] [Resilience] batch=300 seed=271 threads=20
+[2026-08-01T07:38:40+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-08-01T07:38:40+08:00] 
+--- Cycle #9311 | Task: policy-curriculum-star | LLM=OFF ---
+[2026-08-01T07:38:40+08:00] Elapsed: 29.70h | Remaining: 450.30h | SuccessRate: 87.0%
+[2026-08-01T07:38:40+08:00] [Policy] 3d/star-trooper fit
