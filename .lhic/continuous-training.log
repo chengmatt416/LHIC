@@ -79559,3 +79559,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #8027 | Task: docs-entry-type-wiki | LLM=OFF ---
 [2026-08-01T04:08:04+08:00] Elapsed: 26.19h | Remaining: 453.81h | SuccessRate: 86.0%
 [2026-08-01T04:08:04+08:00] [Web] wikipedia-search "Navigation Timing"
+[2026-08-01T04:08:10+08:00] [Web] OK: wikipedia-search
+[2026-08-01T04:08:10+08:00] 
+--- Cycle #8028 | Task: geo-multi-stop-route | LLM=OFF ---
+[2026-08-01T04:08:10+08:00] Elapsed: 26.19h | Remaining: 453.81h | SuccessRate: 86.0%
+[2026-08-01T04:08:11+08:00] [Web] openstreetmap-place-search "Taipei Main Station"
+[2026-08-01T04:08:16+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T04:08:17+08:00] 
+--- Cycle #8029 | Task: geo-landmark-comparison | LLM=OFF ---
+[2026-08-01T04:08:17+08:00] Elapsed: 26.20h | Remaining: 453.80h | SuccessRate: 87.0%
+[2026-08-01T04:08:17+08:00] [Web] openstreetmap-place-search "Eiffel Tower"
+[2026-08-01T04:08:22+08:00] [Web] OK: openstreetmap-place-search
+[2026-08-01T04:08:23+08:00] 
+--- Cycle #8030 | Task: resilience-adversarial-300 | LLM=OFF ---
+[2026-08-01T04:08:23+08:00] Elapsed: 26.20h | Remaining: 453.80h | SuccessRate: 87.0%
+[2026-08-01T04:08:23+08:00] [Resilience] batch=300 seed=511 threads=20
