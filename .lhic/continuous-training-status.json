@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T11:33:52+08:00",
-  "iteration": 3501,
-  "currentTask": "geo-landmark-comparison",
+  "lastUpdated": "2026-07-31T11:34:14+08:00",
+  "iteration": 3505,
+  "currentTask": "chain-wiki-to-mdn",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 3501,
+    "completedTasks": 3505,
     "progressPercent": "3.50"
   },
   "llm": {
@@ -39,14 +39,14 @@
     "hasAvailable": false
   },
   "stats": {
-    "totalSimulations": 653,
+    "totalSimulations": 654,
     "totalGameFits": 216,
-    "totalPublicWebRuns": 2841,
+    "totalPublicWebRuns": 2842,
     "totalSlowPathPlans": 16,
-    "totalSkillCandidates": 2841,
-    "rollingSuccessRate": 0.88,
-    "elapsedHours": "9.62",
-    "remainingHours": "470.38",
+    "totalSkillCandidates": 2842,
+    "rollingSuccessRate": 0.86,
+    "elapsedHours": "9.63",
+    "remainingHours": "470.37",
     "latestPyTorchLoss": null,
     "latestPyTorchAccuracy": null,
     "latestSimDelta": null,
