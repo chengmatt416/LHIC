@@ -67870,3 +67870,18 @@ fatal: could not read Username for 'https://gi
 --- Cycle #5908 | Task: docs-accessibility-tree | LLM=OFF ---
 [2026-07-31T22:18:28+08:00] Elapsed: 20.37h | Remaining: 459.63h | SuccessRate: 86.0%
 [2026-07-31T22:18:28+08:00] [Web] mdn-search "Accessibility tree"
+[2026-07-31T22:18:34+08:00] [Web] OK: mdn-search
+[2026-07-31T22:18:34+08:00] 
+--- Cycle #5909 | Task: docs-perf-observer-chain | LLM=OFF ---
+[2026-07-31T22:18:34+08:00] Elapsed: 20.37h | Remaining: 459.63h | SuccessRate: 87.0%
+[2026-07-31T22:18:34+08:00] [Web] mdn-search "PerformanceObserver"
+[2026-07-31T22:18:40+08:00] [Web] OK: mdn-search
+[2026-07-31T22:18:41+08:00] 
+--- Cycle #5910 | Task: resilience-adversarial-50 | LLM=OFF ---
+[2026-07-31T22:18:41+08:00] Elapsed: 20.37h | Remaining: 459.63h | SuccessRate: 87.0%
+[2026-07-31T22:18:41+08:00] [Resilience] batch=50 seed=471 threads=20
+[2026-07-31T22:18:43+08:00] [Resilience] semantic=100.0% delta=+80%
+[2026-07-31T22:18:43+08:00] 
+--- Cycle #5911 | Task: resilience-adversarial-150 | LLM=OFF ---
+[2026-07-31T22:18:43+08:00] Elapsed: 20.37h | Remaining: 459.63h | SuccessRate: 87.0%
+[2026-07-31T22:18:43+08:00] [Resilience] batch=150 seed=488 threads=20
