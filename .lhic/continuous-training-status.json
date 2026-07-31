@@ -3,12 +3,12 @@
   "targetDurationDays": 20,
   "startTime": "2026-07-31T01:56:32+08:00",
   "targetEndTime": "2026-08-20T01:56:32+08:00",
-  "lastUpdated": "2026-07-31T21:33:23+08:00",
-  "iteration": 5660,
-  "currentTask": "recovery-network-timeout",
+  "lastUpdated": "2026-07-31T21:33:42+08:00",
+  "iteration": 5661,
+  "currentTask": "recovery-stale-element",
   "taskSuite": {
     "totalTasks": 100000,
-    "completedTasks": 5660,
+    "completedTasks": 5661,
     "progressPercent": "5.66"
   },
   "llm": {
@@ -26,7 +26,7 @@
     ],
     "stats": {
       "deepseek": {
-        "ok": 1185,
+        "ok": 1186,
         "fail": 160,
         "rateLimit": 3
       },
@@ -42,7 +42,7 @@
     "totalSimulations": 876,
     "totalGameFits": 291,
     "totalPublicWebRuns": 4255,
-    "totalSlowPathPlans": 958,
+    "totalSlowPathPlans": 959,
     "totalSkillCandidates": 4255,
     "rollingSuccessRate": 0.94,
     "elapsedHours": "19.61",
