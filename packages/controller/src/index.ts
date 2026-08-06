@@ -8,6 +8,7 @@ export * from "./confidence-scorer.js";
 export * from "./context-engine.js";
 export * from "./fast-path-router.js";
 export * from "./fast-path-plan.js";
+export * from "./hybrid-fast-path.js";
 export * from "./intent-parser.js";
 export * from "./incremental-learning.js";
 export * from "./one-shot-learning.js";
