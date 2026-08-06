@@ -4,6 +4,7 @@ export const verificationConditionTypes = [
   "network",
   "file",
   "screenshot",
+  "desktop_observation",
   "custom",
 ] as const;
 

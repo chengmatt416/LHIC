@@ -457,6 +457,45 @@ function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
     case "os_launch":
     case "os_focus":
       return { file: "open", args: ["-a", action.application ?? ""] };
+    case "os_screenshot":
+      return {
+        file: "screencapture",
+        args: [
+          "-x",
+          "-t",
+          "png",
+          action.outputPath ?? "/tmp/lhic-screenshot.png",
+        ],
+      };
+    case "os_observe":
+      return appleScriptCommand(macObserveScript, [
+        action.application ?? "",
+        action.observeScope ?? "active_window",
+      ]);
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      const y = direction === "up" ? amount : -amount;
+      return {
+        file: "osascript",
+        args: [
+          "-e",
+          `tell application "System Events" to scroll ${y > 0 ? "up" : "down"} ${Math.abs(y)}`,
+        ],
+      };
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return { file: "pbpaste", args: [] };
+      }
+      if (action.clipboardAction === "copy" && action.text) {
+        return { file: "pbcopy", args: [] };
+      }
+      // paste: Cmd+V
+      return appleScriptCommand(
+        'tell application "System Events" to keystroke "v" using command down',
+        [],
+      );
   }
 }
 
@@ -483,6 +522,39 @@ function buildWindowsCommand(action: GlobalComputerAction): GlobalCommand {
       return powerShellCommand(windowsLaunchScript(action.application ?? ""));
     case "os_focus":
       return powerShellCommand(windowsFocusScript(action.application ?? ""));
+    case "os_screenshot":
+      return powerShellCommand(
+        windowsScreenshotScript(action.outputPath ?? "\\temp\\lhic-screenshot.png"),
+      );
+    case "os_observe":
+      return powerShellCommand(
+        windowsObserveScript(
+          action.application ?? "",
+          action.observeScope ?? "active_window",
+        ),
+      );
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      return powerShellCommand(
+        windowsScrollScript(direction, amount),
+      );
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return powerShellCommand("Get-Clipboard");
+      }
+      if (action.clipboardAction === "copy" && action.text) {
+        return powerShellCommand(
+          `Set-Clipboard -Value ${powerShellString(action.text)}`,
+        );
+      }
+      // paste: Ctrl+V
+      return powerShellCommand(
+        `${windowsNativeInputScript}
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("^v")`,
+      );
   }
 }
 
@@ -530,6 +602,48 @@ function buildLinuxCommand(action: GlobalComputerAction): GlobalCommand {
           "windowactivate",
           "--sync",
         ],
+      };
+    case "os_screenshot":
+      return {
+        file: "import",
+        args: ["-window", "root", action.outputPath ?? "/tmp/lhic-screenshot.png"],
+      };
+    case "os_observe":
+      return {
+        file: "xdotool",
+        args: [
+          "search",
+          "--onlyvisible",
+          "--name",
+          action.application ?? "",
+          "getwindowname",
+        ],
+      };
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      const button = direction === "up" ? "4" : "5";
+      return {
+        file: "xdotool",
+        args: [
+          "click",
+          "--repeat",
+          String(amount),
+          button,
+        ],
+      };
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return { file: "xclip", args: ["-selection", "clipboard", "-o"] };
+      }
+      if (action.clipboardAction === "copy" && action.text) {
+        return { file: "xclip", args: ["-selection", "clipboard"] };
+      }
+      // paste: Ctrl+V
+      return {
+        file: "xdotool",
+        args: ["key", "--clearmodifiers", "ctrl+v"],
       };
   }
 }
@@ -684,6 +798,13 @@ function methodForGlobalAction(action: GlobalComputerAction): ActionMethod {
     case "os_launch":
     case "os_focus":
       return "accessibility";
+    case "os_screenshot":
+    case "os_observe":
+      return "vision";
+    case "os_scroll":
+      return "mouse";
+    case "os_clipboard":
+      return "api";
   }
 }
 
@@ -691,6 +812,7 @@ function requiresActiveWindowTargeting(action: GlobalComputerAction): boolean {
   return (
     action.type === "os_type" ||
     action.type === "os_press" ||
+    action.type === "os_scroll" ||
     (action.type === "os_click" &&
       !(
         action.methodPreference.includes("accessibility") &&
@@ -698,6 +820,145 @@ function requiresActiveWindowTargeting(action: GlobalComputerAction): boolean {
         action.application
       ))
   );
+}
+
+// macOS accessibility tree observation script
+const macObserveScript = `on run argv
+  set appName to item 1 of argv
+  set scope to item 2 of argv
+  set resultList to {}
+
+  tell application "System Events"
+    if scope is "active_window" then
+      set targetProcess to first application process whose frontmost is true
+    else if scope is "application" and appName is not "" then
+      set targetProcess to first application process whose name is appName
+    else
+      set targetProcess to first application process whose frontmost is true
+    end if
+
+    set procName to name of targetProcess
+    set windowList to {}
+
+    repeat with win in windows of targetProcess
+      try
+        set winTitle to name of win
+        set elementList to {}
+        set allElements to entire contents of win
+        repeat with el in allElements
+          try
+            set elRole to role of el
+            set elName to ""
+            try
+              set elName to name of el
+            end try
+            set elDesc to ""
+            try
+              set elDesc to description of el
+            end try
+            set elValue to ""
+            try
+              set elValue to value of el
+            end try
+            set elEnabled to true
+            try
+              set elEnabled to enabled of el
+            end try
+            set elFocused to false
+            try
+              set elFocused to focused of el
+            end try
+
+            set elementRecord to {role:elRole, name:elName, description:elDesc, value:elValue, enabled:elEnabled, focused:elFocused}
+            set end of elementList to elementRecord
+          end try
+        end repeat
+
+        set windowRecord to {title:winTitle, elements:elementList}
+        set end of windowList to windowRecord
+      end try
+    end repeat
+
+    return procName & "||" & (windowList as text)
+  end tell
+end run`;
+
+// Windows screenshot script
+function windowsScreenshotScript(outputPath: string): string {
+  return `Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen
+$bitmap = New-Object System.Drawing.Bitmap($screen.Bounds.Width, $screen.Bounds.Height)
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+$graphics.CopyFromScreen($screen.Bounds.Location, [System.Drawing.Point]::Empty, $screen.Bounds.Size)
+$bitmap.Save(${powerShellString(outputPath)}, [System.Drawing.Imaging.ImageFormat]::Png)
+$graphics.Dispose()
+$bitmap.Dispose()
+Write-Output "Screenshot saved to ${outputPath}"`;
+}
+
+// Windows accessibility tree observation script
+function windowsObserveScript(
+  application: string,
+  scope: string,
+): string {
+  return `Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+
+$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1
+if ($null -eq $proc) { throw "Application process not found" }
+
+$ae = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+$walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+
+function Get-ElementTree($element, $depth = 0) {
+  $result = @()
+  try {
+    $name = $element.Current.Name
+    $role = $element.Current.ControlType.ProgrammaticName
+    $enabled = $element.Current.IsEnabled
+    $focused = $element.Current.HasKeyboardFocus
+    $value = ""
+    try {
+      $vp = $element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+      $value = $vp.Current.Value
+    } catch {}
+
+    $result += @{
+      role = $role
+      name = $name
+      enabled = $enabled
+      focused = $focused
+      value = $value
+      depth = $depth
+    }
+
+    $child = $walker.GetFirstChild($element)
+    while ($null -ne $child) {
+      $result += Get-ElementTree $child ($depth + 1)
+      $child = $walker.GetNextSibling($child)
+    }
+  } catch {}
+  return $result
+}
+
+$tree = Get-ElementTree $ae
+$tree | ConvertTo-Json -Compress`;
+}
+
+// Windows scroll script
+function windowsScrollScript(
+  direction: string,
+  amount: number,
+): string {
+  const scrollDelta = direction === "up" ? amount * 120 : -amount * 120;
+  return `${windowsNativeInputScript}
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("")
+$pos = [System.Windows.Forms.Cursor]::Position
+[Native]::SetCursorPos($pos.X, $pos.Y) | Out-Null
+${windowsNativeInputScript}
+[Native]::mouse_event(0x0800, 0, 0, ${scrollDelta}, [UIntPtr]::Zero)`;
 }
 
 function parseWindowsDesktopState(stdout: string): GlobalDesktopState {

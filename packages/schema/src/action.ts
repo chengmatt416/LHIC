@@ -17,6 +17,10 @@ export const globalComputerActionTypes = [
   "os_press",
   "os_launch",
   "os_focus",
+  "os_screenshot",
+  "os_observe",
+  "os_scroll",
+  "os_clipboard",
 ] as const;
 
 export const semanticActionTypes = [
@@ -93,6 +97,15 @@ export interface GlobalComputerAction {
   key?: string;
   application?: string;
   verifier: GlobalComputerVerification;
+  /** Screenshot output path (os_screenshot). */
+  outputPath?: string;
+  /** Scroll direction and amount (os_scroll). */
+  scrollDirection?: "up" | "down" | "left" | "right";
+  scrollAmount?: number;
+  /** Clipboard operation (os_clipboard). */
+  clipboardAction?: "copy" | "paste" | "read";
+  /** Observe scope (os_observe). */
+  observeScope?: "active_window" | "all_windows" | "application";
 }
 
 export type SemanticAction = BrowserSemanticAction | GlobalComputerAction;
