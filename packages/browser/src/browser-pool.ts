@@ -22,6 +22,7 @@ export class BrowserPool {
   private readonly warmInstances: number;
   private readonly proxies: string[];
   private readonly stealth: boolean;
+  private acquireLock: Promise<void> = Promise.resolve();
 
   public constructor(config: BrowserPoolConfig = {}) {
     this.maxSize = config.maxSize ?? 5;
@@ -74,6 +75,22 @@ export class BrowserPool {
   }
 
   /**
+   * Serializes access to the shared `contexts` Set via a promise-chain mutex.
+   * Returns a release function that MUST be called (typically in a `finally` block)
+   * to allow the next waiter through.
+   */
+  private async withLock(): Promise<() => void> {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const prev = this.acquireLock;
+    this.acquireLock = prev.then(() => gate);
+    await prev;
+    return release;
+  }
+
+  /**
    * Pre-warms the browser pool by ensuring the browser is launched and instantiating contexts.
    */
   public async prewarm(): Promise<void> {
@@ -93,15 +110,21 @@ export class BrowserPool {
   public async acquirePage(): Promise<{ page: Page; context: BrowserContext }> {
     const browser = await this.ensureBrowser();
 
-    let context: BrowserContext;
+    let context: BrowserContext | undefined;
+
+    // Atomically check-and-remove a pre-warmed context from the pool.
+    const release = await this.withLock();
     if (this.contexts.size > 0) {
       const next = this.contexts.values().next().value;
-      if (!next) {
-        throw new Error("Pool context not found.");
+      if (next) {
+        context = next;
+        this.contexts.delete(context);
       }
-      context = next;
-      this.contexts.delete(context);
-    } else {
+    }
+    release();
+
+    // No pooled context available — create a fresh one outside the lock.
+    if (!context) {
       const proxy = this.getNextProxy();
       context = await browser.newContext(proxy ? { proxy } : {});
       await this.configureContext(context);
@@ -121,9 +144,16 @@ export class BrowserPool {
     try {
       await this.clearContextStorage(context);
 
+      let shouldClose = false;
+      const release = await this.withLock();
       if (this.contexts.size < this.maxSize) {
         this.contexts.add(context);
       } else {
+        shouldClose = true;
+      }
+      release();
+
+      if (shouldClose) {
         await context.close();
       }
     } catch {

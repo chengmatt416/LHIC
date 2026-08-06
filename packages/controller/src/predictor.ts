@@ -27,7 +27,7 @@ export function predictIntent(
   return {
     predictedIntent: classification.stage,
     ...(skillName ? { skillName } : {}),
-    confidence: scoreConfidence(classification, intent),
+    confidence: scoreConfidence(classification, intent, { uiState: state }),
     evidence: classification.evidence,
   };
 }

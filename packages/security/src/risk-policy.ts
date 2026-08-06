@@ -1,4 +1,8 @@
-import type { SemanticAction, RiskLevel } from "@lhic/schema";
+import {
+  isGlobalComputerAction,
+  type SemanticAction,
+  type RiskLevel,
+} from "@lhic/schema";
 
 export interface RiskDecision {
   allowed: boolean;
@@ -75,4 +79,34 @@ function isDestructiveAction(action: RiskEvaluatedAction): boolean {
 
 export function isSideEffectActivationTarget(target: string): boolean {
   return sideEffectActivationTargetPattern.test(target);
+}
+
+/**
+ * Unified approval check used by both MultiPathTaskController and
+ * BrowserPlanRunner. Returns a reason string if approval is required,
+ * or undefined if the action can proceed without approval.
+ */
+export function actionRequiresApproval(
+  action: SemanticAction,
+  options: { requireActivationApproval?: boolean } = {},
+): string | undefined {
+  if (isGlobalComputerAction(action)) {
+    return "Global desktop actions require explicit human approval.";
+  }
+  const policy = evaluateRisk(action);
+  if (policy.requiresConfirmation) {
+    return policy.reason;
+  }
+  if (action.riskLevel !== "low") {
+    return policy.reason;
+  }
+  if (
+    options.requireActivationApproval &&
+    (action.type === "click" ||
+      action.type === "press" ||
+      action.type === "download")
+  ) {
+    return "Activation approval required for click/press/download actions.";
+  }
+  return undefined;
 }

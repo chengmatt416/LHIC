@@ -1,5 +1,4 @@
 import {
-  isGlobalComputerAction,
   type ActionExecutionResult,
   type ExecutionProfile,
   type NormalizedUIState,
@@ -10,7 +9,7 @@ import {
   type UserIntent,
   type VerificationResult,
 } from "@lhic/schema";
-import { evaluateRisk } from "@lhic/security";
+import { actionRequiresApproval } from "@lhic/security";
 import { appendStageRouteEvent } from "@lhic/trace";
 
 import { ContextEngine } from "./context-engine.js";
@@ -279,7 +278,7 @@ export class MultiPathTaskController {
     }
 
     for (const action of actions) {
-      const approvalReason = requiresApproval(action);
+      const approvalReason = actionRequiresApproval(action);
       if (approvalReason) {
         return { status: "ask_user", failureReason: approvalReason };
       }
@@ -407,13 +406,4 @@ export class MultiPathTaskController {
   }
 }
 
-function requiresApproval(action: SemanticAction): string | undefined {
-  if (isGlobalComputerAction(action)) {
-    return "Global desktop actions require explicit human approval.";
-  }
-  const policy = evaluateRisk(action);
-  if (policy.requiresConfirmation || action.riskLevel !== "low") {
-    return policy.reason;
-  }
-  return undefined;
-}
+

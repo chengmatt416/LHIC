@@ -86,10 +86,10 @@ export function validateActionApproval(
   const requiresConfirmation =
     policy.requiresConfirmation || options.forceConfirmation;
   const confirmationReason = options.confirmationReason ?? policy.reason;
-  if (!requiresConfirmation) {
-    return policy;
-  }
   if (!approval) {
+    if (!requiresConfirmation) {
+      return policy;
+    }
     return {
       allowed: false,
       requiresConfirmation: true,

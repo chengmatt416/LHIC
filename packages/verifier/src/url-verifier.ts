@@ -42,15 +42,22 @@ export function verifyUrl(
       error: "URL unexpectedly contains a forbidden value.",
     };
   }
-  if (
-    params.hasQueryParam !== undefined &&
-    !new URL(url).searchParams.has(params.hasQueryParam)
-  ) {
-    return {
-      success: false,
-      evidence: [],
-      error: "URL does not include the expected query parameter.",
-    };
+  if (params.hasQueryParam !== undefined) {
+    try {
+      if (!new URL(url).searchParams.has(params.hasQueryParam)) {
+        return {
+          success: false,
+          evidence: [],
+          error: "URL does not include the expected query parameter.",
+        };
+      }
+    } catch {
+      return {
+        success: false,
+        evidence: [],
+        error: "URL is not a valid HTTP(S) URL and cannot be checked for query parameters.",
+      };
+    }
   }
   if (
     params.equals === undefined &&
@@ -65,5 +72,5 @@ export function verifyUrl(
       error: "URL verification requires a comparison.",
     };
   }
-  return { success: true, evidence: ["URL verification passed."] };
+  return { success: true, evidence: [`URL verification passed: ${url}`] };
 }

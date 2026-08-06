@@ -54,7 +54,9 @@ export class BrowserStateObserver {
 
   private async collectObjects(): Promise<BrowserObjectSnapshot[]> {
     return this.page
-      .locator("button, input, select, textarea, canvas, a[href], [role]")
+      .locator(
+        "button, input, select, textarea, canvas, a[href], [role], details, summary, [contenteditable], [tabindex]:not([tabindex='-1'])",
+      )
       .evaluateAll((elements) => {
         return elements.map((element, index) => {
           const input = element as HTMLInputElement;

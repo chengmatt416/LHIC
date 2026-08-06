@@ -6,8 +6,8 @@ import {
   type VerificationResult,
 } from "@lhic/schema";
 import {
+  actionRequiresApproval,
   createActionApproval,
-  evaluateRisk,
   validateActionApproval,
   type ActionApproval,
 } from "@lhic/security";
@@ -92,9 +92,9 @@ export async function executeBrowserPlan(
   const completedSteps: BrowserPlanStepOutcome[] = [];
   for (let index = startAt; index < plan.steps.length; index += 1) {
     const step = plan.steps[index]!;
-    const approvalRequired = requiresApproval(
+    const approvalRequired = actionRequiresApproval(
       step.action,
-      options.requireActivationApproval ?? false,
+      { requireActivationApproval: options.requireActivationApproval ?? false },
     );
     const suppliedApproval = options.approvals?.[step.id];
     if (approvalRequired) {
@@ -223,16 +223,4 @@ function variableExpression(value: string): RegExpExecArray | null {
   return /^\{\{variables\.([A-Za-z][A-Za-z0-9_-]*)\}\}$/.exec(value);
 }
 
-function requiresApproval(
-  action: BrowserSemanticAction,
-  requireActivationApproval: boolean,
-): boolean {
-  const riskDecision = evaluateRisk(action);
-  return (
-    riskDecision.requiresConfirmation ||
-    (requireActivationApproval &&
-      (action.type === "click" ||
-        action.type === "press" ||
-        action.type === "download"))
-  );
-}
+

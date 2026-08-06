@@ -1,9 +1,11 @@
+import { isBrowserSemanticAction } from "@lhic/schema";
+import { redactPII } from "@lhic/trace";
+
 import type {
   SlowPathProvider,
   SlowPathRequest,
   SlowPathResponse,
 } from "./slow-path.js";
-import { redactPII } from "@lhic/trace";
 
 export interface ClaudeSlowPathOptions {
   enabled?: boolean;
@@ -16,6 +18,70 @@ export interface ClaudeSlowPathOptions {
 interface ClaudeMessageResponse {
   content?: Array<{ type?: string; text?: string }>;
 }
+
+const claudeResponseSchema = {
+  type: "object" as const,
+  additionalProperties: false,
+  properties: {
+    decision: {
+      type: "string",
+      enum: ["ask_user", "propose_plan", "retry_with_action", "blocked"],
+    },
+    message: { type: "string", minLength: 1 },
+    proposedActions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          scope: { type: "string", enum: ["browser"] },
+          type: {
+            type: "string",
+            enum: [
+              "navigate",
+              "click",
+              "fill",
+              "select",
+              "press",
+              "wait",
+              "download",
+              "custom",
+            ],
+          },
+          intent: { type: "string", minLength: 1 },
+          target: { type: "string" },
+          value: { anyOf: [{ type: "string" }, { type: "null" }] },
+          methodPreference: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "string",
+              enum: [
+                "api",
+                "dom",
+                "accessibility",
+                "keyboard",
+                "ocr",
+                "vision",
+                "mouse",
+              ],
+            },
+          },
+          riskLevel: {
+            type: "string",
+            enum: ["low", "medium", "high", "unknown"],
+          },
+        },
+        required: ["type", "intent", "methodPreference", "riskLevel"],
+      },
+    },
+  },
+  required: ["decision", "message", "proposedActions"],
+};
+
+const CLAUDE_SYSTEM_PROMPT =
+  "You are LHIC's Slow Path planner. Return ONLY a JSON object (no markdown fences, no prose) matching this schema: " +
+  JSON.stringify(claudeResponseSchema) +
+  " Never request, infer, repeat, or emit credentials, tokens, cookies, API keys, passwords, or personally identifying information. Propose browser semantic actions only. Use ask_user or blocked when information is missing or a safe plan cannot be formed.";
 
 export class ClaudeSlowPathProvider implements SlowPathProvider {
   private readonly enabled: boolean;
@@ -61,8 +127,7 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
         body: JSON.stringify({
           model: this.model,
           max_tokens: 800,
-          system:
-            "You are a Slow Path reasoning provider. Never return credentials. Propose safe semantic actions only.",
+          system: CLAUDE_SYSTEM_PROMPT,
           messages: [{ role: "user", content: JSON.stringify(safeRequest) }],
         }),
       });
@@ -73,15 +138,34 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
         };
       }
       const body = (await response.json()) as ClaudeMessageResponse;
-      const message = body.content
+      const text = body.content
         ?.filter((block) => block.type === "text")
         .map((block) => block.text ?? "")
         .join("\n")
         .trim();
-      return {
-        decision: "propose_plan",
-        message: message || "Claude Slow Path returned no textual plan.",
-      };
+      if (!text) {
+        return {
+          decision: "blocked",
+          message: "Claude Slow Path returned no structured output.",
+        };
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return {
+          decision: "blocked",
+          message: "Claude Slow Path returned invalid JSON.",
+        };
+      }
+      if (!isClaudeSlowPathResponse(parsed)) {
+        return {
+          decision: "blocked",
+          message:
+            "Claude Slow Path returned a plan that failed LHIC semantic-action validation.",
+        };
+      }
+      return parsed;
     } catch (error) {
       return {
         decision: "blocked",
@@ -92,4 +176,20 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
       };
     }
   }
+}
+
+function isClaudeSlowPathResponse(value: unknown): value is SlowPathResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as Partial<SlowPathResponse>;
+  return (
+    (candidate.decision === "ask_user" ||
+      candidate.decision === "propose_plan" ||
+      candidate.decision === "retry_with_action" ||
+      candidate.decision === "blocked") &&
+    typeof candidate.message === "string" &&
+    Array.isArray(candidate.proposedActions) &&
+    candidate.proposedActions.every(isBrowserSemanticAction)
+  );
 }

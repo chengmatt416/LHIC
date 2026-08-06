@@ -610,6 +610,12 @@ function ensureColumn(
   name: string,
   definition: string,
 ): void {
+  if (!/^[a-z_][a-z0-9_]*$/.test(name)) {
+    throw new Error(`Unsafe column name: ${name}`);
+  }
+  if (!/^[A-Z][A-Z0-9 ()_',]+$/.test(definition.toUpperCase())) {
+    throw new Error(`Unsafe column definition: ${definition}`);
+  }
   const columns = database
     .prepare(`PRAGMA table_info(${table})`)
     .all() as Array<{ name: string }>;
