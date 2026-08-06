@@ -3,7 +3,7 @@ import type { TraceEvent } from "@lhic/schema";
 export interface OTelSpan {
   traceId: string;
   spanId: string;
-  parentSpanId?: string;
+  parentSpanId: string | undefined;
   name: string;
   startTime: string;
   endTime: string;
@@ -73,6 +73,7 @@ export class OTelExporter {
       spans.push({
         traceId: taskId,
         spanId: event.eventId,
+        parentSpanId: undefined,
         name: event.type,
         startTime: event.timestamp,
         endTime: event.timestamp,

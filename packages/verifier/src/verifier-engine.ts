@@ -67,7 +67,7 @@ export class VerifierEngine {
       case "file":
         return verifyFile(condition.params as FileVerificationParams);
       case "screenshot": {
-        const params = condition.params as DesktopScreenshotVerificationParams;
+        const params = condition.params as unknown as DesktopScreenshotVerificationParams;
         if (!params.filePath) {
           return {
             success: false,
@@ -78,8 +78,8 @@ export class VerifierEngine {
         return verifyDesktopScreenshot(params);
       }
       case "desktop_observation": {
-        const params = condition.params as DesktopObservationVerificationParams & {
-          observation?: DesktopObservation;
+        const params = condition.params as unknown as DesktopObservationVerificationParams & {
+          observation: DesktopObservation | undefined;
         };
         if (!params.observation) {
           return {

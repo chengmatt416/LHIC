@@ -187,6 +187,13 @@ export function isGlobalComputerAction(
         typeof candidate.application === "string" &&
         candidate.application.trim().length > 0
       );
+    case "os_screenshot":
+    case "os_observe":
+    case "os_scroll":
+    case "os_clipboard":
+      return true;
+    default:
+      return false;
   }
 }
 

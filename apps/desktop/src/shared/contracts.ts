@@ -62,7 +62,11 @@ export interface TaskProposalSummary {
       | "os_type"
       | "os_press"
       | "os_launch"
-      | "os_focus";
+      | "os_focus"
+      | "os_screenshot"
+      | "os_observe"
+      | "os_scroll"
+      | "os_clipboard";
     intent: string;
     riskLevel: "low" | "medium" | "high" | "unknown";
     verifier: string;

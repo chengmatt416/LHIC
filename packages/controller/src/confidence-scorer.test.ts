@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedUIState, UserIntent } from "@lhic/schema";
 
 import { scoreConfidence } from "./confidence-scorer.js";
-import type { StageClassification } from "./stage-classifier.js";
+import type { ControllerStage, StageClassification } from "./stage-classifier.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -99,10 +99,15 @@ describe("scoreConfidence", () => {
         const intent = makeIntent({ riskLevel });
         for (const uiState of states) {
           for (const historicalSuccessRate of histories) {
-            const result = scoreConfidence(classification, intent, {
-              uiState,
-              historicalSuccessRate,
-            });
+            const options: Record<string, unknown> = {};
+            if (uiState !== undefined) options.uiState = uiState;
+            if (historicalSuccessRate !== undefined)
+              options.historicalSuccessRate = historicalSuccessRate;
+            const result = scoreConfidence(
+              classification,
+              intent,
+              options as import("./confidence-scorer.js").ConfidenceScoringOptions,
+            );
             expect(result).toBeGreaterThanOrEqual(0);
             expect(result).toBeLessThanOrEqual(1);
           }
@@ -302,30 +307,28 @@ describe("scoreConfidence", () => {
   it("produces smooth gradients when candidate count grows", () => {
     const intent = makeIntent();
     // Each additional candidate should decrease score by a diminishing amount.
+    const allStages: ControllerStage[] = [
+      "search",
+      "login",
+      "download",
+      "form_filling",
+      "test_web_flow",
+    ];
     const scores = [1, 2, 3, 4, 5].map((n) =>
       scoreConfidence(
         makeClassification({
-          candidates: Array.from({ length: n }, (_, i) => {
-            const stages = [
-              "search",
-              "login",
-              "download",
-              "form_filling",
-              "test_web_flow",
-            ] as const;
-            return stages[i];
-          }),
+          candidates: allStages.slice(0, n),
         }),
         intent,
       ),
     );
 
     for (let i = 1; i < scores.length; i++) {
-      const delta = scores[i - 1] - scores[i];
+      const delta = scores[i - 1]! - scores[i]!;
       // Decrease should be positive and diminishing (or at least not growing).
       expect(delta).toBeGreaterThan(0);
       if (i >= 2) {
-        const prevDelta = scores[i - 2] - scores[i - 1];
+        const prevDelta = scores[i - 2]! - scores[i - 1]!;
         expect(delta).toBeLessThanOrEqual(prevDelta + 0.001);
       }
     }

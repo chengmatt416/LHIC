@@ -59,8 +59,11 @@ export function isVerificationCondition(
     case "file":
       return isFileParams(candidate.params);
     case "screenshot":
+    case "desktop_observation":
     case "custom":
       return true;
+    default:
+      return false;
   }
 }
 

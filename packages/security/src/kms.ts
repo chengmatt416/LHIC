@@ -20,7 +20,10 @@ export class KmsKeyManager {
   private readonly cacheTtlMs: number;
   private readonly fetchImplementation: typeof fetch;
 
-  public constructor(private readonly config: KmsConfig) { … }
+  public constructor(private readonly config: KmsConfig) {
+    this.cacheTtlMs = config.cacheTtlMs ?? 5 * 60 * 1000;
+    this.fetchImplementation = config.fetchImplementation ?? fetch;
+  }
 
   /**
    * Marks a key ID as revoked. Revoked keys are rejected on fetch and
@@ -40,9 +43,6 @@ export class KmsKeyManager {
    */
   public isRevoked(keyId: string): boolean {
     return this.revokedKeys.has(keyId);
-  }
-    this.cacheTtlMs = config.cacheTtlMs ?? 5 * 60 * 1000;
-    this.fetchImplementation = config.fetchImplementation ?? fetch;
   }
 
   /**

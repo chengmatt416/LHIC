@@ -1,7 +1,7 @@
 import type { SemanticAction, UserIntent } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
-import type { SkillRecord } from "./skill-store.js";
+import type { SkillRecord } from "@lhic/memory";
 
 export interface ComposableSkill {
   name: string;
@@ -19,8 +19,8 @@ export interface CompositeSkill {
 
 export interface CompositionResult {
   success: boolean;
-  composite?: CompositeSkill;
-  error?: string;
+  composite: CompositeSkill | undefined;
+  error: string | undefined;
 }
 
 /**
@@ -32,13 +32,13 @@ export function composeSkills(
   goal: string,
 ): CompositionResult {
   if (skills.length === 0) {
-    return { success: false, error: "No skills provided for composition." };
+    return { success: false, composite: undefined, error: "No skills provided for composition." };
   }
 
   // Validate skill chain
   const validation = validateSkillChain(skills);
   if (!validation.valid) {
-    return { success: false, error: validation.error };
+    return { success: false, composite: undefined, error: validation.error };
   }
 
   // Calculate totals
@@ -59,6 +59,7 @@ export function composeSkills(
       totalActions,
       estimatedLatencyMs,
     },
+    error: undefined,
   };
 }
 

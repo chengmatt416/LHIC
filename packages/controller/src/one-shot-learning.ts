@@ -1,7 +1,7 @@
 import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
-import type { SkillStore, SkillRecord, SkillLifecycle } from "./skill-store.js";
+import type { SkillStore, SkillRecord, SkillLifecycle } from "@lhic/memory";
 
 /**
  * One-shot learning: records a skill from a single successful execution.
@@ -104,7 +104,7 @@ export function calculateSkillConfidence(skill: SkillRecord): number {
     trusted: 0.95,
   };
 
-  const baseWeight = lifecycleWeights[skill.lifecycle];
+  const baseWeight = lifecycleWeights[skill.lifecycle] ?? 0.3;
   const successRate =
     skill.successCount + skill.failureCount > 0
       ? skill.successCount / (skill.successCount + skill.failureCount)

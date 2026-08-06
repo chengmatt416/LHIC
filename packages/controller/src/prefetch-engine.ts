@@ -5,7 +5,7 @@ import type {
   UserIntent,
 } from "@lhic/schema";
 
-import type { SkillRecord } from "./skill-store.js";
+import type { SkillRecord } from "@lhic/memory";
 import type { CachedSkill } from "./skill-cache.js";
 
 export interface PrefetchConfig {

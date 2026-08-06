@@ -1,7 +1,7 @@
 import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
-import type { SkillStore } from "./skill-store.js";
+import type { SkillStore } from "@lhic/memory";
 
 export type FailureReason =
   | "element_not_found"
@@ -17,7 +17,7 @@ export interface FailureRecord {
   action: SemanticAction;
   uiState: NormalizedUIState;
   reason: FailureReason;
-  error?: string;
+  error: string | undefined;
   timestamp: string;
 }
 
@@ -26,7 +26,7 @@ export interface FailurePattern {
   count: number;
   lastSeenAt: string;
   reasons: FailureReason[];
-  suggestedWorkaround?: string;
+  suggestedWorkaround: string | undefined;
 }
 
 /**
@@ -177,9 +177,12 @@ export class FailureLearner {
     const cutoff = Date.now() - maxAgeMs;
     const initialSize = this.failures.length;
 
-    this.failures = this.failures.filter(
-      (f) => new Date(f.timestamp).getTime() > cutoff,
-    );
+    // Filter in-place using splice
+    for (let i = this.failures.length - 1; i >= 0; i--) {
+      if (new Date(this.failures[i]!.timestamp).getTime() <= cutoff) {
+        this.failures.splice(i, 1);
+      }
+    }
 
     return initialSize - this.failures.length;
   }

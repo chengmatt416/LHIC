@@ -1,7 +1,7 @@
 import type { SemanticAction, UserIntent, NormalizedUIState } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
-import type { SkillRecord, SkillLifecycle } from "./skill-store.js";
+import type { SkillRecord, SkillLifecycle } from "@lhic/memory";
 
 export interface SkillVersion {
   version: number;

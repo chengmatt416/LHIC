@@ -1,6 +1,6 @@
 import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
 
-import type { SkillRecord } from "./skill-store.js";
+import type { SkillRecord } from "@lhic/memory";
 import { calculateSkillConfidence } from "./one-shot-learning.js";
 
 export interface CachedSkill {
