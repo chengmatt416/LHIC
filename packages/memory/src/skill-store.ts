@@ -108,12 +108,20 @@ export function createMemoryDatabase(filePath = ":memory:"): DatabaseSync {
 function nextLifecycle(
   current: SkillLifecycle,
   successCount: number,
+  options: { fastPromote?: boolean } = {},
 ): SkillLifecycle {
   if (current === "draft") {
     return "verified";
   }
-  if (current === "verified" && successCount >= 3) {
-    return "habit";
+  if (current === "verified") {
+    // Fast promotion: 1 success → habit for low-risk skills
+    if (options.fastPromote && successCount >= 1) {
+      return "habit";
+    }
+    // Normal promotion: 3 successes → habit
+    if (successCount >= 3) {
+      return "habit";
+    }
   }
   if (current === "habit" && successCount >= 10) {
     return "trusted";
@@ -186,6 +194,7 @@ export class SkillStore {
     name: string,
     definition: Record<string, unknown>,
     verification: VerificationResult,
+    options: { fastPromote?: boolean } = {},
   ): SkillRecord {
     if (!verification.success || verification.evidence.length === 0) {
       throw new Error(
@@ -197,6 +206,7 @@ export class SkillStore {
     const lifecycle = nextLifecycle(
       existing?.lifecycle ?? "draft",
       successCount,
+      options,
     );
     const safeDefinition = JSON.stringify(redactPII(definition));
     const now = new Date().toISOString();
