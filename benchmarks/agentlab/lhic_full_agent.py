@@ -17,6 +17,8 @@ from typing import Any, Optional
 import bgym
 from agentlab.agents.agent_args import AgentArgs
 
+from learning_loop import BenchmarkLearningLoop
+
 
 @dataclass
 class LhicFullAgentArgs(AgentArgs):
@@ -59,9 +61,11 @@ class LhicFullAgent(bgym.Agent):
         self.enable_learning = enable_learning
         self.max_steps = max_steps
 
+        # Learning loop for cross-task skill reuse
+        self._learning_loop = BenchmarkLearningLoop(enable_learning=enable_learning)
+
         # Task tracking
         self._task_history: dict[str, list[dict]] = {}
-        self._learned_skills: dict[str, Any] = {}
         self._blocked_goals: set[str] = set()
 
         # Metrics
@@ -105,16 +109,19 @@ class LhicFullAgent(bgym.Agent):
         pruned_html = str(obs.get("pruned_html", ""))
         url = str(obs.get("url", ""))
 
+        # Extract site from URL
+        site = url.split("/")[2] if "/" in url else ""
+
         # Track task
         if goal not in self._task_history:
             self._task_history[goal] = []
 
-        # Check if we have a learned skill for this goal
-        cached_skill = self._find_cached_skill(goal, pruned_html, url)
-        if cached_skill:
+        # Check learned skills for reuse (Fast Path)
+        skill_match = self._learning_loop.find_skill(goal, site, pruned_html)
+        if skill_match:
             self._metrics["skill_reuses"] += 1
             self._metrics["fast_path_actions"] += 1
-            return self._execute_cached_skill(cached_skill, pruned_html)
+            return self._execute_learned_skill(skill_match, pruned_html)
 
         # Try Fast Path (deterministic)
         fast_action = self._try_fast_path(goal, pruned_html, url)
@@ -243,6 +250,72 @@ class LhicFullAgent(bgym.Agent):
         # In production, this calls OpenAI/Anthropic/etc.
         return None
 
+    def _execute_learned_skill(
+        self, skill_match: Any, pruned_html: str
+    ) -> tuple[str, dict[str, Any]]:
+        """Execute a learned skill."""
+        skill = skill_match.skill
+        action = skill.actions[0] if skill.actions else None
+
+        if action:
+            action_str = self._format_action(action)
+            return action_str, {
+                "goal": skill.goal_pattern,
+                "cached": True,
+                "skill_id": skill.skill_id,
+                "confidence": skill_match.confidence,
+            }
+
+        return self._infeasible_action(skill.goal_pattern, "No action in skill")
+
+    def _format_action(self, action: dict[str, Any]) -> str:
+        """Format action as BrowserGym command."""
+        action_type = action.get("type", "")
+
+        if action_type == "click":
+            return f'click("{action.get("target", "")}")'
+        elif action_type == "fill":
+            return f'fill("{action.get("target", "")}", "{action.get("value", "")}")'
+        elif action_type == "select":
+            return f'select_option("{action.get("target", "")}", "{action.get("value", "")}")'
+        elif action_type == "scroll":
+            direction = action.get("scrollDirection", "down")
+            amount = action.get("scrollAmount", 3)
+            return f'scroll("{direction}", {amount})'
+        elif action_type == "goto":
+            return f'goto("{action.get("target", "")}")'
+        elif action_type == "hover":
+            return f'hover("{action.get("target", "")}")'
+        elif action_type == "press":
+            return f'press("{action.get("key", "")}")'
+        else:
+            return f'infeas("Unsupported action: {action_type}")'
+
+    def learn_from_execution(
+        self,
+        goal: str,
+        actions: list[dict[str, Any]],
+        success: bool,
+        verification: dict[str, Any],
+        site: str = "",
+        task_id: str = "",
+    ) -> None:
+        """Learn from task execution outcome."""
+        if not self.enable_learning:
+            return
+
+        if success and verification.get("passed", False):
+            skill = self._learning_loop.learn_skill(
+                goal=goal,
+                actions=actions,
+                verification=verification,
+                site=site,
+                task_id=task_id,
+            )
+
+            if skill:
+                self._metrics["skill_creations"] += 1
+
     def _find_cached_skill(
         self, goal: str, pruned_html: str, url: str
     ) -> Optional[dict[str, Any]]:
@@ -283,6 +356,7 @@ class LhicFullAgent(bgym.Agent):
                 self._metrics["skill_reuses"]
                 / max(1, self._metrics["total_actions"])
             ),
+            "learning_stats": self._learning_loop.get_stats(),
         }
 
     def learn_skill(
