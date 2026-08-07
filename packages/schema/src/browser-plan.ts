@@ -122,7 +122,24 @@ function isExecutableAction(action: BrowserSemanticAction): boolean {
       return action.value === undefined || typeof action.value === "string";
     case "wait":
       return action.value === undefined || typeof action.value === "number";
+    case "scroll":
+      return true;
+    case "hover":
+      return typeof action.target === "string" && action.target.trim().length > 0;
+    case "keyboard":
+      return typeof action.key === "string" && action.key.trim().length > 0;
+    case "tab":
+    case "multi_tab":
+      return typeof action.tabAction === "string";
+    case "upload":
+      return typeof action.filePath === "string" && action.filePath.trim().length > 0;
+    case "screenshot":
+      return true;
+    case "drag":
+      return typeof action.target === "string" && typeof action.dragTarget === "string";
     case "custom":
+      return false;
+    default:
       return false;
   }
 }

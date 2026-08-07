@@ -9,6 +9,14 @@ export const browserSemanticActionTypes = [
   "wait",
   "download",
   "custom",
+  "scroll",
+  "hover",
+  "keyboard",
+  "tab",
+  "upload",
+  "multi_tab",
+  "screenshot",
+  "drag",
 ] as const;
 
 export const globalComputerActionTypes = [
@@ -55,6 +63,24 @@ export interface BrowserSemanticAction {
   value?: unknown;
   methodPreference: ActionMethod[];
   riskLevel: RiskLevel;
+  /** Scroll direction and amount (scroll). */
+  scrollDirection?: "up" | "down" | "left" | "right";
+  scrollAmount?: number;
+  /** Keyboard key combination (keyboard/press). */
+  key?: string;
+  modifiers?: string[];
+  /** Tab management (tab/multi_tab). */
+  tabAction?: "new" | "close" | "switch" | "next" | "previous";
+  tabIndex?: number;
+  /** Upload file path (upload). */
+  filePath?: string;
+  /** Drag source/target (drag). */
+  dragTarget?: string;
+  /** Screenshot output (screenshot). */
+  outputPath?: string;
+  /** Coordinates for coordinate-based actions. */
+  x?: number;
+  y?: number;
 }
 
 export const globalVerificationTypes = [

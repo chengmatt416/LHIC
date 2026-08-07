@@ -411,6 +411,23 @@ export class PlaywrightDirectExecutor {
         );
       case "custom":
         throw new Error("custom is not a direct executor action.");
+      case "scroll":
+        return this.scroll(action);
+      case "hover":
+        return this.hover(action);
+      case "keyboard":
+        return this.keyboard(action);
+      case "tab":
+      case "multi_tab":
+        return this.tab(action);
+      case "upload":
+        return this.upload(action);
+      case "screenshot":
+        return this.screenshot(action);
+      case "drag":
+        return this.drag(action);
+      default:
+        throw new Error(`Unsupported action type: ${action.type}`);
     }
   }
 
@@ -454,6 +471,126 @@ export class PlaywrightDirectExecutor {
     return {
       method: target.method,
       evidence: [`Downloaded one file (${fileStats.size} bytes).`],
+    };
+  }
+
+  private async scroll(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const direction = action.scrollDirection ?? "down";
+    const amount = action.scrollAmount ?? 3;
+    const scrollMap = {
+      up: { x: 0, y: -amount * 100 },
+      down: { x: 0, y: amount * 100 },
+      left: { x: -amount * 100, y: 0 },
+      right: { x: amount * 100, y: 0 },
+    };
+    const delta = scrollMap[direction];
+    await this.page.mouse.wheel(delta.x, delta.y);
+    await this.page.waitForTimeout(500);
+    return {
+      method: "mouse",
+      evidence: [`Scrolled ${direction} ${amount} units.`],
+    };
+  }
+
+  private async hover(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const target = await this.requireTarget(action);
+    await target.locator.hover({ timeout: this.actionTimeoutMs });
+    return {
+      method: target.method,
+      evidence: [`Hovered over ${action.target}.`],
+    };
+  }
+
+  private async keyboard(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const key = action.key ?? "";
+    const modifiers = action.modifiers ?? [];
+    const combo = [...modifiers, key].join("+");
+    await this.page.keyboard.press(combo);
+    return {
+      method: "keyboard",
+      evidence: [`Pressed ${combo}.`],
+    };
+  }
+
+  private async tab(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const tabAction = action.tabAction ?? "new";
+    const context = this.page.context();
+
+    switch (tabAction) {
+      case "new":
+        await context.newPage();
+        break;
+      case "close":
+        await this.page.close();
+        break;
+      case "switch":
+      case "next":
+      case "previous": {
+        const pages = context.pages();
+        const currentIndex = pages.indexOf(this.page);
+        const nextIndex =
+          tabAction === "next"
+            ? (currentIndex + 1) % pages.length
+            : (currentIndex - 1 + pages.length) % pages.length;
+        await pages[nextIndex]?.bringToFront();
+        break;
+      }
+    }
+
+    return {
+      method: "api",
+      evidence: [`Tab ${tabAction} completed.`],
+    };
+  }
+
+  private async upload(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const target = await this.requireTarget(action);
+    const filePath = action.filePath ?? "";
+    await target.locator.setInputFiles(filePath);
+    return {
+      method: target.method,
+      evidence: [`Uploaded file: ${filePath}.`],
+    };
+  }
+
+  private async screenshot(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const outputPath = action.outputPath ?? `/tmp/lhic-screenshot-${Date.now()}.png`;
+    await this.page.screenshot({ path: outputPath, fullPage: false });
+    return {
+      method: "vision",
+      evidence: [`Screenshot saved to ${outputPath}.`],
+    };
+  }
+
+  private async drag(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const source = await this.requireTarget(action);
+    const targetSelector = action.dragTarget ?? "";
+    const target = await resolveTarget(
+      this.page,
+      targetSelector,
+      this.selectorMemory,
+      action.type,
+    );
+    await source.locator.dragTo(target.locator, {
+      timeout: this.actionTimeoutMs,
+    });
+    return {
+      method: source.method,
+      evidence: [`Dragged from ${action.target} to ${targetSelector}.`],
     };
   }
 
