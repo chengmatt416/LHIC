@@ -7,6 +7,9 @@ import {
 } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
+import { validateCredentialedModelEndpoint } from "./model-endpoint.js";
+import { toSlowPathSafeUiState } from "./slow-path.js";
+
 export type DemoModelProviderKind = "openai" | "gemini" | "claude";
 
 export interface DemoModelProviderOptions {
@@ -46,6 +49,15 @@ export interface DemoModelProvider {
 }
 
 const timeoutDefaultMs = 30_000;
+const slowPathMaxOutputTokens = 1_200;
+const fastPathMaxOutputTokens = 4_096;
+const maxModelObjects = 160;
+const maxModelFieldChars = 512;
+
+interface ModelPrompt {
+  system: string;
+  user: string;
+}
 
 const variableSchema = {
   type: "object",
@@ -69,6 +81,7 @@ const actionSchema = {
         "press",
         "wait",
         "download",
+        "upload",
       ],
     },
     intent: { type: "string" },
@@ -76,6 +89,7 @@ const actionSchema = {
     value: {
       anyOf: [{ type: "string" }, { type: "number" }, { type: "null" }],
     },
+    filePath: { anyOf: [{ type: "string" }, { type: "null" }] },
     methodPreference: {
       type: "array",
       items: {
@@ -91,6 +105,7 @@ const actionSchema = {
     "intent",
     "target",
     "value",
+    "filePath",
     "methodPreference",
     "riskLevel",
   ],
@@ -222,6 +237,7 @@ class StructuredDemoModelProvider implements DemoModelProvider {
       "lhic_slow_path_step",
       slowResponseSchema,
       slowPrompt(request),
+      slowPathMaxOutputTokens,
     );
     return parseSlowResponse(parsed);
   }
@@ -233,6 +249,7 @@ class StructuredDemoModelProvider implements DemoModelProvider {
       "lhic_fast_path_plan",
       fastResponseSchema,
       fastPrompt(request),
+      fastPathMaxOutputTokens,
     );
     return parseFastResponse(parsed);
   }
@@ -240,13 +257,24 @@ class StructuredDemoModelProvider implements DemoModelProvider {
   private async requestJson(
     schemaName: string,
     schema: Record<string, unknown>,
-    prompt: string,
+    prompt: ModelPrompt,
+    maxOutputTokens: number,
   ): Promise<unknown> {
-    const request = providerRequest(this.options, schemaName, schema, prompt);
+    const request = providerRequest(
+      this.options,
+      schemaName,
+      schema,
+      prompt,
+      maxOutputTokens,
+    );
+    const endpoint = validateCredentialedModelEndpoint(
+      request.url,
+      `${this.options.provider} model endpoint`,
+    );
     const timeout = AbortSignal.timeout(this.timeoutMs);
     let response: Response;
     try {
-      response = await this.fetchImplementation(request.url, {
+      response = await this.fetchImplementation(endpoint, {
         method: "POST",
         headers: request.headers,
         body: JSON.stringify(request.body),
@@ -286,7 +314,8 @@ function providerRequest(
   options: DemoModelProviderOptions,
   schemaName: string,
   schema: Record<string, unknown>,
-  prompt: string,
+  prompt: ModelPrompt,
+  maxOutputTokens: number,
 ): {
   url: string;
   headers: Record<string, string>;
@@ -303,7 +332,9 @@ function providerRequest(
         body: {
           model: options.model,
           store: false,
-          input: prompt,
+          max_output_tokens: maxOutputTokens,
+          instructions: prompt.system,
+          input: [{ role: "user", content: prompt.user }],
           text: {
             format: {
               type: "json_schema",
@@ -326,7 +357,7 @@ function providerRequest(
         body: {
           model: options.model,
           store: false,
-          input: prompt,
+          input: `${prompt.system}\n${prompt.user}`,
           response_format: {
             type: "text",
             mime_type: "application/json",
@@ -344,8 +375,9 @@ function providerRequest(
         },
         body: {
           model: options.model,
-          max_tokens: 4096,
-          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxOutputTokens,
+          system: prompt.system,
+          messages: [{ role: "user", content: prompt.user }],
           output_config: { format: { type: "json_schema", schema } },
         },
       };
@@ -373,32 +405,14 @@ function extractProviderText(
     return extractGeminiCandidateText(record.candidates);
   }
   if (provider === "claude") {
-    const content = Array.isArray(record.content) ? record.content : [];
-    const text = content.find(
-      (item): item is Record<string, unknown> =>
-        !!item &&
-        typeof item === "object" &&
-        (item as Record<string, unknown>).type === "text",
-    );
-    return typeof text?.text === "string" ? text.text : undefined;
+    return extractGeminiContentText(record.content);
   }
   const output = Array.isArray(record.output) ? record.output : [];
-  for (const item of output) {
-    if (!item || typeof item !== "object") continue;
-    const content = Array.isArray((item as Record<string, unknown>).content)
-      ? ((item as Record<string, unknown>).content as unknown[])
-      : [];
-    for (const part of content) {
-      if (
-        part &&
-        typeof part === "object" &&
-        typeof (part as Record<string, unknown>).text === "string"
-      ) {
-        return (part as Record<string, unknown>).text as string;
-      }
-    }
-  }
-  return undefined;
+  return extractGeminiContentText(
+    output.flatMap((item) =>
+      isRecord(item) && Array.isArray(item.content) ? item.content : [],
+    ),
+  );
 }
 
 function providerStatusSuffix(body: unknown): string {
@@ -454,37 +468,116 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function slowPrompt(request: DemoModelRequest): string {
-  return [
-    "You are LHIC Slow Path. Return JSON only.",
-    "Choose exactly one safe browser action with one concrete verifier, or complete/ask for input/block.",
-    "Never emit custom, OS, raw-coordinate, script, credential, cross-origin, or private-network actions.",
-    `Task: ${JSON.stringify(redactPII(request.task))}`,
-    `UI: ${JSON.stringify(redactPII(request.uiState))}`,
-    request.recentOutcome
-      ? `Previous outcome: ${JSON.stringify(redactPII(request.recentOutcome))}`
-      : "",
-    request.providedVariables
-      ? `Provided variables: ${JSON.stringify(redactPII(request.providedVariables))}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+function slowPrompt(request: DemoModelRequest): ModelPrompt {
+  return {
+    system: [
+      "You are LHIC Slow Path. Return JSON only.",
+      "Choose exactly one safe browser action with one concrete verifier, or complete/ask for input/block.",
+      "Never emit custom, OS, raw-coordinate, script, credential, cross-origin, or private-network actions.",
+      "For uploads, use only a caller-provided filePath variable; never infer or invent a local path.",
+    ].join(" "),
+    user: [
+      `Task: ${JSON.stringify(compactText(redactPII(request.task) as string, 4_096))}`,
+      `UI: ${JSON.stringify(compactUiState(request.uiState))}`,
+      request.recentOutcome
+        ? `Previous outcome: ${JSON.stringify(compactText(redactPII(request.recentOutcome) as string, 2_048))}`
+        : "",
+      request.providedVariables
+        ? `Provided variables: ${boundedJson(redactPII(request.providedVariables), 4_096)}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
 }
 
-function fastPrompt(request: DemoModelRequest): string {
-  return [
-    "You are LHIC Fast Path planner. Return one complete browser-plan-v1 JSON plan only.",
-    "Use the learned skill only as constrained evidence. Every step needs a concrete verifier.",
-    "The plan will execute without further model calls; use requiredVariables for values not present in the task.",
-    "Never emit custom, OS, raw-coordinate, script, credential, cross-origin, or private-network actions.",
-    `Task: ${JSON.stringify(redactPII(request.task))}`,
-    `UI: ${JSON.stringify(redactPII(request.uiState))}`,
-    `Learned skill: ${JSON.stringify(redactPII(request.learnedSkill ?? {}))}`,
-    request.providedVariables
-      ? `Provided variables: ${JSON.stringify(redactPII(request.providedVariables))}`
-      : "",
-  ].join("\n");
+function fastPrompt(request: DemoModelRequest): ModelPrompt {
+  return {
+    system: [
+      "You are LHIC Fast Path planner. Return one complete browser-plan-v1 JSON plan only.",
+      "Use the learned skill only as constrained evidence. Every step needs a concrete verifier.",
+      "The plan will execute without further model calls; use requiredVariables for values not present in the task.",
+      "Never emit custom, OS, raw-coordinate, script, credential, cross-origin, or private-network actions.",
+      "For uploads, use only an exact {{variables.name}} filePath backed by provided or required variables; never infer or invent a local path.",
+    ].join(" "),
+    user: [
+      `Task: ${JSON.stringify(compactText(redactPII(request.task) as string, 4_096))}`,
+      `UI: ${JSON.stringify(compactUiState(request.uiState))}`,
+      `Learned skill: ${boundedJson(redactPII(request.learnedSkill ?? {}), 6_144)}`,
+      request.providedVariables
+        ? `Provided variables: ${boundedJson(redactPII(request.providedVariables), 4_096)}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  };
+}
+
+const interactiveRoles: Record<string, true> = {
+  button: true,
+  checkbox: true,
+  combobox: true,
+  link: true,
+  menuitem: true,
+  option: true,
+  radio: true,
+  searchbox: true,
+  tab: true,
+  textbox: true,
+};
+
+function compactUiState(state: NormalizedUIState): NormalizedUIState {
+  const safeState = toSlowPathSafeUiState(state);
+  const objects = safeState.objects
+    .map((object, index) => ({
+      object: {
+        ...object,
+        id: compactText(object.id, maxModelFieldChars),
+        ...(object.role
+          ? { role: compactText(object.role, maxModelFieldChars) }
+          : {}),
+        ...(object.label
+          ? { label: compactText(object.label, maxModelFieldChars) }
+          : {}),
+        ...(object.selector
+          ? { selector: compactText(object.selector, maxModelFieldChars) }
+          : {}),
+        ...(object.ref
+          ? { ref: compactText(object.ref, maxModelFieldChars) }
+          : {}),
+      },
+      index,
+      priority:
+        (object.focused ? 4 : 0) +
+        (object.role && interactiveRoles[object.role.toLowerCase()] ? 2 : 0) +
+        (object.enabled === true ? 1 : 0),
+    }))
+    .sort(
+      (left, right) =>
+        right.priority - left.priority || left.index - right.index,
+    )
+    .slice(0, maxModelObjects)
+    .map(({ object }) => object);
+  const compacted = { ...safeState, objects };
+  while (objects.length > 1 && JSON.stringify(compacted).length > 12_000) {
+    objects.pop();
+  }
+  return compacted;
+}
+
+function boundedJson(value: unknown, maxChars: number): string {
+  const serialized = JSON.stringify(value) ?? "null";
+  if (serialized.length <= maxChars) return serialized;
+  const excerptChars = Math.max(1, Math.floor((maxChars - 64) / 2));
+  return JSON.stringify({
+    truncated: true,
+    excerpt: compactText(serialized, excerptChars),
+  });
+}
+
+function compactText(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, maxChars - 1)}…`;
 }
 
 function parseSlowResponse(value: unknown): DemoSlowPathModelResponse {
@@ -554,6 +647,7 @@ function normalizePlannedStep(value: unknown): unknown {
     const action = { ...(step.action as Record<string, unknown>) };
     if (action.target === null) delete action.target;
     if (action.value === null) delete action.value;
+    if (action.filePath === null) delete action.filePath;
     step.action = action;
   }
   if (step.verification && typeof step.verification === "object") {

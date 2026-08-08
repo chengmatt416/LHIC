@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 const source = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -9,6 +9,7 @@ export default defineConfig({
     testTimeout: 15_000,
     hookTimeout: 15_000,
     fileParallelism: false,
+    exclude: [...configDefaults.exclude, "**/node_modules_bak/**"],
   },
   resolve: {
     alias: {

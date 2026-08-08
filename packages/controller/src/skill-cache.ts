@@ -1,4 +1,4 @@
-import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
+import type { NormalizedUIState, UserIntent } from "@lhic/schema";
 
 import type { SkillRecord } from "@lhic/memory";
 import { calculateSkillConfidence } from "./one-shot-learning.js";
@@ -21,6 +21,7 @@ export interface SkillCacheOptions {
  */
 export class SkillCache {
   private readonly cache = new Map<string, CachedSkill>();
+  private readonly keywordCache = new Map<string, ReadonlySet<string>>();
   private readonly maxSize: number;
   private readonly ttlMs: number;
 
@@ -36,15 +37,17 @@ export class SkillCache {
     const cached = this.cache.get(name);
     if (!cached) return undefined;
 
-    // Check TTL
-    if (Date.now() - cached.lastUsedAt > this.ttlMs) {
+    const now = Date.now();
+    if (now - cached.lastUsedAt > this.ttlMs) {
       this.cache.delete(name);
+      this.keywordCache.delete(name);
       return undefined;
     }
 
-    // Update LRU position
+    cached.lastUsedAt = now;
+    cached.useCount += 1;
     this.cache.delete(name);
-    this.cache.set(name, { ...cached, lastUsedAt: Date.now(), useCount: cached.useCount + 1 });
+    this.cache.set(name, cached);
     return cached;
   }
 
@@ -52,8 +55,7 @@ export class SkillCache {
    * Puts a skill into cache, evicting if necessary.
    */
   put(skill: SkillRecord): void {
-    // Evict if at capacity
-    if (this.cache.size >= this.maxSize) {
+    if (!this.cache.has(skill.name) && this.cache.size >= this.maxSize) {
       this.evictLeastRelevant();
     }
 
@@ -64,6 +66,10 @@ export class SkillCache {
       lastUsedAt: Date.now(),
       useCount: 0,
     });
+    this.keywordCache.set(
+      skill.name,
+      new Set(extractKeywords((skill.definition.goal as string) ?? "")),
+    );
   }
 
   /**
@@ -75,32 +81,28 @@ export class SkillCache {
     uiState: NormalizedUIState,
   ): CachedSkill | undefined {
     const intentKeywords = extractKeywords(intent.goal);
+    const now = Date.now();
     let bestMatch: CachedSkill | undefined;
     let bestScore = 0;
 
     for (const cached of this.cache.values()) {
-      // Check TTL
-      if (Date.now() - cached.lastUsedAt > this.ttlMs) continue;
+      if (now - cached.lastUsedAt > this.ttlMs) continue;
 
       const skillDef = cached.skill.definition;
-      const skillGoal = (skillDef.goal as string) ?? "";
-      const skillKeywords = extractKeywords(skillGoal);
-
-      // Calculate keyword overlap score
-      const overlap = intentKeywords.filter((k) => skillKeywords.includes(k)).length;
+      const skillKeywords =
+        this.keywordCache.get(cached.skill.name) ??
+        new Set(extractKeywords((skillDef.goal as string) ?? ""));
+      const overlap = intentKeywords.filter((keyword) =>
+        skillKeywords.has(keyword),
+      ).length;
       const keywordScore = overlap / Math.max(intentKeywords.length, 1);
-
-      // UI surface bonus
-      const surfaceMatch = (skillDef.surface as string) === uiState.surface ? 0.2 : 0;
-
-      // Confidence bonus
+      const surfaceMatch =
+        (skillDef.surface as string) === uiState.surface ? 0.2 : 0;
       const confidenceBonus = cached.confidence * 0.3;
-
-      // Recency bonus (prefer recently used skills)
-      const ageMs = Date.now() - cached.lastUsedAt;
+      const ageMs = now - cached.lastUsedAt;
       const recencyBonus = Math.max(0, 1 - ageMs / this.ttlMs) * 0.1;
-
-      const totalScore = keywordScore * 0.4 + surfaceMatch + confidenceBonus + recencyBonus;
+      const totalScore =
+        keywordScore * 0.4 + surfaceMatch + confidenceBonus + recencyBonus;
 
       if (totalScore > bestScore && totalScore > 0.3) {
         bestScore = totalScore;
@@ -115,7 +117,10 @@ export class SkillCache {
    * Returns cache statistics.
    */
   stats(): { size: number; hitRate: number } {
-    const totalUses = Array.from(this.cache.values()).reduce((sum, c) => sum + c.useCount, 0);
+    let totalUses = 0;
+    for (const cached of this.cache.values()) {
+      totalUses += cached.useCount;
+    }
     return {
       size: this.cache.size,
       hitRate: totalUses > 0 ? this.cache.size / totalUses : 0,
@@ -131,6 +136,7 @@ export class SkillCache {
     for (const [key, cached] of this.cache.entries()) {
       if (now - cached.lastUsedAt > this.ttlMs) {
         this.cache.delete(key);
+        this.keywordCache.delete(key);
         pruned++;
       }
     }
@@ -138,12 +144,12 @@ export class SkillCache {
   }
 
   private evictLeastRelevant(): void {
-    // Find the entry with lowest relevance score
     let leastRelevant: string | undefined;
     let lowestScore = Infinity;
+    const now = Date.now();
 
     for (const [key, cached] of this.cache.entries()) {
-      const ageMs = Date.now() - cached.lastUsedAt;
+      const ageMs = now - cached.lastUsedAt;
       const recencyScore = 1 - ageMs / this.ttlMs;
       const score = cached.confidence * 0.6 + recencyScore * 0.4;
 
@@ -155,6 +161,7 @@ export class SkillCache {
 
     if (leastRelevant) {
       this.cache.delete(leastRelevant);
+      this.keywordCache.delete(leastRelevant);
     }
   }
 }

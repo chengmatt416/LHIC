@@ -1,7 +1,7 @@
-import type { SemanticAction, UserIntent, NormalizedUIState } from "@lhic/schema";
+import type { NormalizedUIState, SemanticAction } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
-import type { SkillRecord, SkillLifecycle } from "@lhic/memory";
+import type { SkillRecord } from "@lhic/memory";
 
 export interface SkillVersion {
   version: number;
@@ -83,7 +83,10 @@ export class IncrementalLearner {
   /**
    * Reverts a skill to a previous version.
    */
-  revert(skillName: string, version: number): Record<string, unknown> | undefined {
+  revert(
+    skillName: string,
+    version: number,
+  ): Record<string, unknown> | undefined {
     const versions = this.versions.get(skillName) ?? [];
     const target = versions.find((v) => v.version === version);
     return target?.definition;
@@ -133,10 +136,7 @@ export class TransferLearner {
    * Finds transferable skills for a given URL.
    * Returns skills learned on similar sites.
    */
-  findTransferable(
-    url: string,
-    skills: SkillRecord[],
-  ): SkillRecord[] {
+  findTransferable(url: string, skills: SkillRecord[]): SkillRecord[] {
     const sourceOrigin = extractOrigin(url);
     const transferable: SkillRecord[] = [];
 
@@ -153,8 +153,10 @@ export class TransferLearner {
       // Check transfer patterns
       for (const [source, targets] of this.sitePatterns.entries()) {
         if (
-          (skillOrigin.includes(source) && targets.some((t) => sourceOrigin.includes(t))) ||
-          (sourceOrigin.includes(source) && targets.some((t) => skillOrigin.includes(t)))
+          (skillOrigin.includes(source) &&
+            targets.some((t) => sourceOrigin.includes(t))) ||
+          (sourceOrigin.includes(source) &&
+            targets.some((t) => skillOrigin.includes(t)))
         ) {
           transferable.push(skill);
           break;
@@ -169,10 +171,7 @@ export class TransferLearner {
    * Adapts a skill from one site to work on another.
    * Adjusts selectors and targets to match the new site's structure.
    */
-  adaptSkill(
-    skill: SkillRecord,
-    targetUrl: string,
-  ): Record<string, unknown> {
+  adaptSkill(skill: SkillRecord, targetUrl: string): Record<string, unknown> {
     const adapted = { ...skill.definition };
     const targetOrigin = extractOrigin(targetUrl);
 
@@ -242,10 +241,7 @@ export class OnlineLearner {
   /**
    * Predicts the success probability of an action based on recent observations.
    */
-  predictSuccess(
-    action: SemanticAction,
-    state: NormalizedUIState,
-  ): number {
+  predictSuccess(action: SemanticAction, state: NormalizedUIState): number {
     const relevant = this.observations.filter(
       (o) =>
         o.action.type === action.type &&
@@ -262,10 +258,7 @@ export class OnlineLearner {
   /**
    * Gets the optimal action sequence based on observed patterns.
    */
-  suggestSequence(
-    goal: string,
-    state: NormalizedUIState,
-  ): SemanticAction[] {
+  suggestSequence(goal: string, state: NormalizedUIState): SemanticAction[] {
     // Find successful action sequences from observations
     const successfulSequences = this.findSuccessfulSequences();
 
@@ -316,10 +309,13 @@ export class OnlineLearner {
     ).length;
     const keywordScore = overlap / Math.max(goalWords.length, 1);
 
-    // Recency bonus
+    // Prefer sequences observed on the same interaction surface.
     const lastObs = this.observations[this.observations.length - 1];
-    const recencyBonus = lastObs ? Math.max(0, 1 - (Date.now() - lastObs.timestamp) / 60000) : 0;
+    const recencyBonus = lastObs
+      ? Math.max(0, 1 - (Date.now() - lastObs.timestamp) / 60_000)
+      : 0;
+    const surfaceBonus = lastObs?.state.surface === state.surface ? 1 : 0;
 
-    return keywordScore * 0.7 + recencyBonus * 0.3;
+    return keywordScore * 0.6 + recencyBonus * 0.2 + surfaceBonus * 0.2;
   }
 }

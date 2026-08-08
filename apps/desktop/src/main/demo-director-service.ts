@@ -108,7 +108,7 @@ export class DemoDirectorService {
       evidence.push(
         `Launched ${executable} in Terminal with ${this.scenario.model} at medium reasoning effort.`,
         "The submitted prompt delegates browser work to LHIC MCP; Codex receives no direct browser-control permission.",
-        "Codex CLI confirmation prompts and its sandbox are explicitly bypassed for this demonstration; LHIC policy, signing, and verifier gates remain active.",
+        "Codex CLI runs non-interactively inside its workspace-write sandbox; LHIC policy, signing, and verifier gates remain active.",
         "Terminal owns focus so the recording captures the live Codex CLI transcript.",
       );
       return completed(startedAt, evidence);
@@ -130,7 +130,7 @@ export class DemoDirectorService {
       await this.terminal.focus();
       evidence.push(
         "Focused Terminal without using Codex desktop Accessibility selectors.",
-        "Codex CLI is running with its dangerous permission bypass; LHIC still enforces its own action policy.",
+        "Codex CLI is running non-interactively in its workspace-write sandbox; LHIC still enforces its own action policy.",
       );
       return completed(startedAt, evidence);
     } catch (error) {

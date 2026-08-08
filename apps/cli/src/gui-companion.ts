@@ -83,6 +83,14 @@ export async function startGuiCompanion(
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${host}`);
+      if (
+        request.method === "GET" &&
+        url.pathname === "/" &&
+        url.searchParams.get("token") !== capabilityToken
+      ) {
+        writeError(response, 401, "Unauthorized GUI companion request.");
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/") {
         writeHtml(
           response,
@@ -357,6 +365,7 @@ function writeHtml(response: ServerResponse, html: string): void {
     "Cache-Control": "no-store",
     "Content-Security-Policy":
       "default-src 'self'; connect-src 'self'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'",
+    "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff",
   });
   response.end(html);

@@ -40,6 +40,7 @@ const executableActionTypes = new Set<BrowserSemanticAction["type"]>([
   "press",
   "wait",
   "download",
+  "upload",
 ]);
 
 export function isPlannedBrowserStep(
@@ -125,18 +126,28 @@ function isExecutableAction(action: BrowserSemanticAction): boolean {
     case "scroll":
       return true;
     case "hover":
-      return typeof action.target === "string" && action.target.trim().length > 0;
+      return (
+        typeof action.target === "string" && action.target.trim().length > 0
+      );
     case "keyboard":
       return typeof action.key === "string" && action.key.trim().length > 0;
     case "tab":
     case "multi_tab":
       return typeof action.tabAction === "string";
     case "upload":
-      return typeof action.filePath === "string" && action.filePath.trim().length > 0;
+      return (
+        typeof action.target === "string" &&
+        action.target.trim().length > 0 &&
+        typeof action.filePath === "string" &&
+        action.filePath.trim().length > 0
+      );
     case "screenshot":
       return true;
     case "drag":
-      return typeof action.target === "string" && typeof action.dragTarget === "string";
+      return (
+        typeof action.target === "string" &&
+        typeof action.dragTarget === "string"
+      );
     case "custom":
       return false;
     default:

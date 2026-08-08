@@ -12,6 +12,10 @@ import {
 import { actionRequiresApproval } from "@lhic/security";
 import { appendStageRouteEvent } from "@lhic/trace";
 
+import {
+  OperationInterruptedError,
+  runInterruptible,
+} from "./interruptible-operation.js";
 import { ContextEngine } from "./context-engine.js";
 import { FastPathRouter } from "./fast-path-router.js";
 import type { PathRoutingConfig } from "./path-routing-config.js";
@@ -35,10 +39,11 @@ export interface MultiPathTaskControllerOptions {
   prediction: IntentPrediction;
   profile: ExecutionProfile;
   /** A new observation is required before the one allowed local recovery. */
-  observe(): Promise<NormalizedUIState>;
+  observe(signal?: AbortSignal): Promise<NormalizedUIState>;
   /** Resolves only deterministic built-in or already-promoted shared skills. */
   resolveLocalPlan(
     state: NormalizedUIState,
+    signal?: AbortSignal,
   ): Promise<readonly SemanticAction[] | undefined>;
   /**
    * This boundary must execute through LHIC's local policy, approval, and
@@ -48,6 +53,8 @@ export interface MultiPathTaskControllerOptions {
   router?: FastPathRouter;
   config?: PathRoutingConfig;
   budget?: TaskBudgetTrackerOptions;
+  /** Cancels the current interruptible stage without replaying physical actions. */
+  signal?: AbortSignal;
   traceFilePath?: string;
   summaryStore?: TaskSummaryPersistence;
 }
@@ -87,6 +94,19 @@ export class MultiPathTaskController {
   }
 
   public async run(): Promise<MultiPathTaskResult> {
+    try {
+      return await this.runTask();
+    } catch (error) {
+      const failureReason =
+        error instanceof Error && error.message.trim()
+          ? `Controller operation failed: ${error.message.trim()}`
+          : "Controller operation failed.";
+      this.context.recordFailure(failureReason);
+      return this.result("failed", failureReason, false);
+    }
+  }
+
+  private async runTask(): Promise<MultiPathTaskResult> {
     const initialObservation = await this.route("observe", undefined, 0);
     if (initialObservation.path !== "local_fast") {
       return this.result(
@@ -97,7 +117,7 @@ export class MultiPathTaskController {
       );
     }
     let state = await this.observe();
-    let localPlan = await this.options.resolveLocalPlan(state);
+    let localPlan = await this.resolveLocalPlan(state);
 
     const initial = await this.runPlanStage(state, localPlan, 0);
     if (!initial) return this.result("completed");
@@ -124,7 +144,7 @@ export class MultiPathTaskController {
         );
       }
       state = await this.observe();
-      localPlan = await this.options.resolveLocalPlan(state);
+      localPlan = await this.resolveLocalPlan(state);
       const retried = await this.runPlanStage(state, localPlan, 1);
       if (!retried) return this.result("completed");
       if (retried.status !== "failed") {
@@ -132,7 +152,15 @@ export class MultiPathTaskController {
       }
       const fallback = await this.route("recover", localPlan, 1);
       if (fallback.path === "slow_planner") {
-        const slow = await this.runSlowPlan(state, "recover");
+        const refreshed = await this.observeForRecovery(1);
+        if ("status" in refreshed) {
+          return this.result(refreshed.status, refreshed.failureReason);
+        }
+        const slow = await this.runSlowPlan(
+          refreshed.state,
+          "recover",
+          fallback,
+        );
         if (!slow) return this.result("completed");
         return this.result(slow.status, slow.failureReason);
       }
@@ -141,7 +169,11 @@ export class MultiPathTaskController {
         fallback.path === "blocked" ? fallback.reason : undefined,
       );
     } else if (recovery.path === "slow_planner") {
-      const slow = await this.runSlowPlan(state, "recover");
+      const refreshed = await this.observeForRecovery(0);
+      if ("status" in refreshed) {
+        return this.result(refreshed.status, refreshed.failureReason);
+      }
+      const slow = await this.runSlowPlan(refreshed.state, "recover", recovery);
       if (!slow) return this.result("completed");
       return this.result(slow.status, slow.failureReason);
     }
@@ -150,11 +182,35 @@ export class MultiPathTaskController {
   }
 
   private async observe(): Promise<NormalizedUIState> {
-    const state = await this.options.observe();
+    const state = await this.runInterruptible("observe", (signal) =>
+      this.options.observe(signal),
+    );
     this.context.setStage("observe");
     this.context.setUIState(state);
     this.context.completeStep("observe");
     return state;
+  }
+
+  private async observeForRecovery(
+    recoveryAttempt: number,
+  ): Promise<
+    | { state: NormalizedUIState }
+    | { status: "ask_user" | "blocked"; failureReason?: string }
+  > {
+    const observationRoute = await this.route(
+      "observe",
+      undefined,
+      recoveryAttempt,
+    );
+    if (observationRoute.path !== "local_fast") {
+      return {
+        status: observationRoute.path === "ask_user" ? "ask_user" : "blocked",
+        ...(observationRoute.path === "blocked"
+          ? { failureReason: observationRoute.reason }
+          : {}),
+      };
+    }
+    return { state: await this.observe() };
   }
 
   private async runPlanStage(
@@ -197,7 +253,7 @@ export class MultiPathTaskController {
       planRoute.path === "slow_planner" ||
       planRoute.path === "slow_vision_planner"
     ) {
-      return this.runSlowPlan(state, "plan");
+      return this.runSlowPlan(state, "plan", planRoute);
     }
     return { status: "blocked", failureReason: planRoute.reason };
   }
@@ -205,15 +261,12 @@ export class MultiPathTaskController {
   private async runSlowPlan(
     state: NormalizedUIState,
     stage: "plan" | "recover",
+    route: StageRoute,
   ): Promise<
     | { status: "ask_user" | "blocked" | "failed"; failureReason?: string }
     | undefined
   > {
-    const route = this.routes.at(-1);
-    if (
-      !route ||
-      (route.path !== "slow_planner" && route.path !== "slow_vision_planner")
-    ) {
+    if (route.path !== "slow_planner" && route.path !== "slow_vision_planner") {
       return { status: "blocked", failureReason: "Slow Path was not routed." };
     }
     const request: SlowPathRequest = {
@@ -226,17 +279,16 @@ export class MultiPathTaskController {
     };
     let response: SlowPathResponse | undefined;
     try {
-      response = await this.router.invokeRoutedSlowPath(
-        route,
-        request,
-        this.budget,
+      response = await this.runInterruptible("Slow Path planning", (signal) =>
+        this.router.invokeRoutedSlowPath(route, request, this.budget, signal),
       );
-    } catch {
-      this.context.recordFailure("The budgeted planner was unavailable.");
-      return {
-        status: "blocked",
-        failureReason: "The budgeted planner was unavailable.",
-      };
+    } catch (error) {
+      const failureReason =
+        error instanceof OperationInterruptedError
+          ? `The budgeted planner was unavailable: ${error.message}`
+          : "The budgeted planner was unavailable.";
+      this.context.recordFailure(failureReason);
+      return { status: "blocked", failureReason };
     }
     if (!response) {
       return {
@@ -245,7 +297,18 @@ export class MultiPathTaskController {
       };
     }
     if (response.decision === "ask_user") {
-      return { status: "ask_user" };
+      return {
+        status: "ask_user",
+        ...(response.message.trim()
+          ? { failureReason: response.message.trim() }
+          : {}),
+      };
+    }
+    if (response.decision === "blocked") {
+      const failureReason =
+        response.message.trim() || "The Slow Path provider blocked the task.";
+      this.context.recordFailure(failureReason);
+      return { status: "blocked", failureReason };
     }
     const stagePlan = toStagePlan(response, this.options.intent.goal, stage);
     if (!stagePlan) {
@@ -282,7 +345,10 @@ export class MultiPathTaskController {
       if (approvalReason) {
         return { status: "ask_user", failureReason: approvalReason };
       }
-      const outcome = await this.options.executor.execute(action);
+      const outcome = await this.runInterruptible(
+        `execute ${action.type}`,
+        (signal) => this.options.executor.execute(action, signal),
+      );
       this.outcomes.push({ action, ...outcome });
       if (
         !outcome.execution.success ||
@@ -296,10 +362,14 @@ export class MultiPathTaskController {
         this.context.recordFailure(failureReason);
         return { status: "failed", failureReason };
       }
-      this.options.executor.rememberVerifiedAction?.(
-        action,
-        outcome.verification,
-      );
+      try {
+        this.options.executor.rememberVerifiedAction?.(
+          action,
+          outcome.verification,
+        );
+      } catch {
+        // Optional learning must not turn a verified physical action into a retry.
+      }
       this.context.recordVerification(outcome.verification.evidence);
       this.context.completeStep(action.intent);
     }
@@ -315,6 +385,28 @@ export class MultiPathTaskController {
     }
     this.context.setStage("verify");
     return undefined;
+  }
+
+  private async resolveLocalPlan(
+    state: NormalizedUIState,
+  ): Promise<readonly SemanticAction[] | undefined> {
+    return this.runInterruptible("local planning", (signal) =>
+      this.options.resolveLocalPlan(state, signal),
+    );
+  }
+
+  private async runInterruptible<T>(
+    operation: string,
+    run: (signal: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    const reservation = this.budget.snapshot();
+    const timeoutMs = reservation.remaining.maxWallClockMs;
+    if (!reservation.allowed || timeoutMs <= 0) {
+      throw new Error(
+        `${operation} could not start: the task wall-clock budget is exhausted.`,
+      );
+    }
+    return runInterruptible(operation, timeoutMs, run, this.options.signal);
   }
 
   private async route(
@@ -338,6 +430,7 @@ export class MultiPathTaskController {
       : this.router.routeStage(input);
     if (planned && this.options.config?.mode === "shadow") {
       this.routes.push(planned);
+      this.context.setStage(stage);
       if (this.options.traceFilePath) {
         await appendStageRouteEvent(
           this.options.traceFilePath,
@@ -390,10 +483,13 @@ export class MultiPathTaskController {
   private result(
     status: MultiPathTaskResult["status"],
     failureReason?: string,
+    persistSummary = true,
   ): MultiPathTaskResult {
     const snapshot = this.budget.snapshot();
     const summary = this.context.summarize(this.options.intent);
-    this.options.summaryStore?.save(this.options.taskId, summary);
+    if (persistSummary) {
+      this.options.summaryStore?.save(this.options.taskId, summary);
+    }
     return {
       status,
       routes: [...this.routes],
@@ -405,5 +501,3 @@ export class MultiPathTaskController {
     };
   }
 }
-
-

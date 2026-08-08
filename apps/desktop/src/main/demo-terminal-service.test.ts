@@ -23,11 +23,11 @@ describe("DemoTerminalService", () => {
       "Use only LHIC MCP.",
       expect.stringMatching(/lhic-codex-.+\.status$/),
     ]);
-    expect(codexTerminalScript).toContain(
+    expect(codexTerminalScript).not.toContain(
       "--dangerously-bypass-approvals-and-sandbox",
     );
-    expect(codexTerminalScript).not.toContain("--ask-for-approval");
-    expect(codexTerminalScript).not.toContain("--sandbox workspace-write");
+    expect(codexTerminalScript).toContain("--ask-for-approval never");
+    expect(codexTerminalScript).toContain("--sandbox workspace-write");
     expect(codexTerminalScript).toContain("--no-alt-screen");
     expect(codexTerminalScript).toContain(
       "/usr/bin/mktemp -t lhic-codex-prompt",

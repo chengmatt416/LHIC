@@ -1,6 +1,6 @@
 import { isRiskLevel, type RiskLevel } from "./risk.js";
 
-const knownTraceEventTypes = [
+export const knownTraceEventTypes = [
   "action_started",
   "action_completed",
   "action_failed",

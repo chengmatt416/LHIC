@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { NormalizedUIState, UserIntent } from "@lhic/schema";
 
-import { scoreConfidence } from "./confidence-scorer.js";
-import type { ControllerStage, StageClassification } from "./stage-classifier.js";
+import {
+  scoreConfidence,
+  type ConfidenceScoringOptions,
+} from "./confidence-scorer.js";
+import type {
+  ControllerStage,
+  StageClassification,
+} from "./stage-classifier.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -106,7 +112,7 @@ describe("scoreConfidence", () => {
             const result = scoreConfidence(
               classification,
               intent,
-              options as import("./confidence-scorer.js").ConfidenceScoringOptions,
+              options as ConfidenceScoringOptions,
             );
             expect(result).toBeGreaterThanOrEqual(0);
             expect(result).toBeLessThanOrEqual(1);
@@ -171,7 +177,10 @@ describe("scoreConfidence", () => {
 
   it("ranks risk levels: low > medium > unknown > high", () => {
     const classification = makeClassification();
-    const low = scoreConfidence(classification, makeIntent({ riskLevel: "low" }));
+    const low = scoreConfidence(
+      classification,
+      makeIntent({ riskLevel: "low" }),
+    );
     const medium = scoreConfidence(
       classification,
       makeIntent({ riskLevel: "medium" }),

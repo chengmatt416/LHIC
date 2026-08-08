@@ -1,6 +1,9 @@
 import type { NormalizedUIState, RiskLevel, UserIntent } from "@lhic/schema";
 
-import type { ControllerStage, StageClassification } from "./stage-classifier.js";
+import type {
+  ControllerStage,
+  StageClassification,
+} from "./stage-classifier.js";
 
 export interface ConfidenceScoringOptions {
   /** UI state to evaluate for quality signals (object richness, relevant controls). */
@@ -33,10 +36,10 @@ export function scoreConfidence(
   if (options.historicalSuccessRate != null) {
     const hist = clamp(options.historicalSuccessRate, 0, 1);
     // With history: stage 0.30, UI 0.20, risk 0.20, history 0.30
-    raw = stage * 0.30 + ui * 0.20 + risk * 0.20 + hist * 0.30;
+    raw = stage * 0.3 + ui * 0.2 + risk * 0.2 + hist * 0.3;
   } else {
     // Without history: stage 0.45, UI 0.30, risk 0.25
-    raw = stage * 0.45 + ui * 0.30 + risk * 0.25;
+    raw = stage * 0.45 + ui * 0.3 + risk * 0.25;
   }
 
   return clamp(raw, 0, 1);

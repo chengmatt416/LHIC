@@ -1,5 +1,4 @@
 import type { SemanticAction, UserIntent } from "@lhic/schema";
-import { redactPII } from "@lhic/trace";
 
 import type { SkillRecord } from "@lhic/memory";
 
@@ -32,7 +31,11 @@ export function composeSkills(
   goal: string,
 ): CompositionResult {
   if (skills.length === 0) {
-    return { success: false, composite: undefined, error: "No skills provided for composition." };
+    return {
+      success: false,
+      composite: undefined,
+      error: "No skills provided for composition.",
+    };
   }
 
   // Validate skill chain
@@ -67,9 +70,10 @@ export function composeSkills(
  * Validates that skills can be chained together.
  * Checks that postconditions of one skill match preconditions of the next.
  */
-function validateSkillChain(
-  skills: ComposableSkill[],
-): { valid: boolean; error?: string } {
+function validateSkillChain(skills: ComposableSkill[]): {
+  valid: boolean;
+  error?: string;
+} {
   for (let i = 0; i < skills.length - 1; i++) {
     const current = skills[i]!;
     const next = skills[i + 1]!;
@@ -96,10 +100,7 @@ function validateSkillChain(
 /**
  * Creates a human-readable name for a composite skill.
  */
-function createCompositeName(
-  skills: ComposableSkill[],
-  goal: string,
-): string {
+function createCompositeName(skills: ComposableSkill[], goal: string): string {
   const goalSlug = goal
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -145,10 +146,7 @@ function estimateSkillLatency(skill: ComposableSkill): number {
  * Decomposes a complex intent into simpler sub-intents.
  * Each sub-intent can be handled by a single skill.
  */
-export function decomposeIntent(
-  intent: UserIntent,
-  availableSkills: SkillRecord[],
-): UserIntent[] {
+export function decomposeIntent(intent: UserIntent): UserIntent[] {
   // Simple decomposition: split on conjunctions
   const goal = intent.goal.toLowerCase();
   const conjunctions = [" and ", " then ", " after ", " before "];

@@ -64,10 +64,7 @@ export class RetryEngine {
         }
 
         // Check if error is retryable
-        if (
-          lastResult.error &&
-          !this.isRetryableError(lastResult.error)
-        ) {
+        if (lastResult.error && !this.isRetryableError(lastResult.error)) {
           return {
             result: lastResult,
             attempts: attempt + 1,
@@ -76,8 +73,7 @@ export class RetryEngine {
           };
         }
       } catch (error) {
-        lastError =
-          error instanceof Error ? error : new Error(String(error));
+        lastError = error instanceof Error ? error : new Error(String(error));
 
         if (!this.isRetryableError(lastError.message)) {
           return {
@@ -230,8 +226,7 @@ export class TimeoutWrapper {
     timeoutMs: number,
     errorMessage: string = "Operation timed out",
   ): Promise<T> {
-    const { promise: timeoutPromise, reject } =
-      Promise.withResolvers<T>();
+    const { promise: timeoutPromise, reject } = Promise.withResolvers<T>();
 
     const timeoutId = setTimeout(() => {
       reject(new Error(errorMessage));

@@ -16,7 +16,7 @@ describe("DesktopBrowserRunner policy", () => {
     );
   });
 
-  it("requires explicit approval for activation, download, high-risk, and unknown-risk browser actions", () => {
+  it("requires explicit approval for activation, upload, download, high-risk, and unknown-risk browser actions", () => {
     expect(
       requiresInteractiveApproval({
         type: "navigate",
@@ -40,6 +40,16 @@ describe("DesktopBrowserRunner policy", () => {
         type: "download",
         intent: "Download report",
         target: "Download report",
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      }),
+    ).toBe(true);
+    expect(
+      requiresInteractiveApproval({
+        type: "upload",
+        intent: "Upload approved fixture",
+        target: "Attachment",
+        filePath: "/tmp/approved-fixture.txt",
         methodPreference: ["dom"],
         riskLevel: "low",
       }),

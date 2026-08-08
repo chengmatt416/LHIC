@@ -1,7 +1,9 @@
-import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
+import type {
+  NormalizedUIState,
+  SemanticAction,
+  UserIntent,
+} from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
-
-import type { SkillStore } from "@lhic/memory";
 
 export type FailureReason =
   | "element_not_found"
@@ -104,7 +106,8 @@ export class FailureLearner {
       }
     }
 
-    const failureRate = relevantFailures.length / Math.max(this.failures.length, 1);
+    const failureRate =
+      relevantFailures.length / Math.max(this.failures.length, 1);
     const confidence = Math.min(0.95, failureRate * 2);
 
     return {

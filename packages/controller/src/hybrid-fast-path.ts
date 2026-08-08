@@ -7,7 +7,11 @@ import { isBrowserSemanticAction } from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
 import type { IntentPrediction } from "./predictor.js";
-import type { SlowPathProvider, SlowPathRequest, SlowPathResponse } from "./slow-path.js";
+import type {
+  SlowPathProvider,
+  SlowPathRequest,
+  SlowPathResponse,
+} from "./slow-path.js";
 import { toSlowPathSafeUiState } from "./slow-path.js";
 import type { TaskBudgetTracker } from "./task-budget.js";
 
@@ -171,7 +175,9 @@ export class HybridFastPathRouter {
   ): Promise<SlowPathResponse | undefined> {
     if (!this.slowPathProvider) return undefined;
 
-    const safeUiState = toSlowPathSafeUiState(redactPII(uiState) as NormalizedUIState);
+    const safeUiState = toSlowPathSafeUiState(
+      redactPII(uiState) as NormalizedUIState,
+    );
 
     const request: SlowPathRequest = {
       taskId: `hybrid-${Date.now()}`,
@@ -192,7 +198,10 @@ export class HybridFastPathRouter {
    * Computes a cache key from intent and UI state.
    * Uses semantic similarity, not exact match, for better cache hits.
    */
-  private computeCacheKey(intent: UserIntent, uiState: NormalizedUIState): string {
+  private computeCacheKey(
+    intent: UserIntent,
+    uiState: NormalizedUIState,
+  ): string {
     const goalWords = intent.goal
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, "")
@@ -255,7 +264,9 @@ export class HybridFastPathRouter {
       size: this.llmCache.size,
       totalHits,
       hitRate:
-        this.llmCache.size > 0 ? totalHits / (totalHits + this.llmCache.size) : 0,
+        this.llmCache.size > 0
+          ? totalHits / (totalHits + this.llmCache.size)
+          : 0,
     };
   }
 

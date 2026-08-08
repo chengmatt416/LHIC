@@ -72,7 +72,10 @@ export function isNormalizedUIState(
   ) {
     return false;
   }
-  if (!Array.isArray(candidate.objects) || !candidate.objects.every(isUIObject)) {
+  if (
+    !Array.isArray(candidate.objects) ||
+    !candidate.objects.every(isUIObject)
+  ) {
     return false;
   }
   if (!candidate.signals || typeof candidate.signals !== "object") {

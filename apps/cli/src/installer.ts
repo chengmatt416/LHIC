@@ -6,12 +6,10 @@ import {
   appendFile,
   chmod,
   cp,
-  lstat,
   mkdir,
   readdir,
   rename,
   rm,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -81,47 +79,47 @@ export async function installCliRuntime(
   const homeDirectory = options.homeDirectory ?? homedir();
   const runNpm = options.runNpm ?? runNpmCommand;
   const currentPath = options.path ?? process.env.PATH ?? process.env.Path;
+  const packageSpec = `${cliPackageName}@latest`;
 
-  await runNpm(["install", "--global", `${cliPackageName}@latest`]);
+  const userPrefix =
+    platform === "win32" ? undefined : join(homeDirectory, ".local");
+  await runNpm([
+    "install",
+    "--global",
+    ...(userPrefix ? ["--prefix", userPrefix] : []),
+    packageSpec,
+  ]);
   await runNpm([
     "exec",
     "--yes",
     "--package",
-    `${cliPackageName}@latest`,
+    packageSpec,
     "--",
     "playwright",
     "install",
     "chromium",
   ]);
-  const npmPrefix = (await runNpm(["prefix", "--global"])).stdout.trim();
-  if (!npmPrefix) {
-    throw new Error("npm did not return its global installation prefix.");
-  }
 
-  const globalExecutable = join(
-    globalBinDirectory(npmPrefix, platform),
-    platform === "win32" ? "lhic.cmd" : "lhic",
-  );
   if (platform === "win32") {
+    const npmPrefix = (await runNpm(["prefix", "--global"])).stdout.trim();
+    if (!npmPrefix) {
+      throw new Error("npm did not return its global installation prefix.");
+    }
+    const executable = join(
+      globalBinDirectory(npmPrefix, platform),
+      "lhic.cmd",
+    );
+    const binDirectory = dirname(executable);
+    const available = pathIncludes(currentPath, binDirectory, platform);
     return {
-      executable: globalExecutable,
-      pathUpdated: pathIncludes(
-        currentPath,
-        dirname(globalExecutable),
-        platform,
-      ),
-      restartRequired: !pathIncludes(
-        currentPath,
-        dirname(globalExecutable),
-        platform,
-      ),
+      executable,
+      pathUpdated: available,
+      restartRequired: !available,
     };
   }
 
-  const userBinDirectory = join(homeDirectory, ".local", "bin");
-  await mkdir(userBinDirectory, { recursive: true, mode: 0o755 });
+  const userBinDirectory = join(userPrefix!, "bin");
   const userExecutable = join(userBinDirectory, "lhic");
-  await replaceSymlink(userExecutable, globalExecutable);
   const profile = profileForShell(
     options.shell ?? process.env.SHELL,
     homeDirectory,
@@ -440,22 +438,6 @@ async function replaceApplicationBundle(
     }
     throw error;
   }
-}
-
-async function replaceSymlink(
-  targetPath: string,
-  sourcePath: string,
-): Promise<void> {
-  if (await exists(targetPath)) {
-    const existing = await lstat(targetPath);
-    if (!existing.isSymbolicLink()) {
-      throw new Error(
-        `${targetPath} already exists and is not an LHIC-managed symbolic link.`,
-      );
-    }
-    await rm(targetPath);
-  }
-  await symlink(sourcePath, targetPath);
 }
 
 async function appendPathExport(

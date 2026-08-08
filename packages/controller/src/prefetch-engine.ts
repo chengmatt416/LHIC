@@ -6,7 +6,6 @@ import type {
 } from "@lhic/schema";
 
 import type { SkillRecord } from "@lhic/memory";
-import type { CachedSkill } from "./skill-cache.js";
 
 export interface PrefetchConfig {
   maxPrefetchSize: number;
@@ -195,9 +194,7 @@ export class StreamingExecutor {
       };
       item.resolve(result);
     } catch (error) {
-      item.reject(
-        error instanceof Error ? error : new Error(String(error)),
-      );
+      item.reject(error instanceof Error ? error : new Error(String(error)));
     } finally {
       this.executing = false;
       this.processNext();
@@ -271,8 +268,14 @@ export class AdaptiveThresholds {
   /**
    * Gets statistics for all contexts.
    */
-  stats(): Record<string, { count: number; successRate: number; threshold: number }> {
-    const result: Record<string, { count: number; successRate: number; threshold: number }> = {};
+  stats(): Record<
+    string,
+    { count: number; successRate: number; threshold: number }
+  > {
+    const result: Record<
+      string,
+      { count: number; successRate: number; threshold: number }
+    > = {};
 
     for (const [context, rates] of this.successRates.entries()) {
       const successRate = rates.reduce((a, b) => a + b, 0) / rates.length;

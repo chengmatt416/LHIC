@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0 <25",
+    "npm": ">=11.0.0"
   },
   "type": "module",
   "workspaces": [
@@ -31,6 +32,9 @@
     "pw:install": "playwright install chromium",
     "bench:internal": "tsx apps/cli/src/main.ts bench internal",
     "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
+    "bench:webarena:readiness": "tsx apps/cli/src/main.ts bench readiness webarena",
+    "bench:evidence:validate": "tsx apps/cli/src/main.ts bench validate-evidence",
+    "bench:osworld:bridge:preflight": "tsx benchmarks/osworld/lhic_osworld_bridge.ts --config benchmarks/osworld/config.example.json --preflight",
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
     "package:smoke": "node scripts/package-smoke.mjs",

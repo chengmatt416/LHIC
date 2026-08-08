@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { generateKeyPairSync } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -128,6 +128,59 @@ describe("PlaywrightDirectExecutor", () => {
     expect(await page.locator("#status").textContent()).toBe("Ready");
   });
 
+  it("switches to the requested tab index", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const context = await browser.newContext();
+    const firstPage = await context.newPage();
+    const secondPage = await context.newPage();
+    const thirdPage = await context.newPage();
+    await firstPage.setContent(
+      '<input aria-label="Second tab value" value="first">',
+    );
+    await secondPage.setContent(
+      '<input aria-label="Second tab value" value="second">',
+    );
+    await thirdPage.setContent(
+      '<input aria-label="Second tab value" value="third">',
+    );
+    const executor = new PlaywrightDirectExecutor(firstPage, {
+      taskId: "tab-switch",
+      traceFilePath: join(tmpdir(), `lhic-tab-switch-${Date.now()}.jsonl`),
+    });
+
+    await thirdPage.bringToFront();
+    const result = await executor.execute({
+      type: "tab",
+      intent: "switch to the second tab",
+      tabAction: "switch",
+      tabIndex: 1,
+      methodPreference: ["api"],
+      riskLevel: "low",
+    });
+
+    expect(result).toMatchObject({ success: true, method: "api" });
+    expect(
+      await executor.execute({
+        type: "fill",
+        intent: "fill a control in the selected tab",
+        target: "Second tab value",
+        value: "selected",
+        methodPreference: ["accessibility"],
+        riskLevel: "low",
+      }),
+    ).toMatchObject({ success: true, method: "accessibility" });
+    expect(await secondPage.getByLabel("Second tab value").inputValue()).toBe(
+      "selected",
+    );
+    expect(await firstPage.getByLabel("Second tab value").inputValue()).toBe(
+      "first",
+    );
+    expect(await thirdPage.getByLabel("Second tab value").inputValue()).toBe(
+      "third",
+    );
+  });
+
   it("fills a searchbox before a same-named button", async () => {
     const browser = await chromium.launch({ headless: true });
     browsers.push(browser);
@@ -239,6 +292,75 @@ describe("PlaywrightDirectExecutor", () => {
       ]);
       const trace = await readFile(join(directory, "events.jsonl"), "utf8");
       expect(trace).not.toContain("non-sensitive-private-query");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not read or disclose an upload path without a matching approval receipt", async () => {
+    const browser = await chromium.launch({ headless: true });
+    browsers.push(browser);
+    const page = await browser.newPage();
+    await page.setContent('<input id="attachment" type="file">');
+    const directory = await mkdtemp(join(tmpdir(), "lhic-upload-"));
+    const filePath = join(directory, "caller-selected.txt");
+    const traceFilePath = join(directory, "events.jsonl");
+    const executor = new PlaywrightDirectExecutor(page, {
+      taskId: "upload-task",
+      traceFilePath,
+    });
+    const uploadAction = {
+      type: "upload" as const,
+      intent: "upload caller-selected fixture",
+      target: "#attachment",
+      filePath,
+      methodPreference: ["dom" as const],
+      riskLevel: "low" as const,
+    };
+    let requestCount = 0;
+    page.on("request", () => {
+      requestCount += 1;
+    });
+
+    try {
+      await expect(executor.execute(uploadAction)).resolves.toMatchObject({
+        success: false,
+        error: expect.stringContaining("Uploads disclose a local file"),
+      });
+      expect(
+        await page
+          .locator("#attachment")
+          .evaluate((element) =>
+            element instanceof HTMLInputElement ? element.files?.length : -1,
+          ),
+      ).toBe(0);
+      expect(requestCount).toBe(0);
+
+      await writeFile(filePath, "approved fixture", { mode: 0o600 });
+      const approval = createActionApproval(
+        uploadAction,
+        "operator@example.test",
+      );
+      await expect(
+        executor.execute(uploadAction, approval),
+      ).resolves.toMatchObject({
+        success: true,
+        evidence: ["Uploaded one approved local file."],
+      });
+      expect(
+        await page
+          .locator("#attachment")
+          .evaluate((element) =>
+            element instanceof HTMLInputElement
+              ? element.files?.[0]?.name
+              : undefined,
+          ),
+      ).toBe("caller-selected.txt");
+      const trace = await readFile(traceFilePath, "utf8");
+      expect(trace).not.toContain(filePath);
+      expect(trace).toContain('"type":"approval_granted"');
+      expect(trace).toContain(approval.approvalId);
+      expect(trace).toContain('"filePath":"[REDACTED]"');
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

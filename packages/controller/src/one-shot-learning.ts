@@ -1,4 +1,8 @@
-import type { NormalizedUIState, SemanticAction, UserIntent } from "@lhic/schema";
+import type {
+  NormalizedUIState,
+  SemanticAction,
+  UserIntent,
+} from "@lhic/schema";
 import { redactPII } from "@lhic/trace";
 
 import type { SkillStore, SkillRecord, SkillLifecycle } from "@lhic/memory";
@@ -83,7 +87,9 @@ export function canFastPromote(
   lifecycle: SkillLifecycle,
 ): boolean {
   // Only promote low-risk actions quickly
-  const hasHighRisk = actions.some((a) => a.riskLevel === "high" || a.riskLevel === "unknown");
+  const hasHighRisk = actions.some(
+    (a) => a.riskLevel === "high" || a.riskLevel === "unknown",
+  );
   if (hasHighRisk) return false;
 
   // Already promoted skills don't need fast promotion

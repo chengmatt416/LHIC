@@ -6,12 +6,20 @@ import type {
   SlowPathRequest,
   SlowPathResponse,
 } from "./slow-path.js";
+import { validateCredentialedModelEndpoint } from "./model-endpoint.js";
+import {
+  OperationInterruptedError,
+  runInterruptible,
+} from "./interruptible-operation.js";
+
+const defaultTimeoutMs = 30_000;
 
 export interface ClaudeSlowPathOptions {
   enabled?: boolean;
   apiKey?: string;
   model?: string;
   endpoint?: string;
+  timeoutMs?: number;
   fetchImplementation?: typeof fetch;
 }
 
@@ -89,6 +97,7 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
   private readonly model: string;
   private readonly endpoint: string;
   private readonly fetchImplementation: typeof fetch;
+  private readonly timeoutMs: number;
 
   public constructor(options: ClaudeSlowPathOptions = {}) {
     this.enabled =
@@ -96,11 +105,18 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
     this.apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
     this.model =
       options.model ?? process.env.CLAUDE_MODEL ?? "claude-sonnet-4-5";
-    this.endpoint = options.endpoint ?? "https://api.anthropic.com/v1/messages";
+    this.endpoint = validateCredentialedModelEndpoint(
+      options.endpoint ?? "https://api.anthropic.com/v1/messages",
+      "Claude endpoint",
+    ).href;
     this.fetchImplementation = options.fetchImplementation ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
   }
 
-  public async reason(request: SlowPathRequest): Promise<SlowPathResponse> {
+  public async reason(
+    request: SlowPathRequest,
+    signal?: AbortSignal,
+  ): Promise<SlowPathResponse> {
     if (!this.enabled) {
       return {
         decision: "blocked",
@@ -114,65 +130,87 @@ export class ClaudeSlowPathProvider implements SlowPathProvider {
           "Claude Slow Path is enabled but ANTHROPIC_API_KEY is not configured.",
       };
     }
+    const apiKey = this.apiKey;
+    if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0) {
+      return {
+        decision: "blocked",
+        message: "Claude Slow Path timeout must be a positive integer.",
+      };
+    }
 
     const safeRequest = redactPII(request);
     try {
-      const response = await this.fetchImplementation(this.endpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": this.apiKey,
-          "anthropic-version": "2023-06-01",
+      return await runInterruptible<SlowPathResponse>(
+        "Claude Slow Path",
+        this.timeoutMs,
+        async (requestSignal) => {
+          const response = await this.fetchImplementation(this.endpoint, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01",
+            },
+            signal: requestSignal,
+            body: JSON.stringify({
+              model: this.model,
+              max_tokens: 800,
+              system: CLAUDE_SYSTEM_PROMPT,
+              messages: [
+                { role: "user", content: JSON.stringify(safeRequest) },
+              ],
+            }),
+          });
+          if (!response.ok) {
+            return {
+              decision: "blocked",
+              message: `Claude Slow Path request failed with HTTP ${response.status}.`,
+            };
+          }
+          const body = (await response.json()) as ClaudeMessageResponse;
+          const text = body.content
+            ?.filter((block) => block.type === "text")
+            .map((block) => block.text ?? "")
+            .join("\n")
+            .trim();
+          if (!text) {
+            return {
+              decision: "blocked",
+              message: "Claude Slow Path returned no structured output.",
+            };
+          }
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            return {
+              decision: "blocked",
+              message: "Claude Slow Path returned invalid JSON.",
+            };
+          }
+          if (!isClaudeSlowPathResponse(parsed)) {
+            return {
+              decision: "blocked",
+              message:
+                "Claude Slow Path returned a plan that failed LHIC semantic-action validation.",
+            };
+          }
+          return parsed;
         },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: 800,
-          system: CLAUDE_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: JSON.stringify(safeRequest) }],
-        }),
-      });
-      if (!response.ok) {
-        return {
-          decision: "blocked",
-          message: `Claude Slow Path request failed with HTTP ${response.status}.`,
-        };
-      }
-      const body = (await response.json()) as ClaudeMessageResponse;
-      const text = body.content
-        ?.filter((block) => block.type === "text")
-        .map((block) => block.text ?? "")
-        .join("\n")
-        .trim();
-      if (!text) {
-        return {
-          decision: "blocked",
-          message: "Claude Slow Path returned no structured output.",
-        };
-      }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return {
-          decision: "blocked",
-          message: "Claude Slow Path returned invalid JSON.",
-        };
-      }
-      if (!isClaudeSlowPathResponse(parsed)) {
-        return {
-          decision: "blocked",
-          message:
-            "Claude Slow Path returned a plan that failed LHIC semantic-action validation.",
-        };
-      }
-      return parsed;
+        signal,
+      );
     } catch (error) {
       return {
         decision: "blocked",
         message:
-          error instanceof Error
-            ? `Claude Slow Path failed: ${error.message}`
-            : "Claude Slow Path failed.",
+          error instanceof OperationInterruptedError &&
+          error.reason === "timeout"
+            ? `Claude Slow Path timed out after ${this.timeoutMs} ms.`
+            : error instanceof OperationInterruptedError
+              ? "Claude Slow Path request was aborted."
+              : error instanceof Error
+                ? `Claude Slow Path failed: ${error.message}`
+                : "Claude Slow Path failed.",
       };
     }
   }

@@ -7,12 +7,14 @@ This document describes the methodology for evaluating LHIC (Local Human Intent 
 ## Internal Benchmark Results
 
 ### Test Configuration
+
 - **Tasks**: 60 (10 per skill × 6 skills)
 - **Repetitions**: 5
 - **Environment**: Headless Chromium, Node.js 22, Playwright
 
 ### Results Summary
 
+<!-- prettier-ignore -->
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
 | Task Success Rate | **100%** | ≥95% | ✅ PASS |
@@ -34,82 +36,87 @@ This document describes the methodology for evaluating LHIC (Local Human Intent 
 ## External Benchmark Preparation
 
 ### WebArena (812 tasks)
-- **Status**: Environment setup in progress
-- **Requirements**: Docker, Python 3.11, AgentLab
-- **Expected Score**: 90%+ (based on internal benchmark performance)
+
+- **Status**: Adapter and preflight coverage are available; no official evaluator result has been collected.
+- **Requirements**: Pinned AgentLab/WebArena environment, reachable benchmark services, model credentials, and submission authorization.
 
 ### OSWorld (369 tasks)
-- **Status**: Pending WebArena completion
-- **Requirements**: Linux VM, desktop environment
-- **Expected Score**: 80%+ (unified browser + desktop advantage)
+
+- **Status**: Adapter and preflight coverage are available; no official evaluator result has been collected.
+- **Requirements**: Pinned OSWorld checkout, VM provider/image, model credentials, and submission authorization.
 
 ## Unique Differentiators
 
 ### 1. One-shot Learning
+
 - Learn from single successful execution
 - No 3-run holdout requirement for low-risk actions
 - Immediate skill capture and reuse
 
 ### 2. Parallel Execution
+
 - Independent actions execute concurrently
 - Up to 5x speed improvement
 - Smart dependency analysis
 
 ### 3. Failure Learning
+
 - Learn from failures to avoid repeating mistakes
 - Predict failure likelihood before execution
 - Suggest workarounds for common failures
 
 ### 4. Unified Browser + Desktop
+
 - Single API for browser and desktop automation
 - Cross-platform support (macOS, Windows, Linux)
 - Accessibility tree reading for desktop apps
 
 ### 5. Skill Composition
+
 - Combine simple skills into complex workflows
 - Automatic skill chaining
 - Precondition/postcondition validation
 
 ### 6. Incremental & Transfer Learning
+
 - Update skills without re-learning from scratch
 - Transfer skills across similar sites
 - Online learning during execution
 
 ### 7. Prefetching & Streaming
+
 - Pre-load skills likely to be needed
 - Start execution before full planning
 - Adaptive confidence thresholds
 
 ### 8. Retry & Circuit Breaker
+
 - Exponential backoff with jitter
 - Circuit breaker for cascading failures
 - Timeout protection for all operations
 
-## Comparison with Current SOTA
+## External Benchmark Status
 
-| Feature | LHIC | Browser Use | Anthropic CU | OpenAI Operator |
-|---------|------|-------------|--------------|-----------------|
-| **Task Success** | 100% (internal) | 89.1% (WebVoyager) | ~85% (OSWorld) | ~38% (OSWorld) |
-| **LLM Calls** | 0 | Multiple | Multiple | Multiple |
-| **Latency** | 180ms median | Seconds | Seconds | Seconds |
-| **Learning** | ✅ One-shot | ❌ | ❌ | ❌ |
-| **Parallel** | ✅ 5x | ❌ | ❌ | ❌ |
-| **Desktop** | ✅ Unified | ❌ | ❌ | ❌ |
-| **Failure Learn** | ✅ | ❌ | ❌ | ❌ |
+The WebArena, OSWorld, and $\tau$-bench adapters are readiness infrastructure.
+Preflight success, LHIC receipts, and internal benchmark results are not official
+external evaluator results and must not be reported as such.
 
 ## Artifacts
 
 ### Code Artifacts
+
 - Source code: `/root/lhic`
 - Build output: `/root/lhic/dist`
 - Test results: `/root/lhic/test-results`
 
 ### Benchmark Artifacts
+
 - Internal benchmark report: `/root/lhic/benchmark-report.json`
 - Trace logs: `/root/lhic/.lhic/traces`
 - Screenshots: `/root/lhic/.lhic/screenshots`
 
 ### Documentation
+
 - Architecture: `/root/lhic/docs/architecture.md`
 - Security: `/root/lhic/docs/security.md`
 - Quickstart: `/root/lhic/docs/quickstart.md`
@@ -117,11 +124,13 @@ This document describes the methodology for evaluating LHIC (Local Human Intent 
 ## Reproduction Instructions
 
 ### Prerequisites
+
 - Node.js 22+ (24 recommended)
 - Playwright Chromium
 - macOS, Windows, or Linux
 
 ### Steps
+
 1. Clone repository
 2. Install dependencies: `npm ci`
 3. Build: `npm run build`
@@ -129,6 +138,7 @@ This document describes the methodology for evaluating LHIC (Local Human Intent 
 5. Verify results: `npm test`
 
 ### Expected Output
+
 ```json
 {
   "passed": true,

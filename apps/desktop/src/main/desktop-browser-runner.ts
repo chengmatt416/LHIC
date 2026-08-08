@@ -250,7 +250,8 @@ export function requiresInteractiveApproval(
     action.riskLevel === "unknown" ||
     action.type === "click" ||
     action.type === "press" ||
-    action.type === "download"
+    action.type === "download" ||
+    action.type === "upload"
   );
 }
 

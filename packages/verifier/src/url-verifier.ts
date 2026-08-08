@@ -55,7 +55,8 @@ export function verifyUrl(
       return {
         success: false,
         evidence: [],
-        error: "URL is not a valid HTTP(S) URL and cannot be checked for query parameters.",
+        error:
+          "URL is not a valid HTTP(S) URL and cannot be checked for query parameters.",
       };
     }
   }

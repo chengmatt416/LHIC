@@ -14,6 +14,8 @@ import { spawnProcess } from "./process-runner.js";
 
 const configurationFileName = "apps/mcp-server/dist/index.js";
 const confirmationTtlMs = 2 * 60_000;
+const installTimeoutMs = 2 * 60_000;
+const executableProbeTimeoutMs = 5_000;
 
 interface PendingMcpConfirmation {
   client: McpClientKind;
@@ -124,6 +126,7 @@ export class McpService {
       if (!executable) throw new Error("MCP command preview is invalid.");
       const result = await spawnProcess(executable, argumentsList, {
         cwd: this.workspaceRoot,
+        timeoutMs: installTimeoutMs,
       }).completed;
       if (result.exitCode !== 0) {
         throw new Error(
@@ -579,6 +582,7 @@ async function executableExists(executable: string): Promise<boolean> {
   try {
     const result = await spawnProcess(executable, ["--version"], {
       cwd: process.cwd(),
+      timeoutMs: executableProbeTimeoutMs,
     }).completed;
     return result.exitCode === 0;
   } catch {

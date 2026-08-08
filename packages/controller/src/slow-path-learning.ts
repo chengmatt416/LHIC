@@ -27,7 +27,10 @@ export interface SlowPathActionOutcome {
 }
 
 export interface SlowPathActionExecutor {
-  execute(action: SemanticAction): Promise<SlowPathActionOutcome>;
+  execute(
+    action: SemanticAction,
+    signal?: AbortSignal,
+  ): Promise<SlowPathActionOutcome>;
   rememberVerifiedAction?(
     action: SemanticAction,
     verification: VerificationResult,
@@ -87,7 +90,11 @@ export class SlowPathLearningCoordinator {
       if (!isVerifiedSuccess(outcome)) {
         return { response, outcomes };
       }
-      executor.rememberVerifiedAction?.(action, outcome.verification);
+      try {
+        executor.rememberVerifiedAction?.(action, outcome.verification);
+      } catch {
+        // Optional learning must not turn a verified physical action into a retry.
+      }
     }
 
     const definition = compileSlowPathSkill(request, actions, outcomes);

@@ -83,9 +83,8 @@ export async function verifyDesktopObservation(
 
   // Check for expected role
   if (params.expectedRole) {
-    const found = observation.interactiveElements?.some(
-      (el) =>
-        el.role.toLowerCase().includes(params.expectedRole!.toLowerCase()),
+    const found = observation.interactiveElements?.some((el) =>
+      el.role.toLowerCase().includes(params.expectedRole!.toLowerCase()),
     );
     if (!found) {
       return {
@@ -99,11 +98,10 @@ export async function verifyDesktopObservation(
 
   // Check for expected element name
   if (params.expectedElementName) {
-    const found = observation.interactiveElements?.some(
-      (el) =>
-        el.name
-          ?.toLowerCase()
-          .includes(params.expectedElementName!.toLowerCase()),
+    const found = observation.interactiveElements?.some((el) =>
+      el.name
+        ?.toLowerCase()
+        .includes(params.expectedElementName!.toLowerCase()),
     );
     if (!found) {
       return {

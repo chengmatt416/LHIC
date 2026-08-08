@@ -89,15 +89,12 @@ export async function executeWithParallelism(
       sequentialTimeEstimate += result.latencyMs;
     } else {
       // Parallel execution
-      const groupStartedAt = performance.now();
       const groupResults = await Promise.all(
         group.map(async ({ action, index }) => {
           const result = await executor.execute(action);
           return { result, index };
         }),
       );
-
-      const groupLatency = performance.now() - groupStartedAt;
 
       for (const { result, index } of groupResults) {
         results[index] = result;

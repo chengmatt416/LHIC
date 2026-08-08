@@ -58,6 +58,12 @@ export class BrowserStateObserver {
         "button, input, select, textarea, canvas, a[href], [role], details, summary, [contenteditable], [tabindex]:not([tabindex='-1'])",
       )
       .evaluateAll((elements) => {
+        const siblingPositions = new WeakMap<
+          Element,
+          { index: number; count: number }
+        >();
+        const tableHeaders = new WeakMap<Element, Element[]>();
+        const rowLabels = new WeakMap<Element, string | undefined>();
         return elements.map((element, index) => {
           const input = element as HTMLInputElement;
           const labelledBy = element.getAttribute("aria-labelledby");
@@ -89,11 +95,7 @@ export class BrowserStateObserver {
           const testId = element.getAttribute("data-testid");
           const name = element.getAttribute("name");
           const tagName = element.tagName.toLowerCase();
-          const indexWithinType = Array.from(
-            element.parentElement?.children ?? [],
-          )
-            .filter((sibling) => sibling.tagName.toLowerCase() === tagName)
-            .indexOf(element);
+          const { index: indexWithinType } = siblingPosition(element);
           const selector = element.id
             ? `#${CSS.escape(element.id)}`
             : testId
@@ -142,33 +144,57 @@ export class BrowserStateObserver {
           const row = cell?.parentElement;
           const table = row?.closest("table");
           if (!cell || !row || !table) return undefined;
-          const column = Array.from(row.children).indexOf(cell);
-          const header = table
-            .querySelectorAll("th")
-            .item(column)
-            ?.textContent?.trim();
-          const rowLabel =
-            row.querySelector("input")?.getAttribute("value")?.trim() ||
-            row.querySelector("input")?.value?.trim() ||
-            Array.from(row.children)
-              .map((child) => child.textContent?.trim())
-              .find(Boolean);
+          const column = Array.prototype.indexOf.call(row.children, cell);
+          let headers = tableHeaders.get(table);
+          if (!headers) {
+            headers = Array.from(table.querySelectorAll("th"));
+            tableHeaders.set(table, headers);
+          }
+          const header = headers[column]?.textContent?.trim();
+          let rowLabel: string | undefined;
+          if (rowLabels.has(row)) {
+            rowLabel = rowLabels.get(row);
+          } else {
+            rowLabel =
+              row.querySelector("input")?.getAttribute("value")?.trim() ||
+              row.querySelector("input")?.value?.trim() ||
+              Array.from(row.children)
+                .map((child) => child.textContent?.trim())
+                .find(Boolean);
+            rowLabels.set(row, rowLabel);
+          }
           return rowLabel && header ? `${rowLabel} ${header}` : header;
         }
-
+        function siblingPosition(element: Element): {
+          index: number;
+          count: number;
+        } {
+          const cached = siblingPositions.get(element);
+          if (cached) return cached;
+          const siblings = element.parentElement?.children;
+          if (!siblings) {
+            const position = { index: 0, count: 1 };
+            siblingPositions.set(element, position);
+            return position;
+          }
+          const matching: Element[] = [];
+          for (const sibling of siblings) {
+            if (sibling.tagName === element.tagName) matching.push(sibling);
+          }
+          matching.forEach((sibling, index) => {
+            siblingPositions.set(sibling, { index, count: matching.length });
+          });
+          return siblingPositions.get(element) ?? { index: 0, count: 1 };
+        }
         function uniqueSelector(element: Element): string | undefined {
           const parts: string[] = [];
           let current: Element | null = element;
           while (current && current !== document.documentElement) {
             const tag = current.tagName.toLowerCase();
-            const siblings = current.parentElement
-              ? Array.from(current.parentElement.children).filter(
-                  (candidate) => candidate.tagName === current?.tagName,
-                )
-              : [];
+            const position = siblingPosition(current);
             const part =
-              siblings.length > 1
-                ? `${tag}:nth-of-type(${siblings.indexOf(current) + 1})`
+              position.count > 1
+                ? `${tag}:nth-of-type(${position.index + 1})`
                 : tag;
             parts.unshift(part);
             const candidate = parts.join(" > ");

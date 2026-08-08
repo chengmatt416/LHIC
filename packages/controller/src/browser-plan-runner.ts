@@ -33,6 +33,8 @@ export interface BrowserPlanStepOutcome {
   stepId: string;
   execution: ActionExecutionResult;
   verification: VerificationResult;
+  /** The validated, action-bound approval used for this step, when required. */
+  approvalReceipt?: ActionApproval;
 }
 
 export interface BrowserPlanRunOptions {
@@ -92,11 +94,11 @@ export async function executeBrowserPlan(
   const completedSteps: BrowserPlanStepOutcome[] = [];
   for (let index = startAt; index < plan.steps.length; index += 1) {
     const step = plan.steps[index]!;
-    const approvalRequired = actionRequiresApproval(
-      step.action,
-      { requireActivationApproval: options.requireActivationApproval ?? false },
-    );
+    const approvalRequired = actionRequiresApproval(step.action, {
+      requireActivationApproval: options.requireActivationApproval ?? false,
+    });
     const suppliedApproval = options.approvals?.[step.id];
+    let approvalReceipt: ActionApproval | undefined;
     if (approvalRequired) {
       const approval =
         suppliedApproval ??
@@ -114,8 +116,7 @@ export async function executeBrowserPlan(
           ...(options.approvalScope
             ? { expectedScope: options.approvalScope }
             : {}),
-          confirmationReason:
-            "The batch plan requires human approval for this activation or high-risk action.",
+          confirmationReason: approvalRequired,
         },
       );
       if (!decision.allowed) {
@@ -127,9 +128,24 @@ export async function executeBrowserPlan(
           approval,
         };
       }
+      approvalReceipt = suppliedApproval;
     }
 
-    const execution = await executor.execute(step.action, suppliedApproval);
+    let execution: ActionExecutionResult;
+    try {
+      execution = await executor.execute(step.action, suppliedApproval);
+    } catch (error) {
+      return {
+        status: "failed",
+        completedSteps,
+        nextStepIndex: index,
+        stepId: step.id,
+        error:
+          error instanceof Error && error.message.trim()
+            ? `Browser action executor failed: ${error.message.trim()}`
+            : "Browser action executor failed.",
+      };
+    }
     if (!execution.success) {
       return {
         status: "failed",
@@ -139,8 +155,27 @@ export async function executeBrowserPlan(
         error: execution.error ?? "The browser action did not complete.",
       };
     }
-    const verification = await verifier.verify(step.verification);
-    const outcome = { stepId: step.id, execution, verification };
+    let verification: VerificationResult;
+    try {
+      verification = await verifier.verify(step.verification);
+    } catch (error) {
+      return {
+        status: "failed",
+        completedSteps,
+        nextStepIndex: index,
+        stepId: step.id,
+        error:
+          error instanceof Error && error.message.trim()
+            ? `Browser plan verifier failed: ${error.message.trim()}`
+            : "Browser plan verifier failed.",
+      };
+    }
+    const outcome = {
+      stepId: step.id,
+      execution,
+      verification,
+      ...(approvalReceipt ? { approvalReceipt } : {}),
+    };
     completedSteps.push(outcome);
     if (!verification.success || verification.evidence.length === 0) {
       return {
@@ -153,7 +188,11 @@ export async function executeBrowserPlan(
           "The required post-action verifier did not produce evidence.",
       };
     }
-    executor.rememberVerifiedAction?.(step.action, verification);
+    try {
+      executor.rememberVerifiedAction?.(step.action, verification);
+    } catch {
+      // Optional learning must not turn a verified physical action into a retry.
+    }
   }
 
   return {
@@ -179,15 +218,8 @@ export function resolveBrowserPlanVariables(
     plan.requiredVariables.map((variable) => variable.name),
   );
   for (const step of plan.steps) {
-    if (
-      typeof step.action.value === "string" &&
-      isVariableExpression(step.action.value) &&
-      !declaredVariables.has(variableName(step.action.value))
-    ) {
-      throw new Error(
-        `Browser plan references undeclared variable ${variableName(step.action.value)}.`,
-      );
-    }
+    assertDeclaredVariable(step.action.value, declaredVariables);
+    assertDeclaredVariable(step.action.filePath, declaredVariables);
   }
   return {
     ...plan,
@@ -198,9 +230,27 @@ export function resolveBrowserPlanVariables(
         ...(typeof step.action.value === "string"
           ? { value: substituteVariable(step.action.value, values) }
           : {}),
+        ...(typeof step.action.filePath === "string"
+          ? { filePath: substituteVariable(step.action.filePath, values) }
+          : {}),
       },
     })),
   };
+}
+
+function assertDeclaredVariable(
+  value: unknown,
+  declaredVariables: ReadonlySet<string>,
+): void {
+  if (
+    typeof value === "string" &&
+    isVariableExpression(value) &&
+    !declaredVariables.has(variableName(value))
+  ) {
+    throw new Error(
+      `Browser plan references undeclared variable ${variableName(value)}.`,
+    );
+  }
 }
 
 function substituteVariable(
@@ -222,5 +272,3 @@ function variableName(value: string): string {
 function variableExpression(value: string): RegExpExecArray | null {
   return /^\{\{variables\.([A-Za-z][A-Za-z0-9_-]*)\}\}$/.exec(value);
 }
-
-

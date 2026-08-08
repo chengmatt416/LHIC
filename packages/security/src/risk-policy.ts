@@ -93,6 +93,9 @@ export function actionRequiresApproval(
   if (isGlobalComputerAction(action)) {
     return "Global desktop actions require explicit human approval.";
   }
+  if (action.type === "upload") {
+    return "Uploading a local file requires explicit human approval.";
+  }
   const policy = evaluateRisk(action);
   if (policy.requiresConfirmation) {
     return policy.reason;

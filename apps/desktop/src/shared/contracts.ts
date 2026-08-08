@@ -1,3 +1,5 @@
+import type { SemanticActionType } from "@lhic/schema";
+
 export const taskSourceKinds = [
   "codex-cli",
   "antigravity-cli",
@@ -50,23 +52,7 @@ export interface TaskProposalSummary {
   stepCount: number;
   steps: Array<{
     id: string;
-    action:
-      | "navigate"
-      | "click"
-      | "fill"
-      | "select"
-      | "press"
-      | "wait"
-      | "download"
-      | "os_click"
-      | "os_type"
-      | "os_press"
-      | "os_launch"
-      | "os_focus"
-      | "os_screenshot"
-      | "os_observe"
-      | "os_scroll"
-      | "os_clipboard";
+    action: Exclude<SemanticActionType, "custom">;
     intent: string;
     riskLevel: "low" | "medium" | "high" | "unknown";
     verifier: string;

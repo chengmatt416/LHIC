@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
-import { promisify } from "node:util";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { isGlobalComputerAction } from "@lhic/schema";
 import type {
@@ -20,13 +20,13 @@ import {
 } from "@lhic/security";
 import { appendTraceEvent } from "@lhic/trace";
 
-const execFileAsync = promisify(execFile);
-
 export type GlobalDesktopPlatform = "darwin" | "win32" | "linux";
 
 export interface GlobalCommand {
   file: string;
   args: string[];
+  /** Optional standard input, passed without invoking a shell. */
+  input?: string;
 }
 
 export interface GlobalCommandResult {
@@ -43,6 +43,13 @@ export interface GlobalDesktopState {
   title?: string;
 }
 
+export interface GlobalDesktopGeometry {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface GlobalComputerExecutorOptions {
   taskId?: string;
   traceFilePath?: string;
@@ -50,6 +57,8 @@ export interface GlobalComputerExecutorOptions {
   runner?: GlobalCommandRunner;
   approvalValidation?: ActionApprovalValidationOptions;
   approvalReplayStore?: ApprovalReplayStore;
+  verificationTimeoutMs?: number;
+  verificationPollIntervalMs?: number;
 }
 
 export interface GlobalControlCapability {
@@ -70,6 +79,8 @@ export class GlobalComputerExecutor {
   private readonly runner: GlobalCommandRunner;
   private readonly approvalValidation: ActionApprovalValidationOptions;
   private readonly approvalReplayStore: ApprovalReplayStore | undefined;
+  private readonly verificationTimeoutMs: number;
+  private readonly verificationPollIntervalMs: number;
 
   public constructor(options: GlobalComputerExecutorOptions = {}) {
     this.taskId = options.taskId ?? "global-computer-session";
@@ -88,6 +99,16 @@ export class GlobalComputerExecutor {
             join(dirname(this.traceFilePath), "approval-replay"),
           )
         : undefined);
+    this.verificationTimeoutMs = boundedDuration(
+      options.verificationTimeoutMs,
+      5_000,
+      "verificationTimeoutMs",
+    );
+    this.verificationPollIntervalMs = boundedDuration(
+      options.verificationPollIntervalMs,
+      100,
+      "verificationPollIntervalMs",
+    );
   }
 
   public async execute(
@@ -142,8 +163,15 @@ export class GlobalComputerExecutor {
       }
 
       await this.verifyTargetBeforeDispatch(action);
-      await this.runner.run(buildGlobalComputerCommand(action, this.platform));
-      const verificationEvidence = await this.verify(action.verifier);
+      const commandResult = await this.runner.run(
+        buildGlobalComputerCommand(action, this.platform),
+      );
+      const verificationEvidence = await this.verifyUntil(action.verifier);
+      const output = outputForGlobalAction(
+        action,
+        commandResult,
+        this.platform,
+      );
       const result: ActionExecutionResult = {
         success: true,
         method,
@@ -151,7 +179,13 @@ export class GlobalComputerExecutor {
         evidence: [
           `Dispatched ${action.type} through the ${this.platform} native ${method} API.`,
           verificationEvidence,
+          ...(output === undefined
+            ? []
+            : [
+                `Captured ${output.length} characters of ephemeral action output.`,
+              ]),
         ],
+        ...(output === undefined ? {} : { output }),
       };
       await this.trace(
         "global_action_completed",
@@ -208,6 +242,43 @@ export class GlobalComputerExecutor {
     return "Verified a running application against the requested verifier.";
   }
 
+  private async verifyUntil(
+    verifier: GlobalComputerVerification,
+  ): Promise<string> {
+    const deadline = performance.now() + this.verificationTimeoutMs;
+    let lastError: unknown;
+    do {
+      const remainingMs = Math.max(1, Math.ceil(deadline - performance.now()));
+      try {
+        return await this.verifyWithin(verifier, remainingMs);
+      } catch (error) {
+        lastError = error;
+      }
+      const sleepMs = Math.min(
+        this.verificationPollIntervalMs,
+        Math.max(0, deadline - performance.now()),
+      );
+      if (sleepMs > 0) await sleep(sleepMs);
+    } while (performance.now() < deadline);
+    throw lastError ?? new Error("Global desktop verification timed out.");
+  }
+
+  private async verifyWithin(
+    verifier: GlobalComputerVerification,
+    timeoutMs: number,
+  ): Promise<string> {
+    const { promise: interrupted, reject } = Promise.withResolvers<never>();
+    const timer = setTimeout(
+      () => reject(new Error("Global desktop verification timed out.")),
+      timeoutMs,
+    );
+    try {
+      return await Promise.race([this.verify(verifier), interrupted]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async verifyTargetBeforeDispatch(
     action: GlobalComputerAction,
   ): Promise<void> {
@@ -224,7 +295,28 @@ export class GlobalComputerExecutor {
         "Keyboard and coordinate input require an active-window verifier with an application or title.",
       );
     }
-    await this.verify(action.verifier);
+    await this.verifyWithin(action.verifier, this.verificationTimeoutMs);
+    if (
+      action.type === "os_click" &&
+      methodForGlobalAction(action) === "mouse"
+    ) {
+      const geometry = await inspectGlobalDesktopGeometry(
+        this.runner,
+        this.platform,
+      );
+      const x = action.x!;
+      const y = action.y!;
+      if (
+        x < geometry.left ||
+        y < geometry.top ||
+        x >= geometry.left + geometry.width ||
+        y >= geometry.top + geometry.height
+      ) {
+        throw new Error(
+          `Coordinate (${x}, ${y}) is outside the current desktop bounds.`,
+        );
+      }
+    }
   }
 
   private async trace(
@@ -245,15 +337,28 @@ export class GlobalComputerExecutor {
 
 export class ExecFileGlobalCommandRunner implements GlobalCommandRunner {
   public async run(command: GlobalCommand): Promise<GlobalCommandResult> {
-    const result = await execFileAsync(command.file, command.args, {
-      windowsHide: true,
-      timeout: 15_000,
-      maxBuffer: 1_024 * 1_024,
-    });
-    return {
-      stdout: String(result.stdout),
-      stderr: String(result.stderr),
-    };
+    const { promise, resolve, reject } =
+      Promise.withResolvers<GlobalCommandResult>();
+    const child = execFile(
+      command.file,
+      command.args,
+      {
+        windowsHide: true,
+        timeout: 15_000,
+        maxBuffer: 1_024 * 1_024,
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve({ stdout: String(stdout), stderr: String(stderr) });
+      },
+    );
+    if (command.input !== undefined) {
+      child.stdin?.end(command.input);
+    }
+    return promise;
   }
 }
 
@@ -395,6 +500,64 @@ export async function inspectActiveGlobalDesktop(
   }
 }
 
+export async function inspectGlobalDesktopGeometry(
+  runner: GlobalCommandRunner,
+  platform: GlobalDesktopPlatform,
+): Promise<GlobalDesktopGeometry> {
+  if (platform === "darwin") {
+    const result = await runner.run({
+      file: "osascript",
+      args: [
+        "-e",
+        'tell application "Finder" to get bounds of window of desktop',
+      ],
+    });
+    const values = result.stdout.match(/-?\d+/g)?.map(Number);
+    if (!values || values.length < 4) {
+      throw new Error("macOS did not expose the desktop bounds.");
+    }
+    const [left, top, right, bottom] = values;
+    return validDesktopGeometry({
+      left: left!,
+      top: top!,
+      width: right! - left!,
+      height: bottom! - top!,
+    });
+  }
+  if (platform === "win32") {
+    const result = await runner.run(
+      powerShellCommand(windowsDesktopGeometryScript),
+    );
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.stdout);
+    } catch {
+      throw new Error("Windows did not expose the desktop bounds.");
+    }
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("Windows did not expose the desktop bounds.");
+    }
+    const candidate = parsed as Record<string, unknown>;
+    return validDesktopGeometry({
+      left: candidate.left,
+      top: candidate.top,
+      width: candidate.width,
+      height: candidate.height,
+    });
+  }
+  const result = await runner.run({
+    file: "xdotool",
+    args: ["getdisplaygeometry"],
+  });
+  const values = result.stdout.trim().split(/\s+/).map(Number);
+  return validDesktopGeometry({
+    left: 0,
+    top: 0,
+    width: values[0],
+    height: values[1],
+  });
+}
+
 async function isGlobalProcessRunning(
   runner: GlobalCommandRunner,
   platform: GlobalDesktopPlatform,
@@ -475,12 +638,11 @@ function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
     case "os_scroll": {
       const direction = action.scrollDirection ?? "down";
       const amount = action.scrollAmount ?? 3;
-      const y = direction === "up" ? amount : -amount;
       return {
         file: "osascript",
         args: [
           "-e",
-          `tell application "System Events" to scroll ${y > 0 ? "up" : "down"} ${Math.abs(y)}`,
+          `tell application "System Events" to scroll ${direction} ${amount}`,
         ],
       };
     }
@@ -488,8 +650,8 @@ function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
       if (action.clipboardAction === "read") {
         return { file: "pbpaste", args: [] };
       }
-      if (action.clipboardAction === "copy" && action.text) {
-        return { file: "pbcopy", args: [] };
+      if (action.clipboardAction === "copy") {
+        return { file: "pbcopy", args: [], input: action.text ?? "" };
       }
       // paste: Cmd+V
       return appleScriptCommand(
@@ -524,7 +686,9 @@ function buildWindowsCommand(action: GlobalComputerAction): GlobalCommand {
       return powerShellCommand(windowsFocusScript(action.application ?? ""));
     case "os_screenshot":
       return powerShellCommand(
-        windowsScreenshotScript(action.outputPath ?? "\\temp\\lhic-screenshot.png"),
+        windowsScreenshotScript(
+          action.outputPath ?? "\\temp\\lhic-screenshot.png",
+        ),
       );
     case "os_observe":
       return powerShellCommand(
@@ -536,17 +700,15 @@ function buildWindowsCommand(action: GlobalComputerAction): GlobalCommand {
     case "os_scroll": {
       const direction = action.scrollDirection ?? "down";
       const amount = action.scrollAmount ?? 3;
-      return powerShellCommand(
-        windowsScrollScript(direction, amount),
-      );
+      return powerShellCommand(windowsScrollScript(direction, amount));
     }
     case "os_clipboard":
       if (action.clipboardAction === "read") {
         return powerShellCommand("Get-Clipboard");
       }
-      if (action.clipboardAction === "copy" && action.text) {
+      if (action.clipboardAction === "copy") {
         return powerShellCommand(
-          `Set-Clipboard -Value ${powerShellString(action.text)}`,
+          `Set-Clipboard -Value ${powerShellString(action.text ?? "")}`,
         );
       }
       // paste: Ctrl+V
@@ -597,6 +759,8 @@ function buildLinuxCommand(action: GlobalComputerAction): GlobalCommand {
         args: [
           "search",
           "--onlyvisible",
+          "--limit",
+          "1",
           "--name",
           action.application ?? "",
           "windowactivate",
@@ -606,39 +770,51 @@ function buildLinuxCommand(action: GlobalComputerAction): GlobalCommand {
     case "os_screenshot":
       return {
         file: "import",
-        args: ["-window", "root", action.outputPath ?? "/tmp/lhic-screenshot.png"],
+        args: [
+          "-window",
+          "root",
+          action.outputPath ?? "/tmp/lhic-screenshot.png",
+        ],
       };
     case "os_observe":
+      if ((action.observeScope ?? "active_window") === "active_window") {
+        return {
+          file: "xdotool",
+          args: ["getactivewindow", "getwindowname"],
+        };
+      }
       return {
         file: "xdotool",
         args: [
           "search",
           "--onlyvisible",
+          ...(action.observeScope === "application" ? ["--limit", "1"] : []),
           "--name",
-          action.application ?? "",
+          action.observeScope === "application"
+            ? (action.application ?? "")
+            : ".",
           "getwindowname",
         ],
       };
     case "os_scroll": {
       const direction = action.scrollDirection ?? "down";
       const amount = action.scrollAmount ?? 3;
-      const button = direction === "up" ? "4" : "5";
+      const button = { up: "4", down: "5", left: "6", right: "7" }[direction];
       return {
         file: "xdotool",
-        args: [
-          "click",
-          "--repeat",
-          String(amount),
-          button,
-        ],
+        args: ["click", "--repeat", String(amount), button],
       };
     }
     case "os_clipboard":
       if (action.clipboardAction === "read") {
         return { file: "xclip", args: ["-selection", "clipboard", "-o"] };
       }
-      if (action.clipboardAction === "copy" && action.text) {
-        return { file: "xclip", args: ["-selection", "clipboard"] };
+      if (action.clipboardAction === "copy") {
+        return {
+          file: "xclip",
+          args: ["-selection", "clipboard", "-i"],
+          input: action.text ?? "",
+        };
       }
       // paste: Ctrl+V
       return {
@@ -887,52 +1063,64 @@ end run`;
 function windowsScreenshotScript(outputPath: string): string {
   return `Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
-$screen = [System.Windows.Forms.Screen]::PrimaryScreen
-$bitmap = New-Object System.Drawing.Bitmap($screen.Bounds.Width, $screen.Bounds.Height)
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-$graphics.CopyFromScreen($screen.Bounds.Location, [System.Drawing.Point]::Empty, $screen.Bounds.Size)
+$graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
 $bitmap.Save(${powerShellString(outputPath)}, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bitmap.Dispose()
-Write-Output "Screenshot saved to ${outputPath}"`;
+Write-Output ${powerShellString(`Screenshot saved to ${outputPath}`)}`;
 }
 
 // Windows accessibility tree observation script
-function windowsObserveScript(
-  application: string,
-  scope: string,
-): string {
+function windowsObserveScript(application: string, scope: string): string {
   return `Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class ActiveWindowProbe {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+}
+'@
 
-$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1
-if ($null -eq $proc) { throw "Application process not found" }
+$scope = ${powerShellString(scope)}
+$application = ${powerShellString(application)}
+if ($scope -eq 'active_window') {
+  $window = [ActiveWindowProbe]::GetForegroundWindow()
+  $processId = 0
+  [ActiveWindowProbe]::GetWindowThreadProcessId($window, [ref]$processId) | Out-Null
+  $processes = @(Get-Process -Id $processId -ErrorAction Stop)
+} elseif ($scope -eq 'application') {
+  $processes = @(Get-Process | Where-Object {
+    $_.MainWindowHandle -ne 0 -and
+    ($_.MainWindowTitle -like ('*' + $application + '*') -or $_.ProcessName -like ('*' + $application + '*'))
+  } | Select-Object -First 1)
+} else {
+  $processes = @(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 })
+}
+if ($processes.Count -eq 0) { throw "Application window was not found" }
 
-$ae = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
 $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
-
 function Get-ElementTree($element, $depth = 0) {
   $result = @()
+  if ($depth -gt 8) { return $result }
   try {
-    $name = $element.Current.Name
-    $role = $element.Current.ControlType.ProgrammaticName
-    $enabled = $element.Current.IsEnabled
-    $focused = $element.Current.HasKeyboardFocus
     $value = ""
     try {
       $vp = $element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
       $value = $vp.Current.Value
     } catch {}
-
     $result += @{
-      role = $role
-      name = $name
-      enabled = $enabled
-      focused = $focused
+      role = $element.Current.ControlType.ProgrammaticName
+      name = $element.Current.Name
+      enabled = $element.Current.IsEnabled
+      focused = $element.Current.HasKeyboardFocus
       value = $value
       depth = $depth
     }
-
     $child = $walker.GetFirstChild($element)
     while ($null -ne $child) {
       $result += Get-ElementTree $child ($depth + 1)
@@ -942,23 +1130,27 @@ function Get-ElementTree($element, $depth = 0) {
   return $result
 }
 
-$tree = Get-ElementTree $ae
-$tree | ConvertTo-Json -Compress`;
+$observations = foreach ($proc in $processes) {
+  $root = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+  if ($null -ne $root) {
+    @{
+      application = $proc.ProcessName
+      title = $proc.MainWindowTitle
+      elements = @(Get-ElementTree $root)
+    }
+  }
+}
+@($observations) | ConvertTo-Json -Compress -Depth 12`;
 }
 
 // Windows scroll script
-function windowsScrollScript(
-  direction: string,
-  amount: number,
-): string {
-  const scrollDelta = direction === "up" ? amount * 120 : -amount * 120;
+function windowsScrollScript(direction: string, amount: number): string {
+  const horizontal = direction === "left" || direction === "right";
+  const positive = direction === "up" || direction === "right";
+  const scrollDelta = (positive ? amount : -amount) * 120;
+  const eventFlag = horizontal ? "0x1000" : "0x0800";
   return `${windowsNativeInputScript}
-Add-Type -AssemblyName System.Windows.Forms
-[System.Windows.Forms.SendKeys]::SendWait("")
-$pos = [System.Windows.Forms.Cursor]::Position
-[Native]::SetCursorPos($pos.X, $pos.Y) | Out-Null
-${windowsNativeInputScript}
-[Native]::mouse_event(0x0800, 0, 0, ${scrollDelta}, [UIntPtr]::Zero)`;
+[Native]::mouse_event(${eventFlag}, 0, 0, ${scrollDelta}, [UIntPtr]::Zero)`;
 }
 
 function parseWindowsDesktopState(stdout: string): GlobalDesktopState {
@@ -983,6 +1175,65 @@ function parseWindowsDesktopState(stdout: string): GlobalDesktopState {
   };
 }
 
+function validDesktopGeometry(
+  geometry: Record<keyof GlobalDesktopGeometry, unknown>,
+): GlobalDesktopGeometry {
+  const { left, top, width, height } = geometry;
+  if (
+    typeof left !== "number" ||
+    !Number.isInteger(left) ||
+    typeof top !== "number" ||
+    !Number.isInteger(top) ||
+    typeof width !== "number" ||
+    !Number.isInteger(width) ||
+    width <= 0 ||
+    typeof height !== "number" ||
+    !Number.isInteger(height) ||
+    height <= 0
+  ) {
+    throw new Error("The operating system returned invalid desktop bounds.");
+  }
+  return { left, top, width, height };
+}
+
+function outputForGlobalAction(
+  action: GlobalComputerAction,
+  result: GlobalCommandResult,
+  platform: GlobalDesktopPlatform,
+): string | undefined {
+  if (action.type === "os_observe") {
+    const output = result.stdout.trim();
+    if (!output) {
+      throw new Error("Desktop observation returned no output.");
+    }
+    return output.slice(0, 256_000);
+  }
+  if (action.type === "os_clipboard" && action.clipboardAction === "read") {
+    return result.stdout.slice(0, 256_000);
+  }
+  if (action.type === "os_screenshot") {
+    return (
+      action.outputPath ??
+      (platform === "win32"
+        ? "\\temp\\lhic-screenshot.png"
+        : "/tmp/lhic-screenshot.png")
+    );
+  }
+  return undefined;
+}
+
+function boundedDuration(
+  value: number | undefined,
+  fallback: number,
+  name: string,
+): number {
+  const duration = value ?? fallback;
+  if (!Number.isInteger(duration) || duration < 1 || duration > 30_000) {
+    throw new Error(`${name} must be an integer from 1 to 30000 milliseconds.`);
+  }
+  return duration;
+}
+
 function containsNormalized(actual: string, expected: string): boolean {
   return actual.toLocaleLowerCase().includes(expected.toLocaleLowerCase());
 }
@@ -1000,7 +1251,7 @@ function capabilityInstallHint(platform: GlobalDesktopPlatform): string {
 function safeGlobalActionError(error: unknown): string {
   if (
     error instanceof Error &&
-    /approval|method|verifier|active application|window title|process is not running|unsupported/i.test(
+    /approval|method|verifier|verification|timed out|active application|window title|process is not running|unsupported|coordinate|desktop bounds|observation/i.test(
       error.message,
     )
   ) {
@@ -1132,8 +1383,7 @@ const windowsNativeInputScript = `Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class Native {
-  [DllImport("user32.dll", SetLastError = true)] public static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll", SetLastError = true)] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+  [DllImport("user32.dll", SetLastError = true)] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 '@`;
@@ -1158,21 +1408,35 @@ $processId = 0
 $process = Get-Process -Id $processId -ErrorAction Stop
 @{ application = $process.ProcessName; title = $title.ToString() } | ConvertTo-Json -Compress`;
 
+const windowsDesktopGeometryScript = `Add-Type -AssemblyName System.Windows.Forms
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+@{
+  left = $bounds.Left
+  top = $bounds.Top
+  width = $bounds.Width
+  height = $bounds.Height
+} | ConvertTo-Json -Compress`;
+
 function windowsAccessibilityClickScript(
   application: string,
   target: string,
 ): string {
   return `Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
-$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1
+$application = ${powerShellString(application)}
+$target = ${powerShellString(target)}
+$proc = Get-Process | Where-Object {
+  $_.MainWindowHandle -ne 0 -and
+  ($_.MainWindowTitle -like ('*' + $application + '*') -or $_.ProcessName -like ('*' + $application + '*'))
+} | Select-Object -First 1
 if ($null -eq $proc) { throw "Application process not found" }
 $ae = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
 $condition = New-Object System.Windows.Automation.OrCondition(
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "${target}")),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, "${target}"))
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $target)),
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $target))
 )
 $elem = $ae.FindFirst([System.Windows.Automation.TreeScope]::Subtree, $condition)
-if ($null -eq $elem) { throw "Accessibility element ${target} not found" }
+if ($null -eq $elem) { throw "Accessibility element was not found" }
 $invokePattern = $null
 try {
   $invokePattern = $elem.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
