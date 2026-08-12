@@ -89,11 +89,16 @@ async function findAsarArchives(directory) {
 function isCurrentPlatformArchive(archive) {
   const marker =
     process.platform === "darwin"
-      ? `${sep}mac-`
+      ? `${sep}mac`
       : process.platform === "win32"
-        ? `${sep}win-`
-        : `${sep}linux-`;
-  return archive.includes(marker);
+        ? `${sep}win`
+        : `${sep}linux`;
+  // electron-builder appOutDir is arch-suffixed for arm64 (`mac-arm64`) but
+  // plain for x64 (`mac`); match either so cross-arch and native builds both
+  // pass verification.
+  return (
+    archive.includes(`${marker}-`) || archive.includes(`${marker}${sep}`)
+  );
 }
 
 function normalizeArchiveEntry(entry) {
@@ -101,7 +106,8 @@ function normalizeArchiveEntry(entry) {
 }
 
 function isMacArchive(archive) {
-  return archive.includes(`${sep}mac-`);
+  const marker = `${sep}mac`;
+  return archive.includes(`${marker}-`) || archive.includes(`${marker}${sep}`);
 }
 
 function macApplicationBundle(archive) {
