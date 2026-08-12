@@ -76,7 +76,7 @@ describe("ProvisioningService", () => {
     expect(calls.filter((file) => file === "python3").length).toBe(2); // import check + no install
   });
 
-  it("provisions OmniParser and Chromium on Linux", async () => {
+  it("provisions OmniParser with the pip ladder and Chromium on Linux", async () => {
     const calls: Array<{ file: string; args: string[] }> = [];
     const service = new ProvisioningService({
       userDataDir: directory,
@@ -94,14 +94,50 @@ describe("ProvisioningService", () => {
     const report = await service.ensureProvisioned();
     const omniparserSteps = report.filter((step) => step.name === "omniparser");
     expect(
-      omniparserSteps.some((step) => step.message.includes("--break-system-packages")),
+      omniparserSteps.some((step) => step.message.includes("pip ladder")),
+    ).toBe(true);
+    expect(
+      omniparserSteps.at(-1)?.message.includes("install failed"),
     ).toBe(true);
     const pipCalls = calls.filter(
       (call) => call.file === "python3" && call.args[0] === "-m",
     );
-    expect(pipCalls).toHaveLength(2);
-    expect(pipCalls[1]?.args).toContain("--break-system-packages");
+    expect(pipCalls).toHaveLength(3); // --user → --user --break-system-packages → system
+    expect(
+      pipCalls.some((call) => call.args.includes("--break-system-packages")),
+    ).toBe(true);
     expect(calls.some((call) => call.file === "npx")).toBe(true);
+  });
+
+  it("reports OmniParser installed only when the import verification passes", async () => {
+    let pipAttempts = 0;
+    let installed = false;
+    const calls: Array<{ file: string; args: string[] }> = [];
+    const service = new ProvisioningService({
+      userDataDir: directory,
+      execFileImplementation: fakeExecFile((file, args) => {
+        calls.push({ file, args });
+        if (file === "python3" && args[0] === "-c") {
+          return installed ? { code: 0, stdout: "ok" } : { code: 1, stderr: "ModuleNotFoundError" };
+        }
+        if (file === "python3" && args[0] === "-m") {
+          pipAttempts += 1;
+          if (pipAttempts === 2) {
+            installed = true;
+            return { code: 0 };
+          }
+          return { code: 1, stderr: "error: externally-managed-environment" };
+        }
+        if (file === "npx") return {};
+        return { code: 0 }; // --version probes succeed
+      }),
+    });
+    const report = await service.ensureProvisioned();
+    const omniparserSteps = report.filter((step) => step.name === "omniparser");
+    expect(
+      omniparserSteps.some((step) => step.message.includes("installed (weights")),
+    ).toBe(true);
+    expect(pipAttempts).toBe(2);
   });
 
   it("skips Peekaboo on macOS below 15", async () => {

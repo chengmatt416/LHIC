@@ -183,31 +183,37 @@ async function provisionOmniParser(report) {
     report.push("omniparser: skipped — python3 is not available");
     return;
   }
-  if (checkOnly) {
-    report.push("omniparser: would install (pip install --user omni_parser_v2)");
-    return;
-  }
   const check = await run("python3", ["-c", "import omni_parser_v2; print('ok')"], 15_000);
   if (check.code === 0) {
     report.push("omniparser: omni_parser_v2 already installed");
     return;
   }
-  report.push("omniparser: installing omni_parser_v2 (pip --user)…");
-  let result = await run("python3", ["-m", "pip", "install", "--user", "omni_parser_v2"], 900_000);
-  if (result.code !== 0 && result.stderr.includes("externally-managed-environment")) {
-    // PEP 668 distros (Ubuntu 24.04+, Fedora 40+) refuse --user installs
-    // without explicit consent; the user asked for automatic provisioning.
-    report.push("omniparser: retrying with --break-system-packages (PEP 668 environment)…");
-    result = await run(
-      "python3",
-      ["-m", "pip", "install", "--user", "--break-system-packages", "omni_parser_v2"],
-      900_000,
-    );
+  if (checkOnly) {
+    report.push("omniparser: would install (pip ladder + import verification)");
+    return;
   }
-  if (result.code === 0) {
+  report.push("omniparser: installing omni_parser_v2 (pip ladder)…");
+  const attempts = [
+    ["python3", ["-m", "pip", "install", "--user", "omni_parser_v2"]],
+    ["python3", ["-m", "pip", "install", "--user", "--break-system-packages", "omni_parser_v2"]],
+    ["python3", ["-m", "pip", "install", "--break-system-packages", "omni_parser_v2"]],
+  ];
+  let lastError = "";
+  for (const [file, args] of attempts) {
+    const result = await run(file, args, 900_000);
+    if (result.code === 0) {
+      lastError = "";
+      break;
+    }
+    lastError = result.stderr.trim().slice(0, 300);
+  }
+  const verified = await run("python3", ["-c", "import omni_parser_v2; print('ok')"], 15_000);
+  if (verified.code === 0) {
     report.push("omniparser: installed (model weights download on first use)");
   } else {
-    report.push(`omniparser: install failed: ${result.stderr.trim().slice(0, 300)}`);
+    report.push(
+      `omniparser: install failed — ${lastError || "the import check still fails"} (check PyPI access / Python version)`,
+    );
   }
 }
 

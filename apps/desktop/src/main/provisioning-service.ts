@@ -175,20 +175,29 @@ export class ProvisioningService {
       report.push({ name: "omniparser", message: "omni_parser_v2 already installed" });
       return;
     }
-    report.push({ name: "omniparser", message: "installing omni_parser_v2 (pip --user)…" });
-    let result = await this.run("python3", ["-m", "pip", "install", "--user", "omni_parser_v2"], 900_000);
-    if (result.code !== 0 && result.stderr.includes("externally-managed-environment")) {
-      report.push({ name: "omniparser", message: "retrying with --break-system-packages (PEP 668)…" });
-      result = await this.run(
-        "python3",
-        ["-m", "pip", "install", "--user", "--break-system-packages", "omni_parser_v2"],
-        900_000,
-      );
+    report.push({ name: "omniparser", message: "installing omni_parser_v2 (pip ladder)…" });
+    const attempts: Array<[string, string[]]> = [
+      ["python3", ["-m", "pip", "install", "--user", "omni_parser_v2"]],
+      ["python3", ["-m", "pip", "install", "--user", "--break-system-packages", "omni_parser_v2"]],
+      ["python3", ["-m", "pip", "install", "--break-system-packages", "omni_parser_v2"]],
+    ];
+    let lastError = "";
+    for (const [file, args] of attempts) {
+      const result = await this.run(file, args, 900_000);
+      if (result.code === 0) {
+        lastError = "";
+        break;
+      }
+      lastError = result.stderr.trim().slice(0, 200);
     }
+    const verified = await this.run("python3", ["-c", "import omni_parser_v2; print('ok')"], 15_000);
     report.push(
-      result.code === 0
+      verified.code === 0
         ? { name: "omniparser", message: "installed (weights download on first use)" }
-        : { name: "omniparser", message: `install failed: ${result.stderr.trim().slice(0, 200)}` },
+        : {
+            name: "omniparser",
+            message: `install failed — ${lastError || "the import check still fails"} (check PyPI access / Python version)`,
+          },
     );
   }
 

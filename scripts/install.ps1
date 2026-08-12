@@ -120,6 +120,33 @@ if ($env:LHIC_SKIP_DESKTOP -eq "1") {
         } else {
           Write-Host "[lhic] FlaUI requires Windows 10 1607+; using the traditional PowerShell layer." -ForegroundColor Yellow
         }
+        # OmniParser V2 fallback (DOM-invisible screens), pip ladder.
+        if (Get-Command python3 -ErrorAction SilentlyContinue) {
+          try {
+            python3 -c "import omni_parser_v2; print('ok')" 2>$null | Out-Null
+          } catch { }
+          $imports = $LASTEXITCODE -eq 0
+          if (-not $imports) {
+            Write-Host "[lhic] Installing OmniParser V2 (pip ladder)…" -ForegroundColor Green
+            python3 -m pip install --user omni_parser_v2 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              python3 -m pip install --user --break-system-packages omni_parser_v2 2>$null | Out-Null
+            }
+            if ($LASTEXITCODE -ne 0) {
+              python3 -m pip install --break-system-packages omni_parser_v2 2>$null | Out-Null
+            }
+            try {
+              python3 -c "import omni_parser_v2; print('ok')" 2>$null | Out-Null
+            } catch { }
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "[lhic] OmniParser V2 installed (weights download on first use)." -ForegroundColor Green
+            } else {
+              Write-Host "[lhic] warning: OmniParser V2 install failed; LHIC falls back to coordinates." -ForegroundColor Yellow
+            }
+          } else {
+            Write-Host "[lhic] OmniParser V2 already installed." -ForegroundColor Green
+          }
+        }
         Write-Host "[lhic] Provisioning done — everything still missing falls back to the traditional layer." -ForegroundColor Green
       }
     } catch {
@@ -134,13 +161,36 @@ $cliOk = $true
 if ($env:LHIC_SKIP_CLI -eq "1") {
   Write-Host "[lhic] warning: CLI skipped (LHIC_SKIP_CLI=1)." -ForegroundColor Yellow
   $cliOk = $false
-} elseif (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-  Write-Host "[lhic] warning: the LHIC CLI needs Node.js 24+; install it, then run: npm install --global $cliPackage" -ForegroundColor Yellow
-  $cliOk = $false
-} elseif (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-  Write-Host "[lhic] warning: npm is not available; install the LHIC CLI with: npm install --global $cliPackage" -ForegroundColor Yellow
+} elseif ($env:LHIC_SKIP_NODE -eq "1") {
+  Write-Host "[lhic] warning: Node.js install skipped (LHIC_SKIP_NODE=1); the CLI needs Node.js 24+." -ForegroundColor Yellow
   $cliOk = $false
 } else {
+  $nodeOk = $false
+  if (Get-Command node -ErrorAction SilentlyContinue) {
+    try {
+      $nodeMajor = [int]((node -p "process.versions.node.split('.')[0]").Trim())
+      $nodeOk = $nodeMajor -ge 24
+    } catch { $nodeOk = $false }
+  }
+  if (-not $nodeOk) {
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+      Write-Host "[lhic] Installing/upgrading Node.js 24 via winget…" -ForegroundColor Green
+      winget install --id OpenJS.NodeJS.LTS --silent --accept-source-agreements --accept-package-agreements
+    } else {
+      Write-Host "[lhic] warning: Node.js 24+ is required for the CLI and winget is unavailable; install it manually." -ForegroundColor Yellow
+      $cliOk = $false
+    }
+  }
+}
+if ($cliOk -and -not (Get-Command node -ErrorAction SilentlyContinue)) {
+  Write-Host "[lhic] warning: the LHIC CLI needs Node.js 24+; install it, then run: npm install --global $cliPackage" -ForegroundColor Yellow
+  $cliOk = $false
+}
+if ($cliOk -and -not (Get-Command npm -ErrorAction SilentlyContinue)) {
+  Write-Host "[lhic] warning: npm is not available; install the LHIC CLI with: npm install --global $cliPackage" -ForegroundColor Yellow
+  $cliOk = $false
+}
+if ($cliOk) {
   try {
     $nodeMajor = [int]((node -p "process.versions.node.split('.')[0]").Trim())
     if ($nodeMajor -lt 24) {
