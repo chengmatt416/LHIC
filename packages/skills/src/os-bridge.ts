@@ -20,6 +20,11 @@ import {
 } from "@lhic/security";
 import { appendTraceEvent } from "@lhic/trace";
 
+import type {
+  BackendDispatchResult,
+  ExecutionBackendId,
+} from "./execution-backend.js";
+
 export type GlobalDesktopPlatform = "darwin" | "win32" | "linux";
 
 export interface GlobalCommand {
@@ -59,6 +64,18 @@ export interface GlobalComputerExecutorOptions {
   approvalReplayStore?: ApprovalReplayStore;
   verificationTimeoutMs?: number;
   verificationPollIntervalMs?: number;
+  /**
+   * Optional element-grounded dispatch (Peekaboo / FlaUI / OmniParser V2).
+   * When it returns a result the action is dispatched through the backend;
+   * otherwise the executor falls back to the native platform command.
+   */
+  dispatcher?: GlobalActionDispatcher;
+}
+
+export interface GlobalActionDispatcher {
+  dispatch(
+    action: GlobalComputerAction,
+  ): Promise<BackendDispatchResult | undefined>;
 }
 
 export interface GlobalControlCapability {
@@ -81,6 +98,7 @@ export class GlobalComputerExecutor {
   private readonly approvalReplayStore: ApprovalReplayStore | undefined;
   private readonly verificationTimeoutMs: number;
   private readonly verificationPollIntervalMs: number;
+  private readonly dispatcher: GlobalActionDispatcher | undefined;
 
   public constructor(options: GlobalComputerExecutorOptions = {}) {
     this.taskId = options.taskId ?? "global-computer-session";
@@ -88,6 +106,7 @@ export class GlobalComputerExecutor {
       options.traceFilePath ?? join("traces", `${this.taskId}.jsonl`);
     this.platform = options.platform ?? getGlobalDesktopPlatform();
     this.runner = options.runner ?? new ExecFileGlobalCommandRunner();
+    this.dispatcher = options.dispatcher;
     this.approvalValidation = {
       requireSignature: process.env.LHIC_ENV === "production",
       ...options.approvalValidation,
@@ -163,9 +182,27 @@ export class GlobalComputerExecutor {
       }
 
       await this.verifyTargetBeforeDispatch(action);
-      const commandResult = await this.runner.run(
-        buildGlobalComputerCommand(action, this.platform),
-      );
+      let commandResult: GlobalCommandResult | undefined;
+      let dispatchedBackend: ExecutionBackendId | undefined;
+      let dispatchEvidence: string[] = [];
+      if (this.dispatcher) {
+        try {
+          const dispatched = await this.dispatcher.dispatch(action);
+          if (dispatched?.result) {
+            commandResult = dispatched.result;
+            dispatchedBackend = dispatched.backend;
+            dispatchEvidence = dispatched.evidence ?? [];
+          }
+        } catch {
+          // Element backends must never fail the action; the native layer
+          // below is the unconditional fallback.
+        }
+      }
+      if (!commandResult) {
+        commandResult = await this.runner.run(
+          buildGlobalComputerCommand(action, this.platform),
+        );
+      }
       const verificationEvidence = await this.verifyUntil(action.verifier);
       const output = outputForGlobalAction(
         action,
@@ -177,7 +214,10 @@ export class GlobalComputerExecutor {
         method,
         latencyMs: Math.round(performance.now() - startedAt),
         evidence: [
-          `Dispatched ${action.type} through the ${this.platform} native ${method} API.`,
+          dispatchedBackend
+            ? `Dispatched ${action.type} through the ${dispatchedBackend} element backend.`
+            : `Dispatched ${action.type} through the ${this.platform} native ${method} API.`,
+          ...dispatchEvidence,
           verificationEvidence,
           ...(output === undefined
             ? []

@@ -1,0 +1,33 @@
+name: Deploy mirror
+
+# lhic.techtools.qzz.io is a redirect-only Cloudflare Pages project: GitHub
+# is the data store (scripts in the repo, installers on GitHub Releases), so
+# this workflow only deploys the _redirects file when the redirect rules
+# change. Release tags need no deployment here.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mirror/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy lhic.techtools.qzz.io redirects
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Deploy redirect rules to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy mirror --project-name lhic-mirror --branch main

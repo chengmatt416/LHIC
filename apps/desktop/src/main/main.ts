@@ -22,6 +22,10 @@ import type {
   PolicyPackageRequest,
   PolicyPackageSubmission,
   SecurityConfiguration,
+  LibrarySearchParams,
+  OmpRuntimeState,
+  OmpTodoPhase,
+  UserProfile,
 } from "../shared/contracts.js";
 import { validateCustomGameProfile } from "../shared/policy.js";
 import { DesktopController } from "./controller.js";
@@ -71,8 +75,14 @@ async function createWindow(): Promise<void> {
       window.webContents.send("lhic:progress", event);
     }
   });
+  const unsubscribeOmp = controller.subscribeOmp((event) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("lhic:omp:event", event);
+    }
+  });
   window.once("closed", () => {
     unsubscribeProgress();
+    unsubscribeOmp();
     if (mainWindow === window) {
       mainWindow = undefined;
       hideTimerOverlay();
@@ -405,6 +415,109 @@ function registerIpc(): void {
   ipcMain.handle("lhic:credential:remove", (_event, id: string) =>
     controller.credentials.remove(requiredString(id, "credential id")),
   );
+  ipcMain.handle("lhic:omp:start", () => controller.ompStart());
+  ipcMain.handle("lhic:omp:stop", () => controller.ompStop());
+  ipcMain.handle("lhic:omp:prompt", (_event, message: string) =>
+    controller.ompPrompt(requiredString(message, "agent message")),
+  );
+  ipcMain.handle("lhic:omp:steer", (_event, message: string) =>
+    controller.ompSteer(requiredString(message, "agent steering message")),
+  );
+  ipcMain.handle("lhic:omp:follow-up", (_event, message: string) =>
+    controller.ompFollowUp(requiredString(message, "agent follow-up message")),
+  );
+  ipcMain.handle("lhic:omp:set-thinking-level", (_event, level: unknown) =>
+    controller.ompSetThinkingLevel(requiredThinkingLevel(level)),
+  );
+  ipcMain.handle("lhic:omp:set-fast-mode", (_event, enabled: unknown) =>
+    controller.ompSetFastMode(requiredBoolean(enabled, "fast mode")),
+  );
+  ipcMain.handle("lhic:omp:set-interrupt-mode", (_event, mode: unknown) =>
+    controller.ompSetInterruptMode(requiredInterruptMode(mode)),
+  );
+  ipcMain.handle("lhic:omp:rename-session", (_event, name: string) =>
+    controller.ompRenameSession(requiredString(name, "session name")),
+  );
+  ipcMain.handle("lhic:omp:available-commands", () =>
+    controller.ompAvailableCommands(),
+  );
+  ipcMain.handle("lhic:omp:messages", (_event, cursor: unknown) =>
+    controller.ompMessages(
+      cursor === undefined || cursor === null || cursor === ""
+        ? undefined
+        : requiredString(cursor, "message cursor"),
+    ),
+  );
+  ipcMain.handle("lhic:omp:abort", () => controller.ompAbort());
+  ipcMain.handle("lhic:omp:new-session", () => controller.ompNewSession());
+  ipcMain.handle("lhic:omp:state", () => controller.ompState());
+  ipcMain.handle("lhic:omp:list-sessions", () => controller.ompListSessions());
+  ipcMain.handle("lhic:omp:switch-session", (_event, path: string) =>
+    controller.ompSwitchSession(requiredString(path, "session path")),
+  );
+  ipcMain.handle("lhic:omp:set-model", (_event, input: unknown) => {
+    const value = requiredRecord(input, "model selection");
+    return controller.ompSetModel(
+      requiredString(value.provider, "model provider"),
+      requiredString(value.modelId, "model id"),
+    );
+  });
+  ipcMain.handle("lhic:omp:list-models", () => controller.ompListModels());
+  ipcMain.handle("lhic:omp:set-todos", (_event, phases: unknown) =>
+    controller.ompSetTodos(requiredOmpPhases(phases)),
+  );
+  ipcMain.handle("lhic:omp:export-html", () => controller.ompExportHtml());
+  ipcMain.handle("lhic:omp:login-providers", () =>
+    controller.ompLoginProviders(),
+  );
+  ipcMain.handle("lhic:omp:login", (_event, providerId: string) =>
+    controller.ompLogin(requiredString(providerId, "login provider")),
+  );
+  ipcMain.handle("lhic:omp:respond-ui", (_event, requestId, response) =>
+    controller.ompRespondUi(
+      requiredString(requestId, "agent UI request id"),
+      requiredOmpUiResponse(response),
+    ),
+  );
+  ipcMain.handle("lhic:omp:approve-host-tool", (_event, callId, approvedBy) =>
+    controller.ompApproveHostTool(
+      requiredString(callId, "host tool call id"),
+      requiredString(approvedBy, "host tool approver"),
+    ),
+  );
+  ipcMain.handle("lhic:omp:reject-host-tool", (_event, callId) =>
+    controller.ompRejectHostTool(requiredString(callId, "host tool call id")),
+  );
+  ipcMain.handle("lhic:account:status", () => controller.accountStatus());
+  ipcMain.handle("lhic:account:login", (_event, email: string) =>
+    controller.accountLogin(requiredEmail(email)),
+  );
+  ipcMain.handle("lhic:account:logout", () => controller.accountLogout());
+  ipcMain.handle("lhic:account:update-profile", (_event, profile: unknown) =>
+    controller.accountUpdateProfile(requiredProfile(profile)),
+  );
+  ipcMain.handle("lhic:library:search", (_event, params: unknown) =>
+    controller.librarySearch(requiredLibrarySearch(params)),
+  );
+  ipcMain.handle("lhic:library:detail", (_event, id: string) =>
+    controller.libraryDetail(requiredString(id, "library skill id")),
+  );
+  ipcMain.handle("lhic:library:versions", (_event, id: string) =>
+    controller.libraryVersions(requiredString(id, "library skill id")),
+  );
+  ipcMain.handle("lhic:library:rate", (_event, id: string, rating: unknown) =>
+    controller.libraryRate(
+      requiredString(id, "library skill id"),
+      requiredRating(rating),
+    ),
+  );
+  ipcMain.handle("lhic:library:download", (_event, id: string) =>
+    controller.libraryDownload(requiredString(id, "library skill id")),
+  );
+  ipcMain.handle("lhic:settings:theme", () => controller.theme());
+  ipcMain.handle("lhic:settings:set-theme", (_event, theme: unknown) =>
+    controller.setTheme(requiredTheme(theme)),
+  );
 }
 
 async function showTimerOverlay(kind: "slow" | "fast"): Promise<void> {
@@ -479,9 +592,28 @@ app.whenReady().then(async () => {
         mainWindow.focus();
         return mainWindow.isFocused();
       },
+      userDataDir: app.getPath("userData"),
+      executionSourceDir: app.isPackaged
+        ? join(process.resourcesPath, "execution")
+        : join(
+            import.meta.dirname,
+            "..",
+            "..",
+            "..",
+            "..",
+            "packages",
+            "skills",
+            "src",
+            "execution",
+          ),
     },
   );
   registerIpc();
+  void controller.provisioning.ensureProvisioned().then((steps) => {
+    for (const step of steps) {
+      console.log(`[provisioning] ${step.name}: ${step.message}`);
+    }
+  });
   await createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
@@ -954,4 +1086,161 @@ function requiredSharedLibraryConnection(
     ),
     email: requiredString(connection.email, "shared Skill email"),
   };
+}
+
+function requiredEmail(value: unknown): string {
+  const email = requiredString(value, "email");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("email is invalid.");
+  }
+  return email;
+}
+
+function requiredRating(value: unknown): number {
+  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 5) {
+    throw new Error("Skill rating is invalid.");
+  }
+  return value as number;
+}
+
+function requiredLibrarySearch(value: unknown): LibrarySearchParams {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Library search is invalid.");
+  }
+  const input = value as Partial<LibrarySearchParams>;
+  return {
+    ...(input.category === undefined || input.category === ""
+      ? {}
+      : { category: requiredString(input.category, "library category") }),
+    ...(input.q === undefined || input.q === ""
+      ? {}
+      : { q: requiredString(input.q, "library query") }),
+    ...(input.cursor === undefined || input.cursor === ""
+      ? {}
+      : { cursor: requiredString(input.cursor, "library cursor") }),
+  };
+}
+
+function requiredProfile(value: unknown): Partial<Omit<UserProfile, "userId">> {
+  const input = requiredRecord(value, "user profile");
+  const profile: Partial<Omit<UserProfile, "userId">> = {};
+  if (input.displayName !== undefined) {
+    const displayName = input.displayName;
+    if (
+      typeof displayName !== "string" ||
+      !displayName.trim() ||
+      displayName.length > 128
+    ) {
+      throw new Error("displayName is invalid.");
+    }
+    profile.displayName = displayName;
+  }
+  if (input.bio !== undefined) {
+    const bio = input.bio;
+    if (typeof bio !== "string" || bio.length > 512) {
+      throw new Error("bio is invalid.");
+    }
+    profile.bio = bio;
+  }
+  if (input.avatarUrl !== undefined) {
+    const avatarUrl = input.avatarUrl;
+    if (typeof avatarUrl !== "string" || avatarUrl.length > 2048) {
+      throw new Error("avatarUrl is invalid.");
+    }
+    profile.avatarUrl = avatarUrl;
+  }
+  return profile;
+}
+
+function requiredOmpUiResponse(value: unknown): {
+  value?: string;
+  confirmed?: boolean;
+  cancelled?: boolean;
+} {
+  const input = requiredRecord(value, "agent UI response");
+  const response: { value?: string; confirmed?: boolean; cancelled?: boolean } =
+    {};
+  if (input.value !== undefined) {
+    response.value = requiredString(input.value, "agent UI response value");
+  }
+  if (input.confirmed !== undefined) {
+    if (typeof input.confirmed !== "boolean") {
+      throw new Error("agent UI confirmation is invalid.");
+    }
+    response.confirmed = input.confirmed;
+  }
+  if (input.cancelled !== undefined) {
+    if (typeof input.cancelled !== "boolean") {
+      throw new Error("agent UI cancellation is invalid.");
+    }
+    response.cancelled = input.cancelled;
+  }
+  return response;
+}
+
+function requiredOmpPhases(value: unknown): OmpTodoPhase[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 32) {
+    throw new Error("agent todos are invalid.");
+  }
+  return value.map((phase) => {
+    const record = requiredRecord(phase, "agent todo phase");
+    const tasks = record.tasks;
+    if (!Array.isArray(tasks) || tasks.length === 0 || tasks.length > 200) {
+      throw new Error("agent todo phase tasks are invalid.");
+    }
+    return {
+      id: requiredString(record.id, "agent todo phase id"),
+      name: requiredString(record.name, "agent todo phase name"),
+      tasks: tasks.map((task) => {
+        const taskRecord = requiredRecord(task, "agent todo task");
+        const status = taskRecord.status;
+        if (
+          status !== "pending" &&
+          status !== "in_progress" &&
+          status !== "completed"
+        ) {
+          throw new Error("agent todo task status is invalid.");
+        }
+        return {
+          id: requiredString(taskRecord.id, "agent todo task id"),
+          content: requiredString(taskRecord.content, "agent todo task content"),
+          status,
+        };
+      }),
+    };
+  });
+}
+
+function requiredTheme(value: unknown): "light" | "dark" {
+  if (value === "light" || value === "dark") return value;
+  throw new Error("theme is invalid.");
+}
+
+function requiredThinkingLevel(
+  value: unknown,
+): NonNullable<OmpRuntimeState["thinkingLevel"]> {
+  if (
+    value === "off" ||
+    value === "minimal" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh" ||
+    value === "max"
+  ) {
+    return value;
+  }
+  throw new Error("agent thinking level is invalid.");
+}
+
+function requiredBoolean(value: unknown, name: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`${name} is invalid.`);
+  }
+  return value;
+}
+
+function requiredInterruptMode(value: unknown): "immediate" | "wait" {
+  if (value === "immediate" || value === "wait") return value;
+  throw new Error("agent interrupt mode is invalid.");
 }

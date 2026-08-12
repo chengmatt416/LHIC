@@ -45,6 +45,9 @@
     "check:cli-release-tag": "node scripts/check-cli-release-tag.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "release:checksums": "npm run release:checksums --workspace @lhic/desktop",
+    "publish:desktop": "npm publish --workspace lhic-desktop --access public --provenance",
+    "publish:brew-tap": "node scripts/publish-brew-tap.mjs",
+    "publish:aur": "node scripts/publish-aur.mjs",
     "check:release-versions": "node scripts/check-release-versions.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"

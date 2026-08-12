@@ -10,6 +10,7 @@ const installerExtensions = new Set([
   ".dmg",
   ".exe",
   ".rpm",
+  ".snap",
   ".zip",
 ]);
 

@@ -2,9 +2,7 @@
   "mcpServers": {
     "lhic-computer-use": {
       "command": "node",
-      "args": [
-        "/root/lhic/apps/mcp-server/dist/index.js"
-      ],
+      "args": ["/root/lhic/apps/mcp-server/dist/index.js"],
       "cwd": "/root/lhic"
     }
   }

@@ -33,25 +33,51 @@ import type {
   TaskApproval,
   TaskSourceConfig,
   TrainingJob,
+  OmpEvent,
+  OmpMessageView,
+  OmpModelInfo,
+  OmpRuntimeState,
+  OmpSessionInfo,
+  OmpTodoPhase,
+  AccountStatus,
+  LibrarySearchParams,
+  LibrarySearchResult,
+  LibrarySkillSummary,
+  SkillDetail,
+  SkillVersionSummary,
+  ThemeSettings,
+  UserProfile,
 } from "../shared/contracts.js";
 import { DesktopCredentialStore } from "./keyring.js";
+import { HttpAppwriteRegistryClient } from "@lhic/shared-skills";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { GameService } from "./game-service.js";
 import { DemoDirectorService } from "./demo-director-service.js";
 import { McpService } from "./mcp-service.js";
 import { SkillsService } from "./skills-service.js";
+import { AccountService } from "./account-service.js";
+import { LibraryService } from "./library-service.js";
 import { SecuritySettingsStore } from "./security-settings-store.js";
+import { UiSettingsStore } from "./ui-settings-store.js";
 import { TaskService } from "./task-service.js";
+import { OmpSessionService } from "./omp/omp-session-service.js";
+import { bakedSharedSkillsConfig } from "./appwrite-public-config.js";
+import { ProvisioningService } from "./provisioning-service.js";
 
 export class DesktopController {
   public readonly credentials = new DesktopCredentialStore();
+  public readonly provisioning: ProvisioningService;
   private readonly tasks: TaskService;
   private readonly games = new GameService();
   private readonly skills: SkillsService;
   private readonly mcp: McpService;
   private readonly controlPlane: ControlPlaneClient;
   private readonly securitySettings: SecuritySettingsStore;
+  private readonly uiSettings: UiSettingsStore;
   private readonly demoDirector: DemoDirectorService;
+  private readonly omp: OmpSessionService;
+  private readonly account: AccountService;
+  private readonly library: LibraryService;
   private securityInitialization: Promise<SecurityConfiguration> | undefined;
 
   public constructor(
@@ -59,16 +85,45 @@ export class DesktopController {
     options: {
       openExternal?: (url: string) => Promise<void>;
       focusLhicWindow?: () => boolean;
+      userDataDir?: string;
+      executionSourceDir?: string;
     } = {},
   ) {
     this.tasks = new TaskService(workspaceRoot, this.credentials);
+    this.provisioning = new ProvisioningService({
+      userDataDir: options.userDataDir ?? workspaceRoot,
+      ...(options.executionSourceDir
+        ? { executionSourceDir: options.executionSourceDir }
+        : {}),
+    });
     this.skills = new SkillsService(workspaceRoot);
+    const registry = new HttpAppwriteRegistryClient(bakedSharedSkillsConfig);
+    this.account = new AccountService(
+      workspaceRoot,
+      this.skills,
+      registry,
+      this.skills.sharedCredentialStore(),
+    );
+    this.library = new LibraryService({
+      skills: this.skills,
+      registry,
+      credentialStore: this.skills.sharedCredentialStore(),
+      isSignedIn: () =>
+        this.account.status().then((status) => status.mode === "signed-in"),
+    });
+    this.omp = new OmpSessionService({
+      workspaceRoot,
+      userDataDir: options.userDataDir ?? workspaceRoot,
+      tasks: this.tasks,
+      ...(options.openExternal ? { openExternal: options.openExternal } : {}),
+    });
     this.mcp = new McpService(workspaceRoot);
     this.controlPlane = new ControlPlaneClient(workspaceRoot, {
       ...options,
       judgeTokenStore: this.credentials,
     });
     this.securitySettings = new SecuritySettingsStore(workspaceRoot);
+    this.uiSettings = new UiSettingsStore(workspaceRoot);
     this.demoDirector = new DemoDirectorService(
       workspaceRoot,
       options.focusLhicWindow ?? (() => false),
@@ -467,7 +522,177 @@ export class DesktopController {
 
   public async close(): Promise<void> {
     await this.demoDirector.stopRecording();
+    await this.omp.dispose();
     await this.tasks.close();
+  }
+
+  public subscribeOmp(listener: (event: OmpEvent) => void): () => void {
+    return this.omp.subscribe(listener);
+  }
+
+  public ompStart(): Promise<OmpRuntimeState> {
+    return this.omp.start();
+  }
+
+  public ompStop(): Promise<void> {
+    return this.omp.stop();
+  }
+
+  public ompPrompt(message: string): Promise<void> {
+    return this.omp.prompt(message);
+  }
+
+  public ompSteer(message: string): Promise<void> {
+    return this.omp.steer(message);
+  }
+
+  public ompFollowUp(message: string): Promise<void> {
+    return this.omp.followUp(message);
+  }
+
+  public ompSetThinkingLevel(
+    level: OmpRuntimeState["thinkingLevel"],
+  ): Promise<OmpRuntimeState> {
+    return this.omp.setThinkingLevel(level);
+  }
+
+  public ompSetFastMode(enabled: boolean): Promise<OmpRuntimeState> {
+    return this.omp.setFastMode(enabled);
+  }
+
+  public ompSetInterruptMode(
+    mode: "immediate" | "wait",
+  ): Promise<OmpRuntimeState> {
+    return this.omp.setInterruptMode(mode);
+  }
+
+  public ompRenameSession(name: string): Promise<void> {
+    return this.omp.renameSession(name);
+  }
+
+  public ompAvailableCommands(): Promise<
+    Array<{ name: string; description?: string; aliases?: string[] }>
+  > {
+    return this.omp.availableCommands();
+  }
+
+  public ompMessages(cursor?: string): Promise<{
+    messages: OmpMessageView[];
+    nextCursor?: string;
+    totalMessages: number;
+  }> {
+    return this.omp.messages(cursor);
+  }
+
+  public ompAbort(): Promise<void> {
+    return this.omp.abort();
+  }
+
+  public ompNewSession(): Promise<OmpRuntimeState> {
+    return this.omp.newSession();
+  }
+
+  public ompState(): Promise<OmpRuntimeState> {
+    return this.omp.state();
+  }
+
+  public ompListSessions(): Promise<OmpSessionInfo[]> {
+    return this.omp.listSessions();
+  }
+
+  public ompSwitchSession(path: string): Promise<OmpRuntimeState> {
+    return this.omp.switchSession(path);
+  }
+
+  public ompSetModel(provider: string, modelId: string): Promise<OmpRuntimeState> {
+    return this.omp.setModel(provider, modelId);
+  }
+
+  public ompListModels(): Promise<OmpModelInfo[]> {
+    return this.omp.listModels();
+  }
+
+  public ompSetTodos(phases: OmpTodoPhase[]): Promise<void> {
+    return this.omp.setTodos(phases);
+  }
+
+  public ompExportHtml(): Promise<string> {
+    return this.omp.exportHtml();
+  }
+
+  public ompLoginProviders(): Promise<Array<{ id: string }>> {
+    return this.omp.loginProviders();
+  }
+
+  public ompLogin(providerId: string): Promise<void> {
+    return this.omp.login(providerId);
+  }
+
+  public ompRespondUi(
+    requestId: string,
+    response: {
+      value?: string;
+      confirmed?: boolean;
+      cancelled?: boolean;
+    },
+  ): Promise<void> {
+    return this.omp.respondUi(requestId, response);
+  }
+
+  public ompApproveHostTool(callId: string, approvedBy: string): Promise<void> {
+    return this.omp.approveHostTool(callId, approvedBy);
+  }
+
+  public ompRejectHostTool(callId: string): Promise<void> {
+    return this.omp.rejectHostTool(callId);
+  }
+
+  public accountStatus(): Promise<AccountStatus> {
+    return this.account.status();
+  }
+
+  public accountLogin(email: string): Promise<AccountStatus> {
+    return this.account.login(email);
+  }
+
+  public accountLogout(): Promise<AccountStatus> {
+    return this.account.logout();
+  }
+
+  public accountUpdateProfile(
+    profile: Partial<Omit<UserProfile, "userId">>,
+  ): Promise<AccountStatus> {
+    return this.account.updateProfile(profile);
+  }
+
+  public librarySearch(
+    params: LibrarySearchParams,
+  ): Promise<LibrarySearchResult> {
+    return this.library.search(params);
+  }
+
+  public libraryDetail(id: string): Promise<SkillDetail> {
+    return this.library.detail(id);
+  }
+
+  public libraryVersions(id: string): Promise<SkillVersionSummary[]> {
+    return this.library.versions(id);
+  }
+
+  public libraryRate(id: string, rating: number): Promise<SkillDetail> {
+    return this.library.rate(id, rating);
+  }
+
+  public libraryDownload(id: string): Promise<LibrarySkillSummary> {
+    return this.library.download(id);
+  }
+
+  public theme(): Promise<ThemeSettings> {
+    return this.uiSettings.load();
+  }
+
+  public setTheme(theme: "light" | "dark"): Promise<ThemeSettings> {
+    return this.uiSettings.save(theme);
   }
 
   private async loadSecurityConfiguration(): Promise<SecurityConfiguration> {

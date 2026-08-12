@@ -5,7 +5,16 @@ import {
   type DesktopExecutionPlan,
   type GlobalComputerAction,
 } from "@lhic/schema";
-import { GlobalComputerExecutor } from "@lhic/skills";
+import {
+  buildGlobalComputerCommand,
+  ElementGroundedDispatcher,
+  ExecFileGlobalCommandRunner,
+  executionBackendOptionsFromEnvironment,
+  getGlobalDesktopPlatform,
+  GlobalComputerExecutor,
+  resolveExecutionChain,
+  type GlobalActionDispatcher,
+} from "@lhic/skills";
 import { parseRuntimeConfig } from "@lhic/security";
 
 import type { TaskApproval, TaskProposalSummary } from "../shared/contracts.js";
@@ -30,8 +39,31 @@ interface GlobalSession {
  */
 export class DesktopGlobalRunner {
   private readonly sessions = new Map<string, GlobalSession>();
+  private dispatcherInitialization:
+    | Promise<GlobalActionDispatcher | undefined>
+    | undefined;
 
   public constructor(private readonly workspaceRoot: string) {}
+
+  private resolveDispatcher(): Promise<GlobalActionDispatcher | undefined> {
+    this.dispatcherInitialization ??= (async () => {
+      const options = executionBackendOptionsFromEnvironment();
+      const chain = await resolveExecutionChain(options);
+      if (!chain.backend && !chain.omniparser) {
+        return undefined;
+      }
+      const runner = new ExecFileGlobalCommandRunner();
+      return new ElementGroundedDispatcher({
+        ...(chain.backend ? { backend: chain.backend } : {}),
+        ...(chain.omniparser ? { omniparser: chain.omniparser } : {}),
+        runner,
+        platform: process.platform,
+        buildNative: (action) =>
+          buildGlobalComputerCommand(action, getGlobalDesktopPlatform()),
+      });
+    })();
+    return this.dispatcherInitialization;
+  }
 
   public execute(
     commandId: string,
@@ -70,6 +102,7 @@ export class DesktopGlobalRunner {
       ...process.env,
       LHIC_TRACE_DIRECTORY: resolve(this.workspaceRoot, ".lhic/traces"),
     });
+    const dispatcher = await this.resolveDispatcher();
 
     const executor = new GlobalComputerExecutor({
       taskId: commandId,
@@ -83,6 +116,7 @@ export class DesktopGlobalRunner {
           ? { publicKey: runtimeConfig.approvalPublicKey }
           : {}),
       },
+      ...(dispatcher ? { dispatcher } : {}),
     });
     const execution = await executor.execute(step.action, approval);
     if (!execution.success) {
