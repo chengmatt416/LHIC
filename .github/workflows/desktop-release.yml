@@ -21,7 +21,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Install Chromium and Linux system dependencies
         run: npx playwright install chromium --with-deps
       - name: Install snapcraft
@@ -49,7 +57,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Install Chromium and Linux system dependencies
         run: npx playwright install chromium --with-deps
       - name: Package Linux arm64
@@ -71,7 +87,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Install Chromium and macOS system dependencies
         run: npx playwright install chromium --with-deps
       - name: Detect signing secrets
@@ -112,7 +136,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Install Chromium and macOS system dependencies
         run: npx playwright install chromium --with-deps
       - name: Detect signing secrets
@@ -159,7 +191,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Install Chromium and Windows system dependencies
         run: npx playwright install chromium --with-deps
       - name: Package Windows x64
@@ -230,7 +270,15 @@ jobs:
           node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Resolve release version
         id: release-version
         env:
