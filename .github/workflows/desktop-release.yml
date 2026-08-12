@@ -218,7 +218,9 @@ jobs:
       id-token: write
     env:
       OMP_VERSION: 17.2.15
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # setup-node injects NODE_AUTH_TOKEN from the default github.token when
+      # the secret is unset, so gate on a dedicated var instead.
+      LHIC_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       LHIC_BREW_TAP_TOKEN: ${{ secrets.LHIC_BREW_TAP_TOKEN }}
       LHIC_AUR_SSH_KEY: ${{ secrets.LHIC_AUR_SSH_KEY }}
     steps:
@@ -243,10 +245,12 @@ jobs:
           test "$desktop" = "$installer" || { echo "desktop ($desktop) and lhic-desktop ($installer) versions differ"; exit 1; }
           test "$desktop" = "$RELEASE_VERSION" || { echo "release tag version ($RELEASE_VERSION) does not match desktop ($desktop)"; exit 1; }
       - name: Publish lhic-desktop to npm (also installable via Bun)
-        if: ${{ env.NODE_AUTH_TOKEN != '' }}
+        if: ${{ env.LHIC_NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --workspace lhic-desktop --access public --provenance
       - name: npm publish skipped (no NPM_TOKEN secret)
-        if: ${{ env.NODE_AUTH_TOKEN == '' }}
+        if: ${{ env.LHIC_NPM_TOKEN == '' }}
         run: echo "npm publish skipped (NPM_TOKEN secret not configured)"
       - name: Publish Homebrew tap
         if: ${{ env.LHIC_BREW_TAP_TOKEN != '' }}
