@@ -222,12 +222,12 @@ jobs:
         run: npm publish --workspace lhic-desktop --access public --provenance
       - name: npm publish skipped (no NPM_TOKEN secret)
         if: ${{ secrets.NPM_TOKEN == '' }}
-        run: echo "npm publish skipped: NPM_TOKEN secret is not configured."
+        run: echo "npm publish skipped (NPM_TOKEN secret not configured)"
       - name: Publish Homebrew tap
         if: ${{ secrets.LHIC_BREW_TAP_TOKEN != '' }}
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
-          LHIC_BREW_TAP_REMOTE: ${{ secrets.LHIC_BREW_TAP_TOKEN != '' && format('https://x-access-token:{0}@github.com/chengmatt416/homebrew-lhic.git', secrets.LHIC_BREW_TAP_TOKEN) || 'git@github.com:chengmatt416/homebrew-lhic.git' }}
+          LHIC_BREW_TAP_REMOTE: "${{ secrets.LHIC_BREW_TAP_TOKEN != '' && format('https://x-access-token:{0}@github.com/chengmatt416/homebrew-lhic.git', secrets.LHIC_BREW_TAP_TOKEN) || 'git@github.com:chengmatt416/homebrew-lhic.git' }}"
         run: node scripts/publish-brew-tap.mjs "$RELEASE_VERSION" --push
       - name: Publish AUR package (paru/yay)
         if: ${{ secrets.LHIC_AUR_SSH_KEY != '' }}
@@ -242,4 +242,4 @@ jobs:
             node scripts/publish-aur.mjs "$RELEASE_VERSION" --push
       - name: AUR publish skipped (no LHIC_AUR_SSH_KEY secret)
         if: ${{ secrets.LHIC_AUR_SSH_KEY == '' }}
-        run: echo "AUR publish skipped: LHIC_AUR_SSH_KEY secret is not configured."
+        run: echo "AUR publish skipped (LHIC_AUR_SSH_KEY secret not configured)"
