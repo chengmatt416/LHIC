@@ -29,6 +29,7 @@ jobs:
       - name: Package Linux x64
         run: npm run desktop:package -- --x64
       - name: Package Linux x64 snap
+        continue-on-error: true
         run: npm run package:snap
       - name: Upload Linux x64 artifacts
         uses: actions/upload-artifact@v4
