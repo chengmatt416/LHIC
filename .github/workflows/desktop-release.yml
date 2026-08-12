@@ -194,6 +194,9 @@ jobs:
       id-token: write
     env:
       OMP_VERSION: 17.2.15
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      LHIC_BREW_TAP_TOKEN: ${{ secrets.LHIC_BREW_TAP_TOKEN }}
+      LHIC_AUR_SSH_KEY: ${{ secrets.LHIC_AUR_SSH_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -216,24 +219,21 @@ jobs:
           test "$desktop" = "$installer" || { echo "desktop ($desktop) and lhic-desktop ($installer) versions differ"; exit 1; }
           test "$desktop" = "$RELEASE_VERSION" || { echo "release tag version ($RELEASE_VERSION) does not match desktop ($desktop)"; exit 1; }
       - name: Publish lhic-desktop to npm (also installable via Bun)
-        if: ${{ secrets.NPM_TOKEN != '' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ env.NODE_AUTH_TOKEN != '' }}
         run: npm publish --workspace lhic-desktop --access public --provenance
       - name: npm publish skipped (no NPM_TOKEN secret)
-        if: ${{ secrets.NPM_TOKEN == '' }}
+        if: ${{ env.NODE_AUTH_TOKEN == '' }}
         run: echo "npm publish skipped (NPM_TOKEN secret not configured)"
       - name: Publish Homebrew tap
-        if: ${{ secrets.LHIC_BREW_TAP_TOKEN != '' }}
+        if: ${{ env.LHIC_BREW_TAP_TOKEN != '' }}
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
-          LHIC_BREW_TAP_REMOTE: "${{ secrets.LHIC_BREW_TAP_TOKEN != '' && format('https://x-access-token:{0}@github.com/chengmatt416/homebrew-lhic.git', secrets.LHIC_BREW_TAP_TOKEN) || 'git@github.com:chengmatt416/homebrew-lhic.git' }}"
+          LHIC_BREW_TAP_REMOTE: "${{ env.LHIC_BREW_TAP_TOKEN != '' && format('https://x-access-token:{0}@github.com/chengmatt416/homebrew-lhic.git', env.LHIC_BREW_TAP_TOKEN) || 'git@github.com:chengmatt416/homebrew-lhic.git' }}"
         run: node scripts/publish-brew-tap.mjs "$RELEASE_VERSION" --push
       - name: Publish AUR package (paru/yay)
-        if: ${{ secrets.LHIC_AUR_SSH_KEY != '' }}
+        if: ${{ env.LHIC_AUR_SSH_KEY != '' }}
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
-          LHIC_AUR_SSH_KEY: ${{ secrets.LHIC_AUR_SSH_KEY }}
         run: |
           mkdir -p "$HOME/.ssh"
           printf '%s\n' "$LHIC_AUR_SSH_KEY" > "$HOME/.ssh/aur"
@@ -241,5 +241,5 @@ jobs:
           GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o StrictHostKeyChecking=accept-new" \
             node scripts/publish-aur.mjs "$RELEASE_VERSION" --push
       - name: AUR publish skipped (no LHIC_AUR_SSH_KEY secret)
-        if: ${{ secrets.LHIC_AUR_SSH_KEY == '' }}
+        if: ${{ env.LHIC_AUR_SSH_KEY == '' }}
         run: echo "AUR publish skipped (LHIC_AUR_SSH_KEY secret not configured)"
