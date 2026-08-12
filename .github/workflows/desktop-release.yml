@@ -200,6 +200,7 @@ jobs:
       - name: Publish desktop release
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: gh release create "desktop-v${RELEASE_VERSION}" artifacts/* --generate-notes
 
   publish-channels:
