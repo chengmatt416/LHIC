@@ -1,9 +1,9 @@
 name: Deploy mirror
 
 # lhic.techtools.qzz.io is a redirect-only Cloudflare Pages project: GitHub
-# is the data store (scripts in the repo, installers on GitHub Releases), so
-# this workflow only deploys the _redirects file when the redirect rules
-# change. Release tags need no deployment here.
+# Releases is the data store (installers + desktop artifacts are release
+# assets), so this workflow only deploys the _redirects file when the
+# redirect rules change. Release tags need no deployment here.
 
 on:
   push:

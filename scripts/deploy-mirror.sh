@@ -33,8 +33,8 @@ cat <<'EOF'
   1. Cloudflare dashboard → DNS → Records → Add: CNAME  lhic  →  lhic-mirror.pages.dev
      (techtools.qzz.io is an active Cloudflare zone; the lhic.techtools.qzz.io
       custom domain is already attached to the project).
-  2. Push the repo (main) so raw.githubusercontent serves scripts/install.sh,
-     then push the desktop-v0.2.0 tag so /release/* resolves.
-One-liner once live:
+  No repo merge is required: releases/latest serves install.sh, install.ps1,
+  and the desktop artifacts directly.
+One-liner once DNS resolves:
   curl -fsSL https://lhic.techtools.qzz.io/install.sh | sh
 EOF

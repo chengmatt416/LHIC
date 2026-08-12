@@ -1,15 +1,18 @@
 # LHIC distribution redirect
 
 `lhic.techtools.qzz.io` is a **redirect-only** Cloudflare Pages project.
-GitHub is the data store: installer scripts live in the repo
-(`scripts/install.sh`, `scripts/install.ps1`) and desktop installers live on
-GitHub Releases — this domain only rewrites URLs to them.
+GitHub Releases is the data store — installer scripts and desktop installers
+are release assets — and this domain rewrites URLs to them.
 
 | Path | Redirects to |
 | --- | --- |
-| `/install.sh` | `raw.githubusercontent.com/chengmatt416/LHIC/main/scripts/install.sh` |
-| `/install.ps1` | `raw.githubusercontent.com/chengmatt416/LHIC/main/scripts/install.ps1` |
+| `/install.sh` | `github.com/chengmatt416/LHIC/releases/latest/download/install.sh` |
+| `/install.ps1` | `github.com/chengmatt416/LHIC/releases/latest/download/install.ps1` |
 | `/release/*` | `github.com/chengmatt416/LHIC/releases/latest/download/*` |
+
+Every `desktop-v*` release includes `install.sh`, `install.ps1`, the platform
+installers, and `SHA256SUMS-<version>.txt` (the release workflow bundles the
+installers automatically), so `releases/latest` is always self-contained.
 
 ## One-liners
 
@@ -50,17 +53,18 @@ wrangler pages deploy mirror --project-name lhic-mirror --branch main
    - `CLOUDFLARE_API_TOKEN` — token with `Cloudflare Pages:Edit` and `Zone:DNS Edit`
    - `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID
 
-Then push the repo (so raw.githubusercontent serves `scripts/install.sh`)
-and push a `desktop-v0.2.0`-style tag (so `/release/*` resolves) — the
-one-liner goes live.
+Then the redirect is fully live — no repo merge required, because
+`releases/latest` serves the installers and artifacts directly.
 
 ### Status (2026-08-12)
 
-- Pages project `lhic-mirror` created, `_redirects` deployed
-  (verified live: 302 → raw.githubusercontent / releases/latest).
-- Custom domain `lhic.techtools.qzz.io` added (pending DNS record).
-- Remaining: the `lhic` CNAME record in Cloudflare DNS (dashboard, 30s),
-  repo push, and the `desktop-v0.2.0` release tag.
+- Pages project `lhic-mirror` created; `_redirects` deployed and verified
+  live (302 → `releases/latest/download/*` → 200 for install.sh, install.ps1,
+  SHA256SUMS, and the platform installers).
+- Release `desktop-v0.2.0` published with `install.sh`, `install.ps1`, Linux
+  arm64 installers, and the checksum manifest.
+- Custom domain `lhic.techtools.qzz.io` attached (pending DNS record).
+- Remaining: the `lhic` CNAME record in Cloudflare DNS (dashboard, 30s).
 
 ### Local preview (redirects applied)
 

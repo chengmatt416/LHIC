@@ -165,6 +165,13 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
         run: node scripts/generate-sha256-manifest.mjs artifacts "$RELEASE_VERSION"
+      - name: Bundle installers into the release
+        run: |
+          # The lhic.techtools.qzz.io redirect serves /install.sh and
+          # /install.ps1 from releases/latest/download, so every desktop
+          # release must carry them.
+          cp scripts/install.sh artifacts/install.sh
+          cp scripts/install.ps1 artifacts/install.ps1
       - name: Publish desktop release
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
