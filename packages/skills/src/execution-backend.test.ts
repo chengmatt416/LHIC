@@ -361,6 +361,21 @@ describe("ElementGroundedDispatcher chain", () => {
 });
 
 describe("resolveExecutionChain", () => {
+  it("auto: uses FlaUI on Windows 10+ with OmniParser as the fallback", async () => {
+    const execFile = fakeExecFile((file, args) => {
+      if (file === "powershell") return { stdout: "10.0.19045.0\n" };
+      if (args[0] === "probe") return { stdout: JSON.stringify({ ok: true }) };
+      return {};
+    });
+    const chain = await resolveExecutionChain({
+      platform: "win32",
+      execFileImplementation: execFile,
+    });
+    expect(chain.backend?.id).toBe("flaui");
+    expect(chain.omniparser).toBeDefined();
+    expect(chain.probe.available).toBe(true);
+  });
+
   it("auto: uses Peekaboo on macOS 15+ with OmniParser as the fallback", async () => {
     const execFile = fakeExecFile((file, args) => {
       if (file === "sw_vers") return { stdout: "15.4\n" };
