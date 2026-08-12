@@ -60,7 +60,7 @@ jobs:
 
   macos-x64:
     name: macOS x64 (signed + notarized)
-    runs-on: macos-13
+    runs-on: macos-14
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
