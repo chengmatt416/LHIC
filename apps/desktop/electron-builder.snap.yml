@@ -1,0 +1,5 @@
+extends: ./electron-builder.common.yml
+linux:
+  category: Utility
+  target:
+    - snap

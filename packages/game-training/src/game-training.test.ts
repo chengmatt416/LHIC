@@ -67,23 +67,30 @@ describe("game-training shared infrastructure", () => {
     });
   });
 
-  it("registers the approved Challenge 2026 macOS application bundle", async () => {
-    const root = await mkdtemp(join(tmpdir(), "lhic-native-game-training-"));
-    const application = join(root, "Challenge2026.app");
-    await mkdir(application);
-    const profile = getGameTargetProfile("challenge-2026");
+  it.skipIf(process.platform !== "darwin")(
+    "registers the approved Challenge 2026 macOS application bundle",
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "lhic-native-game-training-"));
+      const application = join(root, "Challenge2026.app");
+      await mkdir(application);
+      const profile = getGameTargetProfile("challenge-2026");
 
-    await registerNativeGameTarget(profile, application, join(root, "runtime"));
+      await registerNativeGameTarget(
+        profile,
+        application,
+        join(root, "runtime"),
+      );
 
-    await expect(
-      readRegisteredNativeGameTarget(profile, join(root, "runtime")),
-    ).resolves.toMatchObject({
-      schemaVersion: "native-game-target-v1",
-      profileId: "challenge-2026",
-      core: "2d",
-      applicationPath: application,
-    });
-  });
+      await expect(
+        readRegisteredNativeGameTarget(profile, join(root, "runtime")),
+      ).resolves.toMatchObject({
+        schemaVersion: "native-game-target-v1",
+        profileId: "challenge-2026",
+        core: "2d",
+        applicationPath: application,
+      });
+    },
+  );
 
   it("refuses remote target registration without a post-start readiness check", async () => {
     const root = await mkdtemp(join(tmpdir(), "lhic-remote-game-training-"));

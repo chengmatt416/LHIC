@@ -13,14 +13,16 @@ RUN python -m pip install --no-cache-dir --upgrade pip
 RUN python -m pip install --no-cache-dir \
     agentlab==0.4.0 \
     browsergym==0.14.3 \
-    browsergym-workarena==0.5.3
+    browsergym-webarena==0.14.3 \
+    browsergym-workarena==0.5.3 \
+    && python -c "import nltk; nltk.download('punkt_tab', download_dir='/usr/local/share/nltk_data', raise_on_error=True)"
 
 RUN playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* /root/.cache
 
 FROM dependencies AS preflight
 
-COPY preflight.py lhic_semantic_policy.py lhic_agent.py run_study.py /runner/
+COPY preflight.py lhic_semantic_policy.py lhic_agent.py lhic_full_agent.py run_study.py /runner/
 
 RUN useradd --create-home --uid 10001 agentlab \
     && mkdir -p /results \
@@ -32,7 +34,7 @@ ENTRYPOINT ["python", "/runner/preflight.py"]
 
 FROM dependencies AS runner
 
-COPY preflight.py lhic_semantic_policy.py lhic_agent.py run_study.py /runner/
+COPY preflight.py lhic_semantic_policy.py lhic_agent.py lhic_full_agent.py run_study.py /runner/
 
 ARG LHIC_SOURCE_REVISION=unknown
 ENV LHIC_SOURCE_REVISION=${LHIC_SOURCE_REVISION}

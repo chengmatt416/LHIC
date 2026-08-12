@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { OpenAISlowPathProvider } from "./openai-provider.js";
 
@@ -74,6 +74,25 @@ describe("OpenAISlowPathProvider", () => {
       message:
         "OpenAI Slow Path is enabled but OPENAI_API_KEY is not configured.",
     });
+  });
+
+  it("rejects endpoints that could expose the API key in transit", () => {
+    expect(
+      () =>
+        new OpenAISlowPathProvider({
+          enabled: true,
+          apiKey: "test-key",
+          endpoint: "http://models.example.test/v1/responses",
+        }),
+    ).toThrow("OpenAI endpoint must use HTTPS");
+    expect(
+      () =>
+        new OpenAISlowPathProvider({
+          enabled: true,
+          apiKey: "test-key",
+          endpoint: "https://user:password@models.example.test/v1/responses",
+        }),
+    ).toThrow("OpenAI endpoint cannot contain credentials");
   });
 
   it("uses the Responses API with a strict schema and redacted request", async () => {
@@ -177,5 +196,32 @@ describe("OpenAISlowPathProvider", () => {
       decision: "blocked",
       message: "OpenAI Slow Path refused the request: I cannot help with that.",
     });
+  });
+
+  it("bounds a never-settling fetch and aborts its request signal", async () => {
+    vi.useFakeTimers();
+    try {
+      let requestSignal: AbortSignal | undefined;
+      const provider = new OpenAISlowPathProvider({
+        enabled: true,
+        apiKey: "test-key",
+        timeoutMs: 20,
+        fetchImplementation: (_input, init) => {
+          requestSignal = init?.signal ?? undefined;
+          return Promise.withResolvers<Response>().promise;
+        },
+      });
+
+      const result = provider.reason(request);
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(result).resolves.toEqual({
+        decision: "blocked",
+        message: "OpenAI Slow Path timed out after 20 ms.",
+      });
+      expect(requestSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

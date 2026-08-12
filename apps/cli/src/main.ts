@@ -41,6 +41,7 @@ import {
   runPublicWebTraining,
 } from "./public-web-training.js";
 import { runGameTrainingCommand } from "./game-training.js";
+import { runAgentCommand } from "./agent/agent-cli.js";
 import { installCliRuntime, installDesktopApplication } from "./installer.js";
 import {
   cliUsage,
@@ -77,6 +78,22 @@ async function runCommand(
   prompter: ReturnType<typeof createTerminalPrompter>,
 ): Promise<void> {
   const [command, subcommand, argument] = argumentsList;
+  if (command === "agent") {
+    const agentPrompt =
+      typeof subcommand === "string" && subcommand.trim()
+        ? subcommand
+        : typeof argument === "string" && argument.trim()
+          ? argument
+          : undefined;
+    const exitCode = await runAgentCommand({
+      ...(agentPrompt ? { prompt: agentPrompt } : {}),
+      ...(process.env.LHIC_AGENT_SESSION_DIR
+        ? { sessionDir: process.env.LHIC_AGENT_SESSION_DIR }
+        : {}),
+    });
+    process.exitCode = exitCode;
+    return;
+  }
   if (command === "start") {
     const result = await startLocalRuntime(subcommand);
     console.log(JSON.stringify(result, null, 2));

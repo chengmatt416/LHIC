@@ -49,10 +49,26 @@ export class SelectorMemory {
     >,
     verification: VerificationResult,
   ): boolean {
+    const safe = redactPII(entry);
     if (!verification.success || verification.evidence.length === 0) {
+      this.database
+        .prepare(
+          `
+          INSERT INTO selectors (skill_name, target, selector, role, label, failure_count)
+          VALUES (?, ?, ?, ?, ?, 1)
+          ON CONFLICT(skill_name, target, selector) DO UPDATE SET
+            failure_count = failure_count + 1
+        `,
+        )
+        .run(
+          safe.skillName,
+          safe.target,
+          safe.selector,
+          safe.role ?? null,
+          safe.label ?? null,
+        );
       return false;
     }
-    const safe = redactPII(entry);
     this.database
       .prepare(
         `

@@ -22,7 +22,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
-      - run: npm run pw:install
+      - name: Install Chromium and Linux system dependencies
+        run: npx playwright install --with-deps chromium
       - name: Check formatting
         run: npm run format:check
       - name: Typecheck
@@ -47,7 +48,7 @@ jobs:
         run: npm run scan:secrets
       - run: PYTHONPATH=benchmarks/agentlab python -m unittest discover -s benchmarks/agentlab/tests
       - run: python packages/game-training/python/test_worker.py
-      - run: python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
+      - run: python -m py_compile benchmarks/agentlab/lhic_semantic_policy.py benchmarks/agentlab/lhic_agent.py benchmarks/agentlab/lhic_full_agent.py benchmarks/agentlab/preflight.py benchmarks/agentlab/run_study.py
 
   package-smoke:
     name: Package smoke (${{ matrix.os }})

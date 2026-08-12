@@ -1,0 +1,321 @@
+name: Desktop Release
+
+on:
+  push:
+    tags: ["desktop-v*"]
+
+permissions:
+  contents: write
+
+env:
+  OMP_VERSION: 17.2.15
+
+jobs:
+  linux-x64:
+    name: Linux x64 (AppImage/deb/rpm/zip + snap)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium and Linux system dependencies
+        run: npx playwright install chromium --with-deps
+      - name: Install snapcraft
+        run: sudo snap install snapcraft --classic
+      - name: Package Linux x64
+        run: npm run package:x64 --workspace @lhic/desktop
+      - name: Package Linux x64 snap
+        continue-on-error: true
+        run: npm run package:snap
+      - name: Upload Linux x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          # Top-level files only — electron-builder's unpacked app dirs are
+          # build intermediates, not release assets.
+          path: apps/desktop/release/*.*
+
+  linux-arm64:
+    name: Linux arm64 (AppImage/deb/rpm/zip)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium and Linux system dependencies
+        run: npx playwright install chromium --with-deps
+      - name: Package Linux arm64
+        run: npm run package:arm64 --workspace @lhic/desktop
+      - name: Upload Linux arm64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64
+          # Top-level files only (unpacked app dirs are not release assets).
+          path: apps/desktop/release/*.*
+
+  macos-x64:
+    name: macOS x64 (signed + notarized)
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium and macOS system dependencies
+        run: npx playwright install chromium --with-deps
+      - name: Detect signing secrets
+        id: signing
+        run: |
+          if [ -n "${{ secrets.CSC_LINK }}" ] && [ -n "${{ secrets.APPLE_API_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Package macOS x64 (signed + notarized)
+        if: steps.signing.outputs.available == 'true'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_NAME: ${{ secrets.CSC_NAME }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: npm run package:release:x64 --workspace @lhic/desktop
+      - name: Package macOS x64 (ad-hoc signed)
+        if: steps.signing.outputs.available != 'true'
+        run: npm run package:x64 --workspace @lhic/desktop
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64
+          # Top-level files only (unpacked app dirs are not release assets).
+          path: apps/desktop/release/*.*
+
+  macos-arm64:
+    name: macOS arm64 (signed + notarized)
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium and macOS system dependencies
+        run: npx playwright install chromium --with-deps
+      - name: Detect signing secrets
+        id: signing
+        run: |
+          if [ -n "${{ secrets.CSC_LINK }}" ] && [ -n "${{ secrets.APPLE_API_KEY }}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Package macOS arm64 (signed + notarized)
+        if: steps.signing.outputs.available == 'true'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_NAME: ${{ secrets.CSC_NAME }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: npm run package:release:arm64 --workspace @lhic/desktop
+      - name: Package macOS arm64 (ad-hoc signed)
+        if: steps.signing.outputs.available != 'true'
+        run: npm run package:arm64 --workspace @lhic/desktop
+      - name: Upload macOS arm64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          # Top-level files only (unpacked app dirs are not release assets).
+          path: apps/desktop/release/*.*
+
+  windows-x64:
+    name: Windows x64 (NSIS)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      # Sign only when the code-signing secrets are configured; otherwise the
+      # NSIS installer is produced unsigned.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Install Chromium and Windows system dependencies
+        run: npx playwright install chromium --with-deps
+      - name: Package Windows x64
+        shell: bash
+        run: npm run package:x64 --workspace @lhic/desktop
+      - name: Upload Windows x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          # Top-level files only (unpacked app dirs are not release assets).
+          path: apps/desktop/release/*.*
+
+  release:
+    name: Assemble release + checksums
+    needs: [linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Resolve release version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: echo "version=${RELEASE_TAG#desktop-v}" >> "$GITHUB_OUTPUT"
+      - name: Download all desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Generate SHA-256 manifest
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: node scripts/generate-sha256-manifest.mjs artifacts "$RELEASE_VERSION"
+      - name: Bundle installers into the release
+        run: |
+          # The lhic.techtools.qzz.io redirect serves /install.sh and
+          # /install.ps1 from releases/latest/download, so every desktop
+          # release must carry them.
+          cp scripts/install.sh artifacts/install.sh
+          cp scripts/install.ps1 artifacts/install.ps1
+      - name: Publish desktop release
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "desktop-v${RELEASE_VERSION}" artifacts/*.* --generate-notes
+
+  publish-channels:
+    name: Publish npm / Homebrew / AUR
+    needs: [release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write
+    env:
+      OMP_VERSION: 17.2.15
+      # setup-node injects NODE_AUTH_TOKEN from the default github.token when
+      # the secret is unset, so gate on a dedicated var instead.
+      LHIC_NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      LHIC_BREW_TAP_TOKEN: ${{ secrets.LHIC_BREW_TAP_TOKEN }}
+      LHIC_AUR_SSH_KEY: ${{ secrets.LHIC_AUR_SSH_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Install dependencies (retry on transient electron binary download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if npm ci; then exit 0; fi
+            echo "npm ci attempt $attempt failed; retrying"
+            sleep 10
+          done
+          exit 1
+      - name: Resolve release version
+        id: release-version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: echo "version=${RELEASE_TAG#desktop-v}" >> "$GITHUB_OUTPUT"
+      - name: Check desktop / installer version coupling
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          desktop="$(node -p "require('./apps/desktop/package.json').version")"
+          installer="$(node -p "require('./apps/desktop-installer/package.json').version")"
+          test "$desktop" = "$installer" || { echo "desktop ($desktop) and lhic-desktop ($installer) versions differ"; exit 1; }
+          test "$desktop" = "$RELEASE_VERSION" || { echo "release tag version ($RELEASE_VERSION) does not match desktop ($desktop)"; exit 1; }
+      - name: Publish lhic-desktop to npm (also installable via Bun)
+        if: ${{ env.LHIC_NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --workspace lhic-desktop --access public --provenance
+      - name: npm publish skipped (no NPM_TOKEN secret)
+        if: ${{ env.LHIC_NPM_TOKEN == '' }}
+        run: echo "npm publish skipped (NPM_TOKEN secret not configured)"
+      - name: Publish Homebrew tap
+        if: ${{ env.LHIC_BREW_TAP_TOKEN != '' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          LHIC_BREW_TAP_REMOTE: "${{ env.LHIC_BREW_TAP_TOKEN != '' && format('https://x-access-token:{0}@github.com/chengmatt416/homebrew-lhic.git', env.LHIC_BREW_TAP_TOKEN) || 'git@github.com:chengmatt416/homebrew-lhic.git' }}"
+        run: node scripts/publish-brew-tap.mjs "$RELEASE_VERSION" --push
+      - name: Publish AUR package (paru/yay)
+        if: ${{ env.LHIC_AUR_SSH_KEY != '' }}
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$LHIC_AUR_SSH_KEY" > "$HOME/.ssh/aur"
+          chmod 600 "$HOME/.ssh/aur"
+          GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o StrictHostKeyChecking=accept-new" \
+            node scripts/publish-aur.mjs "$RELEASE_VERSION" --push
+      - name: AUR publish skipped (no LHIC_AUR_SSH_KEY secret)
+        if: ${{ env.LHIC_AUR_SSH_KEY == '' }}
+        run: echo "AUR publish skipped (LHIC_AUR_SSH_KEY secret not configured)"

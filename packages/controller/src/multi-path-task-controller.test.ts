@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { readTraceEvents } from "@lhic/trace";
 import type { SemanticAction } from "@lhic/schema";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FastPathRouter } from "./fast-path-router.js";
 import { MultiPathTaskController } from "./multi-path-task-controller.js";
@@ -69,6 +69,7 @@ describe("MultiPathTaskController", () => {
           reason: async (request) => {
             providerCalls += 1;
             expect(request.recentTrace).toEqual([]);
+            expect(request.uiState.capturedAt).toBe("2026-07-17T00:00:03.000Z");
             expect(request.taskSummary).toMatchObject({
               completedSteps: ["observe"],
               failureReasons: ["Selector no longer matches."],
@@ -88,7 +89,7 @@ describe("MultiPathTaskController", () => {
           };
         },
         resolveLocalPlan: async () =>
-          observationCount === 1 ? [localAction] : undefined,
+          observationCount <= 2 ? [localAction] : undefined,
         executor: {
           execute: async (action) => {
             executionCount += 1;
@@ -132,8 +133,8 @@ describe("MultiPathTaskController", () => {
         budget: { slowPathCalls: 1 },
       });
       expect(providerCalls).toBe(1);
-      expect(observationCount).toBe(2);
-      expect(executionCount).toBe(2);
+      expect(observationCount).toBe(3);
+      expect(executionCount).toBe(3);
       expect(result.routes.map((route) => route.path)).toContain(
         "local_recovery",
       );
@@ -276,5 +277,282 @@ describe("MultiPathTaskController", () => {
       budget: { slowPathCalls: 1 },
     });
     expect(executed).toBe(false);
+  });
+
+  it("propagates provider decisions and executor exceptions as terminal results", async () => {
+    const baseOptions = {
+      taskId: "core-error-propagation",
+      intent,
+      prediction: confidentPrediction,
+      profile: "balanced" as const,
+      config: { mode: "enabled" as const, defaultProfile: "balanced" as const },
+      observe: async () => state,
+      resolveLocalPlan: async () => undefined,
+      executor: {
+        execute: async () => {
+          throw new Error("must not execute");
+        },
+      },
+    };
+    const providerBlocked = new MultiPathTaskController({
+      ...baseOptions,
+      router: new FastPathRouter({
+        reason: async () => ({
+          decision: "blocked",
+          message: "The current state has no safe continuation.",
+        }),
+      }),
+    });
+    await expect(providerBlocked.run()).resolves.toMatchObject({
+      status: "blocked",
+      failureReason: "The current state has no safe continuation.",
+    });
+
+    const executorFailed = new MultiPathTaskController({
+      ...baseOptions,
+      taskId: "executor-exception",
+      profile: "fast_only",
+      config: { mode: "enabled", defaultProfile: "fast_only" },
+      resolveLocalPlan: async () => [localAction],
+    });
+    await expect(executorFailed.run()).resolves.toMatchObject({
+      status: "failed",
+      failureReason: "Controller operation failed: must not execute",
+      summary: {
+        failureReasons: ["Controller operation failed: must not execute"],
+      },
+    });
+  });
+
+  it("does not retry a verified action when optional learning fails", async () => {
+    let executions = 0;
+    const controller = new MultiPathTaskController({
+      taskId: "optional-learning-failure",
+      intent,
+      prediction: confidentPrediction,
+      profile: "fast_only",
+      config: { mode: "enabled", defaultProfile: "fast_only" },
+      observe: async () => state,
+      resolveLocalPlan: async () => [localAction],
+      executor: {
+        execute: async () => {
+          executions += 1;
+          return {
+            execution: {
+              success: true,
+              method: "dom" as const,
+              latencyMs: 1,
+              evidence: ["Filled field."],
+            },
+            verification: { success: true, evidence: ["Result ready."] },
+          };
+        },
+        rememberVerifiedAction: () => {
+          throw new Error("learning store unavailable");
+        },
+      },
+    });
+
+    await expect(controller.run()).resolves.toMatchObject({
+      status: "completed",
+    });
+    expect(executions).toBe(1);
+  });
+
+  it("bounds a never-settling observation and aborts the callback", async () => {
+    vi.useFakeTimers();
+    try {
+      let observationSignal: AbortSignal | undefined;
+      const controller = new MultiPathTaskController({
+        taskId: "observe-timeout",
+        intent,
+        prediction: confidentPrediction,
+        profile: "fast_only",
+        config: { mode: "enabled", defaultProfile: "fast_only" },
+        budget: { budget: { maxWallClockMs: 20 } },
+        observe: (signal) => {
+          observationSignal = signal;
+          return Promise.withResolvers<never>().promise;
+        },
+        resolveLocalPlan: async () => [localAction],
+        executor: {
+          execute: async () => {
+            throw new Error("must not execute");
+          },
+        },
+      });
+
+      const result = controller.run();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(result).resolves.toMatchObject({
+        status: "failed",
+        failureReason:
+          "Controller operation failed: observe timed out after 20 ms.",
+        summary: {
+          failureReasons: [
+            "Controller operation failed: observe timed out after 20 ms.",
+          ],
+        },
+      });
+      expect(observationSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bounds never-settling local planning and passes its abort signal", async () => {
+    vi.useFakeTimers();
+    try {
+      let planningSignal: AbortSignal | undefined;
+      const controller = new MultiPathTaskController({
+        taskId: "local-plan-timeout",
+        intent,
+        prediction: confidentPrediction,
+        profile: "fast_only",
+        config: { mode: "enabled", defaultProfile: "fast_only" },
+        budget: { budget: { maxWallClockMs: 20 } },
+        observe: async () => state,
+        resolveLocalPlan: (_state, signal) => {
+          planningSignal = signal;
+          return Promise.withResolvers<never>().promise;
+        },
+        executor: {
+          execute: async () => {
+            throw new Error("must not execute");
+          },
+        },
+      });
+
+      const result = controller.run();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(result).resolves.toMatchObject({
+        status: "failed",
+        failureReason:
+          "Controller operation failed: local planning timed out after 20 ms.",
+      });
+      expect(planningSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("bounds a never-settling routed provider with the task budget", async () => {
+    vi.useFakeTimers();
+    try {
+      let providerSignal: AbortSignal | undefined;
+      const controller = new MultiPathTaskController({
+        taskId: "provider-timeout",
+        intent,
+        prediction: confidentPrediction,
+        profile: "balanced",
+        config: { mode: "enabled", defaultProfile: "balanced" },
+        budget: { budget: { maxWallClockMs: 20 } },
+        router: new FastPathRouter({
+          reason: (_request, signal) => {
+            providerSignal = signal;
+            return Promise.withResolvers<never>().promise;
+          },
+        }),
+        observe: async () => state,
+        resolveLocalPlan: async () => undefined,
+        executor: {
+          execute: async () => {
+            throw new Error("must not execute");
+          },
+        },
+      });
+
+      const result = controller.run();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(result).resolves.toMatchObject({
+        status: "blocked",
+        failureReason:
+          "The budgeted planner was unavailable: Slow Path planning timed out after 20 ms.",
+      });
+      expect(providerSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not replay an action whose execution times out", async () => {
+    vi.useFakeTimers();
+    try {
+      let executions = 0;
+      let executionSignal: AbortSignal | undefined;
+      const controller = new MultiPathTaskController({
+        taskId: "execute-timeout",
+        intent,
+        prediction: confidentPrediction,
+        profile: "fast_only",
+        config: { mode: "enabled", defaultProfile: "fast_only" },
+        budget: { budget: { maxWallClockMs: 20 } },
+        observe: async () => state,
+        resolveLocalPlan: async () => [localAction],
+        executor: {
+          execute: (_action, signal) => {
+            executions += 1;
+            executionSignal = signal;
+            return Promise.withResolvers<never>().promise;
+          },
+        },
+      });
+
+      const result = controller.run();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
+
+      await expect(result).resolves.toMatchObject({
+        status: "failed",
+        failureReason:
+          "Controller operation failed: execute fill timed out after 20 ms.",
+        outcomes: [],
+      });
+      expect(executions).toBe(1);
+      expect(executionSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("propagates external cancellation into the active stage", async () => {
+    const cancellation = new AbortController();
+    const started = Promise.withResolvers<void>();
+    let observationSignal: AbortSignal | undefined;
+    const controller = new MultiPathTaskController({
+      taskId: "observe-aborted",
+      intent,
+      prediction: confidentPrediction,
+      profile: "fast_only",
+      config: { mode: "enabled", defaultProfile: "fast_only" },
+      signal: cancellation.signal,
+      observe: (signal) => {
+        observationSignal = signal;
+        started.resolve();
+        return Promise.withResolvers<never>().promise;
+      },
+      resolveLocalPlan: async () => [localAction],
+      executor: {
+        execute: async () => {
+          throw new Error("must not execute");
+        },
+      },
+    });
+
+    const result = controller.run();
+    await started.promise;
+    cancellation.abort();
+
+    await expect(result).resolves.toMatchObject({
+      status: "failed",
+      failureReason: "Controller operation failed: observe was aborted.",
+    });
+    expect(observationSignal?.aborted).toBe(true);
   });
 });

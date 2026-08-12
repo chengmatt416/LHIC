@@ -38,6 +38,7 @@ try {
       "--",
       "playwright",
       "install",
+      ...(process.platform === "linux" ? ["--with-deps"] : []),
       "chromium",
     ],
     installDirectory,

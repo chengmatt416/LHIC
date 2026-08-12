@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1291,6 +1292,18 @@ async function runStdioServer(): Promise<void> {
   await server.connect(new StdioServerTransport());
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMcpEntryPoint()) {
   await runStdioServer();
+}
+
+export function isMcpEntryPoint(
+  executablePath = process.argv[1],
+  modulePath = fileURLToPath(import.meta.url),
+): boolean {
+  if (!executablePath) return false;
+  try {
+    return realpathSync(executablePath) === realpathSync(modulePath);
+  } catch {
+    return false;
+  }
 }

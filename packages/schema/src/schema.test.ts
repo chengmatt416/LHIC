@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isNormalizedUIState,
+  isBrowserExecutionPlan,
   isGlobalComputerAction,
   isRiskLevel,
   isSemanticAction,
@@ -89,6 +90,26 @@ describe("core schema contracts", () => {
       }),
     ).toBe(false);
     expect(
+      isSemanticAction({
+        type: "tab",
+        intent: "switch tab",
+        tabAction: "switch",
+        tabIndex: -1,
+        methodPreference: ["api"],
+        riskLevel: "low",
+      }),
+    ).toBe(false);
+    expect(
+      isSemanticAction({
+        type: "keyboard",
+        intent: "press a key",
+        key: "Enter",
+        modifiers: ["Control", 1],
+        methodPreference: ["keyboard"],
+        riskLevel: "low",
+      }),
+    ).toBe(false);
+    expect(
       isVerificationCondition({
         type: "dom",
         description: "invalid state",
@@ -101,6 +122,56 @@ describe("core schema contracts", () => {
         type: "file",
         description: "unscoped file",
         params: { filePath: "/tmp/download.txt" },
+      }),
+    ).toBe(false);
+  });
+
+  it("requires upload plans to bind a non-empty local path to a target", () => {
+    const uploadPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Upload an approved fixture",
+      requiredVariables: [{ name: "fixture", prompt: "Approved fixture path" }],
+      steps: [
+        {
+          id: "upload-fixture",
+          action: {
+            type: "upload",
+            intent: "upload the caller-selected fixture",
+            target: "attachment",
+            filePath: "{{variables.fixture}}",
+            methodPreference: ["dom"],
+            riskLevel: "low",
+          },
+          verification: {
+            type: "dom",
+            description: "attachment is selected",
+            params: { selector: "#attachment" },
+          },
+        },
+      ],
+    };
+
+    expect(isBrowserExecutionPlan(uploadPlan)).toBe(true);
+    expect(
+      isBrowserExecutionPlan({
+        ...uploadPlan,
+        steps: [
+          {
+            ...uploadPlan.steps[0],
+            action: { ...uploadPlan.steps[0]!.action, filePath: "" },
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isBrowserExecutionPlan({
+        ...uploadPlan,
+        steps: [
+          {
+            ...uploadPlan.steps[0],
+            action: { ...uploadPlan.steps[0]!.action, target: "" },
+          },
+        ],
       }),
     ).toBe(false);
   });
@@ -126,6 +197,40 @@ describe("core schema contracts", () => {
         ...action,
         verifier: { type: "active_window" },
         text: undefined,
+      }),
+    ).toBe(false);
+    expect(
+      isGlobalComputerAction({
+        scope: "os",
+        type: "os_click",
+        intent: "click a semantic desktop control",
+        target: "Save",
+        application: "TextEdit",
+        methodPreference: ["accessibility"],
+        riskLevel: "medium",
+        verifier: { type: "active_window", application: "TextEdit" },
+      }),
+    ).toBe(true);
+    expect(
+      isGlobalComputerAction({
+        scope: "os",
+        type: "os_scroll",
+        intent: "reject an unbounded desktop scroll",
+        methodPreference: ["mouse"],
+        riskLevel: "medium",
+        scrollDirection: "down",
+        scrollAmount: 10_000,
+        verifier: { type: "active_window", application: "TextEdit" },
+      }),
+    ).toBe(false);
+    expect(
+      isGlobalComputerAction({
+        scope: "os",
+        type: "os_clipboard",
+        intent: "reject a clipboard action without an operation",
+        methodPreference: ["api"],
+        riskLevel: "high",
+        verifier: { type: "active_window", application: "TextEdit" },
       }),
     ).toBe(false);
   });

@@ -113,7 +113,7 @@ export const codexTerminalScript = `on run argv
     error errorMessage
   end try
   set promptLoader to "taskPrompt=\\"$(/bin/cat " & quoted form of promptPath & ")\\" && /bin/rm -f " & quoted form of promptPath
-  set shellCommand to "umask 077; " & promptLoader & " && cd " & quoted form of workspaceRoot & " && clear && " & quoted form of codexExecutable & " --model " & quoted form of codexModel & " --config " & quoted form of effortOverride & " --dangerously-bypass-approvals-and-sandbox --no-alt-screen -C " & quoted form of workspaceRoot & " \\"$taskPrompt\\"; codexStatus=$?; /usr/bin/printf '%s\\n' \\"$codexStatus\\" > " & quoted form of completionPath & "; exit \\"$codexStatus\\""
+  set shellCommand to "umask 077; " & promptLoader & " && cd " & quoted form of workspaceRoot & " && clear && " & quoted form of codexExecutable & " --model " & quoted form of codexModel & " --config " & quoted form of effortOverride & " --sandbox workspace-write --ask-for-approval never --no-alt-screen -C " & quoted form of workspaceRoot & " \\"$taskPrompt\\"; codexStatus=$?; /usr/bin/printf '%s\\n' \\"$codexStatus\\" > " & quoted form of completionPath & "; exit \\"$codexStatus\\""
   tell application "Finder" to set screenBounds to bounds of window of desktop
   tell application "Terminal"
     activate

@@ -40,6 +40,12 @@ class PreflightContractTests(unittest.TestCase):
         class FakeAgentArgs:
             agent_name = "LhicSemanticBidAgent"
 
+
+        class FakeFullAgentArgs:
+            agent_name = "LhicFullModelAgent"
+
+            def __init__(self, *, model: str) -> None:
+                self.model = model
         def make_study(**kwargs: object) -> object:
             calls.update(kwargs)
             return types.SimpleNamespace(exp_args_list=[object(), object()])
@@ -52,8 +58,12 @@ class PreflightContractTests(unittest.TestCase):
         experiments.study = study
 
         browsergym = types.ModuleType("browsergym")
+        browsergym_webarena = types.ModuleType("browsergym.webarena")
+        browsergym.webarena = browsergym_webarena
         lhic_agent = types.ModuleType("lhic_agent")
         lhic_agent.LhicSemanticAgentArgs = FakeAgentArgs
+        lhic_full_agent = types.ModuleType("lhic_full_agent")
+        lhic_full_agent.LhicFullAgentArgs = FakeFullAgentArgs
         playwright = types.ModuleType("playwright")
         sync_api = types.ModuleType("playwright.sync_api")
         sync_api.sync_playwright = _FakePlaywrightContext
@@ -67,7 +77,9 @@ class PreflightContractTests(unittest.TestCase):
                     "agentlab.experiments": experiments,
                     "agentlab.experiments.study": study,
                     "browsergym": browsergym,
+                    "browsergym.webarena": browsergym_webarena,
                     "lhic_agent": lhic_agent,
+                    "lhic_full_agent": lhic_full_agent,
                     "playwright": playwright,
                     "playwright.sync_api": sync_api,
                 },
@@ -80,6 +92,8 @@ class PreflightContractTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertEqual(calls["benchmark"], "workarena_l1")
         self.assertEqual(calls["agent_args"][0].agent_name, "LhicSemanticBidAgent")
+        self.assertEqual(report["lhicFullAgentAdapter"], "LhicFullModelAgent")
+        self.assertEqual(report["browsergymWebarena"], "browsergym-webarena-version")
         self.assertEqual(report["workarenaL1StudyTaskCount"], 2)
         self.assertRegex(report["pythonPackagesSha256"], r"^[0-9a-f]{64}$")
         self.assertFalse(report["secretValuesInspected"])

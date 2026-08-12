@@ -50,6 +50,8 @@ describe("BrowserPool", () => {
           request.onerror = () => reject(request.error);
         });
         database.close();
+        const cache = await caches.open("pool-cache");
+        await cache.put("/sensitive", new Response("should-not-leak"));
       });
       await pool.releasePage(first.context);
 
@@ -59,11 +61,13 @@ describe("BrowserPool", () => {
         const databaseNames = indexedDB.databases
           ? (await indexedDB.databases()).map((database) => database.name)
           : [];
+        const cacheNames = await caches.keys();
         return {
           local: localStorage.getItem("local-secret"),
           session: sessionStorage.getItem("session-secret"),
           cookie: document.cookie,
           databaseNames,
+          cacheNames,
         };
       });
       expect(leaked).toEqual({
@@ -71,6 +75,7 @@ describe("BrowserPool", () => {
         session: null,
         cookie: "",
         databaseNames: [],
+        cacheNames: [],
       });
       await pool.releasePage(second.context);
     } finally {
@@ -108,6 +113,32 @@ describe("BrowserPool", () => {
     const extraContext = await (await page1.context().browser()!).newContext();
     await pool.releasePage(extraContext);
     expect(pool.getPoolSize()).toBe(3);
+  });
+
+  it("closes leased contexts and rejects acquisition after shutdown", async () => {
+    pool = new BrowserPool();
+    const { page } = await pool.acquirePage();
+
+    await pool.close();
+
+    expect(page.isClosed()).toBe(true);
+    await expect(pool.acquirePage()).rejects.toThrow("closed");
+  });
+
+  it("makes duplicate releases idempotent", async () => {
+    pool = new BrowserPool({ maxSize: 1 });
+    const { context } = await pool.acquirePage();
+
+    await Promise.all([pool.releasePage(context), pool.releasePage(context)]);
+
+    expect(pool.getPoolSize()).toBe(1);
+  });
+
+  it("rejects invalid capacity configuration", () => {
+    expect(() => new BrowserPool({ maxSize: 0 })).toThrow("positive integer");
+    expect(() => new BrowserPool({ maxSize: 1, warmInstances: 2 })).toThrow(
+      "between zero and maxSize",
+    );
   });
 
   it("applies stealth settings and configures proxy configuration options without crashing", async () => {

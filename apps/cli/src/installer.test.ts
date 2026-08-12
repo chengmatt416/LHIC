@@ -14,7 +14,7 @@ import {
 } from "./installer.js";
 
 describe("CLI installer", () => {
-  it("installs the global CLI, browser runtime, and stable user command", async () => {
+  it("installs the CLI and browser runtime without requiring elevated access", async () => {
     const homeDirectory = await mkdtemp(join(tmpdir(), "lhic-cli-install-"));
     const calls: readonly string[][] = [];
     try {
@@ -33,7 +33,13 @@ describe("CLI installer", () => {
       });
 
       expect(calls).toEqual([
-        ["install", "--global", "@pinyencheng/lhic@latest"],
+        [
+          "install",
+          "--global",
+          "--prefix",
+          join(homeDirectory, ".local"),
+          "@pinyencheng/lhic@latest",
+        ],
         [
           "exec",
           "--yes",
@@ -44,7 +50,6 @@ describe("CLI installer", () => {
           "install",
           "chromium",
         ],
-        ["prefix", "--global"],
       ]);
       expect(result).toEqual({
         executable: join(homeDirectory, ".local", "bin", "lhic"),

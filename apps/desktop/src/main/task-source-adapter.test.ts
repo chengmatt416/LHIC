@@ -84,7 +84,10 @@ describe("TaskSourceAdapter", () => {
       const adapter = new TaskSourceAdapter({
         credentialFor: async () => "key-only-in-test",
         fetchImplementation: async (input, init) => {
-          requests.push({ url: String(input), body: init?.body });
+          requests.push({
+            url: String(input),
+            body: JSON.parse(String(init?.body)) as unknown,
+          });
           return new Response(JSON.stringify(responseBody), { status: 200 });
         },
       });
@@ -112,6 +115,59 @@ describe("TaskSourceAdapter", () => {
       expect(JSON.stringify(requests[0]?.body)).not.toContain(
         "key-only-in-test",
       );
+      const serializedRequest = JSON.stringify(requests[0]?.body);
+      expect(
+        serializedRequest.match(/Return only one browser-plan-v1/g),
+      ).toHaveLength(1);
+      if (kind === "anthropic-messages") {
+        expect(requests[0]?.body).toMatchObject({
+          system: expect.stringContaining("Return only one browser-plan-v1"),
+          messages: [
+            {
+              role: "user",
+              content: expect.stringMatching(/^Task: /),
+            },
+          ],
+        });
+      }
+    },
+  );
+
+  it.each(["openai-responses", "anthropic-messages"] as const)(
+    "assembles multipart %s text without truncating the structured plan",
+    async (kind) => {
+      const serializedPlan = JSON.stringify(plan);
+      const splitAt = Math.floor(serializedPlan.length / 2);
+      const parts = [
+        { type: "text", text: serializedPlan.slice(0, splitAt) },
+        { type: "text", text: serializedPlan.slice(splitAt) },
+      ];
+      const responseBody =
+        kind === "anthropic-messages"
+          ? { content: parts }
+          : { output: [{ content: [parts[0]] }, { content: [parts[1]] }] };
+      const adapter = new TaskSourceAdapter({
+        credentialFor: async () => "key-only-in-test",
+        fetchImplementation: async () =>
+          new Response(JSON.stringify(responseBody), { status: 200 }),
+      });
+
+      await expect(
+        adapter.propose(
+          {
+            id: kind,
+            kind,
+            label: kind,
+            model: "test-model",
+            enabled: true,
+          },
+          plan.goal,
+          process.cwd(),
+        ),
+      ).resolves.toMatchObject({
+        schemaVersion: "browser-plan-v1",
+        steps: [expect.objectContaining({ id: "open-docs" })],
+      });
     },
   );
 
@@ -162,6 +218,69 @@ describe("TaskSourceAdapter", () => {
     expect(invocations[2]).toEqual(
       expect.arrayContaining(["--permission-mode", "plan", "--json-schema"]),
     );
+  });
+
+  it("normalizes nullable verifier fields in a desktop step decision", async () => {
+    const decision = {
+      status: "action",
+      reason: "The observed submit control is ready.",
+      action: {
+        scope: "os",
+        type: "os_click",
+        intent: "Click the observed submit control",
+        target: null,
+        methodPreference: ["mouse"],
+        riskLevel: "medium",
+        x: 20,
+        y: 30,
+        text: null,
+        key: null,
+        application: null,
+        scrollDirection: null,
+        scrollAmount: null,
+        verifier: {
+          type: "active_window",
+          application: "Editor",
+          title: null,
+        },
+      },
+    };
+    const adapter = new TaskSourceAdapter({
+      credentialFor: async () => "key-only-in-test",
+      fetchImplementation: async () =>
+        new Response(
+          JSON.stringify({ output_text: JSON.stringify(decision) }),
+          { status: 200 },
+        ),
+    });
+
+    await expect(
+      adapter.proposeDesktopStep(
+        {
+          id: "gemini",
+          kind: "gemini",
+          label: "Gemini",
+          model: "test-model",
+          enabled: true,
+        },
+        "Click Submit",
+        { accessibilityTree: "window Editor\n  button Submit" },
+        process.cwd(),
+      ),
+    ).resolves.toEqual({
+      status: "action",
+      reason: decision.reason,
+      action: {
+        scope: "os",
+        type: "os_click",
+        intent: "Click the observed submit control",
+        methodPreference: ["mouse"],
+        riskLevel: "medium",
+        x: 20,
+        y: 30,
+        verifier: { type: "active_window", application: "Editor" },
+      },
+    });
   });
 
   it("rejects a schema-invalid provider result", async () => {

@@ -25,6 +25,38 @@ export interface NormalizedUIState {
   capturedAt: string;
 }
 
+function isUIObject(value: unknown): value is UIObject {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const obj = value as Partial<UIObject>;
+  if (typeof obj.id !== "string" || !obj.id.trim()) {
+    return false;
+  }
+  if (
+    typeof obj.source !== "string" ||
+    !["dom", "accessibility", "ocr", "vision", "api"].includes(obj.source)
+  ) {
+    return false;
+  }
+  if (obj.bbox !== undefined) {
+    if (
+      !Array.isArray(obj.bbox) ||
+      obj.bbox.length !== 4 ||
+      !obj.bbox.every((v) => typeof v === "number" && Number.isFinite(v))
+    ) {
+      return false;
+    }
+  }
+  if (obj.enabled !== undefined && typeof obj.enabled !== "boolean") {
+    return false;
+  }
+  if (obj.focused !== undefined && typeof obj.focused !== "boolean") {
+    return false;
+  }
+  return true;
+}
+
 export function isNormalizedUIState(
   value: unknown,
 ): value is NormalizedUIState {
@@ -33,13 +65,24 @@ export function isNormalizedUIState(
   }
 
   const candidate = value as Partial<NormalizedUIState>;
-  return (
-    ["browser", "desktop", "filesystem", "unknown"].includes(
+  if (
+    !["browser", "desktop", "filesystem", "unknown"].includes(
       candidate.surface ?? "",
-    ) &&
-    Array.isArray(candidate.objects) &&
-    !!candidate.signals &&
-    typeof candidate.signals === "object" &&
-    typeof candidate.capturedAt === "string"
-  );
+    )
+  ) {
+    return false;
+  }
+  if (
+    !Array.isArray(candidate.objects) ||
+    !candidate.objects.every(isUIObject)
+  ) {
+    return false;
+  }
+  if (!candidate.signals || typeof candidate.signals !== "object") {
+    return false;
+  }
+  if (typeof candidate.capturedAt !== "string") {
+    return false;
+  }
+  return true;
 }

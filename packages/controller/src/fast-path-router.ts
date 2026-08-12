@@ -154,11 +154,12 @@ export class FastPathRouter {
   public async invokeSlowPath(
     decision: RouteDecision,
     request: SlowPathRequest,
+    signal?: AbortSignal,
   ): Promise<SlowPathResponse | undefined> {
     if (decision.path !== "slow" || !this.slowPathProvider) {
       return undefined;
     }
-    return this.slowPathProvider.reason(request);
+    return this.slowPathProvider.reason(request, signal);
   }
 
   /**
@@ -169,6 +170,7 @@ export class FastPathRouter {
     route: StageRoute,
     request: SlowPathRequest,
     budget: TaskBudgetTracker,
+    signal?: AbortSignal,
   ): Promise<SlowPathResponse | undefined> {
     if (
       (route.path !== "slow_planner" && route.path !== "slow_vision_planner") ||
@@ -187,7 +189,12 @@ export class FastPathRouter {
       ...redactedRequest,
       uiState: toSlowPathSafeUiState(redactedRequest.uiState),
     };
-    const inputChars = JSON.stringify(safeRequest).length;
+    const modelRequest: SlowPathRequest = {
+      ...safeRequest,
+      // A compact summary is authoritative for new orchestrated requests.
+      recentTrace: safeRequest.taskSummary ? [] : safeRequest.recentTrace,
+    };
+    const inputChars = JSON.stringify(modelRequest).length;
     const reservation = budget.reserveSlowPath(
       inputChars,
       route.path === "slow_vision_planner" ? 1 : 0,
@@ -197,11 +204,7 @@ export class FastPathRouter {
     }
     const startedAt = performance.now();
     try {
-      return await this.slowPathProvider.reason({
-        ...safeRequest,
-        // A compact summary is authoritative for new orchestrated requests.
-        recentTrace: safeRequest.taskSummary ? [] : safeRequest.recentTrace,
-      });
+      return await this.slowPathProvider.reason(modelRequest, signal);
     } finally {
       budget.recordSlowPathLatency(performance.now() - startedAt);
     }

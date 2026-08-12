@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createActionApproval,
+  actionRequiresApproval,
   evaluateRisk,
   guardCredentials,
   parseRuntimeConfig,
@@ -75,6 +76,19 @@ describe("risk policy", () => {
         riskLevel: "low",
       }).requiresConfirmation,
     ).toBe(true);
+  });
+
+  it("always requires approval before a local file upload", () => {
+    expect(
+      actionRequiresApproval({
+        type: "upload",
+        intent: "attach the caller-selected fixture",
+        target: "attachment",
+        filePath: "/tmp/webarena-fixture.txt",
+        methodPreference: ["dom"],
+        riskLevel: "low",
+      }),
+    ).toContain("local file");
   });
 });
 

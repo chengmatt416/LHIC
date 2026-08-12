@@ -16,7 +16,9 @@ from html.parser import HTMLParser
 from typing import Literal
 
 
-ActionPhase = Literal["initial", "filled", "selected", "clicked", "submitted"]
+ActionPhase = Literal[
+    "initial", "filled", "selected", "clicked", "submitted", "navigated"
+]
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class SemanticBidControl:
     accessible_name: str
     input_type: str
     role: str
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -79,6 +82,11 @@ _CLICK_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _PLAN_SEPARATOR_PATTERN = re.compile(r"\b(?:and\s+then|then)\b", re.IGNORECASE)
+_URL_NAVIGATION_PATTERN = re.compile(
+    r"\b(?:go|navigate|browse|visit|open)\s+(?:to\s+)?"
+    r"(?P<url>https?://[^\s\"'<>]+)",
+    re.IGNORECASE,
+)
 _KNOWLEDGE_NAVIGATION_PATTERN = re.compile(
     r"\bnavigate\s+to\s+a\s+relevant\s+article\s+in\s+the\s+knowledge\s+base\s+"
     r"by\s+searching\s+for:\s*[\"'](?P<query>.+?)[\"']\s+and\s+open\s+"
@@ -94,9 +102,30 @@ _WORKARENA_FORM_FIELD_PATTERN = re.compile(
     r'\ba\s+value\s+of\s+"(?P<value>[^"]*)"\s+for\s+field\s+"(?P<field>[^"]+)"',
     re.IGNORECASE,
 )
-_CONTROL_TAGS = {"input", "textarea", "select", "button", "a", "div"}
-_TEXT_CONTROL_TAGS = {"button", "a", "div"}
-_INTERACTIVE_DIV_ROLES = {"button", "link"}
+_CONTROL_TAGS = {
+    "input",
+    "textarea",
+    "select",
+    "button",
+    "a",
+    "div",
+    "span",
+    "li",
+}
+_TEXT_CONTROL_TAGS = {"button", "a", "div", "span", "li"}
+_INTERACTIVE_ROLES = {
+    "button",
+    "checkbox",
+    "link",
+    "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
+    "option",
+    "radio",
+    "switch",
+    "tab",
+    "treeitem",
+}
 
 
 class _SemanticControlParser(HTMLParser):
@@ -123,9 +152,17 @@ class _SemanticControlParser(HTMLParser):
             return
         if not attributes.get("bid"):
             return
+        if normalized_tag in {"div", "span", "li"} and (
+            attributes.get("role", "").lower() not in _INTERACTIVE_ROLES
+        ):
+            return
         if (
-            normalized_tag == "div"
-            and attributes.get("role", "").lower() not in _INTERACTIVE_DIV_ROLES
+            "disabled" in attributes
+            or attributes.get("aria-disabled", "").lower() == "true"
+            or "hidden" in attributes
+            or attributes.get("aria-hidden", "").lower() == "true"
+            or attributes.get("type", "").lower() == "hidden"
+            or "readonly" in attributes
         ):
             return
         if normalized_tag in _TEXT_CONTROL_TAGS:
@@ -187,6 +224,17 @@ def propose_action(
 
     if _DESTRUCTIVE_PATTERN.search(goal):
         return _infeasible("High-risk goals require human confirmation.", phase)
+    navigation_url = _extract_navigation_url(goal)
+    if navigation_url:
+        if phase != "initial":
+            return _infeasible(
+                "Navigation was already issued; awaiting benchmark completion.", phase
+            )
+        return PolicyDecision(
+            action=f"goto({json.dumps(navigation_url)})",
+            phase="navigated",
+            reason=f"Navigated to the explicit HTTP(S) URL {navigation_url}.",
+        )
 
     query = _extract_search_query(goal)
     if query:
@@ -205,7 +253,8 @@ def propose_action(
         return _propose_click(click_target, pruned_html, phase)
 
     return _infeasible(
-        "Only explicit semantic search, field fill, select, or safe click goals are supported by this adapter.",
+        "Only explicit HTTP(S) navigation, semantic search, field fill, select, "
+        "or safe click goals are supported by this adapter.",
         phase,
     )
 
@@ -268,32 +317,38 @@ def extract_semantic_controls(pruned_html: str) -> list[SemanticBidControl]:
 def _make_control(
     tag: str, attributes: dict[str, str], text: str, label_text: str = ""
 ) -> SemanticBidControl:
-    accessible_name = " ".join(
-        value.strip()
-        for value in (
-            attributes.get("aria-label"),
-            attributes.get("placeholder"),
-            attributes.get("name"),
-            attributes.get("title"),
-            attributes.get("value"),
-            label_text,
-            text,
+    raw_aliases = (
+        attributes.get("aria-label"),
+        label_text,
+        attributes.get("placeholder"),
+        attributes.get("title"),
+        text,
+        attributes.get("name"),
+        attributes.get("value"),
+    )
+    aliases = tuple(
+        dict.fromkeys(
+            html.unescape(value.strip())
+            for value in raw_aliases
+            if value and value.strip()
         )
-        if value and value.strip()
     )
     return SemanticBidControl(
         bid=attributes["bid"],
         tag=tag,
-        accessible_name=html.unescape(accessible_name),
+        accessible_name=" ".join(aliases),
         input_type=attributes.get("type", tag).lower(),
         role=attributes.get("role", "").lower(),
+        aliases=aliases,
     )
 
 
 def _find_search_control(pruned_html: str) -> SemanticBidControl | None:
     for control in extract_semantic_controls(pruned_html):
-        if control.input_type == "search" or _SEARCH_PATTERN.search(
-            control.accessible_name
+        if (
+            control.input_type == "search"
+            or control.role in {"search", "searchbox"}
+            or any(_SEARCH_PATTERN.search(alias) for alias in control.aliases)
         ):
             return control
     return None
@@ -369,7 +424,7 @@ def _propose_click(
     target: str, pruned_html: str, phase: ActionPhase
 ) -> PolicyDecision:
     control = _find_named_control(
-        pruned_html, target, allowed_tags={"button", "a", "div"}
+        pruned_html, target, allowed_tags={"button", "a", "div", "span", "li"}
     )
     if not control:
         return _infeasible(
@@ -403,14 +458,17 @@ def _find_named_control(
     for control in extract_semantic_controls(pruned_html):
         if allowed_tags is not None and control.tag not in allowed_tags:
             continue
-        normalized_name = _normalize(control.accessible_name)
-        if not normalized_name:
-            continue
-        if normalized_name == normalized_field_name:
+        normalized_aliases = {
+            normalized
+            for alias in control.aliases or (control.accessible_name,)
+            if (normalized := _normalize(alias))
+        }
+        if normalized_field_name in normalized_aliases:
             exact_matches.append(control)
-        elif (
-            normalized_field_name in normalized_name
-            or normalized_name in normalized_field_name
+        elif any(
+            normalized_field_name in normalized
+            or normalized in normalized_field_name
+            for normalized in normalized_aliases
         ):
             partial_matches.append(control)
 
@@ -421,6 +479,14 @@ def _find_named_control(
     if len(partial_matches) == 1:
         return partial_matches[0]
     return None
+
+
+def _extract_navigation_url(goal: str) -> str | None:
+    match = _URL_NAVIGATION_PATTERN.search(goal)
+    if not match:
+        return None
+    url = match.group("url").rstrip(".,;:!?)]}")
+    return url or None
 
 
 def _extract_search_query(goal: str) -> str | None:

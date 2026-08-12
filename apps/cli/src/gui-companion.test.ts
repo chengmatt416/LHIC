@@ -25,6 +25,9 @@ describe("GUI companion", () => {
     await expect(
       fetch(companion.url).then((response) => response.text()),
     ).resolves.toContain("MCP Link Companion");
+    const unauthorizedPage = await fetch(apiUrl(companion, "/"));
+    expect(unauthorizedPage.status).toBe(401);
+    await expect(unauthorizedPage.text()).resolves.not.toContain(token);
     const unauthorized = await fetch(apiUrl(companion, "/api/mcp/config"), {
       method: "POST",
     });

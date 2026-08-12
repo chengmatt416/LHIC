@@ -88,7 +88,9 @@ export class StageRouter {
     if (
       input.stage === "observe" ||
       input.stage === "verify" ||
-      (input.hasLocalPlan && input.prediction.confidence >= 0.8)
+      (input.stage !== "recover" &&
+        input.hasLocalPlan &&
+        input.prediction.confidence >= 0.8)
     ) {
       return this.routeResult(
         input,

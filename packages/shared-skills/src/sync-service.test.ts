@@ -44,6 +44,19 @@ describe("shared skill sync service", () => {
           submitted.push(payload);
         },
         login: async () => "session",
+        search: async () => ({ skills: [], total: 0 }),
+        detail: async () => {
+          throw new Error("not used in this test");
+        },
+        versions: async () => [],
+        rate: async () => {
+          throw new Error("not used in this test");
+        },
+        download: async () => {
+          throw new Error("not used in this test");
+        },
+        me: async () => ({ userId: "u", displayName: "n" }),
+        updateProfile: async () => ({ userId: "u", displayName: "n" }),
       };
       const credentials: SharedSkillCredentialStore = {
         get: async () => "session",

@@ -96,6 +96,9 @@ describe("Slow Path interfaces", () => {
             },
             verification: { success: true, evidence: ["Value retained"] },
           }),
+          rememberVerifiedAction: () => {
+            throw new Error("learning index unavailable");
+          },
         },
       );
 

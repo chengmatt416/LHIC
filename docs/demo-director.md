@@ -47,9 +47,9 @@ Before the live presentation:
    permissions.
 2. Confirm the Codex CLI is signed in. The demo launches GPT-5.6 Luna with
    medium reasoning in a focused, desktop-sized Terminal window and does not
-   control the ChatGPT composer. It deliberately passes
-   `--dangerously-bypass-approvals-and-sandbox`; use only the isolated test
-   workspace and sandbox identities documented here.
+   control the ChatGPT composer. It runs non-interactively with
+   `--sandbox workspace-write --ask-for-approval never`; Codex remains confined
+   to the isolated test workspace while LHIC owns browser-action approvals.
 3. Confirm Codex reports the LHIC MCP server as connected. Signed Plan repairs
    the local registration before launching the CLI when necessary.
 4. Prepare a verifier-approved Challenge 2026 policy artifact at the configured
@@ -61,21 +61,21 @@ Use test-only identities.
 
 ## Stage controls
 
-| Stage           | `Space` result                                                     |
-| --------------- | ------------------------------------------------------------------ |
-| Slide 1         | Show slide 2; recording is already running                         |
-| Slide 2         | Show live MCP connection proof                                     |
-| MCP proof       | Open the signed Codex-dispatch approval screen                     |
-| Signed plan     | Launch Codex CLI with Luna medium and focus its Terminal frame     |
-| Slow execution  | Codex prompts are bypassed; LHIC action-policy gates remain active |
-| Slow completion | Press Space again after the task finishes to show learning         |
-| Learning        | Advances only when the local candidate is genuinely promoted       |
-| Fast ready      | Starts model-free LHIC and focuses its Terminal evidence monitor   |
-| Fast permission | Approves the currently pending LHIC action                         |
-| Comparison      | Show slide 3                                                       |
-| Slide 3         | Launch Challenge 2026 and the configured Game Lab policy           |
-| Game            | Return to slide 4 automatically when playback finishes             |
-| Slide 4         | Stop recording                                                     |
+| Stage           | `Space` result                                                   |
+| --------------- | ---------------------------------------------------------------- |
+| Slide 1         | Show slide 2; recording is already running                       |
+| Slide 2         | Show live MCP connection proof                                   |
+| MCP proof       | Open the signed Codex-dispatch approval screen                   |
+| Signed plan     | Launch Codex CLI with Luna medium and focus its Terminal frame   |
+| Slow execution  | Codex runs sandboxed; LHIC action-policy gates remain active     |
+| Slow completion | Press Space again after the task finishes to show learning       |
+| Learning        | Advances only when the local candidate is genuinely promoted     |
+| Fast ready      | Starts model-free LHIC and focuses its Terminal evidence monitor |
+| Fast permission | Approves the currently pending LHIC action                       |
+| Comparison      | Show slide 3                                                     |
+| Slide 3         | Launch Challenge 2026 and the configured Game Lab policy         |
+| Game            | Return to slide 4 automatically when playback finishes           |
+| Slide 4         | Stop recording                                                   |
 
 The game owns keyboard focus while it runs. Demo Director returns to slide 4
 automatically when the Game Lab playback job completes, avoiding a global

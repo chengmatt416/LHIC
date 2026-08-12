@@ -16,6 +16,7 @@ export class KmsKeyManager {
     string,
     { key: string | KeyLike; fetchedAt: number }
   > = new Map();
+  private readonly revokedKeys = new Set<string>();
   private readonly cacheTtlMs: number;
   private readonly fetchImplementation: typeof fetch;
 
@@ -25,18 +26,37 @@ export class KmsKeyManager {
   }
 
   /**
+   * Marks a key ID as revoked. Revoked keys are rejected on fetch and
+   * evicted from cache immediately.
+   */
+  public revokeKey(keyId: string): void {
+    this.revokedKeys.add(keyId);
+    for (const cacheKey of this.cachedKeys.keys()) {
+      if (cacheKey.endsWith(`:${keyId}`)) {
+        this.cachedKeys.delete(cacheKey);
+      }
+    }
+  }
+
+  /**
+   * Checks if a key has been explicitly revoked.
+   */
+  public isRevoked(keyId: string): boolean {
+    return this.revokedKeys.has(keyId);
+  }
+
+  /**
    * Fetches public key from AWS/GCP KMS, Vault or Local.
    */
   public async fetchPublicKey(keyId: string): Promise<string | KeyLike> {
+    if (this.revokedKeys.has(keyId)) {
+      throw new Error(`KMS Key ${keyId} has been revoked.`);
+    }
     const cacheKey = `${this.config.provider}:${keyId}`;
     const cached = this.cachedKeys.get(cacheKey);
     const now = Date.now();
 
     if (cached && now - cached.fetchedAt < this.cacheTtlMs) {
-      if (keyId.includes("revoked")) {
-        this.cachedKeys.delete(cacheKey);
-        throw new Error(`KMS Key ${keyId} has been revoked.`);
-      }
       return cached.key;
     }
 

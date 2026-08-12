@@ -172,6 +172,55 @@ export class SkillsService {
     ]);
   }
 
+  public async logout(): Promise<void> {
+    const config = await this.config();
+    if (config?.enabled) {
+      await this.credentialStore.delete(config);
+    }
+  }
+
+  public async sharedSkillsConfig(): Promise<SharedSkillsConfig | undefined> {
+    return this.config();
+  }
+
+  public async sessionCookie(): Promise<string | undefined> {
+    const config = await this.config();
+    return config?.enabled ? this.credentialStore.get(config) : undefined;
+  }
+
+  public sharedCredentialStore(): SharedSkillCredentialStore {
+    return this.credentialStore;
+  }
+
+  /**
+   * Upserts one approved marketplace record into the local shared mirror using
+   * the same snapshot-apply path the sync service uses, so downloaded library
+   * skills surface in the dashboard exactly like synced ones.
+   */
+  public async mirrorApprovedSkill(skill: {
+    registryId: string;
+    skillId: string;
+    version: string;
+    name: string;
+    operationKey: string;
+    fingerprint: string;
+    definition: Record<string, unknown>;
+    fastPathEligible: boolean;
+    contentHash: string;
+    updatedAt: string;
+  }): Promise<void> {
+    const config = await this.requiredEnabledConfig();
+    const runtime = await this.openRuntime(config);
+    try {
+      runtime.store.applySnapshot(config.registryId, {
+        skills: [{ ...skill }],
+        revokedSkillIds: [],
+      });
+    } finally {
+      runtime.database.close();
+    }
+  }
+
   public async sync(): Promise<CommandEvent> {
     const config = await this.requiredEnabledConfig();
     const runtime = await this.openRuntime(config);
