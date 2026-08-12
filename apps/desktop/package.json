@@ -22,7 +22,11 @@
     "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs",
     "package:snap": "npm run build && electron-builder --config electron-builder.snap.yml && node scripts/verify-package.mjs",
     "release:checksums": "node ../../scripts/generate-sha256-manifest.mjs release",
-    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums"
+    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums",
+    "package:x64": "npm run build && electron-builder --config electron-builder.yml --x64 && node scripts/verify-package.mjs",
+    "package:arm64": "npm run build && electron-builder --config electron-builder.yml --arm64 && node scripts/verify-package.mjs",
+    "package:release:x64": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml --x64 && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums",
+    "package:release:arm64": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml --arm64 && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums"
   },
   "dependencies": {
     "@lhic/browser": "^0.1.0",

@@ -27,7 +27,7 @@ jobs:
       - name: Install snapcraft
         run: sudo snap install snapcraft --classic
       - name: Package Linux x64
-        run: npm run desktop:package -- --x64
+        run: npm run package:x64 --workspace @lhic/desktop
       - name: Package Linux x64 snap
         continue-on-error: true
         run: npm run package:snap
@@ -51,7 +51,7 @@ jobs:
       - name: Install Chromium and Linux system dependencies
         run: npx playwright install chromium --with-deps
       - name: Package Linux arm64
-        run: npm run desktop:package -- --arm64
+        run: npm run package:arm64 --workspace @lhic/desktop
       - name: Upload Linux arm64 artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -88,10 +88,10 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-        run: npm run package:release -- --x64
+        run: npm run package:release:x64 --workspace @lhic/desktop
       - name: Package macOS x64 (ad-hoc signed)
         if: steps.signing.outputs.available != 'true'
-        run: npm run desktop:package -- --x64
+        run: npm run package:x64 --workspace @lhic/desktop
       - name: Upload macOS x64 artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -128,10 +128,10 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-        run: npm run package:release -- --arm64
+        run: npm run package:release:arm64 --workspace @lhic/desktop
       - name: Package macOS arm64 (ad-hoc signed)
         if: steps.signing.outputs.available != 'true'
-        run: npm run desktop:package -- --arm64
+        run: npm run package:arm64 --workspace @lhic/desktop
       - name: Upload macOS arm64 artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -159,7 +159,7 @@ jobs:
         run: npx playwright install chromium --with-deps
       - name: Package Windows x64
         shell: bash
-        run: npm run desktop:package -- --x64
+        run: npm run package:x64 --workspace @lhic/desktop
       - name: Upload Windows x64 artifacts
         uses: actions/upload-artifact@v4
         with:

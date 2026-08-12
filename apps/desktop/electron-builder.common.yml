@@ -34,6 +34,12 @@ rpm:
 files:
   - dist/**
   - package.json
+  # onnxruntime-node ships a CUDA/TensorRT provider only for linux/x64
+  # (~344 MB); OmniParser V2 executes on the CPU runtime, so the unused
+  # provider libs are excluded from every package.
+  - "!node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_cuda.so"
+  - "!node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_tensorrt.so"
+  - from: ../../packages/game-training/dist
   - from: ../../packages/game-training/dist
     to: node_modules/@lhic/game-training/dist
     filter:
