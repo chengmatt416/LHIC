@@ -19,7 +19,7 @@
 # scripts/install.ps1 instead.
 #
 # Env overrides:
-#   LHIC_DESKTOP_VERSION    release version (default 0.2.6)
+#   LHIC_DESKTOP_VERSION    release version (default 0.2.7)
 #   LHIC_DESKTOP_BASE_URL   release download base URL (default the mirror)
 #   LHIC_DESKTOP_PREFIX     install prefix (default $HOME/.local)
 #   LHIC_SKIP_BACKENDS      set 1 to skip execution-layer package provisioning
@@ -29,7 +29,7 @@
 #   LHIC_SKIP_CLI           set 1 to install the desktop only
 set -eu
 
-VERSION="${LHIC_DESKTOP_VERSION:-0.2.6}"
+VERSION="${LHIC_DESKTOP_VERSION:-0.2.7}"
 BASE_URL="${LHIC_DESKTOP_BASE_URL:-https://lhic.techtools.qzz.io/release}"
 GITHUB_BASE_URL="https://github.com/chengmatt416/LHIC/releases/download/desktop-v${VERSION}"
 CLI_PACKAGE="${LHIC_CLI_PACKAGE:-@pinyencheng/lhic}"

@@ -15,14 +15,14 @@
 # only when neither component could be installed.
 #
 # Env overrides:
-#   LHIC_DESKTOP_VERSION   release version (default 0.2.6)
+#   LHIC_DESKTOP_VERSION   release version (default 0.2.7)
 #   LHIC_DESKTOP_BASE_URL  release download base URL (tests/mirrors)
 #   LHIC_SKIP_BACKENDS     set 1 to skip execution-layer provisioning
 #   LHIC_SKIP_DESKTOP      set 1 to install the CLI only
 #   LHIC_SKIP_CLI          set 1 to install the desktop only
 $ErrorActionPreference = "Stop"
 
-$version = if ($env:LHIC_DESKTOP_VERSION) { $env:LHIC_DESKTOP_VERSION } else { "0.2.6" }
+$version = if ($env:LHIC_DESKTOP_VERSION) { $env:LHIC_DESKTOP_VERSION } else { "0.2.7" }
 $baseUrl = if ($env:LHIC_DESKTOP_BASE_URL) {
   $env:LHIC_DESKTOP_BASE_URL
 } else {
