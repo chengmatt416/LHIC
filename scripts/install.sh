@@ -153,7 +153,7 @@ install_termux_proot() {
         apt-get install -y \
           "$gtk_package" "$atspi_package" "$alsa_package" "$cups_package" \
           libnotify4 libnss3 libxss1 libxtst6 libgbm1 libdrm2 \
-          libxkbcommon0 libuuid1 libsecret-1-0 xdg-utils
+          libxkbcommon0 libuuid1 libsecret-1-0 zlib1g-dev xdg-utils
       fi
       curl -fsSL --retry 3 "$LHIC_INSTALL_URL" | /bin/sh
     '; then

@@ -110,16 +110,11 @@ printf '%s\\n' "$*" >> '${log}'
     await executable(join(bin, "xz"), "#!/bin/sh\nexit 0\n");
     await executable(join(bin, "curl"), "#!/bin/sh\nprintf 'exit 0\\n'\n");
 
-    const source = await readFile(
-      resolve(root, "scripts", "install.sh"),
-      "utf8",
+    const nestedInstaller = nestedProotInstaller(
+      await readFile(resolve(root, "scripts", "install.sh"), "utf8"),
     );
-    const nestedInstaller = source.match(
-      / {4}\/bin\/sh -c '\n([\s\S]*?)\n {4}'; then/,
-    )?.[1];
-    expect(nestedInstaller).toBeDefined();
 
-    await execFileAsync("sh", ["-c", nestedInstaller!], {
+    await execFileAsync("sh", ["-c", nestedInstaller], {
       env: {
         ...process.env,
         PATH: `${bin}:/usr/bin:/bin`,
@@ -131,6 +126,45 @@ printf '%s\\n' "$*" >> '${log}'
     const aptCommands = await readFile(log, "utf8");
     expect(aptCommands).toContain("update");
     expect(aptCommands).toContain("install -y curl ca-certificates xz-utils");
+  });
+
+  it("installs the unversioned libz required by the arm64 AppImage runtime", async () => {
+    const directory = await temporaryDirectory();
+    const bin = join(directory, "bin");
+    const log = join(directory, "apt.log");
+    await mkdir(bin, { recursive: true });
+    await executable(
+      join(bin, "apt-get"),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> '${log}'
+`,
+    );
+    await executable(
+      join(bin, "apt-cache"),
+      "#!/bin/sh\nprintf 'Package: %s\\n' \"$2\"\n",
+    );
+    await executable(join(bin, "curl"), "#!/bin/sh\nprintf 'exit 0\\n'\n");
+
+    await execFileAsync(
+      "sh",
+      [
+        "-c",
+        nestedProotInstaller(
+          await readFile(resolve(root, "scripts", "install.sh"), "utf8"),
+        ),
+      ],
+      {
+        env: {
+          ...process.env,
+          PATH: `${bin}:/usr/bin:/bin`,
+          LHIC_INSTALL_URL: "https://installer.invalid/install.sh",
+          LHIC_SKIP_DESKTOP: "0",
+        },
+      },
+    );
+
+    const aptCommands = await readFile(log, "utf8");
+    expect(aptCommands).toContain("zlib1g-dev");
   });
 
   it("installs native Termux through Debian PRoot and forwards launcher arguments", async () => {
@@ -238,6 +272,16 @@ async function runInstaller(
       LHIC_SKIP_NODE: "0",
     },
   });
+}
+
+function nestedProotInstaller(source: string): string {
+  const script = source.match(
+    / {4}\/bin\/sh -c '\n([\s\S]*?)\n {4}'; then/,
+  )?.[1];
+  if (script === undefined) {
+    throw new Error("Could not locate the nested PRoot installer.");
+  }
+  return script;
 }
 
 async function temporaryDirectory(): Promise<string> {
