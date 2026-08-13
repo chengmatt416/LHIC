@@ -115,7 +115,7 @@ printf '%s\\n' "$*" >> '${log}'
       "utf8",
     );
     const nestedInstaller = source.match(
-      /    \/bin\/sh -c '\n([\s\S]*?)\n    '; then/,
+      / {4}\/bin\/sh -c '\n([\s\S]*?)\n {4}'; then/,
     )?.[1];
     expect(nestedInstaller).toBeDefined();
 
