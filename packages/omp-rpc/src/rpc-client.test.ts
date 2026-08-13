@@ -145,6 +145,34 @@ describe("OmpRpcClient", () => {
 
     harness.exit(0);
   });
+
+  it("attaches the omp stderr tail to a start failure exit error", async () => {
+    const harness = fakeProcess();
+    const callbacks = fakeCallbacks();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      callbacks,
+    );
+    const started = client.start();
+
+    harness.stderr.write(
+      "No models available. Use /login or set an API key environment variable.\n",
+    );
+    harness.exit(1);
+
+    await expect(started).rejects.toThrow("omp RPC process exited with code 1");
+    await expect(started).rejects.toThrow("No models available");
+    expect(callbacks.onClosed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("No models"),
+      }),
+    );
+  });
 });
 
 function fakeCallbacks(): OmpRpcClientCallbacks {
@@ -161,6 +189,7 @@ function fakeCallbacks(): OmpRpcClientCallbacks {
 function fakeProcess(): {
   spawn: typeof nodeSpawn;
   stdout: PassThrough;
+  stderr: PassThrough;
   writes(): Array<Record<string, unknown>>;
   exit(code: number): void;
 } {
@@ -180,6 +209,7 @@ function fakeProcess(): {
   return {
     spawn,
     stdout,
+    stderr,
     writes: () =>
       written
         .join("")

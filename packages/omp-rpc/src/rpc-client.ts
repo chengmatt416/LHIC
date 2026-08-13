@@ -116,6 +116,7 @@ export class OmpRpcClient {
   private assembly: ChunkAssembly | undefined;
   private ready: { maxReassembledFrameBytes: number } | undefined;
   private exited = false;
+  private stderrTail = "";
   private startResolve: (() => void) | undefined;
   private startReject: ((error: Error) => void) | undefined;
 
@@ -153,7 +154,9 @@ export class OmpRpcClient {
     this.child = child;
     child.stdout?.on("data", (chunk: Buffer) => this.onStdout(chunk));
     child.stderr?.on("data", (chunk: Buffer) => {
-      this.callbacks.onLog(String(chunk));
+      const text = String(chunk);
+      this.stderrTail = (this.stderrTail + text).slice(-4000);
+      this.callbacks.onLog(text);
     });
     child.once("error", (error) => {
       this.exited = true;
@@ -165,11 +168,12 @@ export class OmpRpcClient {
     });
     child.once("exit", (code, signal) => {
       this.exited = true;
+      const diagnostic = this.stderrTail.trim();
       const error =
         code === 0 && !signal
           ? undefined
           : new Error(
-              `omp RPC process exited with code ${code ?? "null"}${signal ? ` (${signal})` : ""}.`,
+              `omp RPC process exited with code ${code ?? "null"}${signal ? ` (${signal})` : ""}.${diagnostic ? `\n${diagnostic}` : ""}`,
             );
       this.rejectAll(error);
       this.startReject?.(error ?? new Error("omp RPC process exited early."));
