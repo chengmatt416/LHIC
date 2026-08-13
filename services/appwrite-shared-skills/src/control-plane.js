@@ -228,7 +228,7 @@ export async function handleControlPlane({
       ),
     });
   }
-  const skillStatusMatch = route.match(/^\/control\/skills\/([^/]+)\/status$/);
+  const skillStatusMatch = route.match(/^\/control\/skills\/([^/]+)$/);
   if (skillStatusMatch && method === "PATCH") {
     const body = objectBody(req);
     const status = requiredString(body.status, "status", 16);

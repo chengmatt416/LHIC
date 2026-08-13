@@ -72,7 +72,9 @@ describe("ProvisioningService", () => {
     const second = await service.ensureProvisioned();
     expect(second).toBe(await service.ensureProvisioned());
     const { stat } = await import("node:fs/promises");
-    await expect(stat(join(directory, "provisioned.json"))).resolves.toBeDefined();
+    await expect(
+      stat(join(directory, "provisioned.json")),
+    ).resolves.toBeDefined();
     expect(calls.filter((file) => file === "python3").length).toBe(2); // import check + no install
   });
 
@@ -96,9 +98,9 @@ describe("ProvisioningService", () => {
     expect(
       omniparserSteps.some((step) => step.message.includes("pip ladder")),
     ).toBe(true);
-    expect(
-      omniparserSteps.at(-1)?.message.includes("install failed"),
-    ).toBe(true);
+    expect(omniparserSteps.at(-1)?.message.includes("install failed")).toBe(
+      true,
+    );
     const pipCalls = calls.filter(
       (call) => call.file === "python3" && call.args[0] === "-m",
     );
@@ -118,7 +120,9 @@ describe("ProvisioningService", () => {
       execFileImplementation: fakeExecFile((file, args) => {
         calls.push({ file, args });
         if (file === "python3" && args[0] === "-c") {
-          return installed ? { code: 0, stdout: "ok" } : { code: 1, stderr: "ModuleNotFoundError" };
+          return installed
+            ? { code: 0, stdout: "ok" }
+            : { code: 1, stderr: "ModuleNotFoundError" };
         }
         if (file === "python3" && args[0] === "-m") {
           pipAttempts += 1;
@@ -135,7 +139,9 @@ describe("ProvisioningService", () => {
     const report = await service.ensureProvisioned();
     const omniparserSteps = report.filter((step) => step.name === "omniparser");
     expect(
-      omniparserSteps.some((step) => step.message.includes("installed (weights")),
+      omniparserSteps.some((step) =>
+        step.message.includes("installed (weights"),
+      ),
     ).toBe(true);
     expect(pipAttempts).toBe(2);
   });
@@ -179,9 +185,11 @@ describe("ProvisioningService", () => {
     await service["provisionFlaUI"](report);
     const flaui = report[0];
     expect(flaui?.name).toBe("flaui");
-    expect(calls.some((call) => call.file === "dotnet" && call.args[0] === "publish")).toBe(
-      true,
-    );
+    expect(
+      calls.some(
+        (call) => call.file === "dotnet" && call.args[0] === "publish",
+      ),
+    ).toBe(true);
   });
 
   it("skips the FlaUI bridge below Windows 10 1607", async () => {

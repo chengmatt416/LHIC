@@ -5,6 +5,7 @@ import type {
   OmpMessageView,
   OmpRuntimeState,
   OmpUiRequest,
+  OmpSubagentView,
 } from "../shared/contracts.js";
 
 export interface AgentViewState {
@@ -13,11 +14,12 @@ export interface AgentViewState {
   uiRequest?: OmpUiRequest;
   hostToolCall?: OmpHostToolCall;
   commands?: OmpCommandInfo[];
+  subagents: OmpSubagentView[];
   notice?: string;
 }
 
 export function initialAgentViewState(): AgentViewState {
-  return { messages: [] };
+  return { messages: [], subagents: [] };
 }
 
 /**
@@ -119,8 +121,7 @@ export function reduceAgentEvent(
     case "status":
       return {
         ...state,
-        runtime:
-          event.type === "state" ? event.state : event.status,
+        runtime: event.type === "state" ? event.state : event.status,
       };
     case "ui":
       return { ...state, uiRequest: event.request };
@@ -128,6 +129,11 @@ export function reduceAgentEvent(
       return { ...state, hostToolCall: event.call };
     case "commands":
       return { ...state, commands: event.commands };
+    case "subagents":
+      return {
+        ...state,
+        subagents: mergeSubagents(state.subagents, event.subagents),
+      };
     case "error":
       return { ...state, notice: event.message };
     default:
@@ -148,4 +154,15 @@ function upsertMessage(
       ? { ...candidate, ...message, toolCalls: message.toolCalls }
       : candidate,
   );
+}
+
+function mergeSubagents(
+  current: OmpSubagentView[],
+  incoming: OmpSubagentView[],
+): OmpSubagentView[] {
+  const merged = new Map(current.map((subagent) => [subagent.id, subagent]));
+  for (const subagent of incoming) {
+    merged.set(subagent.id, { ...merged.get(subagent.id), ...subagent });
+  }
+  return [...merged.values()];
 }

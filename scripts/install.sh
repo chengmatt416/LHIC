@@ -1,7 +1,7 @@
 #!/bin/sh
 # One-liner installer for the LHIC desktop app AND the LHIC CLI.
 #
-#   curl -fsSL https://lhic.techtools.qzz.io/install.sh | sh
+#   curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
 #
 # Installs both components per-user (no root required):
 #   1. Desktop app (LHIC Control Center) — Linux AppImage / macOS app bundle.

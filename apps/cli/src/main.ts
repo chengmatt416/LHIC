@@ -19,6 +19,10 @@ import {
   validateExternalBenchmarkEvidence,
 } from "./external-benchmark-evidence.js";
 import {
+  readCompetitiveBenchmarkEvidence,
+  validateCompetitiveBenchmarkEvidence,
+} from "./competitive-benchmark-evidence.js";
+import {
   checkExternalBenchmarkReadiness,
   parseExternalBenchmarkTarget,
 } from "./external-benchmark-readiness.js";
@@ -79,14 +83,18 @@ async function runCommand(
 ): Promise<void> {
   const [command, subcommand, argument] = argumentsList;
   if (command === "agent") {
-    const agentPrompt =
-      typeof subcommand === "string" && subcommand.trim()
-        ? subcommand
-        : typeof argument === "string" && argument.trim()
-          ? argument
-          : undefined;
+    const parsed = parseAgentCommandOptions(argumentsList.slice(1));
     const exitCode = await runAgentCommand({
-      ...(agentPrompt ? { prompt: agentPrompt } : {}),
+      ...(parsed.prompt ? { prompt: parsed.prompt } : {}),
+      ...(parsed.session ? { session: parsed.session } : {}),
+      ...(parsed.model ? { model: parsed.model } : {}),
+      ...(parsed.thinking ? { thinking: parsed.thinking } : {}),
+      ...(parsed.subagentModels
+        ? { subagentModels: parsed.subagentModels }
+        : {}),
+      ...(parsed.fast ? { fast: true } : {}),
+      ...(parsed.jsonl ? { jsonl: true } : {}),
+      approvalPolicy: parsed.approvalPolicy,
       ...(process.env.LHIC_AGENT_SESSION_DIR
         ? { sessionDir: process.env.LHIC_AGENT_SESSION_DIR }
         : {}),
@@ -267,6 +275,23 @@ async function runCommand(
     }
     return;
   }
+  if (
+    command === "bench" &&
+    subcommand === "validate-competitive" &&
+    argument
+  ) {
+    const comparator = argumentsList[4];
+    if (comparator !== "goose" && comparator !== "codex") {
+      throw new Error("Competitive comparator must be goose or codex.");
+    }
+    const evidence = await readCompetitiveBenchmarkEvidence(argument);
+    const result = validateCompetitiveBenchmarkEvidence(evidence, comparator);
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.valid) {
+      process.exitCode = 1;
+    }
+    return;
+  }
   if (command === "mcp" && subcommand === "config") {
     const harness = parseMcpHarness(argument);
     if (!harness) {
@@ -291,6 +316,101 @@ async function runCommand(
     return;
   }
   throw new Error(cliUsage);
+}
+
+export function parseAgentCommandOptions(argumentsList: string[]): {
+  prompt?: string;
+  session?: string;
+  model?: string;
+  thinking?: string;
+  subagentModels?: string[];
+  fast: boolean;
+  jsonl: boolean;
+  approvalPolicy: "ask" | "deny" | "auto";
+} {
+  const result: {
+    prompt?: string;
+    session?: string;
+    model?: string;
+    thinking?: string;
+    subagentModels?: string[];
+    fast: boolean;
+    jsonl: boolean;
+    approvalPolicy: "ask" | "deny" | "auto";
+  } = {
+    fast: false,
+    jsonl: false,
+    approvalPolicy: "ask",
+  };
+  const promptParts: string[] = [];
+  let subagentModelsDisabled = false;
+  for (let index = 0; index < argumentsList.length; index += 1) {
+    const value = argumentsList[index]!;
+    const next = argumentsList[index + 1];
+    if (value === "--jsonl") {
+      result.jsonl = true;
+      continue;
+    }
+    if (value === "--fast") {
+      result.fast = true;
+      continue;
+    }
+    if (value === "--subagent-model") {
+      if (!next || next.startsWith("--")) {
+        throw new Error("--subagent-model requires provider/id or none.");
+      }
+      result.subagentModels ??= [];
+      if (next === "none") {
+        if (result.subagentModels.length > 0 || subagentModelsDisabled) {
+          throw new Error(
+            "--subagent-model none cannot be combined with model selectors.",
+          );
+        }
+        subagentModelsDisabled = true;
+        result.subagentModels = [];
+      } else {
+        if (subagentModelsDisabled) {
+          throw new Error(
+            "--subagent-model none cannot be combined with model selectors.",
+          );
+        }
+        result.subagentModels.push(next);
+      }
+      index += 1;
+      continue;
+    }
+    if (
+      value === "--session" ||
+      value === "--model" ||
+      value === "--thinking"
+    ) {
+      if (!next || next.startsWith("--")) {
+        throw new Error(`${value} requires a value.`);
+      }
+      if (value === "--session") result.session = next;
+      if (value === "--model") result.model = next;
+      if (value === "--thinking") result.thinking = next;
+      index += 1;
+      continue;
+    }
+    if (value === "--approval-policy") {
+      if (next !== "ask" && next !== "deny" && next !== "auto") {
+        throw new Error("--approval-policy must be ask, deny, or auto.");
+      }
+      result.approvalPolicy = next;
+      index += 1;
+      continue;
+    }
+    if (value.startsWith("--")) {
+      throw new Error(`Unknown agent option: ${value}.`);
+    }
+    promptParts.push(value);
+  }
+  if (promptParts.length > 0) result.prompt = promptParts.join(" ");
+  if (result.jsonl && !result.prompt) {
+    throw new Error("--jsonl requires a one-shot agent prompt.");
+  }
+  return result;
 }
 
 function parseIntegerArgument(

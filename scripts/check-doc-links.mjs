@@ -12,7 +12,10 @@ const workspaceDirectory = resolve(
 const { stdout } = await execFileAsync("git", ["ls-files", "--", "*.md"], {
   cwd: workspaceDirectory,
 });
-const markdownFiles = stdout.trim().split("\n").filter(Boolean);
+const markdownFiles = stdout
+  .trim()
+  .split("\n")
+  .filter((file) => file && !file.startsWith("node_modules_bak/"));
 const failures = [];
 
 for (const file of markdownFiles) {

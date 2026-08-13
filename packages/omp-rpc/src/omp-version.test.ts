@@ -85,9 +85,11 @@ describe("omp version updater", () => {
         apiCalls,
       ) as typeof fetch,
     });
-    expect(resolver.endsWith(join("17.3.0", platform === "win32" ? "omp.exe" : "omp"))).toBe(
-      true,
-    );
+    expect(
+      resolver.endsWith(
+        join("17.3.0", platform === "win32" ? "omp.exe" : "omp"),
+      ),
+    ).toBe(true);
     const resolvedBytes = await readFile(resolver);
     expect(Buffer.from(resolvedBytes).toString()).toBe("omp-17.3.0-bytes");
     expect(apiCalls.length).toBe(1);
@@ -100,7 +102,10 @@ describe("omp version updater", () => {
   it("caches the update check within the interval", async () => {
     const bytes = new TextEncoder().encode("omp-bytes");
     const apiCalls: string[] = [];
-    const fetchImpl = mockFetch({ "17.2.15": bytes, "17.3.0": bytes }, apiCalls);
+    const fetchImpl = mockFetch(
+      { "17.2.15": bytes, "17.3.0": bytes },
+      apiCalls,
+    );
     const options = {
       cacheRoot: directory,
       pinnedVersion: "17.2.15",

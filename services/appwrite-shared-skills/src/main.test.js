@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import handler, { publicSkill, publicUser, validateSubmission } from "./main.js";
+import handler, {
+  publicSkill,
+  publicUser,
+  validateSubmission,
+} from "./main.js";
 
 const validSubmission = {
   schemaVersion: "shared-skill-v1",
@@ -225,11 +229,11 @@ describe("Appwrite shared skill Function", () => {
 
   it("creates a version row on submission and serves skill detail", async () => {
     const tables = new FakeTables();
-    const submitted = await invoke(
-      tables,
-      "/skills",
-      { method: "POST", body: validSubmission, jwt: "author-1" },
-    );
+    const submitted = await invoke(tables, "/skills", {
+      method: "POST",
+      body: validSubmission,
+      jwt: "author-1",
+    });
     expect(submitted.status).toBe(202);
     const skillRows = tables.rows.get("skills") ?? [];
     expect(skillRows).toHaveLength(1);
@@ -321,36 +325,36 @@ describe("Appwrite shared skill Function", () => {
     const tables = new FakeTables();
     seedSkill(tables, "s1", { name: "rated", category: "browser" });
 
-    const first = await invoke(
-      tables,
-      "/skills/s1/rate",
-      { method: "POST", body: { rating: 5 }, jwt: "user-1" },
-    );
+    const first = await invoke(tables, "/skills/s1/rate", {
+      method: "POST",
+      body: { rating: 5 },
+      jwt: "user-1",
+    });
     expect(first.value.skill).toMatchObject({ ratingAvg: 5, ratingCount: 1 });
 
-    const second = await invoke(
-      tables,
-      "/skills/s1/rate",
-      { method: "POST", body: { rating: 3 }, jwt: "user-1" },
-    );
+    const second = await invoke(tables, "/skills/s1/rate", {
+      method: "POST",
+      body: { rating: 3 },
+      jwt: "user-1",
+    });
     expect(second.value.skill).toMatchObject({ ratingAvg: 3, ratingCount: 1 });
     expect(tables.rows.get("skill-ratings")).toHaveLength(1);
 
-    const third = await invoke(
-      tables,
-      "/skills/s1/rate",
-      { method: "POST", body: { rating: 4 }, jwt: "user-2" },
-    );
+    const third = await invoke(tables, "/skills/s1/rate", {
+      method: "POST",
+      body: { rating: 4 },
+      jwt: "user-2",
+    });
     expect(third.value.skill).toMatchObject({
       ratingAvg: 3.5,
       ratingCount: 2,
     });
 
-    const invalid = await invoke(
-      tables,
-      "/skills/s1/rate",
-      { method: "POST", body: { rating: 7 }, jwt: "user-1" },
-    );
+    const invalid = await invoke(tables, "/skills/s1/rate", {
+      method: "POST",
+      body: { rating: 7 },
+      jwt: "user-1",
+    });
     expect(invalid.status).toBe(400);
     expect(invalid.value.error).toContain("between 1 and 5");
   });
@@ -359,24 +363,18 @@ describe("Appwrite shared skill Function", () => {
     const tables = new FakeTables();
     seedSkill(tables, "s1", { name: "downloadable" });
 
-    const first = await invoke(
-      tables,
-      "/skills/s1/download",
-      { method: "POST" },
-    );
+    const first = await invoke(tables, "/skills/s1/download", {
+      method: "POST",
+    });
     expect(first.value).toEqual({ downloadCount: 1 });
-    const second = await invoke(
-      tables,
-      "/skills/s1/download",
-      { method: "POST" },
-    );
+    const second = await invoke(tables, "/skills/s1/download", {
+      method: "POST",
+    });
     expect(second.value).toEqual({ downloadCount: 2 });
 
-    const missing = await invoke(
-      tables,
-      "/skills/nope/download",
-      { method: "POST" },
-    );
+    const missing = await invoke(tables, "/skills/nope/download", {
+      method: "POST",
+    });
     expect(missing.status).toBe(404);
   });
 
@@ -391,19 +389,15 @@ describe("Appwrite shared skill Function", () => {
     expect(created.value.user.avatarUrl).toBeUndefined();
     expect(tables.rows.get("users")).toHaveLength(1);
 
-    const patched = await invoke(
-      tables,
-      "/users/me",
-      {
-        method: "PATCH",
-        body: {
-          displayName: "Alice",
-          bio: "Skill builder",
-          avatarUrl: "https://example.test/avatar.png",
-        },
-        jwt: "user-abc",
+    const patched = await invoke(tables, "/users/me", {
+      method: "PATCH",
+      body: {
+        displayName: "Alice",
+        bio: "Skill builder",
+        avatarUrl: "https://example.test/avatar.png",
       },
-    );
+      jwt: "user-abc",
+    });
     expect(patched.value.user).toMatchObject({
       userId: "user-abc",
       displayName: "Alice",
@@ -412,11 +406,11 @@ describe("Appwrite shared skill Function", () => {
     });
     expect(tables.rows.get("users")).toHaveLength(1);
 
-    const invalid = await invoke(
-      tables,
-      "/users/me",
-      { method: "PATCH", body: { displayName: "" }, jwt: "user-abc" },
-    );
+    const invalid = await invoke(tables, "/users/me", {
+      method: "PATCH",
+      body: { displayName: "" },
+      jwt: "user-abc",
+    });
     expect(invalid.status).toBe(400);
 
     const publicProfile = await invoke(tables, "/users/user-abc");
@@ -442,16 +436,14 @@ describe("Appwrite shared skill Function", () => {
       },
       {
         $id: "live",
-        codeHash: "h2",
+        codeHash:
+          "8c97df4100b89fc982f0517a51dd93929f4de176e26e87291ecb09fc9a1bb992",
         userId: "u",
         secret: "s",
         expiresAt: new Date(now + 60_000).toISOString(),
       },
     ]);
-    const poll = await invoke(
-      tables,
-      `/auth/poll?device=${"y".repeat(40)}`,
-    );
+    const poll = await invoke(tables, `/auth/poll?device=${"y".repeat(40)}`);
     // Without the purge the poll would find the expired pair and answer 410;
     // 'complete' against the live pair proves the expired row was swept first.
     expect(poll.value.status).toBe("complete");
@@ -463,14 +455,49 @@ class FakeTables {
   rows = new Map();
 
   async listRows({ tableId, queries = [] }) {
-    if (
-      queries.some(
-        (query) => typeof query === "string" && query.includes("cursorAfter"),
-      )
-    ) {
-      return { rows: [] };
+    const parsedQueries = queries.flatMap((query) => {
+      if (typeof query !== "string") return [];
+      try {
+        return [JSON.parse(query)];
+      } catch {
+        return [];
+      }
+    });
+    let rows = [...(this.rows.get(tableId) ?? [])];
+    for (const query of parsedQueries) {
+      if (query.method === "equal") {
+        rows = rows.filter((row) =>
+          query.values.includes(row[query.attribute]),
+        );
+      }
+      if (query.method === "lessThanEqual") {
+        rows = rows.filter(
+          (row) =>
+            String(row[query.attribute] ?? "") <= String(query.values[0] ?? ""),
+        );
+      }
+      if (query.method === "search") {
+        const needle = String(query.values[0] ?? "").toLocaleLowerCase();
+        rows = rows.filter((row) =>
+          String(row[query.attribute] ?? "")
+            .toLocaleLowerCase()
+            .includes(needle),
+        );
+      }
     }
-    return { rows: this.rows.get(tableId) ?? [] };
+    const cursor = parsedQueries.find((query) => query.method === "cursorAfter")
+      ?.values?.[0];
+    if (cursor) {
+      const cursorIndex = rows.findIndex((row) => row.$id === cursor);
+      rows = cursorIndex >= 0 ? rows.slice(cursorIndex + 1) : [];
+    }
+    const offset =
+      parsedQueries.find((query) => query.method === "offset")?.values?.[0] ??
+      0;
+    const limit =
+      parsedQueries.find((query) => query.method === "limit")?.values?.[0] ??
+      rows.length;
+    return { rows: rows.slice(offset, offset + limit) };
   }
 
   async createRow({ tableId, rowId, data }) {

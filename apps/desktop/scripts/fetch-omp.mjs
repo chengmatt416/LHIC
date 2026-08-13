@@ -83,9 +83,7 @@ async function sha256File(path) {
 async function downloadAsset(asset, targetPath) {
   const response = await fetch(`${OMP_BASE_URL}/${asset}`);
   if (!response.ok) {
-    throw new Error(
-      `omp binary download failed with HTTP ${response.status}.`,
-    );
+    throw new Error(`omp binary download failed with HTTP ${response.status}.`);
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
   const expected = await manifestHash(asset);

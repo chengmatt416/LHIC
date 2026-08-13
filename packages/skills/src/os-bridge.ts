@@ -23,6 +23,7 @@ import { appendTraceEvent } from "@lhic/trace";
 import type {
   BackendDispatchResult,
   ExecutionBackendId,
+  BoundedDesktopObservation,
 } from "./execution-backend.js";
 
 export type GlobalDesktopPlatform = "darwin" | "win32" | "linux";
@@ -76,6 +77,9 @@ export interface GlobalActionDispatcher {
   dispatch(
     action: GlobalComputerAction,
   ): Promise<BackendDispatchResult | undefined>;
+  observe?(
+    action: GlobalComputerAction,
+  ): Promise<BoundedDesktopObservation | undefined>;
 }
 
 export interface GlobalControlCapability {
@@ -130,6 +134,74 @@ export class GlobalComputerExecutor {
     );
   }
 
+  public async observe(
+    action: GlobalComputerAction,
+    approval?: ActionApproval,
+  ): Promise<ActionExecutionResult> {
+    if (!isGlobalComputerAction(action) || action.type !== "os_observe") {
+      return {
+        success: false,
+        latencyMs: 0,
+        evidence: [],
+        error: "Desktop observation requires a valid os_observe action.",
+      };
+    }
+    const startedAt = performance.now();
+    try {
+      this.validateApproval(action, approval);
+      const bounded = await this.dispatcher?.observe?.(action);
+      if (bounded) {
+        const output = JSON.stringify({
+          elements: bounded.elements,
+          capturedAt: bounded.capturedAt,
+          backend: bounded.backend,
+          evidence: bounded.evidence,
+        });
+        return {
+          success: true,
+          method: "vision",
+          latencyMs: Math.round(performance.now() - startedAt),
+          evidence: bounded.evidence,
+          output,
+        };
+      }
+      const native = await this.runner.run(
+        buildGlobalComputerCommand(action, this.platform),
+      );
+      const title = outputForGlobalAction(action, native, this.platform) ?? "";
+      const output = JSON.stringify({
+        elements: title
+          ? [
+              {
+                id: "active-window",
+                label: title,
+                role: "window",
+                interactable: false,
+                backend: "native",
+              },
+            ]
+          : [],
+        capturedAt: new Date().toISOString(),
+        backend: "native",
+        evidence: ["Used the bounded native title-only observation fallback."],
+      });
+      return {
+        success: true,
+        method: "vision",
+        latencyMs: Math.round(performance.now() - startedAt),
+        evidence: ["Used the bounded native title-only observation fallback."],
+        output,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        latencyMs: Math.round(performance.now() - startedAt),
+        evidence: [],
+        error: safeGlobalActionError(error),
+      };
+    }
+  }
+
   public async execute(
     action: GlobalComputerAction,
     approval?: ActionApproval,
@@ -152,6 +224,9 @@ export class GlobalComputerExecutor {
       },
       action.riskLevel,
     );
+    if (action.type === "os_observe") {
+      return this.observe(action, approval);
+    }
 
     try {
       if (!action.methodPreference.includes(method)) {
@@ -180,6 +255,7 @@ export class GlobalComputerExecutor {
           throw new Error(replayDecision.reason);
         }
       }
+      // os_observe returns above through the dedicated bounded observation path.
 
       await this.verifyTargetBeforeDispatch(action);
       let commandResult: GlobalCommandResult | undefined;
@@ -247,6 +323,26 @@ export class GlobalComputerExecutor {
         action.riskLevel,
       );
       return result;
+    }
+  }
+
+  private validateApproval(
+    action: GlobalComputerAction,
+    approval?: ActionApproval,
+  ): void {
+    const approvalDecision = validateActionApproval(
+      action,
+      approval,
+      new Date(),
+      {
+        ...this.approvalValidation,
+        forceConfirmation: true,
+        confirmationReason:
+          "Global computer observations require a matching human approval.",
+      },
+    );
+    if (!approvalDecision.allowed) {
+      throw new Error(approvalDecision.reason);
     }
   }
 

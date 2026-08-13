@@ -1,12 +1,23 @@
-import { mkdir, readFile, readdir, stat } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 
 import type {
+  OmpAdvancedCommand,
   OmpEvent,
   OmpMessageView,
   OmpModelInfo,
   OmpRuntimeState,
   OmpSessionInfo,
+  OmpSessionStats,
+  OmpSubagentView,
+  OmpSubagentModel,
   OmpTodoPhase,
   OmpUiRequest,
   OmpToolCallView,
@@ -14,14 +25,15 @@ import type {
 import type { TaskService } from "../task-service.js";
 import { resolveOmpBinary } from "./omp-binary.js";
 import {
-  OmpRpcClient,
+  OmpRpcSupervisor,
   lhicHostToolDefinitions,
+  SubagentModelPool,
+  connectedSelectors,
+  parseModelCatalog,
+  type OmpModelCatalogEntry,
   type OmpRpcClientCallbacks,
 } from "@lhic/omp-rpc";
-import {
-  OmpHostRunner,
-  type HostApprovalCall,
-} from "./omp-host-runner.js";
+import { OmpHostRunner, type HostApprovalCall } from "./omp-host-runner.js";
 
 export interface OmpSessionServiceOptions {
   workspaceRoot: string;
@@ -43,9 +55,18 @@ export class OmpSessionService {
   private readonly tasks: TaskService;
   private readonly openExternal: (url: string) => Promise<void>;
   private readonly listeners = new Set<(event: OmpEvent) => void>();
-  private client: OmpRpcClient | undefined;
+  private client: OmpRpcSupervisor | undefined;
   private hostRunner: OmpHostRunner | undefined;
   private sessionDir: string;
+  private readonly recoveryStateDir: string;
+  private readonly modelPool: SubagentModelPool;
+  private readonly modelPoolStatePath: string;
+  private modelCatalog: OmpModelCatalogEntry[] = [];
+  private enabledSubagentSelectors: string[] = [];
+  private enabledSubagentModels = new Map<
+    string,
+    { provider: string; model: string }
+  >();
   private stateSnapshot: OmpRuntimeState | undefined;
   private stateRefreshTimer: ReturnType<typeof setTimeout> | undefined;
   private stateRefreshPending = false;
@@ -56,10 +77,17 @@ export class OmpSessionService {
   public constructor(options: OmpSessionServiceOptions) {
     this.workspaceRoot = options.workspaceRoot;
     this.tasks = options.tasks;
-    this.openExternal =
-      options.openExternal ?? (() => Promise.resolve());
+    this.openExternal = options.openExternal ?? (() => Promise.resolve());
     this.sessionDir =
       options.listSessionsDir ?? join(options.userDataDir, "omp", "sessions");
+    this.recoveryStateDir = join(options.userDataDir, "omp", "recovery");
+    const modelPoolRoot = join(options.userDataDir, "omp", "model-pool");
+    this.modelPool = new SubagentModelPool(modelPoolRoot);
+    this.modelPoolStatePath = join(
+      options.userDataDir,
+      "omp",
+      "subagent-models.json",
+    );
   }
 
   public async start(): Promise<OmpRuntimeState> {
@@ -78,10 +106,15 @@ export class OmpSessionService {
         this.scheduleStateRefresh();
       },
       onHostToolCall: (frame) => this.handleHostToolCall(frame),
-      onClosed: () => {
+      onClosed: (error) => {
+        if (this.client === client) {
+          this.client = undefined;
+          this.hostRunner?.dispose();
+          this.hostRunner = undefined;
+        }
         this.stateSnapshot = {
           running: false,
-          error: "The omp agent process closed.",
+          error: error?.message ?? "The omp agent process closed.",
           isStreaming: false,
           messageCount: 0,
           todoPhases: [],
@@ -90,11 +123,12 @@ export class OmpSessionService {
       },
       onLog: () => undefined,
     };
-    const client = new OmpRpcClient(
+    const client = new OmpRpcSupervisor(
       {
         binary,
         workspaceRoot: this.workspaceRoot,
         sessionDir: this.sessionDir,
+        stateDirectory: this.recoveryStateDir,
       },
       callbacks,
     );
@@ -109,10 +143,22 @@ export class OmpSessionService {
           client.hostToolUpdate(callId, partialResult),
       },
     );
-    await client.start();
-    await client.setHostTools(lhicHostToolDefinitions());
-    await this.refreshState();
-    return this.stateSnapshot ?? this.stoppedState();
+    try {
+      await client.start();
+      await client.setHostTools(lhicHostToolDefinitions());
+      await client.setSubagentSubscription("events");
+      await this.initializeModelPool(client);
+      await this.refreshState();
+      return this.stateSnapshot ?? this.stoppedState();
+    } catch (error) {
+      if (this.client === client) {
+        this.client = undefined;
+        this.hostRunner?.dispose();
+        this.hostRunner = undefined;
+      }
+      await client.close().catch(() => undefined);
+      throw error;
+    }
   }
 
   public async stop(): Promise<void> {
@@ -225,7 +271,10 @@ export class OmpSessionService {
         )
         .map((message) => ({
           id: String(message.id ?? this.nextAnonymousMessageId()),
-          role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+          role:
+            message.role === "user"
+              ? ("user" as const)
+              : ("assistant" as const),
           text: this.contentText(message),
           status: "complete" as const,
           toolCalls: this.contentToolCalls(message),
@@ -283,11 +332,9 @@ export class OmpSessionService {
   }
 
   public async exportHtml(): Promise<string> {
-    const outputPath = join(
-      this.workspaceRoot,
-      ".lhic",
-      `omp-export-${Date.now()}.html`,
-    );
+    const outputDirectory = join(this.workspaceRoot, ".lhic");
+    await mkdir(outputDirectory, { recursive: true });
+    const outputPath = join(outputDirectory, `omp-export-${Date.now()}.html`);
     await this.requireClient().exportHtml(outputPath);
     return outputPath;
   }
@@ -307,6 +354,46 @@ export class OmpSessionService {
       .filter((model) => model.provider && model.id);
   }
 
+  public async listSubagentModels(): Promise<OmpSubagentModel[]> {
+    if (this.modelCatalog.length === 0) {
+      this.modelCatalog = parseModelCatalog(
+        await this.requireClient().getAvailableModels(),
+      );
+    }
+    return this.toSubagentModels();
+  }
+
+  public async setSubagentModels(
+    selectors: string[],
+  ): Promise<OmpSubagentModel[]> {
+    if (this.stateSnapshot?.isStreaming) {
+      throw new Error(
+        "Cannot change the subagent model pool while an agent turn is active.",
+      );
+    }
+    const client = this.requireClient();
+    this.modelCatalog = parseModelCatalog(await client.getAvailableModels());
+    const generated = await this.modelPool.generate(
+      this.modelCatalog,
+      selectors,
+    );
+    await client.restartWithExtensionRoots(
+      generated.models.length > 0 ? [generated.extensionRoot] : [],
+    );
+    this.enabledSubagentModels = new Map(
+      generated.models.map((model) => [
+        model.agentName,
+        { provider: model.provider, model: model.modelId },
+      ]),
+    );
+    this.enabledSubagentSelectors = generated.models.map(
+      (model) => model.selector,
+    );
+    await this.writeSubagentSelectors(this.enabledSubagentSelectors);
+    await this.refreshState();
+    return this.toSubagentModels();
+  }
+
   public async loginProviders(): Promise<Array<{ id: string }>> {
     const data = await this.requireClient().getLoginProviders();
     const raw = Array.isArray(data.providers) ? data.providers : [];
@@ -321,6 +408,76 @@ export class OmpSessionService {
 
   public async login(providerId: string): Promise<void> {
     await this.requireClient().login(providerId);
+  }
+
+  public async sessionStats(): Promise<OmpSessionStats> {
+    const raw = await this.requireClient().getSessionStats();
+    return {
+      ...(typeof raw.inputTokens === "number"
+        ? { inputTokens: raw.inputTokens }
+        : {}),
+      ...(typeof raw.outputTokens === "number"
+        ? { outputTokens: raw.outputTokens }
+        : {}),
+      ...(typeof raw.totalTokens === "number"
+        ? { totalTokens: raw.totalTokens }
+        : {}),
+      ...(typeof raw.cost === "number" ? { cost: raw.cost } : {}),
+      ...(typeof raw.turns === "number" ? { turns: raw.turns } : {}),
+      ...(typeof raw.durationMs === "number"
+        ? { durationMs: raw.durationMs }
+        : {}),
+      raw,
+    };
+  }
+
+  public advanced(input: OmpAdvancedCommand): Promise<Record<string, unknown>> {
+    const client = this.requireClient();
+    switch (input.command) {
+      case "abortAndPrompt":
+        return client.abortAndPrompt(requiredValue(input.message, "message"));
+      case "cycleModel":
+        return client.cycleModel();
+      case "cycleThinkingLevel":
+        return client.cycleThinkingLevel();
+      case "compact":
+        return client.compact(input.message);
+      case "setAutoCompaction":
+        return client.setAutoCompaction(input.enabled === true);
+      case "setAutoRetry":
+        return client.setAutoRetry(input.enabled === true);
+      case "abortRetry":
+        return client.abortRetry();
+      case "bash":
+        return client.bash(requiredValue(input.message, "command"));
+      case "abortBash":
+        return client.abortBash();
+      case "setSteeringMode":
+        return client.setSteeringMode(input.mode ?? "one-at-a-time");
+      case "setFollowUpMode":
+        return client.setFollowUpMode(input.mode ?? "one-at-a-time");
+      case "branch":
+        return client.branch(requiredValue(input.entryId, "entry id"));
+      case "getBranchMessages":
+        return client.getBranchMessages();
+      case "getLastAssistantText":
+        return client.getLastAssistantText();
+      case "handoff":
+        return client.handoff(input.message);
+      case "setSubagentSubscription":
+        return client.setSubagentSubscription(input.subscription ?? "events");
+      case "getSubagentMessages":
+        return client.getSubagentMessages({
+          ...(input.subagentId ? { subagentId: input.subagentId } : {}),
+          ...(input.sessionFile ? { sessionFile: input.sessionFile } : {}),
+          ...(input.fromByte !== undefined ? { fromByte: input.fromByte } : {}),
+        });
+    }
+  }
+
+  public async subagents(): Promise<OmpSubagentView[]> {
+    const data = await this.requireClient().getSubagents();
+    return mapSubagents(data, this.enabledSubagentModelsByAgent());
   }
 
   public respondUi(
@@ -366,8 +523,9 @@ export class OmpSessionService {
     let updatedAt = "";
     try {
       const text = await readFile(path, "utf8");
-      messageCount = text ? text.split("\n").length : 0;
-      const firstLine = text.split("\n", 1)[0] ?? "";
+      const lines = text.split(/\r?\n/).filter((line) => line.length > 0);
+      messageCount = lines.length;
+      const firstLine = lines[0] ?? "";
       if (firstLine.trim()) {
         const record = JSON.parse(firstLine) as Record<string, unknown>;
         const title =
@@ -389,6 +547,34 @@ export class OmpSessionService {
 
   private handleFrame(frame: Record<string, unknown>): void {
     switch (frame.type) {
+      case "rpc_recovery": {
+        const recoveryState = String(frame.state);
+        if (
+          recoveryState === "running" ||
+          recoveryState === "restarting" ||
+          recoveryState === "resumed" ||
+          recoveryState === "recovery_failed"
+        ) {
+          this.stateSnapshot = {
+            ...(this.stateSnapshot ?? this.stoppedState()),
+            running: recoveryState !== "recovery_failed",
+            isStreaming:
+              recoveryState === "restarting"
+                ? false
+                : (this.stateSnapshot?.isStreaming ?? false),
+            recoveryState,
+            ...(recoveryState === "recovery_failed"
+              ? {
+                  error: String(
+                    frame.error ?? "The omp agent could not be recovered.",
+                  ),
+                }
+              : {}),
+          };
+          this.emit({ type: "state", state: this.stateSnapshot });
+        }
+        break;
+      }
       case "agent_start":
         this.emit({ type: "agent", phase: "start" });
         break;
@@ -398,7 +584,11 @@ export class OmpSessionService {
       case "message_start": {
         const role = this.messageRole(frame);
         const id = this.resolveMessageId(frame, role, true);
-        const message = this.toMessageView(frame, role === "user" ? "complete" : "streaming", id);
+        const message = this.toMessageView(
+          frame,
+          role === "user" ? "complete" : "streaming",
+          id,
+        );
         if (message) this.emit({ type: "message", message });
         break;
       }
@@ -409,10 +599,29 @@ export class OmpSessionService {
         if (message) this.emit({ type: "message", message });
         break;
       }
+      case "subagent_lifecycle":
+      case "subagent_progress":
+      case "subagent_event": {
+        const subagent = mapSubagentFrame(
+          frame,
+          this.enabledSubagentModelsByAgent(),
+        );
+        if (subagent) {
+          this.emit({
+            type: "subagents",
+            subagents: [subagent],
+          });
+        }
+        break;
+      }
       case "message_update": {
         const delta = this.deltaFrom(frame);
         if (delta) {
-          this.emit({ type: "delta", messageId: delta.messageId, text: delta.text });
+          this.emit({
+            type: "delta",
+            messageId: delta.messageId,
+            text: delta.text,
+          });
           break;
         }
         const id = this.resolveMessageId(frame, "assistant", false);
@@ -448,7 +657,9 @@ export class OmpSessionService {
       case "extension_error":
         this.emit({
           type: "error",
-          message: String(frame.error ?? "The omp agent reported an extension error."),
+          message: String(
+            frame.error ?? "The omp agent reported an extension error.",
+          ),
         });
         break;
       default:
@@ -487,10 +698,11 @@ export class OmpSessionService {
     });
   }
 
-  private deltaFrom(frame: Record<string, unknown>): { messageId: string; text: string } | undefined {
+  private deltaFrom(
+    frame: Record<string, unknown>,
+  ): { messageId: string; text: string } | undefined {
     const assistantEvent = frame.assistantMessageEvent as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (
       !assistantEvent ||
       assistantEvent.type !== "text_delta" ||
@@ -543,7 +755,9 @@ export class OmpSessionService {
       return explicit;
     }
     const current =
-      role === "user" ? this.currentUserMessageId : this.currentAssistantMessageId;
+      role === "user"
+        ? this.currentUserMessageId
+        : this.currentAssistantMessageId;
     if (!advancing && current) {
       return current;
     }
@@ -587,16 +801,16 @@ export class OmpSessionService {
       .join("");
   }
 
-  private contentToolCalls(message: Record<string, unknown>): OmpToolCallView[] {
+  private contentToolCalls(
+    message: Record<string, unknown>,
+  ): OmpToolCallView[] {
     if (!Array.isArray(message.content)) return [];
     return message.content
       .filter(
         (item): item is Record<string, unknown> =>
           Boolean(item) && typeof item === "object",
       )
-      .filter(
-        (item) => item.type === "toolCall" || item.type === "tool_use",
-      )
+      .filter((item) => item.type === "toolCall" || item.type === "tool_use")
       .map((item) => ({
         id: String(item.id ?? ""),
         name: String(item.name ?? ""),
@@ -621,13 +835,17 @@ export class OmpSessionService {
     const failed =
       Boolean(frame.error) ||
       Boolean(result && (result.error || result.failed === true));
-    const state = frame.type === "tool_execution_end"
-      ? failed
-        ? ("error" as const)
-        : ("success" as const)
-      : ("running" as const);
+    const state =
+      frame.type === "tool_execution_end"
+        ? failed
+          ? ("error" as const)
+          : ("success" as const)
+        : ("running" as const);
     const summary = this.toolSummary(frame);
-    this.emit({ type: "tool", tool: { id, name, state, ...(summary ? { summary } : {}) } });
+    this.emit({
+      type: "tool",
+      tool: { id, name, state, ...(summary ? { summary } : {}) },
+    });
   }
 
   private toolSummary(frame: Record<string, unknown>): string | undefined {
@@ -650,7 +868,9 @@ export class OmpSessionService {
     const method = String(frame.method ?? "notify");
     return {
       id: String(frame.id ?? ""),
-      method: ["confirm", "input", "select", "editor", "notify"].includes(method)
+      method: ["confirm", "input", "select", "editor", "notify"].includes(
+        method,
+      )
         ? (method as OmpUiRequest["method"])
         : "notify",
       ...(typeof frame.title === "string" ? { title: frame.title } : {}),
@@ -676,6 +896,9 @@ export class OmpSessionService {
     if (!this.client) return;
     const data = await this.client.getState();
     const state = this.toRuntimeState(data, true);
+    if (this.stateSnapshot?.recoveryState) {
+      state.recoveryState = this.stateSnapshot.recoveryState;
+    }
     this.stateSnapshot = state;
     this.emit({ type: "state", state });
   }
@@ -705,14 +928,16 @@ export class OmpSessionService {
                     id: String(task.id ?? ""),
                     content: String(task.content ?? ""),
                     status:
-                      task.status === "in_progress" || task.status === "completed"
+                      task.status === "in_progress" ||
+                      task.status === "completed"
                         ? (task.status as OmpTodoPhase["tasks"][number]["status"])
                         : ("pending" as const),
                   }))
               : [],
           }))
       : [];
-    const contextUsage = data.contextUsage as Record<string, unknown> | undefined;
+    const contextUsage = data.contextUsage as
+      Record<string, unknown> | undefined;
     const state: OmpRuntimeState = {
       running,
       isStreaming: data.isStreaming === true,
@@ -720,7 +945,11 @@ export class OmpSessionService {
       todoPhases,
     };
     if (error) state.error = error;
-    if (model && typeof model.provider === "string" && typeof model.id === "string") {
+    if (
+      model &&
+      typeof model.provider === "string" &&
+      typeof model.id === "string"
+    ) {
       state.model = { provider: model.provider, id: model.id };
     }
     const thinkingLevel = data.thinkingLevel;
@@ -730,6 +959,18 @@ export class OmpSessionService {
       state.thinkingLevel = thinkingLevel as NonNullable<
         OmpRuntimeState["thinkingLevel"]
       >;
+    }
+    if (data.steeringMode === "all" || data.steeringMode === "one-at-a-time") {
+      state.steeringMode = data.steeringMode;
+    }
+    if (data.followUpMode === "all" || data.followUpMode === "one-at-a-time") {
+      state.followUpMode = data.followUpMode;
+    }
+    if (typeof data.autoCompactionEnabled === "boolean") {
+      state.autoCompactionEnabled = data.autoCompactionEnabled;
+    }
+    if (typeof data.autoRetryEnabled === "boolean") {
+      state.autoRetryEnabled = data.autoRetryEnabled;
     }
     if (typeof sessionName === "string") {
       state.sessionName = sessionName;
@@ -761,6 +1002,99 @@ export class OmpSessionService {
     return `message-${this.anonymousMessageId}`;
   }
 
+  private async initializeModelPool(client: OmpRpcSupervisor): Promise<void> {
+    this.modelCatalog = parseModelCatalog(await client.getAvailableModels());
+    const saved = await this.readSubagentSelectors();
+    const effective = connectedSelectors(this.modelCatalog, saved);
+    const generated = await this.modelPool.generate(
+      this.modelCatalog,
+      effective,
+    );
+    this.enabledSubagentSelectors = effective;
+    this.enabledSubagentModels = new Map(
+      generated.models.map((model) => [
+        model.agentName,
+        { provider: model.provider, model: model.modelId },
+      ]),
+    );
+    if (generated.models.length > 0) {
+      await client.restartWithExtensionRoots([generated.extensionRoot]);
+    }
+    if (!sameStrings(saved, effective)) {
+      await this.writeSubagentSelectors(effective);
+    }
+  }
+
+  private toSubagentModels(): OmpSubagentModel[] {
+    const enabled = new Set(this.enabledSubagentSelectors);
+    return this.modelCatalog.map((model) => {
+      const selector = `${model.provider}/${model.id}`;
+      return {
+        selector,
+        provider: model.provider,
+        modelId: model.id,
+        ...(model.displayName ? { displayName: model.displayName } : {}),
+        enabled: enabled.has(selector),
+        connected: true,
+        ...(model.reasoning !== undefined
+          ? { reasoning: model.reasoning }
+          : {}),
+        ...(model.image !== undefined ? { image: model.image } : {}),
+        ...(model.contextWindow !== undefined
+          ? { contextWindow: model.contextWindow }
+          : {}),
+        ...(model.thinkingLevels
+          ? { thinkingLevels: [...model.thinkingLevels] }
+          : {}),
+      };
+    });
+  }
+
+  private enabledSubagentModelsByAgent(): Map<
+    string,
+    { provider: string; model: string }
+  > {
+    return this.enabledSubagentModels;
+  }
+
+  private async readSubagentSelectors(): Promise<string[]> {
+    try {
+      const data = JSON.parse(
+        await readFile(this.modelPoolStatePath, "utf8"),
+      ) as unknown;
+      if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+      const selectors = (data as Record<string, unknown>).selectors;
+      return Array.isArray(selectors)
+        ? selectors.filter(
+            (selector): selector is string => typeof selector === "string",
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async writeSubagentSelectors(selectors: string[]): Promise<void> {
+    await mkdir(dirname(this.modelPoolStatePath), {
+      recursive: true,
+      mode: 0o700,
+    });
+    const temporary = `${this.modelPoolStatePath}.${process.pid}.tmp`;
+    await writeFile(
+      temporary,
+      `${JSON.stringify(
+        {
+          schemaVersion: "lhic-omp-subagent-models-v1",
+          selectors,
+        },
+        null,
+        2,
+      )}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+    await rename(temporary, this.modelPoolStatePath);
+  }
+
   private stoppedState(): OmpRuntimeState {
     return {
       running: false,
@@ -770,7 +1104,7 @@ export class OmpSessionService {
     };
   }
 
-  private requireClient(): OmpRpcClient {
+  private requireClient(): OmpRpcSupervisor {
     const client = this.client;
     if (!client) {
       throw new Error("The omp agent is not running.");
@@ -783,4 +1117,90 @@ export class OmpSessionService {
   }
 
   private readonly workspaceRoot: string;
+}
+
+function sameStrings(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function requiredValue(value: string | undefined, label: string): string {
+  if (!value?.trim()) throw new Error(`OMP ${label} is required.`);
+  return value;
+}
+
+function mapSubagents(
+  data: Record<string, unknown>,
+  models: Map<string, { provider: string; model: string }>,
+): OmpSubagentView[] {
+  const raw = Array.isArray(data.subagents) ? data.subagents : [];
+  return raw
+    .filter(
+      (value): value is Record<string, unknown> =>
+        Boolean(value) && typeof value === "object",
+    )
+    .map((value) => mapSubagent(value, models))
+    .filter((value): value is OmpSubagentView => value !== undefined);
+}
+
+function mapSubagentFrame(
+  frame: Record<string, unknown>,
+  models: Map<string, { provider: string; model: string }>,
+): OmpSubagentView | undefined {
+  const payload =
+    frame.payload &&
+    typeof frame.payload === "object" &&
+    !Array.isArray(frame.payload)
+      ? (frame.payload as Record<string, unknown>)
+      : frame;
+  return mapSubagent(payload, models);
+}
+
+function mapSubagent(
+  value: Record<string, unknown>,
+  models: Map<string, { provider: string; model: string }>,
+): OmpSubagentView | undefined {
+  const progress =
+    value.progress &&
+    typeof value.progress === "object" &&
+    !Array.isArray(value.progress)
+      ? (value.progress as Record<string, unknown>)
+      : {};
+  const id = String(value.id ?? value.subagentId ?? progress.id ?? "");
+  if (!id) return undefined;
+  const agent = String(value.agent ?? value.label ?? "Subagent");
+  const selector = models.get(agent);
+  const startedAt = timestampValue(
+    value.startedAt ?? progress.startedAt ?? value.lastUpdate,
+  );
+  return {
+    id,
+    label: agent,
+    task: String(value.task ?? value.assignment ?? value.description ?? ""),
+    status: String(
+      progress.status ??
+        (value.status === "started" ? "running" : value.status) ??
+        value.phase ??
+        "running",
+    ),
+    ...(selector ? { provider: selector.provider, model: selector.model } : {}),
+    ...(typeof progress.progress === "string"
+      ? { progress: progress.progress }
+      : typeof value.progress === "string"
+        ? { progress: value.progress }
+        : {}),
+    ...(startedAt ? { startedAt } : {}),
+  };
+}
+
+function timestampValue(value: unknown): string | undefined {
+  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+    return new Date(value).toISOString();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+  return undefined;
 }

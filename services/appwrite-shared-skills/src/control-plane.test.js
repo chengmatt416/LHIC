@@ -304,9 +304,14 @@ describe("shared-skills control plane primitives", () => {
     ]);
     const res = responseCapture();
     await handleControlPlane({
-      req: { body: JSON.stringify({ status: "approved", reviewNote: "passes verifier checks" }) },
+      req: {
+        body: JSON.stringify({
+          status: "approved",
+          reviewNote: "passes verifier checks",
+        }),
+      },
       res,
-      path: new URL("https://function.test/control/skills/skill-1/status"),
+      path: new URL("https://function.test/control/skills/skill-1"),
       method: "PATCH",
       tables,
       config: testConfig(),

@@ -22,7 +22,9 @@ const baseUrl =
   `https://github.com/chengmatt416/LHIC/releases/download/desktop-v${version}`;
 const packageDirectory = resolve(
   process.env.LHIC_AUR_DIR ??
-    fileURLToPath(new URL("../distribution/aur/lhic-control-center-bin", import.meta.url)),
+    fileURLToPath(
+      new URL("../distribution/aur/lhic-control-center-bin", import.meta.url),
+    ),
 );
 
 async function manifestDigests() {
@@ -83,20 +85,29 @@ async function main() {
   }
   console.log(`[aur] Refreshed lhic-control-center-bin@${version}.`);
   if (!push) {
-    console.log("[aur] Dry run complete — files rewritten in place (no git push).");
+    console.log(
+      "[aur] Dry run complete — files rewritten in place (no git push).",
+    );
     return;
   }
   const remote =
     process.env.LHIC_AUR_REMOTE ??
     "ssh://aur@aur.archlinux.org/lhic-control-center-bin.git";
-  execFileSync("git", ["-C", packageDirectory, "add", "-A"], { stdio: "inherit" });
+  execFileSync("git", ["-C", packageDirectory, "add", "-A"], {
+    stdio: "inherit",
+  });
   execFileSync(
     "git",
     [
-      "-C", packageDirectory,
-      "-c", "user.name=LHIC Release Bot",
-      "-c", "user.email=chengmatt416@gmail.com",
-      "commit", "-m", `Update lhic-control-center-bin to ${version}`,
+      "-C",
+      packageDirectory,
+      "-c",
+      "user.name=LHIC Release Bot",
+      "-c",
+      "user.email=chengmatt416@gmail.com",
+      "commit",
+      "-m",
+      `Update lhic-control-center-bin to ${version}`,
     ],
     { stdio: "inherit" },
   );

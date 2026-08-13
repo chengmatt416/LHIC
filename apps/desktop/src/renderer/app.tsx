@@ -548,187 +548,206 @@ function Skills({
       </div>
       {libraryTab === "local" ? (
         <>
-      <section className="panel">
-        <PanelTitle code="REGISTRY/LOGIN" title="Shared library connection" />
-        <p className="muted">
-          {snapshot.sharedLibrary.configured
-            ? `Registry mirror: ${snapshot.sharedLibrary.cachedSkillCount} approved records; ${snapshot.sharedLibrary.pendingSubmissionCount} local submissions pending review.`
-            : "The bundled Appwrite registry is waiting for Magic Link sign-in."}
-        </p>
-        {snapshot.sharedLibrary.lastSuccessAt ? (
-          <p className="verified">
-            Last verified sync: {snapshot.sharedLibrary.lastSuccessAt}
-          </p>
-        ) : null}
-        {snapshot.sharedLibrary.lastError ? (
-          <p className="muted">
-            Latest sync result: {snapshot.sharedLibrary.lastError}
-          </p>
-        ) : null}
-        <div className="form-grid">
-          <label>
-            Magic Link email for the bundled registry
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+          <section className="panel">
+            <PanelTitle
+              code="REGISTRY/LOGIN"
+              title="Shared library connection"
             />
-          </label>
-        </div>
-        <div className="actions">
-          <button className="button primary" onClick={() => void login()}>
-            Sign in with Magic Link
-          </button>
-        </div>
-      </section>
-      <section className="panel">
-        <PanelTitle
-          code="DEPOT/02"
-          title="Skill lifecycle"
-          action={
-            <button className="button" onClick={() => void sync()}>
-              Sync registry
-            </button>
-          }
-        />
-        <p className="muted">
-          Only verified candidates may enter the pending queue. Admin approval
-          is required before a shared skill becomes downloadable or Fast Path
-          eligible.
-        </p>
-        <label>
-          Search local and shared Skills
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter by Skill name"
-          />
-        </label>
-        <div className="table">
-          {visibleSkills.map((skill) => (
-            <div className="table-row" key={`${skill.source}-${skill.name}`}>
-              <strong>{skill.name}</strong>
-              <span className="tag">{skill.source}</span>
-              <span className={`status ${skill.status}`}>{skill.status}</span>
-              <span>{skill.fastPathEligible ? "FAST-READY" : "SLOW ONLY"}</span>
+            <p className="muted">
+              {snapshot.sharedLibrary.configured
+                ? `Registry mirror: ${snapshot.sharedLibrary.cachedSkillCount} approved records; ${snapshot.sharedLibrary.pendingSubmissionCount} local submissions pending review.`
+                : "The bundled Appwrite registry is waiting for Magic Link sign-in."}
+            </p>
+            {snapshot.sharedLibrary.lastSuccessAt ? (
+              <p className="verified">
+                Last verified sync: {snapshot.sharedLibrary.lastSuccessAt}
+              </p>
+            ) : null}
+            {snapshot.sharedLibrary.lastError ? (
+              <p className="muted">
+                Latest sync result: {snapshot.sharedLibrary.lastError}
+              </p>
+            ) : null}
+            <div className="form-grid">
+              <label>
+                Magic Link email for the bundled registry
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
             </div>
-          ))}
-        </div>
-      </section>
-      <section className="panel">
-        <PanelTitle code="EXPORT/ZIP" title="Approved library export" />
-        <div className="form-row">
-          <label>
-            Destination
-            <input
-              value={destination}
-              onChange={(event) => setDestination(event.target.value)}
-              aria-label="Export destination"
-            />
-          </label>
-          <button className="button primary" onClick={() => void exportAll()}>
-            Create verified ZIP
-          </button>
-        </div>
-        <p className="muted">
-          The archive contains only approved definitions plus a SHA-256
-          manifest. Pending records, secrets, and raw game datasets are
-          excluded.
-        </p>
-      </section>
-      <section className="panel">
-        <PanelTitle code="TRAIN/VERIFY" title="Public-web Skill training" />
-        <p className="muted">
-          Run a read-only, allowlisted public-web workflow to create a local
-          candidate with verifier evidence. Candidates remain local until three
-          independent verified runs and an offline holdout pass are recorded.
-        </p>
-        <div className="form-grid">
-          <label>
-            Scenario
-            <select
-              value={trainingInput.scenarioId}
-              onChange={(event) =>
-                setTrainingInput({
-                  ...trainingInput,
-                  scenarioId: event.target
-                    .value as PublicWebTrainingRequest["scenarioId"],
-                })
-              }
-            >
-              <option value="wikipedia-search">Wikipedia public search</option>
-              <option value="mdn-search">MDN documentation search</option>
-              <option value="github-issue-filter">
-                GitHub public issue filter
-              </option>
-              <option value="openstreetmap-place-search">
-                OpenStreetMap place search
-              </option>
-              <option value="psycho-flow">
-                Psycho Flow advanced psychological survey
-              </option>
-            </select>
-          </label>
-          <label>
-            Public query
-            <input
-              value={trainingInput.query}
-              onChange={(event) =>
-                setTrainingInput({
-                  ...trainingInput,
-                  query: event.target.value,
-                })
-              }
-              maxLength={256}
-              autoComplete="off"
-            />
-          </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={trainingInput.viewable === true}
-              onChange={(event) => {
-                setTrainingInput({
-                  ...trainingInput,
-                  viewable: event.target.checked,
-                });
-              }}
-            />
-            Show the training browser window
-          </label>
-          <p className="hint">
-            Training records a candidate only. Fast Path promotion requires
-            three independently verified executions and a separate offline
-            holdout on an unseen UI fingerprint.
-          </p>
-        </div>
-        <div className="actions">
-          <button
-            className="button caution"
-            onClick={() => void startTraining()}
-          >
-            Start verified training
-          </button>
-          {trainingJob ? (
-            <>
-              <button className="button" onClick={() => void refreshTraining()}>
-                Refresh status
+            <div className="actions">
+              <button className="button primary" onClick={() => void login()}>
+                Sign in with Magic Link
               </button>
-              {trainingJob.status === "running" ? (
-                <button
-                  className="button ghost"
-                  onClick={() => void cancelTraining()}
-                >
-                  Cancel training
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle
+              code="DEPOT/02"
+              title="Skill lifecycle"
+              action={
+                <button className="button" onClick={() => void sync()}>
+                  Sync registry
                 </button>
+              }
+            />
+            <p className="muted">
+              Only verified candidates may enter the pending queue. Admin
+              approval is required before a shared skill becomes downloadable or
+              Fast Path eligible.
+            </p>
+            <label>
+              Search local and shared Skills
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter by Skill name"
+              />
+            </label>
+            <div className="table">
+              {visibleSkills.map((skill) => (
+                <div
+                  className="table-row"
+                  key={`${skill.source}-${skill.name}`}
+                >
+                  <strong>{skill.name}</strong>
+                  <span className="tag">{skill.source}</span>
+                  <span className={`status ${skill.status}`}>
+                    {skill.status}
+                  </span>
+                  <span>
+                    {skill.fastPathEligible ? "FAST-READY" : "SLOW ONLY"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle code="EXPORT/ZIP" title="Approved library export" />
+            <div className="form-row">
+              <label>
+                Destination
+                <input
+                  value={destination}
+                  onChange={(event) => setDestination(event.target.value)}
+                  aria-label="Export destination"
+                />
+              </label>
+              <button
+                className="button primary"
+                onClick={() => void exportAll()}
+              >
+                Create verified ZIP
+              </button>
+            </div>
+            <p className="muted">
+              The archive contains only approved definitions plus a SHA-256
+              manifest. Pending records, secrets, and raw game datasets are
+              excluded.
+            </p>
+          </section>
+          <section className="panel">
+            <PanelTitle code="TRAIN/VERIFY" title="Public-web Skill training" />
+            <p className="muted">
+              Run a read-only, allowlisted public-web workflow to create a local
+              candidate with verifier evidence. Candidates remain local until
+              three independent verified runs and an offline holdout pass are
+              recorded.
+            </p>
+            <div className="form-grid">
+              <label>
+                Scenario
+                <select
+                  value={trainingInput.scenarioId}
+                  onChange={(event) =>
+                    setTrainingInput({
+                      ...trainingInput,
+                      scenarioId: event.target
+                        .value as PublicWebTrainingRequest["scenarioId"],
+                    })
+                  }
+                >
+                  <option value="wikipedia-search">
+                    Wikipedia public search
+                  </option>
+                  <option value="mdn-search">MDN documentation search</option>
+                  <option value="github-issue-filter">
+                    GitHub public issue filter
+                  </option>
+                  <option value="openstreetmap-place-search">
+                    OpenStreetMap place search
+                  </option>
+                  <option value="psycho-flow">
+                    Psycho Flow advanced psychological survey
+                  </option>
+                </select>
+              </label>
+              <label>
+                Public query
+                <input
+                  value={trainingInput.query}
+                  onChange={(event) =>
+                    setTrainingInput({
+                      ...trainingInput,
+                      query: event.target.value,
+                    })
+                  }
+                  maxLength={256}
+                  autoComplete="off"
+                />
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={trainingInput.viewable === true}
+                  onChange={(event) => {
+                    setTrainingInput({
+                      ...trainingInput,
+                      viewable: event.target.checked,
+                    });
+                  }}
+                />
+                Show the training browser window
+              </label>
+              <p className="hint">
+                Training records a candidate only. Fast Path promotion requires
+                three independently verified executions and a separate offline
+                holdout on an unseen UI fingerprint.
+              </p>
+            </div>
+            <div className="actions">
+              <button
+                className="button caution"
+                onClick={() => void startTraining()}
+              >
+                Start verified training
+              </button>
+              {trainingJob ? (
+                <>
+                  <button
+                    className="button"
+                    onClick={() => void refreshTraining()}
+                  >
+                    Refresh status
+                  </button>
+                  {trainingJob.status === "running" ? (
+                    <button
+                      className="button ghost"
+                      onClick={() => void cancelTraining()}
+                    >
+                      Cancel training
+                    </button>
+                  ) : null}
+                  <span className={`status ${trainingJob.status}`}>
+                    {trainingJob.status}
+                  </span>
+                </>
               ) : null}
-              <span className={`status ${trainingJob.status}`}>
-                {trainingJob.status}
-              </span>
-            </>
-          ) : null}
-        </div>
-      </section>
+            </div>
+          </section>
         </>
       ) : (
         <SharedLibraryPanel
@@ -817,11 +836,12 @@ function SharedLibraryPanel({
     return (
       <section className="panel">
         <PanelTitle code="MARKETPLACE/03" title="Shared Skill library" />
-        <p className="muted">
-          Sign in to browse and download shared Skills.
-        </p>
+        <p className="muted">Sign in to browse and download shared Skills.</p>
         <div className="actions">
-          <button className="button primary" onClick={() => navigate("account")}>
+          <button
+            className="button primary"
+            onClick={() => navigate("account")}
+          >
             Sign in
           </button>
         </div>
@@ -923,7 +943,10 @@ function SharedLibraryPanel({
             code="DETAIL/03"
             title={selected.skill.name}
             action={
-              <button className="button primary" onClick={() => void download()}>
+              <button
+                className="button primary"
+                onClick={() => void download()}
+              >
                 Download
               </button>
             }
@@ -1005,7 +1028,9 @@ function Account({
       return;
     }
     try {
-      setNotice("Magic Link requested. Complete the email sign-in to continue.");
+      setNotice(
+        "Magic Link requested. Complete the email sign-in to continue.",
+      );
       const current = await window.lhic.account.login(email.trim());
       setStatus(current);
       setDisplayName(current.profile?.displayName ?? "");
@@ -1116,7 +1141,10 @@ function Account({
             </label>
           </div>
           <div className="actions">
-            <button className="button primary" onClick={() => void saveProfile()}>
+            <button
+              className="button primary"
+              onClick={() => void saveProfile()}
+            >
               Save profile
             </button>
           </div>

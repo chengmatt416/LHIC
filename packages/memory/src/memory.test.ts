@@ -260,6 +260,12 @@ describe("SQLite skill memory", () => {
         "Retry the trigger once, then inspect network and filesystem evidence.",
       suggestsUpdatedSkillRule: true,
     });
+
+    expect(failures.shouldBlock("download_file", "download_timeout")).toBe(
+      true,
+    );
+    expect(failures.prune({ maxEntries: 1, olderThanDays: 30 })).toBe(1);
+    expect(selectors.prune({ maxEntries: 1, maxFailureCount: 3 })).toBe(0);
   });
 });
 

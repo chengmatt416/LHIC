@@ -64,6 +64,20 @@ contract, redaction boundary, and fail-closed behavior.
 - `apps/desktop`: Electron Control Center.
 - `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint and HTTP API Control Plane.
 
+## Install desktop app and CLI
+
+The release installer works without a preinstalled Node.js runtime:
+
+```sh
+curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
+```
+
 ## CLI Commands & Usage
 
 ### Quick start

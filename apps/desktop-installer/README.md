@@ -31,12 +31,12 @@ No native dependencies, no root, nothing left in the project tree.
 
 ## Environment
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `LHIC_DESKTOP_VERSION` | package version | Release version to install (tag is `desktop-v<version>`). |
-| `LHIC_DESKTOP_BASE_URL` | `https://github.com/chengmatt416/LHIC/releases/download/desktop-v<version>` | Release download base URL (used by tests and mirrors). |
-| `LHIC_SKIP_BACKENDS` | unset | Set `1` to skip automatic execution-layer provisioning. |
-| `LHIC_SKIP_PEEKABOO` / `LHIC_SKIP_FLAUI` / `LHIC_SKIP_OMNIPARSER` / `LHIC_SKIP_CHROMIUM` | unset | Skip one provisioning step. |
+| Variable                                                                                 | Default                                                                     | Purpose                                                   |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `LHIC_DESKTOP_VERSION`                                                                   | package version                                                             | Release version to install (tag is `desktop-v<version>`). |
+| `LHIC_DESKTOP_BASE_URL`                                                                  | `https://github.com/chengmatt416/LHIC/releases/download/desktop-v<version>` | Release download base URL (used by tests and mirrors).    |
+| `LHIC_SKIP_BACKENDS`                                                                     | unset                                                                       | Set `1` to skip automatic execution-layer provisioning.   |
+| `LHIC_SKIP_PEEKABOO` / `LHIC_SKIP_FLAUI` / `LHIC_SKIP_OMNIPARSER` / `LHIC_SKIP_CHROMIUM` | unset                                                                       | Skip one provisioning step.                               |
 
 ## Automatic package provisioning
 
@@ -65,11 +65,11 @@ on the platform (e.g. an unsupported architecture), a warning is shown and
 only the CLI is installed:
 
 ```sh
-curl -fsSL https://lhic.techtools.qzz.io/install.sh | sh
+curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
 ```
 
 ```powershell
-irm https://lhic.techtools.qzz.io/install.ps1 | iex
+irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
 ```
 
 Opt out of either component with `LHIC_SKIP_DESKTOP=1` (CLI only) or

@@ -353,7 +353,7 @@ describe("GlobalComputerExecutor", () => {
     });
   });
 
-  it("returns desktop observations as ephemeral output", async () => {
+  it("returns desktop observations as bounded ephemeral elements", async () => {
     const action: GlobalComputerAction = {
       scope: "os",
       type: "os_observe",
@@ -370,14 +370,34 @@ describe("GlobalComputerExecutor", () => {
       action,
       createActionApproval(action, "local-operator"),
     );
+    const observation = JSON.parse(result.output ?? "{}") as {
+      backend: string;
+      elements: Array<{ label: string }>;
+    };
 
-    expect(result).toMatchObject({
-      success: true,
-      output: "TextEdit\tUntitled",
-      evidence: expect.arrayContaining([
-        expect.stringContaining("ephemeral action output"),
-      ]),
+    expect(result.success).toBe(true);
+    expect(observation).toMatchObject({
+      backend: "native",
+      elements: [{ label: "TextEdit\tUntitled" }],
     });
+    expect(JSON.stringify(observation)).not.toContain("screen.png");
+  });
+
+  it("denies desktop observation without executing a command", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_observe",
+      intent: "observe the active editor",
+      methodPreference: ["vision"],
+      riskLevel: "medium",
+      observeScope: "active_window",
+      verifier: { type: "active_window" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+    const result = await executor.observe(action);
+    expect(result.success).toBe(false);
+    expect(runner.commands).toHaveLength(0);
   });
 
   it("bounds a verifier runner that never settles after dispatch", async () => {

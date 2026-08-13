@@ -132,26 +132,21 @@
           "array": false,
           "default": null,
           "format": "enum",
-          "elements": [
-            "browser",
-            "desktop",
-            "os",
-            "mcp",
-            "training",
-            "utility"
-          ]
+          "elements": ["browser", "desktop", "os", "mcp", "training", "utility"]
         },
         {
           "key": "tags",
-          "type": "string",
+          "type": "varchar",
           "required": false,
           "array": true,
-          "default": null
+          "size": 64,
+          "default": null,
+          "encrypt": false
         },
         {
           "key": "downloadCount",
           "type": "integer",
-          "required": true,
+          "required": false,
           "array": false,
           "default": 0,
           "min": 0,
@@ -159,15 +154,15 @@
         },
         {
           "key": "ratingAvg",
-          "type": "float",
-          "required": true,
+          "type": "double",
+          "required": false,
           "array": false,
           "default": 0
         },
         {
           "key": "ratingCount",
           "type": "integer",
-          "required": true,
+          "required": false,
           "array": false,
           "default": 0,
           "min": 0,

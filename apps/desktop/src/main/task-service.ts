@@ -425,6 +425,13 @@ export class TaskService {
     );
   }
 
+  public observeOmpDesktop(
+    request: Parameters<DesktopGlobalRunner["observe"]>[0],
+    approval?: Parameters<DesktopGlobalRunner["observe"]>[1],
+  ) {
+    return this.globalRunner.observe(request, approval);
+  }
+
   public approveOmpBrowserPlan(
     commandId: string,
     approval?: TaskApproval | { approvedBy: string },
@@ -449,8 +456,9 @@ export class TaskService {
     return this.browserRunner.cancel(commandId);
   }
 
-  public cancelOmpDesktopPlan(commandId: string): void {
+  public cancelOmpDesktopPlan(commandId: string): Promise<void> {
     this.globalRunner.cancel(commandId);
+    return Promise.resolve();
   }
 
   public subscribe(listener: (event: CommandEvent) => void): () => void {

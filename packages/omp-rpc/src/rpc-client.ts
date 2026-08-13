@@ -5,11 +5,17 @@ export interface OmpRpcClientOptions {
   workspaceRoot: string;
   sessionDir: string;
   args?: string[];
+  extensionRoots?: string[];
   spawn?: typeof nodeSpawn;
 }
 
+export type OmpSubagentFrame = Record<string, unknown> & {
+  type: "subagent_lifecycle" | "subagent_progress" | "subagent_event";
+};
+
 export interface OmpRpcClientCallbacks {
   onEvent(frame: Record<string, unknown>): void;
+  onSubagent?(frame: OmpSubagentFrame): void;
   onUiRequest(frame: Record<string, unknown>): void;
   onHostToolCall(frame: Record<string, unknown>): void;
   onClosed(error?: Error): void;
@@ -44,6 +50,24 @@ export function lhicHostToolDefinitions(): Array<{
           plan: { type: "object" },
         },
         required: ["plan"],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: "lhic_desktop_observe",
+      label: "LHIC Desktop Observe",
+      description:
+        "Observe a bounded desktop scope after exact-action approval. Returns normalized ephemeral elements and backend evidence; never returns a screenshot path.",
+      parameters: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["active_window", "all_windows", "application"],
+          },
+          application: { type: "string" },
+        },
+        required: ["scope"],
         additionalProperties: false,
       },
     },
@@ -118,6 +142,10 @@ export class OmpRpcClient {
         "--hide-thinking",
         "--approval-mode",
         "write",
+        ...(this.options.extensionRoots ?? []).flatMap((root) => [
+          "--extension",
+          root,
+        ]),
         ...(this.options.args ?? []),
       ],
       { stdio: ["pipe", "pipe", "pipe"] },
@@ -201,9 +229,10 @@ export class OmpRpcClient {
     return this.send({ type: "follow_up", message });
   }
 
-  public setThinkingLevel(
-    level: string,
-  ): Promise<Record<string, unknown>> {
+  public abortAndPrompt(message: string): Promise<Record<string, unknown>> {
+    return this.send({ type: "abort_and_prompt", message });
+  }
+  public setThinkingLevel(level: string): Promise<Record<string, unknown>> {
     return this.send({ type: "set_thinking_level", level });
   }
 
@@ -220,14 +249,52 @@ export class OmpRpcClient {
   public getAvailableCommands(): Promise<Record<string, unknown>> {
     return this.send({ type: "get_available_commands" });
   }
+  public setSteeringMode(
+    mode: "all" | "one-at-a-time",
+  ): Promise<Record<string, unknown>> {
+    return this.send({ type: "set_steering_mode", mode });
+  }
+
+  public setFollowUpMode(
+    mode: "all" | "one-at-a-time",
+  ): Promise<Record<string, unknown>> {
+    return this.send({ type: "set_follow_up_mode", mode });
+  }
+
+  public compact(
+    customInstructions?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.send({
+      type: "compact",
+      ...(customInstructions ? { customInstructions } : {}),
+    });
+  }
+
+  public setAutoCompaction(enabled: boolean): Promise<Record<string, unknown>> {
+    return this.send({ type: "set_auto_compaction", enabled });
+  }
+
+  public setAutoRetry(enabled: boolean): Promise<Record<string, unknown>> {
+    return this.send({ type: "set_auto_retry", enabled });
+  }
+
+  public abortRetry(): Promise<Record<string, unknown>> {
+    return this.send({ type: "abort_retry" });
+  }
+
+  public bash(command: string): Promise<Record<string, unknown>> {
+    return this.send({ type: "bash", command });
+  }
+
+  public abortBash(): Promise<Record<string, unknown>> {
+    return this.send({ type: "abort_bash" });
+  }
 
   public abort(): Promise<Record<string, unknown>> {
     return this.send({ type: "abort" });
   }
 
-  public newSession(
-    parentSession?: string,
-  ): Promise<Record<string, unknown>> {
+  public newSession(parentSession?: string): Promise<Record<string, unknown>> {
     return this.send({
       type: "new_session",
       ...(parentSession ? { parentSession } : {}),
@@ -238,9 +305,7 @@ export class OmpRpcClient {
     return this.send({ type: "get_state" });
   }
 
-  public getMessagesPage(
-    cursor?: string,
-  ): Promise<Record<string, unknown>> {
+  public getMessagesPage(cursor?: string): Promise<Record<string, unknown>> {
     return this.send({
       type: "get_messages_page",
       ...(cursor ? { cursor } : {}),
@@ -249,6 +314,13 @@ export class OmpRpcClient {
 
   public getAvailableModels(): Promise<Record<string, unknown>> {
     return this.send({ type: "get_available_models" });
+  }
+  public cycleModel(): Promise<Record<string, unknown>> {
+    return this.send({ type: "cycle_model" });
+  }
+
+  public cycleThinkingLevel(): Promise<Record<string, unknown>> {
+    return this.send({ type: "cycle_thinking_level" });
   }
 
   public setModel(
@@ -292,11 +364,50 @@ export class OmpRpcClient {
       ...(outputPath ? { outputPath } : {}),
     });
   }
+  public getSessionStats(): Promise<Record<string, unknown>> {
+    return this.send({ type: "get_session_stats" });
+  }
 
-  public uiResponse(
-    id: string,
-    response: OmpUiResponse,
-  ): Promise<void> {
+  public branch(entryId: string): Promise<Record<string, unknown>> {
+    return this.send({ type: "branch", entryId });
+  }
+
+  public getBranchMessages(): Promise<Record<string, unknown>> {
+    return this.send({ type: "get_branch_messages" });
+  }
+
+  public getLastAssistantText(): Promise<Record<string, unknown>> {
+    return this.send({ type: "get_last_assistant_text" });
+  }
+
+  public handoff(
+    customInstructions?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.send({
+      type: "handoff",
+      ...(customInstructions ? { customInstructions } : {}),
+    });
+  }
+
+  public setSubagentSubscription(
+    level: "off" | "progress" | "events",
+  ): Promise<Record<string, unknown>> {
+    return this.send({ type: "set_subagent_subscription", level });
+  }
+
+  public getSubagents(): Promise<Record<string, unknown>> {
+    return this.send({ type: "get_subagents" });
+  }
+
+  public getSubagentMessages(options: {
+    subagentId?: string;
+    sessionFile?: string;
+    fromByte?: number;
+  }): Promise<Record<string, unknown>> {
+    return this.send({ type: "get_subagent_messages", ...options });
+  }
+
+  public uiResponse(id: string, response: OmpUiResponse): Promise<void> {
     const frame: Record<string, unknown> = {
       type: "extension_ui_response",
       id,
@@ -418,6 +529,13 @@ export class OmpRpcClient {
       this.callbacks.onHostToolCall(frame);
       return;
     }
+    if (
+      frame.type === "subagent_lifecycle" ||
+      frame.type === "subagent_progress" ||
+      frame.type === "subagent_event"
+    ) {
+      this.callbacks.onSubagent?.(frame as OmpSubagentFrame);
+    }
     this.callbacks.onEvent(frame);
   }
 
@@ -427,14 +545,20 @@ export class OmpRpcClient {
     const count = Number(frame.count);
     const byteLength = Number(frame.byteLength);
     const data = String(frame.data ?? "");
+    const limit = Math.min(
+      this.ready?.maxReassembledFrameBytes ?? defaultReassemblyLimit,
+      defaultReassemblyLimit,
+    );
     if (
       !chunkId ||
       !Number.isInteger(index) ||
       index < 0 ||
       !Number.isInteger(count) ||
       count < 1 ||
+      index >= count ||
       !Number.isInteger(byteLength) ||
-      byteLength < 0
+      byteLength < 0 ||
+      byteLength > limit
     ) {
       this.assembly = undefined;
       this.callbacks.onLog("Ignoring invalid omp RPC chunk frame.");
@@ -458,7 +582,16 @@ export class OmpRpcClient {
       this.callbacks.onLog("Rejecting out-of-order omp RPC chunk sequence.");
       return;
     }
-    assembly.segments.push(Buffer.from(data, "base64"));
+    const segment = Buffer.from(data, "base64");
+    const assembledBytes =
+      assembly.segments.reduce((total, value) => total + value.length, 0) +
+      segment.length;
+    if (assembledBytes > assembly.byteLength || assembledBytes > limit) {
+      this.assembly = undefined;
+      this.callbacks.onLog("Rejecting oversized omp RPC chunk sequence.");
+      return;
+    }
+    assembly.segments.push(segment);
     if (assembly.segments.length !== count) {
       return;
     }
@@ -470,7 +603,6 @@ export class OmpRpcClient {
       );
       return;
     }
-    const limit = this.ready?.maxReassembledFrameBytes ?? defaultReassemblyLimit;
     if (reassembled.length > limit) {
       this.callbacks.onLog(
         `Rejecting omp RPC frame above the ${limit}-byte reassembly ceiling.`,
@@ -488,7 +620,9 @@ export class OmpRpcClient {
     if (frame.success === false) {
       pending.reject(
         new Error(
-          String(frame.error ?? `omp RPC command ${String(frame.command)} failed.`),
+          String(
+            frame.error ?? `omp RPC command ${String(frame.command)} failed.`,
+          ),
         ),
       );
       return;

@@ -15,7 +15,9 @@ import { SkillsService } from "./skills-service.js";
 class MemoryCredentialStore implements SharedSkillCredentialStore {
   private readonly values = new Map<string, string>();
 
-  public async get(config: { registryId: string }): Promise<string | undefined> {
+  public async get(config: {
+    registryId: string;
+  }): Promise<string | undefined> {
     return this.values.get(config.registryId);
   }
 
@@ -97,9 +99,9 @@ describe("Account + Library services (mock Appwrite)", () => {
       }),
       credentials,
     );
-    await expect(account.updateProfile({ displayName: "Alice" })).rejects.toThrow(
-      "Sign in first.",
-    );
+    await expect(
+      account.updateProfile({ displayName: "Alice" }),
+    ).rejects.toThrow("Sign in first.");
   });
 
   it("searches, rates, and downloads skills into the local mirror", async () => {
@@ -121,9 +123,9 @@ describe("Account + Library services (mock Appwrite)", () => {
       isSignedIn: async () => (await account.status()).mode === "signed-in",
     });
 
-    await expect(
-      library.search({ category: "browser" }),
-    ).rejects.toThrow("Sign in to browse the shared library.");
+    await expect(library.search({ category: "browser" })).rejects.toThrow(
+      "Sign in to browse the shared library.",
+    );
 
     await account.login("alice@example.com");
 

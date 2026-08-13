@@ -93,6 +93,15 @@ export class CliBrowserRunner {
     this.sessions.set(commandId, session);
     return this.run(commandId);
   }
+  public pendingAction(commandId: string): {
+    action: BrowserSemanticAction;
+    verifier: string;
+  } {
+    const session = this.require(commandId);
+    const step = session.plan.steps[session.nextStepIndex];
+    if (!step) throw new Error("This browser task has no pending action.");
+    return { action: step.action, verifier: step.verification.description };
+  }
 
   public async approve(
     commandId: string,

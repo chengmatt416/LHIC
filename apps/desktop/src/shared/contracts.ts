@@ -435,6 +435,19 @@ export interface OmpModelInfo {
   id: string;
 }
 
+export interface OmpSubagentModel {
+  selector: string;
+  provider: string;
+  modelId: string;
+  displayName?: string;
+  enabled: boolean;
+  connected: boolean;
+  reasoning?: boolean;
+  image?: boolean;
+  contextWindow?: number;
+  thinkingLevels?: string[];
+}
+
 export interface OmpTodoTask {
   id: string;
   content: string;
@@ -452,13 +465,7 @@ export interface OmpRuntimeState {
   error?: string;
   model?: OmpModelInfo;
   thinkingLevel?:
-    | "off"
-    | "minimal"
-    | "low"
-    | "medium"
-    | "high"
-    | "xhigh"
-    | "max";
+    "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   isStreaming: boolean;
   sessionName?: string;
   sessionFile?: string;
@@ -468,12 +475,67 @@ export interface OmpRuntimeState {
   fastModeActive?: boolean;
   interruptMode?: "immediate" | "wait";
   contextUsage?: { tokens: number; contextWindow: number; percent: number };
+  steeringMode?: "all" | "one-at-a-time";
+  followUpMode?: "all" | "one-at-a-time";
+  autoCompactionEnabled?: boolean;
+  autoRetryEnabled?: boolean;
+  recoveryState?: "running" | "restarting" | "resumed" | "recovery_failed";
+  subagents?: OmpSubagentView[];
 }
 
 export interface OmpCommandInfo {
   name: string;
   description?: string;
   aliases?: string[];
+}
+export interface OmpSubagentView {
+  id: string;
+  label: string;
+  task: string;
+  status: string;
+  provider?: string;
+  model?: string;
+  progress?: string;
+  startedAt?: string;
+}
+
+export interface OmpSessionStats {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  cost?: number;
+  turns?: number;
+  durationMs?: number;
+  raw: Record<string, unknown>;
+}
+
+export interface OmpAdvancedCommand {
+  command:
+    | "abortAndPrompt"
+    | "cycleModel"
+    | "cycleThinkingLevel"
+    | "compact"
+    | "setAutoCompaction"
+    | "setAutoRetry"
+    | "abortRetry"
+    | "bash"
+    | "abortBash"
+    | "setSteeringMode"
+    | "setFollowUpMode"
+    | "branch"
+    | "getBranchMessages"
+    | "getLastAssistantText"
+    | "handoff"
+    | "setSubagentSubscription"
+    | "getSubagentMessages";
+  message?: string;
+  enabled?: boolean;
+  mode?: "all" | "one-at-a-time";
+  entryId?: string;
+  subscription?: "off" | "progress" | "events";
+  subagentId?: string;
+  sessionFile?: string;
+  fromByte?: number;
 }
 
 export interface OmpSessionInfo {
@@ -524,6 +586,7 @@ export type OmpEvent =
   | { type: "host-tool"; call: OmpHostToolCall }
   | { type: "status"; status: OmpRuntimeState }
   | { type: "commands"; commands: OmpCommandInfo[] }
+  | { type: "subagents"; subagents: OmpSubagentView[] }
   | { type: "error"; message: string };
 
 export interface UserProfile {
@@ -721,6 +784,8 @@ export interface DesktopApi {
     switchSession(path: string): Promise<OmpRuntimeState>;
     setModel(provider: string, modelId: string): Promise<OmpRuntimeState>;
     listModels(): Promise<OmpModelInfo[]>;
+    listSubagentModels(): Promise<OmpSubagentModel[]>;
+    setSubagentModels(selectors: string[]): Promise<OmpSubagentModel[]>;
     setThinkingLevel(
       level: NonNullable<OmpRuntimeState["thinkingLevel"]>,
     ): Promise<OmpRuntimeState>;
@@ -737,6 +802,9 @@ export interface DesktopApi {
       nextCursor?: string;
       totalMessages: number;
     }>;
+    sessionStats(): Promise<OmpSessionStats>;
+    advanced(input: OmpAdvancedCommand): Promise<Record<string, unknown>>;
+    subagents(): Promise<OmpSubagentView[]>;
     respondUi(
       requestId: string,
       response: {

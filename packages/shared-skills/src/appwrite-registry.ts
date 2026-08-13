@@ -510,10 +510,10 @@ function parseRegistrySkill(value: unknown): RegistrySkillSummary {
     ...(typeof record.description === "string"
       ? { description: record.description }
       : {}),
-    ...(typeof record.category === "string" ? { category: record.category } : {}),
-    ...(Array.isArray(record.tags)
-      ? { tags: record.tags.map(String) }
+    ...(typeof record.category === "string"
+      ? { category: record.category }
       : {}),
+    ...(Array.isArray(record.tags) ? { tags: record.tags.map(String) } : {}),
     downloadCount: Number(record.downloadCount ?? 0),
     ratingAvg: Number(record.ratingAvg ?? 0),
     ratingCount: Number(record.ratingCount ?? 0),
@@ -521,12 +521,16 @@ function parseRegistrySkill(value: unknown): RegistrySkillSummary {
     ...(typeof record.authorName === "string"
       ? { authorName: record.authorName }
       : {}),
-    ...(typeof record.createdAt === "string" ? { createdAt: record.createdAt } : {}),
+    ...(typeof record.createdAt === "string"
+      ? { createdAt: record.createdAt }
+      : {}),
     updatedAt: required("updatedAt"),
   };
 }
 
-function parseRegistryDetail(payload: Record<string, unknown>): RegistrySkillDetail {
+function parseRegistryDetail(
+  payload: Record<string, unknown>,
+): RegistrySkillDetail {
   if (!payload.skill) {
     throw new Error("Shared skill detail is missing the skill record.");
   }
@@ -543,9 +547,7 @@ function parseRegistryDetail(payload: Record<string, unknown>): RegistrySkillDet
         createdAt: String(record.createdAt ?? ""),
       };
     }),
-    ...(payload.author
-      ? { author: parseRegistryUser(payload.author) }
-      : {}),
+    ...(payload.author ? { author: parseRegistryUser(payload.author) } : {}),
     rating: {
       avg: Number(rating.avg ?? 0),
       count: Number(rating.count ?? 0),
@@ -659,7 +661,10 @@ class MockRegistry {
     ),
   ];
   private readonly ratings = new Map<string, Map<string, number>>();
-  private readonly baseRatings = new Map<string, { avg: number; count: number }>();
+  private readonly baseRatings = new Map<
+    string,
+    { avg: number; count: number }
+  >();
   private profile: RegistryUserProfile = {
     userId: "mock-user",
     displayName: "mock-user",
@@ -679,7 +684,8 @@ class MockRegistry {
     const filtered = this.skills.filter((skill) => {
       if (params.category && skill.category !== params.category) return false;
       if (needle) {
-        const haystack = `${skill.name} ${skill.description ?? ""}`.toLocaleLowerCase();
+        const haystack =
+          `${skill.name} ${skill.description ?? ""}`.toLocaleLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       return true;
@@ -711,7 +717,10 @@ class MockRegistry {
           createdAt: skill.createdAt ?? "2026-07-01T00:00:00.000Z",
         },
       ],
-      author: { userId: skill.authorId, displayName: skill.authorName ?? "Author" },
+      author: {
+        userId: skill.authorId,
+        displayName: skill.authorName ?? "Author",
+      },
       rating: this.ratingFor(id),
     };
   }

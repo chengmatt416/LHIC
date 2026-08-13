@@ -23,6 +23,7 @@ import type {
   PolicyPackageSubmission,
   SecurityConfiguration,
   LibrarySearchParams,
+  OmpAdvancedCommand,
   OmpRuntimeState,
   OmpTodoPhase,
   UserProfile,
@@ -448,6 +449,11 @@ function registerIpc(): void {
         : requiredString(cursor, "message cursor"),
     ),
   );
+  ipcMain.handle("lhic:omp:session-stats", () => controller.ompSessionStats());
+  ipcMain.handle("lhic:omp:advanced", (_event, input: unknown) =>
+    controller.ompAdvanced(requiredOmpAdvancedCommand(input)),
+  );
+  ipcMain.handle("lhic:omp:subagents", () => controller.ompSubagents());
   ipcMain.handle("lhic:omp:abort", () => controller.ompAbort());
   ipcMain.handle("lhic:omp:new-session", () => controller.ompNewSession());
   ipcMain.handle("lhic:omp:state", () => controller.ompState());
@@ -463,6 +469,12 @@ function registerIpc(): void {
     );
   });
   ipcMain.handle("lhic:omp:list-models", () => controller.ompListModels());
+  ipcMain.handle("lhic:omp:list-subagent-models", () =>
+    controller.ompListSubagentModels(),
+  );
+  ipcMain.handle("lhic:omp:set-subagent-models", (_event, selectors: unknown) =>
+    controller.ompSetSubagentModels(requiredModelSelectors(selectors)),
+  );
   ipcMain.handle("lhic:omp:set-todos", (_event, phases: unknown) =>
     controller.ompSetTodos(requiredOmpPhases(phases)),
   );
@@ -674,6 +686,21 @@ function requiredScopes(value: unknown): string[] {
     throw new Error("Demo key scopes are invalid.");
   }
   return [...new Set(value)].sort();
+}
+
+function requiredModelSelectors(value: unknown): string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > 32 ||
+    !value.every(
+      (selector) =>
+        typeof selector === "string" &&
+        /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._:/-]+$/.test(selector),
+    )
+  ) {
+    throw new Error("OMP subagent model selectors are invalid.");
+  }
+  return [...new Set(value)];
 }
 
 function requiredIsoDate(value: unknown, name: string): string {
@@ -1097,7 +1124,11 @@ function requiredEmail(value: unknown): string {
 }
 
 function requiredRating(value: unknown): number {
-  if (!Number.isInteger(value) || (value as number) < 1 || (value as number) > 5) {
+  if (
+    !Number.isInteger(value) ||
+    (value as number) < 1 ||
+    (value as number) > 5
+  ) {
     throw new Error("Skill rating is invalid.");
   }
   return value as number;
@@ -1178,6 +1209,83 @@ function requiredOmpUiResponse(value: unknown): {
   return response;
 }
 
+function requiredOmpAdvancedCommand(value: unknown): OmpAdvancedCommand {
+  const input = requiredRecord(value, "OMP advanced command");
+  const allowed = new Set<OmpAdvancedCommand["command"]>([
+    "abortAndPrompt",
+    "cycleModel",
+    "cycleThinkingLevel",
+    "compact",
+    "setAutoCompaction",
+    "setAutoRetry",
+    "abortRetry",
+    "bash",
+    "abortBash",
+    "setSteeringMode",
+    "setFollowUpMode",
+    "branch",
+    "getBranchMessages",
+    "getLastAssistantText",
+    "handoff",
+    "setSubagentSubscription",
+    "getSubagentMessages",
+  ]);
+  if (
+    typeof input.command !== "string" ||
+    !allowed.has(input.command as OmpAdvancedCommand["command"])
+  ) {
+    throw new Error("OMP advanced command is invalid.");
+  }
+  const command: OmpAdvancedCommand = {
+    command: input.command as OmpAdvancedCommand["command"],
+  };
+  if (input.message !== undefined) {
+    command.message = requiredString(input.message, "OMP command message");
+  }
+  if (input.entryId !== undefined) {
+    command.entryId = requiredString(input.entryId, "OMP branch entry id");
+  }
+  if (input.subagentId !== undefined) {
+    command.subagentId = requiredString(input.subagentId, "OMP subagent id");
+  }
+  if (input.sessionFile !== undefined) {
+    command.sessionFile = requiredString(
+      input.sessionFile,
+      "OMP subagent session file",
+    );
+  }
+  if (input.fromByte !== undefined) {
+    if (
+      typeof input.fromByte !== "number" ||
+      !Number.isSafeInteger(input.fromByte) ||
+      input.fromByte < 0
+    ) {
+      throw new Error("OMP subagent byte offset is invalid.");
+    }
+    command.fromByte = input.fromByte;
+  }
+  if (input.enabled !== undefined) {
+    command.enabled = requiredBoolean(input.enabled, "OMP command enabled");
+  }
+  if (input.mode !== undefined) {
+    if (input.mode !== "all" && input.mode !== "one-at-a-time") {
+      throw new Error("OMP queue mode is invalid.");
+    }
+    command.mode = input.mode;
+  }
+  if (input.subscription !== undefined) {
+    if (
+      input.subscription !== "off" &&
+      input.subscription !== "progress" &&
+      input.subscription !== "events"
+    ) {
+      throw new Error("OMP subagent subscription is invalid.");
+    }
+    command.subscription = input.subscription;
+  }
+  return command;
+}
+
 function requiredOmpPhases(value: unknown): OmpTodoPhase[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 32) {
     throw new Error("agent todos are invalid.");
@@ -1203,7 +1311,10 @@ function requiredOmpPhases(value: unknown): OmpTodoPhase[] {
         }
         return {
           id: requiredString(taskRecord.id, "agent todo task id"),
-          content: requiredString(taskRecord.content, "agent todo task content"),
+          content: requiredString(
+            taskRecord.content,
+            "agent todo task content",
+          ),
           status,
         };
       }),

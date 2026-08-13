@@ -3,16 +3,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { redactPII } from "@lhic/trace";
 
 import type { GlobalComputerAction } from "@lhic/schema";
 
 import type { GlobalCommand, GlobalCommandResult } from "./os-bridge.js";
 
 export type ExecutionBackendId =
-  | "peekaboo"
-  | "flaui"
-  | "omniparser"
-  | "native";
+  "peekaboo" | "flaui" | "atspi" | "omniparser" | "native";
 
 export interface ExecutionElement {
   id: string;
@@ -21,11 +19,20 @@ export interface ExecutionElement {
   /** Screen-space frame in CSS pixels. */
   frame?: { x: number; y: number; width: number; height: number };
   interactable?: boolean;
+  /** Set only on normalized observations returned to the agent. */
+  backend?: ExecutionBackendId;
 }
 
 export interface ElementObservation {
   elements: ExecutionElement[];
   capturedAt: string;
+}
+
+export interface BoundedDesktopObservation {
+  elements: Array<ExecutionElement & { backend: ExecutionBackendId }>;
+  capturedAt: string;
+  backend: ExecutionBackendId;
+  evidence: string[];
 }
 
 export interface ExecutionBackendProbe {
@@ -77,6 +84,8 @@ export interface ExecutionBackendOptions {
   omniparserPython?: string;
   /** Directory containing parse_screenshot.py. */
   omniparserDir?: string;
+  /** Literal values to redact from observation labels before returning them. */
+  redactValues?: string[];
   /** Spawn override for tests. */
   execFileImplementation?: typeof execFile;
   /** Timeout for backend subprocesses (ms). */
@@ -88,7 +97,8 @@ const backendTimeoutMs = 15_000;
 export function executionBackendOptionsFromEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): ExecutionBackendOptions & { backendMode?: string } {
-  const mode = environment.LHIC_EXECUTION_BACKEND?.toLocaleLowerCase() ?? "auto";
+  const mode =
+    environment.LHIC_EXECUTION_BACKEND?.toLocaleLowerCase() ?? "auto";
   if (
     mode !== "auto" &&
     mode !== "peekaboo" &&
@@ -113,11 +123,19 @@ export function executionBackendOptionsFromEnvironment(
     ...(environment.LHIC_OMNIPARSER_DIR
       ? { omniparserDir: environment.LHIC_OMNIPARSER_DIR }
       : {}),
+    ...(environment.LHIC_OBSERVATION_REDACT
+      ? {
+          redactValues: environment.LHIC_OBSERVATION_REDACT.split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+        }
+      : {}),
     backendMode: mode,
   };
 }
 
-export class PeekabooBackend implements ExecutionBackend {  public readonly id = "peekaboo" as const;
+export class PeekabooBackend implements ExecutionBackend {
+  public readonly id = "peekaboo" as const;
   private readonly binary: string;
   private readonly execFileImplementation: typeof execFile;
   private readonly timeoutMs: number;
@@ -187,8 +205,7 @@ export class PeekabooBackend implements ExecutionBackend {  public readonly id =
     const needle = target.toLocaleLowerCase();
     const exact = observation.elements.find(
       (element) =>
-        element.label?.toLocaleLowerCase() === needle ||
-        element.id === target,
+        element.label?.toLocaleLowerCase() === needle || element.id === target,
     );
     if (exact) return exact;
     return observation.elements.find((element) =>
@@ -232,12 +249,7 @@ export class PeekabooBackend implements ExecutionBackend {  public readonly id =
       case "os_scroll":
         if (!action.scrollDirection) return undefined;
         args = element
-          ? [
-              "scroll",
-              action.scrollDirection,
-              ...onElement,
-              ...appArgs,
-            ]
+          ? ["scroll", action.scrollDirection, ...onElement, ...appArgs]
           : ["scroll", action.scrollDirection, ...appArgs];
         break;
       case "os_launch":
@@ -276,7 +288,9 @@ export class PeekabooBackend implements ExecutionBackend {  public readonly id =
       evidence: [
         `Dispatched ${action.type} through the Peekaboo element backend (${args.slice(0, 2).join(" ")}).`,
         ...(element
-          ? [`Targeted element ${element.id}${element.label ? ` (${element.label})` : ""}.`]
+          ? [
+              `Targeted element ${element.id}${element.label ? ` (${element.label})` : ""}.`,
+            ]
           : []),
       ],
     };
@@ -318,8 +332,7 @@ export class FlaUIBackend implements ExecutionBackend {
     const version = await windowsVersion(this.execFileImplementation);
     if (
       version &&
-      (version.major < 10 ||
-        (version.major === 10 && version.build < 14_393))
+      (version.major < 10 || (version.major === 10 && version.build < 14_393))
     ) {
       return {
         id: this.id,
@@ -365,8 +378,7 @@ export class FlaUIBackend implements ExecutionBackend {
     const needle = target.toLocaleLowerCase();
     const exact = observation.elements.find(
       (element) =>
-        element.label?.toLocaleLowerCase() === needle ||
-        element.id === target,
+        element.label?.toLocaleLowerCase() === needle || element.id === target,
     );
     if (exact) return exact;
     return observation.elements.find((element) =>
@@ -425,7 +437,9 @@ export class FlaUIBackend implements ExecutionBackend {
       evidence: [
         `Dispatched ${action.type} through the FlaUI element backend (${args[0]}).`,
         ...(element
-          ? [`Targeted element ${element.id}${element.label ? ` (${element.label})` : ""}.`]
+          ? [
+              `Targeted element ${element.id}${element.label ? ` (${element.label})` : ""}.`,
+            ]
           : []),
       ],
     };
@@ -483,13 +497,18 @@ export class OmniParserBackend implements ExecutionBackend {
     if (!screenshot) {
       return { elements: [], capturedAt: new Date().toISOString() };
     }
-    return this.parseScreenshot(screenshot);
+    try {
+      return await this.parseScreenshot(screenshot);
+    } finally {
+      await rm(screenshot, { force: true }).catch(() => undefined);
+    }
   }
 
-  public async parseScreenshot(screenshotPath: string): Promise<ElementObservation> {
-    const stdout = (
-      await this.run(["parse", "--screenshot", screenshotPath])
-    ).stdout;
+  public async parseScreenshot(
+    screenshotPath: string,
+  ): Promise<ElementObservation> {
+    const stdout = (await this.run(["parse", "--screenshot", screenshotPath]))
+      .stdout;
     return parseElementObservation(stdout);
   }
 
@@ -533,13 +552,12 @@ export class OmniParserBackend implements ExecutionBackend {
 export class ElementGroundedDispatcher {
   private readonly backend: ExecutionBackend | undefined;
   private readonly omniparser: OmniParserBackend | undefined;
+  private readonly redactValues: string[];
   private readonly runner: {
     run(command: GlobalCommand): Promise<GlobalCommandResult>;
   };
   private readonly platform: NodeJS.Platform;
-  private readonly buildNative: (
-    action: GlobalComputerAction,
-  ) => GlobalCommand;
+  private readonly buildNative: (action: GlobalComputerAction) => GlobalCommand;
   private readonly captureScreenshot: (
     application?: string,
   ) => Promise<string | undefined>;
@@ -550,9 +568,8 @@ export class ElementGroundedDispatcher {
     runner: { run(command: GlobalCommand): Promise<GlobalCommandResult> };
     platform: NodeJS.Platform;
     buildNative: (action: GlobalComputerAction) => GlobalCommand;
-    captureScreenshot?: (
-      application?: string,
-    ) => Promise<string | undefined>;
+    captureScreenshot?: (application?: string) => Promise<string | undefined>;
+    redactValues?: string[];
   }) {
     this.backend = options.backend;
     this.omniparser = options.omniparser;
@@ -560,8 +577,42 @@ export class ElementGroundedDispatcher {
     this.platform = options.platform;
     this.buildNative = options.buildNative;
     this.captureScreenshot = options.captureScreenshot ?? captureScreenshot;
+    this.redactValues = options.redactValues ?? [];
   }
 
+  public async observe(
+    action: GlobalComputerAction,
+  ): Promise<BoundedDesktopObservation | undefined> {
+    const options = {
+      ...(action.application ? { application: action.application } : {}),
+      ...(action.observeScope ? { scope: action.observeScope } : {}),
+    };
+    if (this.backend) {
+      try {
+        const observation = await this.backend.observe(options);
+        if (observation.elements.length > 0) {
+          return boundObservation(
+            observation,
+            this.backend.id,
+            this.redactValues,
+          );
+        }
+      } catch {
+        // Continue to visual grounding.
+      }
+    }
+    if (this.omniparser) {
+      try {
+        const observation = await this.omniparser.observe(options);
+        if (observation.elements.length > 0) {
+          return boundObservation(observation, "omniparser", this.redactValues);
+        }
+      } catch {
+        // The executor supplies the native title-only fallback.
+      }
+    }
+    return undefined;
+  }
   public async dispatch(
     action: GlobalComputerAction,
   ): Promise<BackendDispatchResult | undefined> {
@@ -581,8 +632,9 @@ export class ElementGroundedDispatcher {
       }
     }
     if (this.omniparser && action.target) {
+      let screenshot: string | undefined;
       try {
-        const screenshot = await this.captureScreenshot(action.application);
+        screenshot = await this.captureScreenshot(action.application);
         if (screenshot) {
           const observation = await this.omniparser.parseScreenshot(screenshot);
           const element = this.omniparser.findElement(
@@ -590,12 +642,8 @@ export class ElementGroundedDispatcher {
             observation,
           );
           if (element?.frame) {
-            const x = Math.round(
-              element.frame.x + element.frame.width / 2,
-            );
-            const y = Math.round(
-              element.frame.y + element.frame.height / 2,
-            );
+            const x = Math.round(element.frame.x + element.frame.width / 2);
+            const y = Math.round(element.frame.y + element.frame.height / 2);
             const command = this.buildNative({ ...action, x, y });
             const result = await this.runner.run(command);
             return {
@@ -603,15 +651,17 @@ export class ElementGroundedDispatcher {
               backend: "omniparser",
               evidence: [
                 `OmniParser V2 located "${action.target}" at (${x}, ${y}) on ${this.platform}.`,
-                ...(element.label
-                  ? [`Parsed label: ${element.label}.`]
-                  : []),
+                ...(element.label ? [`Parsed label: ${element.label}.`] : []),
               ],
             };
           }
         }
       } catch {
         // Fall through to native coordinates.
+      } finally {
+        if (screenshot) {
+          await rm(screenshot, { force: true }).catch(() => undefined);
+        }
       }
     }
     return undefined;
@@ -643,7 +693,11 @@ export async function resolveExecutionChain(
   const mode = options.backendMode ?? "auto";
   if (mode === "native") {
     return {
-      probe: { id: "native", available: true, detail: "Traditional platform layer" },
+      probe: {
+        id: "native",
+        available: true,
+        detail: "Traditional platform layer",
+      },
     };
   }
   if (mode === "peekaboo" || mode === "flaui" || mode === "omniparser") {
@@ -676,23 +730,25 @@ export async function resolveExecutionChain(
   const chain: ResolvedExecutionChain = {
     ...(primaryProbe?.available && primary ? { backend: primary } : {}),
     ...(omniparserProbe.available ? { omniparser } : {}),
-    probe:
-      primaryProbe?.available
-        ? primaryProbe
-        : omniparserProbe.available
-          ? omniparserProbe
-          : {
-              id: "native" as const,
-              available: true,
-              detail: "Traditional platform layer",
-            },
+    probe: primaryProbe?.available
+      ? primaryProbe
+      : omniparserProbe.available
+        ? omniparserProbe
+        : {
+            id: "native" as const,
+            available: true,
+            detail: "Traditional platform layer",
+          },
   };
   return chain;
 }
 
 export async function resolveExecutionBackend(
   options: ExecutionBackendOptions = {},
-): Promise<{ backend: ExecutionBackend | undefined; probe: ExecutionBackendProbe }> {
+): Promise<{
+  backend: ExecutionBackend | undefined;
+  probe: ExecutionBackendProbe;
+}> {
   const chain = await resolveExecutionChain(options);
   return { backend: chain.backend ?? chain.omniparser, probe: chain.probe };
 }
@@ -719,9 +775,7 @@ function execFileToResult(
   });
 }
 
-function parseElementObservation(
-  stdout: string,
-): ElementObservation {
+function parseElementObservation(stdout: string): ElementObservation {
   const elements: ExecutionElement[] = [];
   try {
     const parsed = JSON.parse(stdout) as Record<string, unknown>;
@@ -730,6 +784,69 @@ function parseElementObservation(
     // Non-JSON output (or an empty tree) means no usable elements.
   }
   return { elements, capturedAt: new Date().toISOString() };
+}
+
+const observationElementLimit = 500;
+const observationByteLimit = 256 * 1024;
+
+function boundObservation(
+  observation: ElementObservation,
+  backend: ExecutionBackendId,
+  redactValues: string[],
+): BoundedDesktopObservation {
+  const elements: Array<ExecutionElement & { backend: ExecutionBackendId }> =
+    [];
+  let bytes = 2;
+  let truncated = false;
+  for (const source of observation.elements) {
+    if (elements.length >= observationElementLimit) {
+      truncated = true;
+      break;
+    }
+    const redacted = redactPII({
+      id: redactObservationText(source.id, redactValues),
+      ...(source.label
+        ? { label: redactObservationText(source.label, redactValues) }
+        : {}),
+      ...(source.role
+        ? { role: redactObservationText(source.role, redactValues) }
+        : {}),
+      ...(source.frame ? { frame: source.frame } : {}),
+      ...(source.interactable !== undefined
+        ? { interactable: source.interactable }
+        : {}),
+      backend,
+    }) as ExecutionElement & { backend: ExecutionBackendId };
+    const encodedBytes = Buffer.byteLength(JSON.stringify(redacted), "utf8");
+    if (bytes + encodedBytes > observationByteLimit) {
+      truncated = true;
+      break;
+    }
+    elements.push(redacted);
+    bytes += encodedBytes + 1;
+  }
+  return {
+    elements,
+    capturedAt: observation.capturedAt,
+    backend,
+    evidence: [
+      `Observed ${elements.length} normalized desktop elements through ${backend}.`,
+      ...(truncated
+        ? [
+            `Observation truncated at ${observationElementLimit} elements or ${observationByteLimit} bytes.`,
+          ]
+        : []),
+    ],
+  };
+}
+
+function redactObservationText(value: string, redactValues: string[]): string {
+  let result = value;
+  for (const secret of redactValues) {
+    if (!secret) continue;
+    result = result.replaceAll(secret, "[REDACTED]");
+  }
+  return result;
 }
 
 function collectElements(
@@ -818,7 +935,9 @@ export async function captureScreenshot(
     }
     return outputPath;
   } catch {
-    await rm(directory, { recursive: true, force: true }).catch(() => undefined);
+    await rm(directory, { recursive: true, force: true }).catch(
+      () => undefined,
+    );
     return undefined;
   }
 }

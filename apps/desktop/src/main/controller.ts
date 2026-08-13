@@ -35,9 +35,13 @@ import type {
   TrainingJob,
   OmpEvent,
   OmpMessageView,
+  OmpAdvancedCommand,
   OmpModelInfo,
   OmpRuntimeState,
   OmpSessionInfo,
+  OmpSessionStats,
+  OmpSubagentView,
+  OmpSubagentModel,
   OmpTodoPhase,
   AccountStatus,
   LibrarySearchParams,
@@ -583,6 +587,19 @@ export class DesktopController {
   }> {
     return this.omp.messages(cursor);
   }
+  public ompSessionStats(): Promise<OmpSessionStats> {
+    return this.omp.sessionStats();
+  }
+
+  public ompAdvanced(
+    input: OmpAdvancedCommand,
+  ): Promise<Record<string, unknown>> {
+    return this.omp.advanced(input);
+  }
+
+  public ompSubagents(): Promise<OmpSubagentView[]> {
+    return this.omp.subagents();
+  }
 
   public ompAbort(): Promise<void> {
     return this.omp.abort();
@@ -604,12 +621,25 @@ export class DesktopController {
     return this.omp.switchSession(path);
   }
 
-  public ompSetModel(provider: string, modelId: string): Promise<OmpRuntimeState> {
+  public ompSetModel(
+    provider: string,
+    modelId: string,
+  ): Promise<OmpRuntimeState> {
     return this.omp.setModel(provider, modelId);
   }
 
   public ompListModels(): Promise<OmpModelInfo[]> {
     return this.omp.listModels();
+  }
+
+  public ompListSubagentModels(): Promise<OmpSubagentModel[]> {
+    return this.omp.listSubagentModels();
+  }
+
+  public ompSetSubagentModels(
+    selectors: string[],
+  ): Promise<OmpSubagentModel[]> {
+    return this.omp.setSubagentModels(selectors);
   }
 
   public ompSetTodos(phases: OmpTodoPhase[]): Promise<void> {

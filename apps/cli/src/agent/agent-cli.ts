@@ -1,27 +1,38 @@
-import { createInterface, type ReadLine } from "node:readline";
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import {
-  OmpRpcClient,
-  lhicHostToolDefinitions,
+  OmpRpcSupervisor,
+  SubagentModelPool,
+  parseModelCatalog,
+  type OmpSubagentModel,
 } from "@lhic/omp-rpc";
 
 import { resolveOmpBinary, ompCacheDirectory } from "./omp-binary.js";
 import {
   CliHostRunner,
-  type TaskProposalSummary,
+  hostToolDefinitions,
+  type HostApprovalRequest,
 } from "./cli-host-runner.js";
+import { InputArbiter, InputClosedError } from "./input-arbiter.js";
 
 export interface AgentCliOptions {
   /** One-shot prompt; when set the agent runs it and exits. */
   prompt?: string;
   workspaceRoot?: string;
   sessionDir?: string;
+  session?: string;
+  model?: string;
+  thinking?: string;
+  subagentModels?: string[];
+  fast?: boolean;
+  jsonl?: boolean;
   approvedBy?: string;
+  approvalPolicy?: "ask" | "deny" | "auto";
   binary?: string;
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
+  errorOutput?: NodeJS.WritableStream;
 }
 
 interface SessionInfo {
@@ -55,23 +66,31 @@ export async function runAgentCommand(
   await mkdir(sessionDir, { recursive: true });
   const binary = options.binary ?? (await resolveOmpBinary());
   const output = options.output ?? process.stdout;
+  const errorOutput = options.errorOutput ?? process.stderr;
   const input = options.input ?? process.stdin;
   const oneShot = options.prompt !== undefined;
+  const jsonl = options.jsonl === true;
   let streaming = false;
   let inAssistantText = false;
+  let recoveryFailed = false;
   let turnSettled: (() => void) | undefined;
-
+  let effectiveSubagentModels: OmpSubagentModel[] = [];
+  const subagentModelsByAgent = new Map<string, OmpSubagentModel>();
+  const inputArbiter = new InputArbiter(input, output);
   const write = (text: string): void => {
     output.write(text);
   };
 
   const line = (text: string): void => write(`${text}\n`);
-
-  const client = new OmpRpcClient(
+  const record = (type: string, data: Record<string, unknown> = {}): void => {
+    if (jsonl) line(JSON.stringify({ type, ...data }));
+  };
+  const client = new OmpRpcSupervisor(
     {
       binary,
       workspaceRoot,
       sessionDir,
+      stateDirectory: join(sessionDir, ".recovery"),
       ...(oneShot ? { args: ["--approval-mode", "write"] } : {}),
     },
     {
@@ -79,53 +98,100 @@ export async function runAgentCommand(
         switch (frame.type) {
           case "agent_start":
             streaming = true;
-            line("");
-            line(`${levelColors.dim}── agent running ──${levelColors.reset}`);
+            if (jsonl) record("status", { status: "running" });
+            else {
+              line("");
+              line(`${levelColors.dim}── agent running ──${levelColors.reset}`);
+            }
             break;
           case "agent_end":
             streaming = false;
             if (inAssistantText) {
-              write("\n");
+              if (!jsonl) write("\n");
               inAssistantText = false;
             }
-            line(`${levelColors.dim}── agent finished ──${levelColors.reset}`);
-            if (frame.isTerminal !== false) {
-              turnSettled?.();
-            }
+            if (jsonl) record("status", { status: "completed" });
+            else
+              line(
+                `${levelColors.dim}── agent finished ──${levelColors.reset}`,
+              );
+            if (frame.isTerminal !== false) turnSettled?.();
             break;
           case "message_update": {
             const assistantEvent = frame.assistantMessageEvent as
-              | { type?: string; delta?: unknown }
-              | undefined;
+              { type?: string; delta?: unknown } | undefined;
             if (
               assistantEvent?.type === "text_delta" &&
               typeof assistantEvent.delta === "string"
             ) {
               inAssistantText = true;
-              write(assistantEvent.delta);
+              if (jsonl) {
+                record("message", {
+                  role: "assistant",
+                  delta: assistantEvent.delta,
+                });
+              } else {
+                write(assistantEvent.delta);
+              }
             }
             break;
           }
           case "message": {
             const message = frame.message as
-              | { role?: string; text?: string }
-              | undefined;
+              { role?: string; text?: string } | undefined;
             if (message?.text) {
-              if (message.role === "assistant") {
+              if (jsonl) {
+                record("message", {
+                  role: message.role ?? "assistant",
+                  text: message.text,
+                });
+              } else if (message.role === "assistant") {
                 if (!inAssistantText) write("\n");
-                write(message.text);
-                write("\n");
+                write(`${message.text}\n`);
                 inAssistantText = false;
               } else {
-                line(`\n${levelColors.bold}you${levelColors.reset}: ${message.text}`);
+                line(
+                  `\n${levelColors.bold}you${levelColors.reset}: ${message.text}`,
+                );
               }
             }
             break;
           }
+          case "tool_execution_start":
+          case "tool_execution_update":
+          case "tool_execution_end":
+            if (jsonl) record("tool", { event: frame });
+            break;
+          case "subagent_lifecycle":
+          case "subagent_progress":
+          case "subagent_event": {
+            const routed = withSubagentModel(frame, subagentModelsByAgent);
+            if (jsonl) record("subagent", { event: routed });
+            break;
+          }
+          case "rpc_recovery": {
+            const recoveryState = String(frame.state ?? "restarting");
+            if (recoveryState === "recovery_failed") {
+              recoveryFailed = true;
+              turnSettled?.();
+            }
+            if (jsonl) {
+              record("status", { status: recoveryState });
+            } else {
+              line(
+                `${levelColors.dim}omp recovery: ${recoveryState.replace("_", " ")}${levelColors.reset}`,
+              );
+            }
+            break;
+          }
           case "extension_error":
-            line(
-              `${levelColors.error}agent error: ${String(frame.error ?? "unknown")}${levelColors.reset}`,
-            );
+            if (jsonl) {
+              record("error", { message: String(frame.error ?? "unknown") });
+            } else {
+              line(
+                `${levelColors.error}agent error: ${String(frame.error ?? "unknown")}${levelColors.reset}`,
+              );
+            }
             turnSettled?.();
             break;
           default:
@@ -133,19 +199,24 @@ export async function runAgentCommand(
         }
       },
       onUiRequest: (frame) => {
-        void handleUiRequest(frame).catch((error: unknown) =>
-          line(`${levelColors.error}${String(error)}${levelColors.reset}`),
-        );
+        void handleUiRequest(frame).catch((error: unknown) => {
+          if (jsonl) record("error", { message: String(error) });
+          else line(`${levelColors.error}${String(error)}${levelColors.reset}`);
+        });
       },
       onHostToolCall: (frame) => hostRunner.handleHostToolCall(frame),
       onClosed: (error) => {
         if (error) {
-          line(`${levelColors.error}omp closed: ${error.message}${levelColors.reset}`);
+          if (jsonl) record("error", { message: error.message });
+          else
+            line(
+              `${levelColors.error}omp closed: ${error.message}${levelColors.reset}`,
+            );
         }
         turnSettled?.();
       },
       onLog: (logLine) => {
-        process.stderr.write(logLine);
+        errorOutput.write(logLine);
       },
     },
   );
@@ -153,29 +224,32 @@ export async function runAgentCommand(
   const hostRunner = new CliHostRunner({
     workspaceRoot,
     ...(options.approvedBy ? { approvedBy: options.approvedBy } : {}),
-    promptApproval: (toolName, proposal) => promptApproval(toolName, proposal),
+    approvalPolicy: options.approvalPolicy ?? (oneShot ? "deny" : "ask"),
+    promptApproval,
     emitResult: (callId, result, isError) =>
       client.hostToolResult(callId, result, isError),
     emitUpdate: (callId, partialResult) =>
       client.hostToolUpdate(callId, partialResult),
   });
 
-  const promptApproval = async (
-    toolName: string,
-    proposal: TaskProposalSummary,
-  ): Promise<{ approved: boolean; approvedBy: string }> => {
+  async function promptApproval(
+    request: HostApprovalRequest,
+  ): Promise<{ approved: false } | { approved: true; approvedBy: string }> {
     line("");
     line(
-      `${levelColors.bold}${toolName}${levelColors.reset} — ${proposal.stepCount} step${proposal.stepCount === 1 ? "" : "s"} require approval:`,
+      `${levelColors.bold}${request.toolName}${levelColors.reset} — ${request.proposal.stepCount} step${request.proposal.stepCount === 1 ? "" : "s"} require approval:`,
     );
-    for (const step of proposal.steps) {
+    for (const step of request.proposal.steps) {
       line(
         `  ${levelColors.dim}${step.id}${levelColors.reset} ${step.intent} [${step.action}] risk=${step.riskLevel} verifier="${step.verifier}"`,
       );
     }
-    const answer = await ask("Approve? [y/N] ");
+    line(
+      `  exact action: surface=${request.surface} hash=${request.actionHash} risk=${request.riskLevel} intent="${request.intent}" verifier="${request.verifier}"`,
+    );
+    const answer = await ask("Approve this exact action? [y/N] ");
     if (!answer.trim().toLocaleLowerCase().startsWith("y")) {
-      return { approved: false, approvedBy: "" };
+      return { approved: false };
     }
     const name = (
       options.approvedBy ??
@@ -183,13 +257,19 @@ export async function runAgentCommand(
       ""
     ).trim();
     return { approved: true, approvedBy: name || "cli-operator" };
-  };
+  }
 
-  const handleUiRequest = async (frame: Record<string, unknown>): Promise<void> => {
+  const handleUiRequest = async (
+    frame: Record<string, unknown>,
+  ): Promise<void> => {
     const id = String(frame.id ?? "");
     const method = String(frame.method ?? "notify");
     const title = String(frame.title ?? "The agent needs input");
-    if (method === "notify" || method === "setStatus" || method === "setWidget") {
+    if (
+      method === "notify" ||
+      method === "setStatus" ||
+      method === "setWidget"
+    ) {
       if (inAssistantText) {
         write("\n");
         inAssistantText = false;
@@ -289,7 +369,11 @@ export async function runAgentCommand(
           const data = await client.getAvailableModels();
           const models = Array.isArray(data.models) ? data.models : [];
           for (const model of models) {
-            const record = model as { provider?: string; modelId?: string; id?: string };
+            const record = model as {
+              provider?: string;
+              modelId?: string;
+              id?: string;
+            };
             line(`${record.provider}/${record.modelId ?? record.id ?? ""}`);
           }
           return true;
@@ -298,6 +382,22 @@ export async function runAgentCommand(
         const modelId = modelParts.join("/");
         await client.setModel(provider!, modelId);
         line(`Model set to ${provider}/${modelId}.`);
+        return true;
+      }
+      case "subagents": {
+        if (rest[0] !== "models") {
+          line("Usage: /subagents models");
+          return true;
+        }
+        if (effectiveSubagentModels.length === 0) {
+          line("No custom-agent models enabled.");
+          return true;
+        }
+        for (const model of effectiveSubagentModels) {
+          line(
+            `${model.selector} (${model.agentName}; connected=${String(model.connected)})`,
+          );
+        }
         return true;
       }
       case "thinking": {
@@ -327,7 +427,9 @@ export async function runAgentCommand(
           line("No todos.");
         } else {
           for (const phase of phases) {
-            line(`${levelColors.bold}${phase.name ?? "Todos"}${levelColors.reset}`);
+            line(
+              `${levelColors.bold}${phase.name ?? "Todos"}${levelColors.reset}`,
+            );
             for (const task of phase.tasks ?? []) {
               line(`  [${task.status ?? "pending"}] ${task.content ?? ""}`);
             }
@@ -346,18 +448,44 @@ export async function runAgentCommand(
     }
   };
 
-  const ask = (question: string): Promise<string> => {
-    const { promise, resolve: resolveAnswer } = Promise.withResolvers<string>();
-    const rl: ReadLine = createInterface({ input, output });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolveAnswer(answer);
-    });
-    return promise;
-  };
+  const ask = (question: string): Promise<string> =>
+    inputArbiter.question(question);
 
   await client.start();
-  await client.setHostTools(lhicHostToolDefinitions());
+  if (options.subagentModels !== undefined) {
+    const catalog = parseModelCatalog(await client.getAvailableModels());
+    const generated = await new SubagentModelPool(
+      join(workspaceRoot, ".lhic", "omp", "model-pool"),
+    ).generate(catalog, options.subagentModels);
+    effectiveSubagentModels = generated.models;
+    subagentModelsByAgent.clear();
+    for (const model of generated.models) {
+      subagentModelsByAgent.set(model.agentName, model);
+    }
+    await client.restartWithExtensionRoots(
+      generated.models.length > 0 ? [generated.extensionRoot] : [],
+    );
+  }
+  if (options.session) {
+    const sessionPath =
+      options.session === "last"
+        ? (await listSessions())[0]?.path
+        : resolve(sessionDir, options.session);
+    if (!sessionPath) throw new Error("No saved agent session exists.");
+    await client.switchSession(sessionPath);
+    record("session", { path: sessionPath });
+  }
+  if (options.model) {
+    const [provider, ...modelParts] = options.model.split("/");
+    const modelId = modelParts.join("/");
+    if (!provider || !modelId)
+      throw new Error("Agent model must be provider/id.");
+    await client.setModel(provider, modelId);
+  }
+  if (options.thinking) await client.setThinkingLevel(options.thinking);
+  if (options.fast) await client.setFastMode(true);
+  await client.setHostTools(hostToolDefinitions());
+  await client.setSubagentSubscription("events");
 
   if (oneShot) {
     const { promise: settled, resolve: settleTurn } =
@@ -366,6 +494,7 @@ export async function runAgentCommand(
     const result = await client.prompt(options.prompt!, "followUp");
     const agentInvoked = result.agentInvoked;
     if (agentInvoked === false) {
+      inputArbiter.close();
       // Local-only completion (slash command inside the prompt).
       await client.close();
       await hostRunner.close();
@@ -373,42 +502,52 @@ export async function runAgentCommand(
     }
     await Promise.race([
       settled,
-      new Promise<void>((resolveTimeout) => setTimeout(resolveTimeout, 600_000)),
+      new Promise<void>((resolveTimeout) =>
+        setTimeout(resolveTimeout, 600_000),
+      ),
     ]);
+    inputArbiter.close();
     await client.close();
     await hostRunner.close();
-    return 0;
+    return recoveryFailed ? 4 : 0;
   }
 
   line(
     `${levelColors.bold}LHIC agent${levelColors.reset} — omp coding agent. Type /help for commands, Ctrl-C to abort.`,
   );
-  for (;;) {
-    const raw = await ask("agent> ");
-    const text = raw.trim();
-    if (!text) continue;
-    if (text.startsWith("/")) {
-      const continueLoop = await runSlash(text);
-      if (!continueLoop) break;
-      continue;
-    }
-    if (streaming) {
-      await client.steer(text);
-    } else {
-      const { promise: settled, resolve: settleTurn } =
-        Promise.withResolvers<void>();
-      turnSettled = settleTurn;
-      const result = await client.prompt(text, "followUp");
-      if (result.agentInvoked === false) {
-        line(`${levelColors.dim}(completed locally)${levelColors.reset}`);
+  try {
+    for (;;) {
+      const raw = await ask("agent> ");
+      const text = raw.trim();
+      if (!text) continue;
+      if (text.startsWith("/")) {
+        const continueLoop = await runSlash(text);
+        if (!continueLoop) break;
+        continue;
+      }
+      if (streaming) {
+        await client.steer(text);
       } else {
-        await settled;
+        const { promise: settled, resolve: settleTurn } =
+          Promise.withResolvers<void>();
+        turnSettled = settleTurn;
+        const result = await client.prompt(text, "followUp");
+        if (result.agentInvoked === false) {
+          line(`${levelColors.dim}(completed locally)${levelColors.reset}`);
+        } else {
+          await settled;
+          if (recoveryFailed) break;
+        }
       }
     }
+  } catch (error) {
+    if (!(error instanceof InputClosedError)) throw error;
+    if (streaming) await client.abort().catch(() => undefined);
   }
+  inputArbiter.close();
   await client.close();
   await hostRunner.close();
-  return 0;
+  return recoveryFailed ? 4 : 0;
 }
 
 const agentUsage = `Commands:
@@ -419,8 +558,24 @@ const agentUsage = `Commands:
   /switch <n|path>     switch to a saved session
   /model [p/id]        list models, or set the active model
   /thinking <level>    off|minimal|low|medium|high|xhigh|max
+  /subagents models    list enabled custom-agent models
   /fast [on|off]       toggle fast mode
   /todos               show the current todo list
   /export              export the session as HTML
   /abort               abort the running agent
   /exit                quit`;
+
+function withSubagentModel(
+  frame: Record<string, unknown>,
+  models: Map<string, OmpSubagentModel>,
+): Record<string, unknown> {
+  const agent = String(frame.agent ?? frame.label ?? "");
+  const model = models.get(agent);
+  if (!model) return frame;
+  return {
+    ...frame,
+    provider: model.provider,
+    model: model.modelId,
+    selector: model.selector,
+  };
+}

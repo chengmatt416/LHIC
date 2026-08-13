@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { BrowserRunResult } from "./desktop-browser-runner.js";
-import type { GlobalRunResult } from "./desktop-global-runner.js";
-import type { TaskService } from "./task-service.js";
+import type { BrowserRunResult } from "../desktop-browser-runner.js";
+import type { GlobalRunResult } from "../desktop-global-runner.js";
+import type { TaskService } from "../task-service.js";
 import { OmpHostRunner } from "./omp-host-runner.js";
 
 const browserPlan = {
@@ -113,7 +113,11 @@ function awaitingApproval(): BrowserRunResult {
 
 interface RunnerHarness {
   runner: OmpHostRunner;
-  results: Array<{ callId: string; result: Record<string, unknown>; isError: boolean }>;
+  results: Array<{
+    callId: string;
+    result: Record<string, unknown>;
+    isError: boolean;
+  }>;
   updates: Array<{ callId: string; partialResult: Record<string, unknown> }>;
   approvals: Array<{ callId: string; toolName: string }>;
 }
@@ -150,8 +154,13 @@ describe("OmpHostRunner", () => {
     expect(executeOmpBrowserPlan).toHaveBeenCalledOnce();
     expect(results[0]?.callId).toBe("host_1");
     expect(results[0]?.isError).toBe(false);
-    const text = (results[0]?.result.content as Array<{ text: string }>)[0]?.text;
-    const payload = JSON.parse(text) as { status: string; message: string; evidence: string[] };
+    const text = (results[0]?.result.content as Array<{ text: string }>)[0]
+      ?.text;
+    const payload = JSON.parse(text) as {
+      status: string;
+      message: string;
+      evidence: string[];
+    };
     expect(payload.status).toBe("completed");
     expect(payload.evidence.length).toBeGreaterThan(0);
   });
@@ -182,9 +191,12 @@ describe("OmpHostRunner", () => {
       arguments: { plan: browserPlan },
     });
     await vi.waitFor(() => expect(approvals).toHaveLength(1));
-    expect(approvals[0]).toMatchObject({ callId: "host_3", toolName: "lhic_browser_execute" });
+    expect(approvals[0]).toMatchObject({
+      callId: "host_3",
+      toolName: "lhic_browser_execute",
+    });
     expect(updates[0]?.callId).toBe("host_3");
-    expect(updates[0]?.partialResult.partialResult.content[0].text).toBe(
+    expect(updates[0]?.partialResult.content[0].text).toBe(
       "Waiting for approval…",
     );
   });
@@ -205,10 +217,9 @@ describe("OmpHostRunner", () => {
     });
     await vi.waitFor(() => expect(approvals).toHaveLength(1));
     await runner.approve("host_4", "alice");
-    expect(approveOmpBrowserPlan).toHaveBeenCalledWith(
-      expect.any(String),
-      { approvedBy: "alice" },
-    );
+    expect(approveOmpBrowserPlan).toHaveBeenCalledWith(expect.any(String), {
+      approvedBy: "alice",
+    });
     expect(results[0]?.isError).toBe(false);
   });
 
@@ -250,6 +261,63 @@ describe("OmpHostRunner", () => {
     await vi.waitFor(() => expect(approvals).toHaveLength(1));
     runner.handleHostToolCall({ type: "host_tool_cancel", targetId: "host_6" });
     expect(cancelOmpBrowserPlan).toHaveBeenCalledOnce();
+  });
+
+  it("requires consent before returning bounded desktop observations", async () => {
+    const observeOmpDesktop = vi.fn(async () => ({
+      action: {},
+      result: {
+        success: true,
+        latencyMs: 1,
+        evidence: ["Observed 1 normalized desktop element through native."],
+        output: JSON.stringify({
+          backend: "native",
+          elements: [
+            {
+              id: "active-window",
+              label: "Editor",
+              role: "window",
+              interactable: false,
+              backend: "native",
+            },
+          ],
+        }),
+      },
+    }));
+    const { runner, approvals, results } = harness({ observeOmpDesktop });
+    runner.handleHostToolCall({
+      type: "host_tool_call",
+      id: "observe_1",
+      toolName: "lhic_desktop_observe",
+      arguments: { scope: "active_window" },
+    });
+    expect(observeOmpDesktop).not.toHaveBeenCalled();
+    expect(approvals).toEqual([
+      { callId: "observe_1", toolName: "lhic_desktop_observe" },
+    ]);
+    await runner.approve("observe_1", "alice");
+    expect(observeOmpDesktop).toHaveBeenCalledOnce();
+    const text = (results[0]?.result.content as Array<{ text: string }>)[0]
+      ?.text;
+    expect(JSON.parse(text)).toMatchObject({
+      backend: "native",
+      elements: [{ label: "Editor" }],
+    });
+  });
+
+  it("denies desktop observation without touching the OS runner", async () => {
+    const observeOmpDesktop = vi.fn();
+    const { runner, approvals, results } = harness({ observeOmpDesktop });
+    runner.handleHostToolCall({
+      type: "host_tool_call",
+      id: "observe_2",
+      toolName: "lhic_desktop_observe",
+      arguments: { scope: "active_window" },
+    });
+    await vi.waitFor(() => expect(approvals).toHaveLength(1));
+    await runner.reject("observe_2");
+    expect(observeOmpDesktop).not.toHaveBeenCalled();
+    expect(results[0]?.isError).toBe(true);
   });
 
   it("rejects unknown tool names without touching the runners", async () => {

@@ -24,22 +24,22 @@ how input is dispatched.
 Backends are gated on OS version at probe time; when the OS (or the tool)
 does not support the layer, LHIC **automatically uses the traditional layer**:
 
-| OS | Element layer | Requirement | Fallback when unsupported |
-| --- | --- | --- | --- |
-| macOS | Peekaboo | macOS 15+, `peekaboo` CLI (brew install steipete/tap/peekaboo) | osascript System Events |
-| Windows | FlaUI | Windows 10 1607+, built bridge DLL | PowerShell UIA/native input |
-| Any | OmniParser V2 | Python + weights (see `packages/skills/src/execution/omniparser/README.md`) | coordinates via the native layer |
+| OS      | Element layer | Requirement                                                                 | Fallback when unsupported        |
+| ------- | ------------- | --------------------------------------------------------------------------- | -------------------------------- |
+| macOS   | Peekaboo      | macOS 15+, `peekaboo` CLI (brew install steipete/tap/peekaboo)              | osascript System Events          |
+| Windows | FlaUI         | Windows 10 1607+, built bridge DLL                                          | PowerShell UIA/native input      |
+| Any     | OmniParser V2 | Python + weights (see `packages/skills/src/execution/omniparser/README.md`) | coordinates via the native layer |
 
 ## Configuration
 
-| Env | Default | Meaning |
-| --- | --- | --- |
-| `LHIC_EXECUTION_BACKEND` | `auto` | `auto` \| `peekaboo` \| `flaui` \| `omniparser` \| `native` |
-| `LHIC_PEEKABOO_BIN` | `peekaboo` | Peekaboo CLI binary |
-| `LHIC_FLAUI_DLL` | `lhic-flaui/lhic-flaui.dll` | Compiled FlaUI bridge (build: `scripts/build-flaui-helper.ps1`) |
-| `LHIC_OMNIPARSER_PYTHON` | `python3` | Python interpreter for the OmniParser helper |
-| `LHIC_OMNIPARSER_DIR` | bundled `execution/omniparser` | OmniParser repo checkout (repo mode) |
-| `LHIC_SKIP_BACKENDS` | unset | Set `1` to skip automatic provisioning |
+| Env                      | Default                        | Meaning                                                         |
+| ------------------------ | ------------------------------ | --------------------------------------------------------------- |
+| `LHIC_EXECUTION_BACKEND` | `auto`                         | `auto` \| `peekaboo` \| `flaui` \| `omniparser` \| `native`     |
+| `LHIC_PEEKABOO_BIN`      | `peekaboo`                     | Peekaboo CLI binary                                             |
+| `LHIC_FLAUI_DLL`         | `lhic-flaui/lhic-flaui.dll`    | Compiled FlaUI bridge (build: `scripts/build-flaui-helper.ps1`) |
+| `LHIC_OMNIPARSER_PYTHON` | `python3`                      | Python interpreter for the OmniParser helper                    |
+| `LHIC_OMNIPARSER_DIR`    | bundled `execution/omniparser` | OmniParser repo checkout (repo mode)                            |
+| `LHIC_SKIP_BACKENDS`     | unset                          | Set `1` to skip automatic provisioning                          |
 
 ## Automatic provisioning
 

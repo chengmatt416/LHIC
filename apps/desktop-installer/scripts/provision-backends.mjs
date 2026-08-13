@@ -35,11 +35,7 @@ const skip = {
   chromium: skipAll || process.env.LHIC_SKIP_CHROMIUM === "1",
 };
 
-function run(
-  file,
-  args,
-  timeoutMs = 120_000,
-) {
+function run(file, args, timeoutMs = 120_000) {
   return new Promise((resolvePromise) => {
     execFile(
       file,
@@ -49,9 +45,10 @@ function run(
         resolvePromise({
           stdout: String(stdout),
           stderr: String(stderr),
-          code: error && typeof error === "object" && "code" in error
-            ? Number(error.code) || 1
-            : 0,
+          code:
+            error && typeof error === "object" && "code" in error
+              ? Number(error.code) || 1
+              : 0,
         });
       },
     );
@@ -104,7 +101,9 @@ async function provisionPeekaboo(report) {
     return;
   }
   if (checkOnly) {
-    report.push("peekaboo: would install (brew steipete/tap/peekaboo or npm @steipete/peekaboo)");
+    report.push(
+      "peekaboo: would install (brew steipete/tap/peekaboo or npm @steipete/peekaboo)",
+    );
     return;
   }
   if (await commandExists("brew")) {
@@ -135,20 +134,37 @@ async function provisionFlaUI(report) {
   if (process.env.LHIC_FLAUI_DLL) {
     try {
       await stat(resolve(process.env.LHIC_FLAUI_DLL));
-      report.push(`flaui: bridge present at LHIC_FLAUI_DLL (${process.env.LHIC_FLAUI_DLL})`);
+      report.push(
+        `flaui: bridge present at LHIC_FLAUI_DLL (${process.env.LHIC_FLAUI_DLL})`,
+      );
       return;
     } catch {
-      report.push(`flaui: LHIC_FLAUI_DLL set but not found (${process.env.LHIC_FLAUI_DLL}) — will build the bridge`);
+      report.push(
+        `flaui: LHIC_FLAUI_DLL set but not found (${process.env.LHIC_FLAUI_DLL}) — will build the bridge`,
+      );
     }
   }
   if (!(await commandExists("dotnet"))) {
     if (checkOnly) {
-      report.push("flaui: would install the .NET SDK (winget) and build the bridge");
+      report.push(
+        "flaui: would install the .NET SDK (winget) and build the bridge",
+      );
       return;
     }
     if (await commandExists("winget")) {
       report.push("flaui: installing the .NET SDK via winget…");
-      await run("winget", ["install", "--id", "Microsoft.DotNet.SDK.8", "--silent", "--accept-source-agreements", "--accept-package-agreements"], 600_000);
+      await run(
+        "winget",
+        [
+          "install",
+          "--id",
+          "Microsoft.DotNet.SDK.8",
+          "--silent",
+          "--accept-source-agreements",
+          "--accept-package-agreements",
+        ],
+        600_000,
+      );
     } else {
       report.push(
         "flaui: dotnet is missing and winget is unavailable — install the .NET SDK, then run `lhic-desktop provision`",
@@ -160,13 +176,29 @@ async function provisionFlaUI(report) {
     report.push("flaui: would build the bridge (dotnet publish)");
     return;
   }
-  const project = join(packageDirectory, "execution", "flaui", "lhic-flaui.csproj");
+  const project = join(
+    packageDirectory,
+    "execution",
+    "flaui",
+    "lhic-flaui.csproj",
+  );
   const output = join(packageDirectory, "execution", "flaui", "bin", "win-x64");
   await mkdir(dirname(project), { recursive: true });
   report.push("flaui: building the FlaUI bridge…");
   const result = await run(
     "dotnet",
-    ["publish", project, "-c", "Release", "-r", "win-x64", "--self-contained", "false", "-o", output],
+    [
+      "publish",
+      project,
+      "-c",
+      "Release",
+      "-r",
+      "win-x64",
+      "--self-contained",
+      "false",
+      "-o",
+      output,
+    ],
     600_000,
   );
   if (result.code === 0) {
@@ -174,7 +206,9 @@ async function provisionFlaUI(report) {
       `flaui: bridge built at ${join(output, "lhic-flaui.dll")} — set LHIC_FLAUI_DLL to it (or copy it beside the app)`,
     );
   } else {
-    report.push(`flaui: bridge build failed: ${result.stderr.trim().slice(0, 300)}`);
+    report.push(
+      `flaui: bridge build failed: ${result.stderr.trim().slice(0, 300)}`,
+    );
   }
 }
 
@@ -183,7 +217,11 @@ async function provisionOmniParser(report) {
     report.push("omniparser: skipped — python3 is not available");
     return;
   }
-  const check = await run("python3", ["-c", "import omni_parser_v2; print('ok')"], 15_000);
+  const check = await run(
+    "python3",
+    ["-c", "import omni_parser_v2; print('ok')"],
+    15_000,
+  );
   if (check.code === 0) {
     report.push("omniparser: omni_parser_v2 already installed");
     return;
@@ -195,8 +233,21 @@ async function provisionOmniParser(report) {
   report.push("omniparser: installing omni_parser_v2 (pip ladder)…");
   const attempts = [
     ["python3", ["-m", "pip", "install", "--user", "omni_parser_v2"]],
-    ["python3", ["-m", "pip", "install", "--user", "--break-system-packages", "omni_parser_v2"]],
-    ["python3", ["-m", "pip", "install", "--break-system-packages", "omni_parser_v2"]],
+    [
+      "python3",
+      [
+        "-m",
+        "pip",
+        "install",
+        "--user",
+        "--break-system-packages",
+        "omni_parser_v2",
+      ],
+    ],
+    [
+      "python3",
+      ["-m", "pip", "install", "--break-system-packages", "omni_parser_v2"],
+    ],
   ];
   let lastError = "";
   for (const [file, args] of attempts) {
@@ -207,7 +258,11 @@ async function provisionOmniParser(report) {
     }
     lastError = result.stderr.trim().slice(0, 300);
   }
-  const verified = await run("python3", ["-c", "import omni_parser_v2; print('ok')"], 15_000);
+  const verified = await run(
+    "python3",
+    ["-c", "import omni_parser_v2; print('ok')"],
+    15_000,
+  );
   if (verified.code === 0) {
     report.push("omniparser: installed (model weights download on first use)");
   } else {
@@ -227,11 +282,17 @@ async function provisionChromium(report) {
     return;
   }
   report.push("chromium: installing Playwright Chromium…");
-  const result = await run("npx", ["--yes", "playwright", "install", "chromium"], 900_000);
+  const result = await run(
+    "npx",
+    ["--yes", "playwright", "install", "chromium"],
+    900_000,
+  );
   if (result.code === 0) {
     report.push("chromium: installed");
   } else {
-    report.push(`chromium: install failed: ${result.stderr.trim().slice(0, 300)}`);
+    report.push(
+      `chromium: install failed: ${result.stderr.trim().slice(0, 300)}`,
+    );
   }
 }
 

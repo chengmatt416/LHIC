@@ -64,7 +64,9 @@ async function refreshCask(digests) {
     }
     const block = arch === "arm64" ? "on_arm" : "on_intel";
     cask = cask.replace(
-      new RegExp(`(on_${block === "on_arm" ? "arm" : "intel"}\\s+do[\\s\\S]*?sha256 ")[a-f0-9]{64}(")`),
+      new RegExp(
+        `(on_${block === "on_arm" ? "arm" : "intel"}\\s+do[\\s\\S]*?sha256 ")[a-f0-9]{64}(")`,
+      ),
       `$1${digest}$2`,
     );
   }
@@ -78,15 +80,17 @@ async function refreshCliFormula() {
   );
   const latest = registry["dist-tags"]?.latest;
   if (!latest) {
-    throw new Error("npm registry did not report a latest @pinyencheng/lhic version.");
+    throw new Error(
+      "npm registry did not report a latest @pinyencheng/lhic version.",
+    );
   }
   const tarball = registry.versions[latest]?.dist?.tarball;
   if (!tarball) {
-    throw new Error(`npm registry has no tarball for @pinyencheng/lhic@${latest}.`);
+    throw new Error(
+      `npm registry has no tarball for @pinyencheng/lhic@${latest}.`,
+    );
   }
-  const bytes = new Uint8Array(
-    await (await fetch(tarball)).arrayBuffer(),
-  );
+  const bytes = new Uint8Array(await (await fetch(tarball)).arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const tarballName = tarball.split("/").at(-1);
   const path = resolve(tapDirectory, "Formula", "lhic.rb");
@@ -95,12 +99,11 @@ async function refreshCliFormula() {
     /url "https:\/\/registry\.npmjs\.org\/@pinyencheng\/lhic\/-\/lhic-[\d.]+\.tgz"/,
     `url "${tarball}"`,
   );
-  formula = formula.replace(
-    /sha256 "[a-f0-9]{64}"/,
-    `sha256 "${sha256}"`,
-  );
+  formula = formula.replace(/sha256 "[a-f0-9]{64}"/, `sha256 "${sha256}"`);
   await writeFile(path, formula);
-  console.log(`[brew-tap] Refreshed CLI formula to @pinyencheng/lhic@${latest} (${tarballName}).`);
+  console.log(
+    `[brew-tap] Refreshed CLI formula to @pinyencheng/lhic@${latest} (${tarballName}).`,
+  );
 }
 
 async function main() {
@@ -108,7 +111,9 @@ async function main() {
   await refreshCask(digests);
   await refreshCliFormula();
   if (!push) {
-    console.log("[brew-tap] Dry run complete — files rewritten in place (no git push).");
+    console.log(
+      "[brew-tap] Dry run complete — files rewritten in place (no git push).",
+    );
     return;
   }
   const remote =
@@ -118,10 +123,15 @@ async function main() {
   execFileSync(
     "git",
     [
-      "-C", tapDirectory,
-      "-c", "user.name=LHIC Release Bot",
-      "-c", "user.email=chengmatt416@gmail.com",
-      "commit", "-m", `Update LHIC Control Center ${version}`,
+      "-C",
+      tapDirectory,
+      "-c",
+      "user.name=LHIC Release Bot",
+      "-c",
+      "user.email=chengmatt416@gmail.com",
+      "commit",
+      "-m",
+      `Update LHIC Control Center ${version}`,
     ],
     { stdio: "inherit" },
   );

@@ -10,10 +10,23 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const source = resolve(packageDirectory, "..", "..", "packages", "skills", "src", "execution");
+const source = resolve(
+  packageDirectory,
+  "..",
+  "..",
+  "packages",
+  "skills",
+  "src",
+  "execution",
+);
 const destination = resolve(packageDirectory, "execution");
 
 await rm(destination, { recursive: true, force: true });
 await cp(source, destination, { recursive: true });
-await rm(resolve(destination, "flaui", "bin"), { recursive: true, force: true }).catch(() => undefined);
-console.log("[sync-execution] Synced execution-layer sources into the launcher package.");
+await rm(resolve(destination, "flaui", "bin"), {
+  recursive: true,
+  force: true,
+}).catch(() => undefined);
+console.log(
+  "[sync-execution] Synced execution-layer sources into the launcher package.",
+);

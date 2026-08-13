@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GlobalComputerAction } from "@lhic/schema";
 import type { execFile } from "node:child_process";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import {
   ElementGroundedDispatcher,
@@ -33,6 +35,10 @@ function fakeExecFile(
     }
     callback(null, response.stdout ?? "", response.stderr ?? "");
   }) as unknown as typeof execFile;
+}
+
+function screenshotFixture(name: string): string {
+  return join(tmpdir(), "lhic-execution-backend-test", name);
 }
 
 function clickAction(
@@ -120,7 +126,13 @@ describe("PeekabooBackend (macOS)", () => {
     expect(element?.id).toBe("el-1");
 
     await backend.execute(clickAction({ application: "Safari" }), element);
-    expect(calls[0]?.args).toEqual(["click", "--on", "el-1", "--app", "Safari"]);
+    expect(calls[0]?.args).toEqual([
+      "click",
+      "--on",
+      "el-1",
+      "--app",
+      "Safari",
+    ]);
 
     calls.length = 0;
     await backend.execute(
@@ -189,7 +201,12 @@ describe("PeekabooBackend (macOS)", () => {
         root: {
           id: "root",
           children: [
-            { id: "btn", label: "Send", role: "AXButton", frame: { x: 10, y: 20, width: 60, height: 30 } },
+            {
+              id: "btn",
+              label: "Send",
+              role: "AXButton",
+              frame: { x: 10, y: 20, width: 60, height: 30 },
+            },
           ],
         },
       }),
@@ -200,7 +217,11 @@ describe("PeekabooBackend (macOS)", () => {
     });
     const observation = await backend.observe({ application: "Mail" });
     expect(observation.elements).toContainEqual(
-      expect.objectContaining({ id: "btn", label: "Send", frame: { x: 10, y: 20, width: 60, height: 30 } }),
+      expect.objectContaining({
+        id: "btn",
+        label: "Send",
+        frame: { x: 10, y: 20, width: 60, height: 30 },
+      }),
     );
   });
 });
@@ -231,7 +252,8 @@ describe("FlaUIBackend (Windows)", () => {
   it("is available on Windows 10+ when the bridge DLL exists", async () => {
     const execFile = fakeExecFile((file, args) => {
       if (file === "powershell") return { stdout: "10.0.19045.0\n" };
-      if (args[0] === "probe") return { stdout: JSON.stringify({ ok: true, version: "flaui-1" }) };
+      if (args[0] === "probe")
+        return { stdout: JSON.stringify({ ok: true, version: "flaui-1" }) };
       return {};
     });
     const backend = new FlaUIBackend({
@@ -254,7 +276,12 @@ describe("FlaUIBackend (Windows)", () => {
     });
     const element = { id: "btn-1", label: "Send" };
     await backend.execute(clickAction({}), element);
-    expect(calls[0]?.args).toEqual(["lhic-flaui/lhic-flaui.dll", "click", "--on", "btn-1"]);
+    expect(calls[0]?.args).toEqual([
+      "lhic-flaui/lhic-flaui.dll",
+      "click",
+      "--on",
+      "btn-1",
+    ]);
   });
 });
 
@@ -287,13 +314,49 @@ describe("ElementGroundedDispatcher chain", () => {
     expect(runner.run).not.toHaveBeenCalled();
   });
 
-  it("falls back to OmniParser V2 coordinate grounding when the element tree has no match", async () => {
+  it("returns a bounded redacted normalized observation", async () => {
     const backend = {
       id: "peekaboo",
-      observe: vi.fn(async () => ({ capturedAt: "", elements: [] })),
-      findElement: vi.fn(() => undefined),
+      observe: vi.fn(async () => ({
+        capturedAt: "2026-08-12T00:00:00.000Z",
+        elements: Array.from({ length: 510 }, (_, index) => ({
+          id: `el-${index}`,
+          label: index === 0 ? "Token private-value" : `Button ${index}`,
+          role: "button",
+          interactable: true,
+        })),
+      })),
+      findElement: vi.fn(),
       execute: vi.fn(),
     };
+    const dispatcher = new ElementGroundedDispatcher({
+      backend: backend as never,
+      runner: { run: vi.fn() },
+      platform: "darwin",
+      buildNative: vi.fn(),
+      redactValues: ["private-value"],
+    });
+    const observation = await dispatcher.observe({
+      scope: "os",
+      type: "os_observe",
+      intent: "observe active window",
+      methodPreference: ["accessibility", "vision"],
+      riskLevel: "medium",
+      observeScope: "active_window",
+      verifier: { type: "active_window" },
+    });
+    expect(observation?.elements).toHaveLength(500);
+    expect(observation?.elements[0]).toMatchObject({
+      label: "Token [REDACTED]",
+      backend: "peekaboo",
+    });
+    expect(Buffer.byteLength(JSON.stringify(observation))).toBeLessThanOrEqual(
+      256 * 1024,
+    );
+    expect(observation?.evidence.join(" ")).toContain("truncated");
+  });
+
+  it("falls back to OmniParser V2 coordinate grounding when the element tree has no match", async () => {
     const omniparser = new OmniParserBackend({});
     const parseScreenshot = vi
       .spyOn(omniparser, "parseScreenshot")
@@ -310,21 +373,25 @@ describe("ElementGroundedDispatcher chain", () => {
     const runner = { run: vi.fn(async () => ({ stdout: "ok", stderr: "" })) };
     const buildNative = vi.fn(
       (action: GlobalComputerAction) =>
-        ({ file: "native", args: [String(action.x), String(action.y)] }) as GlobalCommand,
+        ({
+          file: "native",
+          args: [String(action.x), String(action.y)],
+        }) as GlobalCommand,
     );
     const dispatcher = new ElementGroundedDispatcher({
-      backend: backend as never,
       omniparser,
       runner,
       platform: "darwin",
       buildNative,
-      captureScreenshot: async () => "/tmp/screen.png",
+      captureScreenshot: async () => screenshotFixture("screen.png"),
     });
     const result = await dispatcher.dispatch(
       clickAction({ target: "Submit", x: 0, y: 0 }),
     );
     expect(result?.backend).toBe("omniparser");
-    expect(parseScreenshot).toHaveBeenCalledWith("/tmp/screen.png");
+    expect(parseScreenshot).toHaveBeenCalledWith(
+      screenshotFixture("screen.png"),
+    );
     expect(runner.run).toHaveBeenCalledOnce();
     const nativeAction = buildNative.mock.calls[0]?.[0] as GlobalComputerAction;
     expect(nativeAction.x).toBe(120); // 100 + 40/2

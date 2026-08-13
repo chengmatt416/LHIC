@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OmpEvent } from "../shared/contracts.js";
-import {
-  initialAgentViewState,
-  reduceAgentEvent,
-} from "./agent-model.js";
+import { initialAgentViewState, reduceAgentEvent } from "./agent-model.js";
 
 function stateEvents(events: OmpEvent[]) {
   return events.reduce(reduceAgentEvent, initialAgentViewState());
@@ -137,6 +134,43 @@ describe("Agent Studio model", () => {
     expect(view.commands).toEqual([
       { name: "compact", description: "Compress the conversation" },
       { name: "todos", aliases: ["todo"] },
+    ]);
+  });
+
+  it("merges structured subagent progress without transcript scraping", () => {
+    const view = stateEvents([
+      {
+        type: "subagents",
+        subagents: [
+          {
+            id: "worker-1",
+            label: "Reviewer",
+            task: "Review the patch",
+            status: "running",
+            model: "gpt-5.6-sol",
+          },
+        ],
+      },
+      {
+        type: "subagents",
+        subagents: [
+          {
+            id: "worker-1",
+            label: "Reviewer",
+            task: "Review the patch",
+            status: "completed",
+            progress: "No blocking issues",
+          },
+        ],
+      },
+    ]);
+    expect(view.subagents).toEqual([
+      expect.objectContaining({
+        id: "worker-1",
+        status: "completed",
+        model: "gpt-5.6-sol",
+        progress: "No blocking issues",
+      }),
     ]);
   });
 });

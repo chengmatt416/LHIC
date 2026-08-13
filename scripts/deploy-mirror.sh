@@ -35,6 +35,6 @@ cat <<'EOF'
       custom domain is already attached to the project).
   No repo merge is required: releases/latest serves install.sh, install.ps1,
   and the desktop artifacts directly.
-One-liner once DNS resolves:
-  curl -fsSL https://lhic.techtools.qzz.io/install.sh | sh
+Canonical one-liner (works independently of mirror DNS):
+  curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
 EOF

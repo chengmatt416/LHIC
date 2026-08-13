@@ -55,13 +55,11 @@ function cacheRootFor(options: OmpUpdaterOptions): string {
 
 function pinnedVersionFor(options: OmpUpdaterOptions): string {
   return (
-    options.pinnedVersion ??
-    process.env.OMP_VERSION ??
-    DEFAULT_OMP_VERSION
+    options.pinnedVersion ?? process.env.OMP_VERSION ?? DEFAULT_OMP_VERSION
   );
 }
 
-function assetFor(version: string): string {
+function assetFor(): string {
   const byArch = assetForPlatform[process.platform];
   const asset = byArch?.[process.arch];
   if (!asset) {
@@ -73,7 +71,11 @@ function assetFor(version: string): string {
 }
 
 function binaryPath(cacheRoot: string, version: string): string {
-  return join(cacheRoot, version, process.platform === "win32" ? "omp.exe" : "omp");
+  return join(
+    cacheRoot,
+    version,
+    process.platform === "win32" ? "omp.exe" : "omp",
+  );
 }
 
 async function sha256File(path: string): Promise<string> {
@@ -120,7 +122,7 @@ async function ensureVersion(
   cacheRoot: string,
   version: string,
 ): Promise<string | undefined> {
-  const asset = assetFor(version);
+  const asset = assetFor();
   const targetPath = binaryPath(cacheRoot, version);
   try {
     const cached = await sha256File(targetPath);
@@ -144,7 +146,9 @@ async function ensureVersion(
       headers: { "User-Agent": "lhic-omp-updater" },
     });
     if (!response.ok) {
-      throw new Error(`omp binary download failed with HTTP ${response.status}.`);
+      throw new Error(
+        `omp binary download failed with HTTP ${response.status}.`,
+      );
     }
     const bytes = new Uint8Array(await response.arrayBuffer());
     const expected = await manifestDigest(fetchImplementation, version, asset);
@@ -181,7 +185,9 @@ async function readLatestMarker(cacheRoot: string): Promise<LatestMarker> {
       await readFile(join(cacheRoot, "latest.json"), "utf8"),
     ) as Record<string, unknown>;
     return {
-      ...(typeof parsed.version === "string" ? { version: parsed.version } : {}),
+      ...(typeof parsed.version === "string"
+        ? { version: parsed.version }
+        : {}),
       ...(typeof parsed.checkedAt === "string"
         ? { checkedAt: parsed.checkedAt }
         : {}),
@@ -240,7 +246,10 @@ export async function resolveOmpBinary(
   const updateCheckEnabled =
     options.updateCheckEnabled ?? process.env.LHIC_DISABLE_OMP_UPDATE !== "1";
   if (!updateCheckEnabled || !currentPath) {
-    return currentPath ?? (await ensureVersion(fetchImplementation, cacheRoot, pinned))!;
+    return (
+      currentPath ??
+      (await ensureVersion(fetchImplementation, cacheRoot, pinned))!
+    );
   }
   const marker = await readLatestMarker(cacheRoot);
   const intervalMs = options.checkIntervalMs ?? defaultCheckIntervalMs;
@@ -266,7 +275,11 @@ export async function resolveOmpBinary(
   }
   if (latest && isNewerOmpVersion(latest, pinned)) {
     try {
-      const updated = await ensureVersion(fetchImplementation, cacheRoot, latest);
+      const updated = await ensureVersion(
+        fetchImplementation,
+        cacheRoot,
+        latest,
+      );
       if (updated) {
         return updated;
       }

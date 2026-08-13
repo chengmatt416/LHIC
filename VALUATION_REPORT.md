@@ -11,12 +11,12 @@
 
 > **賣方身分修正（2026-08-12，作者為高中生）**：本報告原始版本含 acqui-hire 交易形式（買「作者本人」），在作者為高中生的前提下該形式**不適用**——沒有公司會以 $150K–400K 綁約聘雇高中生，且未成年簽約有法律障礙（台灣民法成年為 18 歲；未滿 18 歲之契約需法定代理人同意，民法 §77–79）。修正後估值如下：
 
-| 交易形式 | 估值區間 | 點估計 |
-|---|---|---|
-| **純資產出售**（repo + npm + 品牌，不含作者） | US$10,000 – 40,000 | **~US$25,000**（≈NT$80 萬） |
-| 資產 + 一年維護/支援合約（家長共同簽約） | US$30,000 – 60,000 | ~US$40,000 |
-| ~~Acqui-hire（作者 + 資產，1–2 年綁約）~~ | ~~US$150,000 – 400,000~~ | **不適用**（高中生） |
-| 上行情境（外部 benchmark 勝利 + 修復安全漏洞） | US$100,000 – 300,000 | — |
+| 交易形式                                       | 估值區間                 | 點估計                      |
+| ---------------------------------------------- | ------------------------ | --------------------------- |
+| **純資產出售**（repo + npm + 品牌，不含作者）  | US$10,000 – 40,000       | **~US$25,000**（≈NT$80 萬） |
+| 資產 + 一年維護/支援合約（家長共同簽約）       | US$30,000 – 60,000       | ~US$40,000                  |
+| ~~Acqui-hire（作者 + 資產，1–2 年綁約）~~      | ~~US$150,000 – 400,000~~ | **不適用**（高中生）        |
+| 上行情境（外部 benchmark 勝利 + 修復安全漏洞） | US$100,000 – 300,000     | —                           |
 
 **核心結論**：LHIC 是極早期（24 天開發）、無收入、無外部採用、**MIT/Apache-2.0 雙授權**的單人專案。MIT 授權意味著任何人都能免費複製整套程式碼——**出售的並非獨家程式碼，而是工程資產、品牌與 benchmark 橋接器**。資產出售估值下修至 **US$10K – 40K**（買方無法再指望作者維護與修復，且未成年交易有盡調摩擦）。對高中生賣方而言，這份 repo 的**非現金價值（升學、獎學金、競賽、未來求職）遠高於現金出售價值**，詳見 §9。
 
@@ -25,28 +25,30 @@
 ## 1. 資產概況（賣的是什麼）
 
 ### 1.1 產品定位
+
 LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自動化執行 runtime**：Fast Path 以零 LLM 呼叫執行已知工作流程（Playwright + 高階技能），Slow Path 以 LLM 提案 + 本地驗證。特色為安全性設計（Ed25519 簽章審批、AES-256-GCM 加密、PII 遮蔽）、verifier 證據鏈、本地技能學習、MCP server 與 Electron 控制中心。
 
 ### 1.2 量化資產盤點（實測數據）
 
-| 項目 | 數值 | 證據來源 |
-|---|---|---|
-| 開發時程 | 2026-07-16 首 commit → 2026-08-09 末 commit（**24 天**） | `git log --reverse` |
-| 主線 commit 數 | `main` 88 commits；目前 feature 分支自 07-22 分歧後 +13 | `git rev-list` |
-| 全部分支 commit | 8,622（多為未合併的 Codex 實驗分支） | `git shortlog --all` |
-| TypeScript 生產碼 | 52,360 行 / 275 檔（13 packages + 4 apps） | `wc -l` |
-| TypeScript 測試 | 14,462 行 | `wc -l` |
-| Python（benchmark 橋接等） | 6,372 行 | `wc -l` |
-| Markdown 文件 | 3,533 行（~30 份文件 + 簡報） | `wc -l` |
-| **交付總量** | **~76,700 行** | — |
-| 測試套件 | **103 檔 / 430 通過 / 2 跳過**（2026-08-12 實跑，162 秒） | `npm test` |
-| CI | ci.yml + release.yml；gate：format/typecheck/test/lint/build/audit/secret-scan | `.github/workflows/` |
-| GitHub 社群 | **3 stars、0 forks、0 external contributors**、4 open issues | GitHub API |
-| npm 分發 | `@pinyencheng/lhic` 0.1.0/0.1.1/0.1.3/0.1.4/0.1.5 已發布；**近 30 日 714 downloads** | npm registry / npmjs API |
-| 桌面發行版 | GitHub Releases v0.1.1、v0.1.4（各含 AppImage/deb/dmg/exe + SHA256SUMS） | GitHub API |
-| 授權 | MIT + Apache-2.0 雙授權（初始 commit 曾為 BSL 1.1） | LICENSE / git log |
+| 項目                       | 數值                                                                                 | 證據來源                 |
+| -------------------------- | ------------------------------------------------------------------------------------ | ------------------------ |
+| 開發時程                   | 2026-07-16 首 commit → 2026-08-09 末 commit（**24 天**）                             | `git log --reverse`      |
+| 主線 commit 數             | `main` 88 commits；目前 feature 分支自 07-22 分歧後 +13                              | `git rev-list`           |
+| 全部分支 commit            | 8,622（多為未合併的 Codex 實驗分支）                                                 | `git shortlog --all`     |
+| TypeScript 生產碼          | 52,360 行 / 275 檔（13 packages + 4 apps）                                           | `wc -l`                  |
+| TypeScript 測試            | 14,462 行                                                                            | `wc -l`                  |
+| Python（benchmark 橋接等） | 6,372 行                                                                             | `wc -l`                  |
+| Markdown 文件              | 3,533 行（~30 份文件 + 簡報）                                                        | `wc -l`                  |
+| **交付總量**               | **~76,700 行**                                                                       | —                        |
+| 測試套件                   | **103 檔 / 430 通過 / 2 跳過**（2026-08-12 實跑，162 秒）                            | `npm test`               |
+| CI                         | ci.yml + release.yml；gate：format/typecheck/test/lint/build/audit/secret-scan       | `.github/workflows/`     |
+| GitHub 社群                | **3 stars、0 forks、0 external contributors**、4 open issues                         | GitHub API               |
+| npm 分發                   | `@pinyencheng/lhic` 0.1.0/0.1.1/0.1.3/0.1.4/0.1.5 已發布；**近 30 日 714 downloads** | npm registry / npmjs API |
+| 桌面發行版                 | GitHub Releases v0.1.1、v0.1.4（各含 AppImage/deb/dmg/exe + SHA256SUMS）             | GitHub API               |
+| 授權                       | MIT + Apache-2.0 雙授權（初始 commit 曾為 BSL 1.1）                                  | LICENSE / git log        |
 
 ### 1.3 獨特資產（有真實價值的部分）
+
 - **外部 benchmark 橋接器**：OSWorld 2.0 官方 harness 配接器、τ³-bench pinned runner（v1.0.1）、BrowserGym/AgentLab/WorkArena adapter、完整證據格式與驗證 CLI。這是貨真價實、可省買方 2–4 個月的工程。
 - **安全架構**：KMS 金鑰管理（GCP/Vault/Ed25519）、PII redaction、加密 SQLite 工作流狀態。
 - **Electron 控制中心**：跨平台發行管線已跑通（含 checksum manifest）。
@@ -67,28 +69,30 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 
 ### 3.1 成本重製法（Replacement Cost）— 上限
 
-| 參數 | 假設 | 結果 |
-|---|---|---|
-| 總交付量 | 76,700 行（含測試/橋接/文件） | — |
-| 工程師產能 | 150–250 行/日（含測試與文件） | 307–511 人日 |
-| 全負載成本 | $150K/yr（≈$700/人日） | **US$215K – 358K** |
+| 參數       | 假設                          | 結果               |
+| ---------- | ----------------------------- | ------------------ |
+| 總交付量   | 76,700 行（含測試/橋接/文件） | —                  |
+| 工程師產能 | 150–250 行/日（含測試與文件） | 307–511 人日       |
+| 全負載成本 | $150K/yr（≈$700/人日）        | **US$215K – 358K** |
 
 - **作者實際現金成本**：24 天、Codex 大量協作（README 明載），投入時數粗估 150–250 小時；以顧問費率 $100–200/hr 計 → **US$15K – 40K**。
 - **折價修正（最重要）**：MIT/Apache 授權下買方直接下載即可使用，重製成本是**理論上限而非市價**——理性買家不會付全額重製成本買免費可得之物。
 
 ### 3.2 市場比較法（Market Approach）— 現況
 
-| 成分 | 估值 | 依據 |
-|---|---|---|
-| 社群/網路效應 | **≈ $0** | 3 stars、0 forks、714 downloads（多為作者自身 CI/smoke）、無外部貢獻者 |
-| 工程資產（橋接器+安全架構+桌面+MCP） | **$20K – 60K** | 為買方節省 2–4 個月開發的等值（$20K–$40K 委外成本）＋架構參考價值 |
-| 品牌（`@pinyencheng/lhic` 個人 scope） | ≈ $0 | 個人 scope 無企業信任溢價 |
-| **資產出售合計** | **US$20K – 60K** | 點估計 **$40K** |
+| 成分                                   | 估值             | 依據                                                                   |
+| -------------------------------------- | ---------------- | ---------------------------------------------------------------------- |
+| 社群/網路效應                          | **≈ $0**         | 3 stars、0 forks、714 downloads（多為作者自身 CI/smoke）、無外部貢獻者 |
+| 工程資產（橋接器+安全架構+桌面+MCP）   | **$20K – 60K**   | 為買方節省 2–4 個月開發的等值（$20K–$40K 委外成本）＋架構參考價值      |
+| 品牌（`@pinyencheng/lhic` 個人 scope） | ≈ $0             | 個人 scope 無企業信任溢價                                              |
+| **資產出售合計**                       | **US$20K – 60K** | 點估計 **$40K**                                                        |
 
 ### 3.3 收入法（DCF / 倍數法）— 不適用
+
 零收入、零付費客戶、零留存證據，無法建立任何現金流模型。以情境分析取代（§6）。
 
 ### 3.4 人才價值（Acqui-hire）— ~~托底~~ 不適用
+
 - ~~作者在 24 天內（Codex 輔助）交付完整 computer-use runtime、5 條外部 benchmark 橋接、跨平台桌面發行、MCP server、430 個通過測試——此生產力在此賽道有實質需求。~~
 - ~~賽道資深 agent 工程師年薪 $180K–$300K；acqui-hire 包（1–2 年綁約 + 簽約金）US$150K – 400K，點估計 ~$250K。~~
 - **修正（賣方為高中生）**：此方法假設買方雇用/綁約作者，對未成年賣方不成立。資產估值失去此托底，純資產區間下修至 $10K – 40K。
@@ -108,11 +112,13 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 ## 5. 技術盡職調查（Due Diligence）
 
 ### ✅ 通過項（2026-08-12 實測）
+
 - **測試套件全綠**：103 檔 / 430 通過 / 2 跳過，耗時 162 秒。
 - CI gate 完整（format、typecheck、test、lint、build、npm audit、secret scan）。
 - 安全架構**設計**紮實（KMS、approval 鏈、PII 遮蔽、encryption）——設計層級優於同級 side-project。
 
 ### ⚠️ 重大風險（內部審查報告 2026-08-07，14 個並行審計代理：8 CRITICAL / 12 HIGH / 15 MEDIUM / 10 LOW，總評 6.5/10）
+
 - **C1 審批繞過**：`riskLevel: "low"` 時跳過簽章驗證與 scope 檢查——攻擊者可繞過整個安全鏈。
 - **C2 簽章驗證預設關閉**：`requireSignature` 僅在 `LHIC_ENV=production` 時啟用，預設環境零密碼學驗證且無警告。
 - **C3 Claude Slow Path 為空殼**：provider 回自由文字，永遠產生 `undefined` plan，任務直接 blocked。
@@ -121,6 +127,7 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 - 註：審查日期 08-07，末 commit 08-09「harden automation and benchmark adapters」——部分發現可能已修，本次未逐項複查。**出售前應以最新 code 重跑審查並出具修復證明**。
 
 ### ⚠️ 市場劣勢（自身文件承認）
+
 - 無任何外部 benchmark 驗證；`market-position.md` 明言「product hypothesis, **not** a market SOTA claim」，`bench validate-evidence` 設計上永久回傳 `sotaClaimAllowed: false`。
 - Node.js 24 硬性要求（排除多數潛在用戶）；無 Python SDK；桌面 app 仍是 development build；文件偏向評審語境（大量 Build Week 語言）。
 - npm 版本混亂：registry 已到 0.1.5，但 README 仍稱「0.1.1 是唯一發布、勿用作證據」——發布紀律不一致會讓買方打折。
@@ -129,13 +136,13 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 
 ## 6. 情境分析與敏感性
 
-| 情境 | 條件 | 估值影響 |
-|---|---|---|
-| **現況出售** | 如上所述（賣方為高中生） | **$10K – 40K**（純資產） |
-| 修復 8 CRITICAL + 發布 0.1.2+ | 2–4 週工程 | +$20K – 40K（可出售性大增，買方盡調過關） |
-| 外部 benchmark 全 suite 驗證勝利（如 WorkArena L1） | 需真實公開結果 + 獨立重現 | **5–10x 級跳升**：$100K – 300K |
-| 出現付費客戶 / SaaS 化 | 任一收入證據 | 轉用收入倍數法，另行估值 |
-| 無人接盤 | MIT 授權下最可能情境之一 | **$0**（自己持有 vs 免費 fork 無差異） |
+| 情境                                                | 條件                      | 估值影響                                  |
+| --------------------------------------------------- | ------------------------- | ----------------------------------------- |
+| **現況出售**                                        | 如上所述（賣方為高中生）  | **$10K – 40K**（純資產）                  |
+| 修復 8 CRITICAL + 發布 0.1.2+                       | 2–4 週工程                | +$20K – 40K（可出售性大增，買方盡調過關） |
+| 外部 benchmark 全 suite 驗證勝利（如 WorkArena L1） | 需真實公開結果 + 獨立重現 | **5–10x 級跳升**：$100K – 300K            |
+| 出現付費客戶 / SaaS 化                              | 任一收入證據              | 轉用收入倍數法，另行估值                  |
+| 無人接盤                                            | MIT 授權下最可能情境之一  | **$0**（自己持有 vs 免費 fork 無差異）    |
 
 敏感性主軸：**法律折價（授權）× 採用證據（stars/downloads）× 可驗證性能（benchmark）**。三者任一改善都直接放大估值；三者皆無則估值貼近下限。
 
@@ -157,29 +164,34 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 ## 9. 高中生賣方專章
 
 ### 9.1 法律能力（台灣）
+
 - 民法成年為 **18 歲**（2023-01-01 起）。
 - **未滿 18 歲**：買賣契約、IP 移轉、收款均屬「限制行為能力人之法律行為」，需**法定代理人（父母）同意或事後承認**（民法 §77–79）；未經同意之契約效力未定，買方不會接受這種風險——實務上必須由家長共同簽約。
 - **已滿 18 歲**：可獨立簽約，但仍建議家長知情（稅務與金流紀錄）。
 - 稅務：出售 IP 屬財產交易所得，金額小於免稅額內通常無申報負擔，但收款需有契約與金流紀錄（防日後爭議）。
 
 ### 9.2 買家對未成年賣方的額外折價
+
 1. **無法指望後續維護**：買方知道賣方是學生，無法承擔 SLA/修復承諾 → 資產估值再打折。
 2. **盡調摩擦**：公司方合規部門對未成年交易有額外審核。
 3. **信號問題**：買方會問「為什麼急著賣」，未準備好的回答會再砍價。
 
 ### 9.3 高中生賣方的現實買家池（按可行性排序）
+
 1. **小型自動化/QA 代理商或 2–5 人 agent 新創**：買橋接器與骨架，現金 $10K–40K，成交最快，但需要家長簽約 + 可能要求一學期維護。
 2. **研究實驗室 / benchmark 團隊**：需要 OSWorld 2.0 或 τ³-bench 配接器者（學術經費採購，金額小但正當）。
 3. **台灣本地 AI 新創**（AppWorks 生態等）：就近談判、可用中文契約。
 4. **不要期待**：Browserbase/Cloudflare/ServiceNow 等級的公司會對 3-star repo 出價——他們只對「團隊 + 作者」感興趣，而作者是高中生。
 
 ### 9.4 詐騙警示（未成年賣家是首要目標）
+
 - 所有「先匯保證金/手續費才能成交」的買家都是詐騙。
 - 要求透過正式管道（GitHub repo transfer / npm scope transfer）進行，款項走銀行電匯或第三方 escrow，**絕不**接受加密貨幣「驗證」或禮品卡。
 - 任何要求「先交付原始碼再付款」的「買家」——原始碼本來就是 MIT 公開的，真正的買家不需要先拿 code。
 - 找家長陪同面談；合約給律師或至少學校老師過目。
 
 ### 9.5 給高中生的誠實結論
+
 - **現金出售**：可達，$10K–40K，但投入產出比低（要冷外聯 + 談判 + 家長協調）。
 - **真正的機會成本**：這份 repo 是 16–18 歲做出「24 天 + 430 測試 + Build Week + 5 條 benchmark 橋接」的證據。它的**升學與獎學金價值（特殊選才、海外申請、競賽）與未來職涯槓桿，預期值遠高於一次性的幾萬美元**。
 - **建議**：不要急著賣。先修 CRITICAL、跑一次誠實的外部 benchmark、把 repo 經營成可驗證的敘事（stars 成長、Release 紀律）——屆時無論是賣、是申請大學、還是拿獎學金，同一份資產都能換到更高回報。
@@ -189,6 +201,7 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 ## 10. 情境分析：收回 MIT、改 private（2026-08-12 應作者提問新增）
 
 ### 10.1 法律事實：MIT/Apache 授權**不可撤銷**
+
 - **已發布的程式碼授權永久有效**。MIT 授權對「取得副本者」授予無限期、不可撤銷的使用/複製/修改/再散布權；Apache-2.0 §2 更明訂「perpetual, worldwide, irrevocable」。這是 OSI/FSF 立場且有判例支撐（Jacobsen v. Katzer 一系）。
 - 具體已流出且**永久無法收回**的資產：
   1. GitHub 完整 commit 歷史（含全部 8622 commits 的內容）。
@@ -198,20 +211,22 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 
 ### 10.2 作者可以做與不能做的
 
-| 動作 | 法律效果 |
-|---|---|
-| 設 repo private | ✅ 停止新的公開散布（GitHub 歷史對外隱藏） |
-| 未來版本改專有授權 | ✅ 有效——但只涵蓋改版後的新 code |
-| 「收回」已發布版本的 MIT | ❌ 不可能，任何持有副本者權利不變 |
-| 讓公開快照「消失」 | ❌ 不可能（fork/clone/npm cache 無法列舉或追回） |
+| 動作                     | 法律效果                                         |
+| ------------------------ | ------------------------------------------------ |
+| 設 repo private          | ✅ 停止新的公開散布（GitHub 歷史對外隱藏）       |
+| 未來版本改專有授權       | ✅ 有效——但只涵蓋改版後的新 code                 |
+| 「收回」已發布版本的 MIT | ❌ 不可能，任何持有副本者權利不變                |
+| 讓公開快照「消失」       | ❌ 不可能（fork/clone/npm cache 無法列舉或追回） |
 
 ### 10.3 對估值的影響（好壞參半，淨效果為負）
+
 - **理論上漲**：private + 專有授權後，買方對「新 codebase」可取得排他權 → 移除「MIT → 獨家價值 = $0」的折價，估值上限回升向成本重製法（$215K–358K）。
 - **實際上漲有限**：公開快照（24 天版本的完整核心）仍在流通，買方的「獨家產品」存在一個價值 100% 的合法免費雙胞胎——獨家溢價大打折扣。且買方盡調會掃描 fork/clone 足跡（0 forks 是利多，但 714 downloads 無法列舉）。
 - **買家池縮小**：$10K–40K 層的小買家**偏好 MIT**（無授權束縛、可自由使用）；要排他權的大公司（Browserbase 等級）對未成年賣方本來就出局。private 同時趕走兩種買家。
 - **最大損失：敘事資產**。公開 repo 是高中生賣方唯一的可驗證證據（升學/獎學金/競賽）。private 後 GitHub 頁面消失，外部無法驗證 430 測試、commit 歷史、Build Week 成果——**這份資產對作者本人的價值大於對任何買家的價值**，而 private 直接摧毀前者。
 
 ### 10.4 結論與可行替代方案
+
 - **不要收回、不要 private**：3 stars 沒有社群資產值得守護，但「公開可驗證」是高中生賣方最有價值的槓桿；收回 MIT 是拿「未來的獨家溢價幻想」換「現在的敘事資產」，淨虧。
 - 若要排他性商業化，標準做法是**雙軌**：
   1. **公開層**：現有 MIT repo 繼續公開（作敘事 + 社群 + 履歷）。
@@ -223,17 +238,17 @@ LHIC（Local Human Intent Controller）是 **local-first 瀏覽器與桌面自�
 
 ## 附錄 A：證據來源
 
-| 證據 | 出處 | 日期 |
-|---|---|---|
-| 3 stars / 0 forks / 4 open issues / 1 contributor | GitHub REST API `repos/chengmatt416/LHIC` | 2026-08-12 |
-| 8622 commits / 主線 88 commits / 24 天時程 | `git rev-list`、`git shortlog` | 2026-08-12 |
-| 52,360+14,462+6,372+3,533 LOC | `wc -l` | 2026-08-12 |
-| 103 測試檔 430 通過 | `npm test` 實跑 | 2026-08-12 |
-| npm 0.1.0–0.1.5、714 downloads/月 | npmjs registry API | 2026-08-12 |
-| 8 CRITICAL / 12 HIGH / 6.5 總評 | `CRITICAL_REVIEW_REPORT.md` | 2026-08-07 |
-| 非 SOTA 聲明、基準策略 | `docs/market-position.md`、`docs/market-research.md` | 2026-08-12 |
-| MIT/Apache 雙授權、BSL 初始史 | `LICENSE`、git 首 commit | 2026-08-12 |
-| Meta $2B+ 收購 Manus、Browser Use $17M | 公開新聞（2026-04、2025-08） | 2026-08-12 |
+| 證據                                              | 出處                                                 | 日期       |
+| ------------------------------------------------- | ---------------------------------------------------- | ---------- |
+| 3 stars / 0 forks / 4 open issues / 1 contributor | GitHub REST API `repos/chengmatt416/LHIC`            | 2026-08-12 |
+| 8622 commits / 主線 88 commits / 24 天時程        | `git rev-list`、`git shortlog`                       | 2026-08-12 |
+| 52,360+14,462+6,372+3,533 LOC                     | `wc -l`                                              | 2026-08-12 |
+| 103 測試檔 430 通過                               | `npm test` 實跑                                      | 2026-08-12 |
+| npm 0.1.0–0.1.5、714 downloads/月                 | npmjs registry API                                   | 2026-08-12 |
+| 8 CRITICAL / 12 HIGH / 6.5 總評                   | `CRITICAL_REVIEW_REPORT.md`                          | 2026-08-07 |
+| 非 SOTA 聲明、基準策略                            | `docs/market-position.md`、`docs/market-research.md` | 2026-08-12 |
+| MIT/Apache 雙授權、BSL 初始史                     | `LICENSE`、git 首 commit                             | 2026-08-12 |
+| Meta $2B+ 收購 Manus、Browser Use $17M            | 公開新聞（2026-04、2025-08）                         | 2026-08-12 |
 
 ## 附錄 B：方法論限制
 

@@ -8,10 +8,14 @@ import {
 } from "react";
 
 import type {
+  OmpAdvancedCommand,
   OmpMessageView,
   OmpModelInfo,
   OmpRuntimeState,
   OmpSessionInfo,
+  OmpSessionStats,
+  OmpSubagentView,
+  OmpSubagentModel,
   OmpTodoPhase,
 } from "../shared/contracts.js";
 import {
@@ -19,6 +23,13 @@ import {
   reduceAgentEvent,
   type AgentViewState,
 } from "./agent-model.js";
+
+const starterPrompts = [
+  "Explain this workspace and its architecture",
+  "Find and fix the highest-impact bug",
+  "Review the current changes for regressions",
+  "Run the focused checks and resolve failures",
+] as const;
 
 /**
  * Agent Studio: the omp RPC agent embedded as the landing surface. All model
@@ -35,12 +46,15 @@ export function Agent({
     undefined,
     initialAgentViewState,
   );
+  const [isSending, setIsSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [sessions, setSessions] = useState<OmpSessionInfo[]>([]);
   const [models, setModels] = useState<OmpModelInfo[]>([]);
   const [loginProviders, setLoginProviders] = useState<Array<{ id: string }>>(
     [],
   );
+  const [subagentModels, setSubagentModels] = useState<OmpSubagentModel[]>([]);
+  const [isUpdatingModelPool, setIsUpdatingModelPool] = useState(false);
   const [earlier, setEarlier] = useState<OmpMessageView[]>([]);
   const [earlierCursor, setEarlierCursor] = useState<string>();
   const [uiValue, setUiValue] = useState("");
@@ -66,6 +80,10 @@ export function Agent({
         void window.lhic.omp
           .listModels()
           .then(setModels)
+          .catch(() => undefined);
+        void window.lhic.omp
+          .listSubagentModels()
+          .then(setSubagentModels)
           .catch(() => undefined);
         void window.lhic.omp
           .loginProviders()
@@ -100,12 +118,16 @@ export function Agent({
 
   const send = async () => {
     const text = draft.trim();
-    if (!text) return;
+    if (!text || isSending) return;
     setDraft("");
+    setIsSending(true);
     try {
       await window.lhic.omp.prompt(text);
     } catch (error) {
+      setDraft(text);
       setNotice(message(error));
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -192,7 +214,9 @@ export function Agent({
 
   const insertCommand = (command: string) => {
     setDraft((current) => {
-      const prefix = current.trimStart().startsWith("/") ? current : `/${command} `;
+      const prefix = current.trimStart().startsWith("/")
+        ? current
+        : `/${command} `;
       return prefix;
     });
   };
@@ -238,6 +262,25 @@ export function Agent({
     }
   };
 
+  const toggleSubagentModel = async (selector: string, enabled: boolean) => {
+    const selectors = subagentModels
+      .filter((model) =>
+        model.selector === selector ? enabled : model.enabled,
+      )
+      .map((model) => model.selector);
+    setIsUpdatingModelPool(true);
+    try {
+      setSubagentModels(await window.lhic.omp.setSubagentModels(selectors));
+      setNotice(
+        `${selector} ${enabled ? "enabled for" : "removed from"} custom agents.`,
+      );
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setIsUpdatingModelPool(false);
+    }
+  };
+
   const exportHtml = async () => {
     try {
       const path = await window.lhic.omp.exportHtml();
@@ -276,7 +319,10 @@ export function Agent({
     if (!call) return;
     setDismissedHostTool(call.id);
     try {
-      await window.lhic.omp.approveHostTool(call.id, approvedBy || "desktop-user");
+      await window.lhic.omp.approveHostTool(
+        call.id,
+        approvedBy || "desktop-user",
+      );
     } catch (error) {
       setNotice(message(error));
     }
@@ -316,7 +362,12 @@ export function Agent({
           <div className="table">
             {sessions.map((session) => (
               <button
-                className="table-row agent-session-row"
+                className={`table-row agent-session-row ${
+                  runtime?.sessionFile === session.path ? "active" : ""
+                }`}
+                aria-current={
+                  runtime?.sessionFile === session.path ? "page" : undefined
+                }
                 key={session.path}
                 onClick={() => void switchSession(session.path)}
               >
@@ -329,20 +380,46 @@ export function Agent({
         )}
       </aside>
 
-      <section className="panel agent-chat" aria-label="Agent conversation">
+      <section
+        className="panel agent-chat"
+        aria-label="Agent conversation"
+        aria-busy={runtime?.isStreaming === true}
+      >
         <div className="agent-chat-toolbar">
-          {state.messages.length + earlier.length > 0 ? (
-            <span className="agent-message-count">
-              {earlier.length + state.messages.length} of{" "}
-              {runtime?.messageCount ?? 0} messages
+          <div className="agent-status-strip" aria-live="polite">
+            <span
+              className={`status ${runtime?.running ? "running" : "revoked"}`}
+            >
+              {runtime?.isStreaming
+                ? "agent working"
+                : runtime?.running
+                  ? "ready"
+                  : "starting"}
             </span>
-          ) : null}
-          {runtime &&
-          runtime.messageCount > earlier.length + state.messages.length ? (
-            <button className="button" onClick={() => void loadEarlier()}>
-              Load earlier
-            </button>
-          ) : null}
+            <span>{modelValue || "No model connected"}</span>
+            {runtime?.recoveryState ? (
+              <span>{runtime.recoveryState.replace("_", " ")}</span>
+            ) : null}
+            {runtime?.contextUsage ? (
+              <span>
+                {Math.round(runtime.contextUsage.percent * 100)}% context
+              </span>
+            ) : null}
+          </div>
+          <div className="actions">
+            {state.messages.length + earlier.length > 0 ? (
+              <span className="agent-message-count">
+                {earlier.length + state.messages.length} of{" "}
+                {runtime?.messageCount ?? 0} messages
+              </span>
+            ) : null}
+            {runtime &&
+            runtime.messageCount > earlier.length + state.messages.length ? (
+              <button className="button" onClick={() => void loadEarlier()}>
+                Load earlier
+              </button>
+            ) : null}
+          </div>
         </div>
         {state.messages.length === 0 && earlier.length === 0 ? (
           <div className="agent-empty">
@@ -350,12 +427,22 @@ export function Agent({
             <h2>Agent Studio</h2>
             <p>
               The omp coding agent runs locally in RPC mode. Describe a task —
-              it may use the approval-gated LHIC browser and desktop host
-              tools.
+              it may use the approval-gated LHIC browser and desktop host tools.
             </p>
+            <div className="agent-starters" aria-label="Starter prompts">
+              {starterPrompts.map((prompt) => (
+                <button
+                  className="quick-action"
+                  key={prompt}
+                  onClick={() => setDraft(prompt)}
+                >
+                  {prompt} <i aria-hidden="true">→</i>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="agent-messages">
+          <div className="agent-messages" aria-live="polite">
             {earlier.map((message) => (
               <div
                 className={`agent-message ${message.role}`}
@@ -367,10 +454,7 @@ export function Agent({
               </div>
             ))}
             {state.messages.map((message) => (
-              <div
-                className={`agent-message ${message.role}`}
-                key={message.id}
-              >
+              <div className={`agent-message ${message.role}`} key={message.id}>
                 <div className="agent-bubble">
                   <span>{message.text || "…"}</span>
                   {message.toolCalls.map((tool) => (
@@ -405,14 +489,26 @@ export function Agent({
                 : "Describe a task for the omp agent…"
             }
           />
+          <small className="agent-composer-hint">
+            Enter to send · Shift+Enter for a new line
+            {runtime?.isStreaming ? " · choose Steer or Follow-up" : ""}
+          </small>
           <div className="actions">
             {runtime?.isStreaming ? (
               <>
-                <button className="button" onClick={() => void steer()}>
-                  Steer
+                <button
+                  className="button primary"
+                  disabled={!draft.trim()}
+                  onClick={() => void steer()}
+                >
+                  Steer now
                 </button>
-                <button className="button" onClick={() => void followUp()}>
-                  Follow-up
+                <button
+                  className="button"
+                  disabled={!draft.trim()}
+                  onClick={() => void followUp()}
+                >
+                  Queue follow-up
                 </button>
                 <button className="button caution" onClick={() => void abort()}>
                   Stop
@@ -421,10 +517,10 @@ export function Agent({
             ) : (
               <button
                 className="button primary"
+                disabled={!draft.trim() || isSending}
                 onClick={() => void send()}
-                disabled={!draft.trim()}
               >
-                Send
+                {isSending ? "Sending…" : "Send"}
               </button>
             )}
           </div>
@@ -441,12 +537,12 @@ export function Agent({
         {runtime ? (
           <>
             <div className="agent-inspector-status">
-              <span className={`status ${runtime.running ? "running" : "revoked"}`}>
+              <span
+                className={`status ${runtime.running ? "running" : "revoked"}`}
+              >
                 {runtime.running ? "running" : "stopped"}
               </span>
-              {runtime.error ? (
-                <p className="muted">{runtime.error}</p>
-              ) : null}
+              {runtime.error ? <p className="muted">{runtime.error}</p> : null}
             </div>
             {runtime.model ? (
               <label>
@@ -483,6 +579,47 @@ export function Agent({
                 ))}
               </div>
             )}
+            {subagentModels.length > 0 ? (
+              <details className="agent-model-pool">
+                <summary>
+                  Custom-agent model pool (
+                  {subagentModels.filter((model) => model.enabled).length})
+                </summary>
+                <p className="muted">
+                  Enabled models are exposed as generated custom agents. omp
+                  chooses among them for delegated tasks; clear all to use only
+                  its built-in agents.
+                </p>
+                <div className="agent-model-list">
+                  {subagentModels.map((model) => (
+                    <label className="agent-model-option" key={model.selector}>
+                      <input
+                        type="checkbox"
+                        checked={model.enabled}
+                        disabled={isUpdatingModelPool || runtime.isStreaming}
+                        onChange={(input) =>
+                          void toggleSubagentModel(
+                            model.selector,
+                            input.target.checked,
+                          )
+                        }
+                      />
+                      <span>
+                        <strong>{model.displayName ?? model.modelId}</strong>
+                        <small>
+                          {model.selector}
+                          {model.contextWindow
+                            ? ` · ${Math.round(model.contextWindow / 1_000)}k context`
+                            : ""}
+                          {model.image ? " · vision" : ""}
+                          {model.reasoning ? " · reasoning" : ""}
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            ) : null}
             <button className="button" onClick={() => void exportHtml()}>
               Export session HTML
             </button>
@@ -569,8 +706,8 @@ export function Agent({
                 </div>
                 <small>
                   {runtime.contextUsage.tokens.toLocaleString()} /{" "}
-                  {runtime.contextUsage.contextWindow.toLocaleString()} tokens
-                  ({Math.round(runtime.contextUsage.percent * 100)}%)
+                  {runtime.contextUsage.contextWindow.toLocaleString()} tokens (
+                  {Math.round(runtime.contextUsage.percent * 100)}%)
                 </small>
               </div>
             ) : null}
@@ -592,6 +729,11 @@ export function Agent({
               </div>
             ) : null}
             <AgentTodos phases={runtime.todoPhases} setNotice={setNotice} />
+            <AgentOperations
+              runtime={runtime}
+              subagents={state.subagents}
+              setNotice={setNotice}
+            />
           </>
         ) : (
           <p className="muted">Starting the omp agent engine…</p>
@@ -603,7 +745,9 @@ export function Agent({
       state.uiRequest.id !== dismissedUi ? (
         <div className="modal-backdrop">
           <div className="modal" role="dialog" aria-label="Agent request">
-            <span className="eyebrow">AGENT REQUEST / {state.uiRequest.method}</span>
+            <span className="eyebrow">
+              AGENT REQUEST / {state.uiRequest.method}
+            </span>
             <h2>{state.uiRequest.title ?? "The agent needs input"}</h2>
             {state.uiRequest.message ? (
               <p className="muted">{state.uiRequest.message}</p>
@@ -658,7 +802,9 @@ export function Agent({
       state.hostToolCall.id !== dismissedHostTool ? (
         <div className="modal-backdrop">
           <div className="modal" role="dialog" aria-label="Host tool approval">
-            <span className="eyebrow">HOST TOOL / {state.hostToolCall.toolName}</span>
+            <span className="eyebrow">
+              HOST TOOL / {state.hostToolCall.toolName}
+            </span>
             <h2>Approve local {state.hostToolCall.toolName} execution</h2>
             <p className="muted">
               The agent wants to run a plan through the LHIC local executor.
@@ -702,6 +848,366 @@ export function Agent({
   );
 }
 
+function AgentOperations({
+  runtime,
+  subagents,
+  setNotice,
+}: {
+  runtime: OmpRuntimeState;
+  subagents: OmpSubagentView[];
+  setNotice: (value: string) => void;
+}): JSX.Element {
+  const [stats, setStats] = useState<OmpSessionStats>();
+  const [instruction, setInstruction] = useState("");
+  const [entryId, setEntryId] = useState("");
+  const [result, setResult] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refreshStats = useCallback(async () => {
+    try {
+      setStats(await window.lhic.omp.sessionStats());
+    } catch {
+      setStats(undefined);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (runtime.running && !runtime.isStreaming) void refreshStats();
+  }, [runtime.running, runtime.isStreaming, refreshStats]);
+
+  const run = async (input: OmpAdvancedCommand, label: string) => {
+    setBusy(true);
+    try {
+      const response = await window.lhic.omp.advanced(input);
+      const rendered = JSON.stringify(response, null, 2);
+      setResult(rendered === "{}" ? "" : rendered.slice(0, 8_000));
+      setNotice(label);
+      await refreshStats();
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="agent-operations">
+      <div className="agent-runtime-evidence">
+        <span className="eyebrow">SESSION EVIDENCE</span>
+        <div className="agent-metrics">
+          <Metric label="Turns" value={stats?.turns} />
+          <Metric label="Input" value={stats?.inputTokens} />
+          <Metric label="Output" value={stats?.outputTokens} />
+          <Metric
+            label="Cost"
+            value={
+              stats?.cost === undefined
+                ? undefined
+                : `$${stats.cost.toFixed(4)}`
+            }
+          />
+        </div>
+        {runtime.recoveryState ? (
+          <span className={`status ${recoveryStatus(runtime.recoveryState)}`}>
+            recovery: {runtime.recoveryState.replace("_", " ")}
+          </span>
+        ) : null}
+      </div>
+
+      {subagents.length > 0 ? (
+        <div className="agent-subagents">
+          <span className="eyebrow">ACTIVE SUBAGENTS</span>
+          {subagents.map((subagent) => (
+            <article className="agent-subagent-card" key={subagent.id}>
+              <div>
+                <strong>{subagent.label}</strong>
+                <span className={`status ${subagentStatus(subagent.status)}`}>
+                  {subagent.status}
+                </span>
+              </div>
+              <p>{subagent.task}</p>
+              {subagent.provider || subagent.model ? (
+                <small>
+                  {[subagent.provider, subagent.model]
+                    .filter(Boolean)
+                    .join("/")}
+                </small>
+              ) : null}
+              {subagent.progress ? (
+                <small className="muted">{subagent.progress}</small>
+              ) : null}
+              {subagent.startedAt ? (
+                <small>Started {formatTimestamp(subagent.startedAt)}</small>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      <details className="agent-advanced">
+        <summary>Advanced omp controls</summary>
+        <div className="form-grid">
+          <label>
+            Steering queue
+            <select
+              value={runtime.steeringMode ?? "one-at-a-time"}
+              disabled={busy}
+              onChange={(event) =>
+                void run(
+                  {
+                    command: "setSteeringMode",
+                    mode: event.target.value as "all" | "one-at-a-time",
+                  },
+                  "Steering queue updated.",
+                )
+              }
+            >
+              <option value="one-at-a-time">One at a time</option>
+              <option value="all">All queued messages</option>
+            </select>
+          </label>
+          <label>
+            Follow-up queue
+            <select
+              value={runtime.followUpMode ?? "one-at-a-time"}
+              disabled={busy}
+              onChange={(event) =>
+                void run(
+                  {
+                    command: "setFollowUpMode",
+                    mode: event.target.value as "all" | "one-at-a-time",
+                  },
+                  "Follow-up queue updated.",
+                )
+              }
+            >
+              <option value="one-at-a-time">One at a time</option>
+              <option value="all">All queued messages</option>
+            </select>
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={runtime.autoCompactionEnabled === true}
+              disabled={busy}
+              onChange={(event) =>
+                void run(
+                  {
+                    command: "setAutoCompaction",
+                    enabled: event.target.checked,
+                  },
+                  `Automatic compaction ${
+                    event.target.checked ? "enabled" : "disabled"
+                  }.`,
+                )
+              }
+            />
+            Automatic compaction
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={runtime.autoRetryEnabled === true}
+              disabled={busy}
+              onChange={(event) =>
+                void run(
+                  { command: "setAutoRetry", enabled: event.target.checked },
+                  `Automatic retry ${
+                    event.target.checked ? "enabled" : "disabled"
+                  }.`,
+                )
+              }
+            />
+            Automatic retry
+          </label>
+          <textarea
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+            placeholder="Optional instruction, replacement prompt, or shell command"
+          />
+          <div className="agent-command-grid">
+            <button
+              className="button"
+              disabled={busy || !instruction.trim()}
+              onClick={() =>
+                void run(
+                  { command: "abortAndPrompt", message: instruction.trim() },
+                  "Current turn replaced.",
+                )
+              }
+            >
+              Replace turn
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  {
+                    command: "compact",
+                    ...(instruction.trim()
+                      ? { message: instruction.trim() }
+                      : {}),
+                  },
+                  "Session compacted.",
+                )
+              }
+            >
+              Compact
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  {
+                    command: "handoff",
+                    ...(instruction.trim()
+                      ? { message: instruction.trim() }
+                      : {}),
+                  },
+                  "Handoff started.",
+                )
+              }
+            >
+              Handoff
+            </button>
+            <button
+              className="button"
+              disabled={busy || !instruction.trim()}
+              onClick={() =>
+                void run(
+                  { command: "bash", message: instruction.trim() },
+                  "Shell command submitted.",
+                )
+              }
+            >
+              Run shell
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run({ command: "cycleModel" }, "Model cycled.")
+              }
+            >
+              Cycle model
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  { command: "cycleThinkingLevel" },
+                  "Thinking level cycled.",
+                )
+              }
+            >
+              Cycle thinking
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run({ command: "abortRetry" }, "Retry stopped.")
+              }
+            >
+              Stop retry
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run({ command: "abortBash" }, "Shell command stopped.")
+              }
+            >
+              Stop shell
+            </button>
+          </div>
+          <label>
+            Branch entry ID
+            <input
+              value={entryId}
+              onChange={(event) => setEntryId(event.target.value)}
+              placeholder="Message or session entry ID"
+            />
+          </label>
+          <div className="actions">
+            <button
+              className="button"
+              disabled={busy || !entryId.trim()}
+              onClick={() =>
+                void run(
+                  { command: "branch", entryId: entryId.trim() },
+                  "Session branched.",
+                )
+              }
+            >
+              Branch
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  { command: "getBranchMessages" },
+                  "Branch messages loaded.",
+                )
+              }
+            >
+              Branch messages
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() =>
+                void run(
+                  { command: "getLastAssistantText" },
+                  "Last response loaded.",
+                )
+              }
+            >
+              Last response
+            </button>
+          </div>
+          {result ? <pre className="agent-rpc-output">{result}</pre> : null}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | undefined;
+}): JSX.Element {
+  return (
+    <div>
+      <small>{label}</small>
+      <strong>
+        {typeof value === "number" ? value.toLocaleString() : (value ?? "—")}
+      </strong>
+    </div>
+  );
+}
+
+function recoveryStatus(
+  state: NonNullable<OmpRuntimeState["recoveryState"]>,
+): string {
+  if (state === "recovery_failed") return "failed";
+  if (state === "restarting") return "warning";
+  return "running";
+}
+
+function subagentStatus(status: string): string {
+  if (status.includes("fail") || status.includes("cancel")) return "failed";
+  if (status.includes("complete") || status.includes("done")) return "success";
+  return "running";
+}
+
 function AgentTodos({
   phases,
   setNotice,
@@ -716,7 +1222,12 @@ function AgentTodos({
             ...phase,
             tasks: phase.tasks.map((task) =>
               task.id === taskId
-                ? { ...task, status: done ? ("completed" as const) : ("pending" as const) }
+                ? {
+                    ...task,
+                    status: done
+                      ? ("completed" as const)
+                      : ("pending" as const),
+                  }
                 : task,
             ),
           }
@@ -753,7 +1264,7 @@ function AgentTodos({
 
 function scrollToBottom(): void {
   requestAnimationFrame(() => {
-    const element = document.querySelector(".agent-chat");
+    const element = document.querySelector(".agent-messages");
     if (element) {
       element.scrollTop = element.scrollHeight;
     }

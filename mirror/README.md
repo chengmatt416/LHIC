@@ -4,11 +4,11 @@
 GitHub Releases is the data store — installer scripts and desktop installers
 are release assets — and this domain rewrites URLs to them.
 
-| Path | Redirects to |
-| --- | --- |
-| `/install.sh` | `github.com/chengmatt416/LHIC/releases/latest/download/install.sh` |
+| Path           | Redirects to                                                        |
+| -------------- | ------------------------------------------------------------------- |
+| `/install.sh`  | `github.com/chengmatt416/LHIC/releases/latest/download/install.sh`  |
 | `/install.ps1` | `github.com/chengmatt416/LHIC/releases/latest/download/install.ps1` |
-| `/release/*` | `github.com/chengmatt416/LHIC/releases/latest/download/*` |
+| `/release/*`   | `github.com/chengmatt416/LHIC/releases/latest/download/*`           |
 
 Every `desktop-v*` release includes `install.sh`, `install.ps1`, the platform
 installers, and `SHA256SUMS-<version>.txt` (the release workflow bundles the
@@ -17,11 +17,11 @@ installers automatically), so `releases/latest` is always self-contained.
 ## One-liners
 
 ```sh
-curl -fsSL https://lhic.techtools.qzz.io/install.sh | sh
+curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
 ```
 
 ```powershell
-irm https://lhic.techtools.qzz.io/install.ps1 | iex
+irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
 ```
 
 The installers download `/release/<asset>` (redirected to the latest GitHub
@@ -48,7 +48,7 @@ wrangler pages deploy mirror --project-name lhic-mirror --branch main
    - Pages → lhic-mirror → Custom domains → add `lhic.techtools.qzz.io`
    - DNS → Records → Add record:
      `CNAME  lhic  →  lhic-mirror.pages.dev` (proxied)
-   The Pages domain activates once the record resolves.
+     The Pages domain activates once the record resolves.
 3. GitHub repository secrets (for CI deploys of `mirror/**`):
    - `CLOUDFLARE_API_TOKEN` — token with `Cloudflare Pages:Edit` and `Zone:DNS Edit`
    - `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID

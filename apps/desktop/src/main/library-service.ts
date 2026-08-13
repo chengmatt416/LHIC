@@ -108,9 +108,7 @@ export class LibraryService {
 
   private async requireSessionCookie(): Promise<string> {
     const config = await this.skills.sharedSkillsConfig();
-    const cookie = config
-      ? await this.credentialStore.get(config)
-      : undefined;
+    const cookie = config ? await this.credentialStore.get(config) : undefined;
     if (!cookie) {
       throw new Error("Sign in to browse the shared library.");
     }

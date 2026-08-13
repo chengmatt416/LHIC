@@ -4,9 +4,24 @@ import {
   isBrowserExecutionPlan,
   isDesktopExecutionPlan,
   type DesktopExecutionPlan,
+  type GlobalComputerAction,
+  type SemanticAction,
 } from "@lhic/schema";
-import { parseRuntimeConfig } from "@lhic/security";
-import { GlobalComputerExecutor } from "@lhic/skills";
+import {
+  createActionApproval,
+  parseRuntimeConfig,
+  type ActionApproval,
+} from "@lhic/security";
+import {
+  buildGlobalComputerCommand,
+  ElementGroundedDispatcher,
+  ExecFileGlobalCommandRunner,
+  executionBackendOptionsFromEnvironment,
+  getGlobalDesktopPlatform,
+  GlobalComputerExecutor,
+  resolveExecutionChain,
+} from "@lhic/skills";
+import { materializeActionApproval } from "./approval-materializer.js";
 
 import {
   CliBrowserRunner,
@@ -22,9 +37,9 @@ export interface CliHostRunnerDeps {
   workspaceRoot: string;
   approvedBy?: string;
   promptApproval: (
-    toolName: string,
-    proposal: TaskProposalSummary,
-  ) => Promise<{ approved: boolean; approvedBy: string }>;
+    request: HostApprovalRequest,
+  ) => Promise<HostApprovalDecision>;
+  approvalPolicy?: "ask" | "deny" | "auto";
   emitResult: (
     callId: string,
     result: Record<string, unknown>,
@@ -32,9 +47,23 @@ export interface CliHostRunnerDeps {
   ) => void;
   emitUpdate: (callId: string, partialResult: Record<string, unknown>) => void;
 }
+export interface HostApprovalRequest {
+  surface: "browser" | "desktop";
+  actionHash: string;
+  riskLevel: "low" | "medium" | "high" | "unknown";
+  intent: string;
+  verifier: string;
+  toolName: string;
+  proposal: TaskProposalSummary;
+}
+
+export type HostApprovalDecision =
+  | { approved: false }
+  | { approved: true; approvedBy: string; approval?: ActionApproval };
 
 const browserToolName = "lhic_browser_execute";
 const desktopToolName = "lhic_desktop_execute";
+const desktopObserveToolName = "lhic_desktop_observe";
 
 /**
  * Serves the omp agent's LHIC host tools from the CLI: browser plans run in
@@ -72,12 +101,24 @@ export class CliHostRunner {
       argsValue && typeof argsValue === "object"
         ? (argsValue as Record<string, unknown>)
         : {};
-    if (toolName !== browserToolName && toolName !== desktopToolName) {
+    if (
+      toolName !== browserToolName &&
+      toolName !== desktopToolName &&
+      toolName !== desktopObserveToolName
+    ) {
       this.emitResult(
         callId,
-        { content: [{ type: "text", text: `Unsupported host tool: ${toolName}` }] },
+        {
+          content: [
+            { type: "text", text: `Unsupported host tool: ${toolName}` },
+          ],
+        },
         true,
       );
+      return;
+    }
+    if (toolName === desktopObserveToolName) {
+      void this.observe(callId, args);
       return;
     }
     const commandId = createTaskId();
@@ -119,13 +160,132 @@ export class CliHostRunner {
     }
   }
 
+  private async observe(
+    callId: string,
+    args: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      const scope = args.scope;
+      const application = args.application;
+      if (
+        scope !== "active_window" &&
+        scope !== "all_windows" &&
+        scope !== "application"
+      ) {
+        throw new Error("Desktop observation scope is invalid.");
+      }
+      if (scope === "application" && typeof application !== "string") {
+        throw new Error(
+          "Application-scoped observation requires an application.",
+        );
+      }
+      const action: GlobalComputerAction = {
+        scope: "os",
+        type: "os_observe",
+        intent:
+          typeof application === "string"
+            ? `Observe ${application}`
+            : `Observe ${scope.replace("_", " ")}`,
+        methodPreference: ["accessibility", "vision"],
+        riskLevel: "medium",
+        observeScope: scope,
+        ...(typeof application === "string" ? { application } : {}),
+        verifier: {
+          type: "active_window",
+          ...(typeof application === "string" ? { application } : {}),
+        },
+      };
+      const challenge = createActionApproval(action, "pending-human-approval");
+      const decision = await this.approvalDecision(
+        desktopObserveToolName,
+        {
+          stepCount: 1,
+          steps: [
+            {
+              id: "observe",
+              action: "os_observe",
+              intent: action.intent,
+              riskLevel: action.riskLevel,
+              verifier: "Bounded normalized desktop observation",
+            },
+          ],
+        },
+        { action, verifier: "bounded normalized desktop observation" },
+      );
+      if (!decision.approved) {
+        throw new Error("Rejected by user.");
+      }
+      const approval = materializeActionApproval(action, decision, {
+        production: process.env.LHIC_ENV === "production",
+      });
+      const options = executionBackendOptionsFromEnvironment();
+      const chain = await resolveExecutionChain(options);
+      const runner = new ExecFileGlobalCommandRunner();
+      const dispatcher =
+        chain.backend || chain.omniparser
+          ? new ElementGroundedDispatcher({
+              ...(chain.backend ? { backend: chain.backend } : {}),
+              ...(chain.omniparser ? { omniparser: chain.omniparser } : {}),
+              runner,
+              platform: process.platform,
+              buildNative: (candidate) =>
+                buildGlobalComputerCommand(
+                  candidate,
+                  getGlobalDesktopPlatform(),
+                ),
+              ...(options.redactValues
+                ? { redactValues: options.redactValues }
+                : {}),
+            })
+          : undefined;
+      const executor = new GlobalComputerExecutor({
+        taskId: `observe-${challenge.actionHash.slice(0, 12)}`,
+        traceFilePath: resolve(
+          this.deps.workspaceRoot,
+          ".lhic/traces/desktop-observation.jsonl",
+        ),
+        ...(dispatcher ? { dispatcher } : {}),
+      });
+      const result = await executor.observe(action, approval);
+      this.emitResult(
+        callId,
+        {
+          content: [
+            {
+              type: "text",
+              text: result.success
+                ? (result.output ?? JSON.stringify({ elements: [] }))
+                : (result.error ?? "Desktop observation failed."),
+            },
+          ],
+        },
+        !result.success,
+      );
+    } catch (error) {
+      this.emitResult(
+        callId,
+        {
+          content: [
+            {
+              type: "text",
+              text: error instanceof Error ? error.message : String(error),
+            },
+          ],
+        },
+        true,
+      );
+    }
+  }
+
   private desktopExecute(
     commandId: string,
     plan: DesktopExecutionPlan,
   ): Promise<DesktopRunResult> {
     if (!isDesktopExecutionPlan(plan)) {
       return Promise.reject(
-        new Error("Desktop execution requires a valid desktop-plan-v1 proposal."),
+        new Error(
+          "Desktop execution requires a valid desktop-plan-v1 proposal.",
+        ),
       );
     }
     this.desktopSessions.set(commandId, {
@@ -138,7 +298,7 @@ export class CliHostRunner {
 
   private async desktopApprove(
     commandId: string,
-    approvedBy: string,
+    approval: ActionApproval,
   ): Promise<DesktopRunResult> {
     const session = this.desktopSessions.get(commandId);
     if (!session) throw new Error("The desktop session does not exist.");
@@ -150,10 +310,7 @@ export class CliHostRunner {
     });
     const executor = new GlobalComputerExecutor({
       taskId: commandId,
-      traceFilePath: join(
-        runtimeConfig.traceDirectory,
-        `${commandId}.jsonl`,
-      ),
+      traceFilePath: join(runtimeConfig.traceDirectory, `${commandId}.jsonl`),
       approvalValidation: {
         requireSignature: runtimeConfig.environment === "production",
         ...(runtimeConfig.approvalPublicKey
@@ -161,11 +318,12 @@ export class CliHostRunner {
           : {}),
       },
     });
-    const execution = await executor.execute(step.action, {
-      approvedBy,
-    } as never);
+    const execution = await executor.execute(step.action, approval);
     if (!execution.success) {
-      return this.desktopFailure(commandId, execution.error ?? "Desktop action failed.");
+      return this.desktopFailure(
+        commandId,
+        execution.error ?? "Desktop action failed.",
+      );
     }
     session.evidence.push(...execution.evidence);
     session.nextStepIndex += 1;
@@ -222,26 +380,37 @@ export class CliHostRunner {
   ): Promise<void> {
     if (result.status === "awaiting_approval") {
       this.emitUpdate(callId, {
-        partialResult: { content: [{ type: "text", text: "Waiting for approval…" }] },
+        content: [{ type: "text", text: "Waiting for approval…" }],
       });
-      const decision = await this.deps.promptApproval(
-        this.pending.get(callId)?.toolName ?? browserToolName,
-        result.proposal,
-      );
       const pending = this.pending.get(callId);
       if (!pending) return;
+      const approvalContext = this.pendingAction(pending);
+      const decision = await this.approvalDecision(
+        pending.toolName,
+        result.proposal,
+        approvalContext,
+      );
+      if (!this.pending.has(callId)) return;
       if (!decision.approved) {
         await this.reject(callId);
         return;
       }
       try {
+        const runtimeConfig = parseRuntimeConfig(process.env);
+        const approval = materializeActionApproval(
+          approvalContext.action,
+          decision,
+          {
+            production: runtimeConfig.environment === "production",
+            ...(runtimeConfig.approvalPublicKey
+              ? { publicKey: runtimeConfig.approvalPublicKey }
+              : {}),
+          },
+        );
         const next =
           pending.toolName === browserToolName
-            ? await this.browserRunner.approve(
-                pending.commandId,
-                { approvedBy: decision.approvedBy } as never,
-              )
-            : await this.desktopApprove(pending.commandId, decision.approvedBy);
+            ? await this.browserRunner.approve(pending.commandId, approval)
+            : await this.desktopApprove(pending.commandId, approval);
         await this.recordResult(callId, next);
       } catch (error) {
         this.pending.delete(callId);
@@ -288,6 +457,53 @@ export class CliHostRunner {
       true,
     );
   }
+  private pendingAction(pending: { commandId: string; toolName: string }): {
+    action: SemanticAction;
+    verifier: string;
+  } {
+    if (pending.toolName === browserToolName) {
+      return this.browserRunner.pendingAction(pending.commandId);
+    }
+    const session = this.desktopSessions.get(pending.commandId);
+    const step = session?.plan.steps[session.nextStepIndex];
+    if (!step) throw new Error("The desktop task has no pending action.");
+    return { action: step.action, verifier: step.action.verifier.type };
+  }
+
+  private async approvalDecision(
+    toolName: string,
+    proposal: TaskProposalSummary,
+    context: { action: SemanticAction; verifier: string },
+  ): Promise<HostApprovalDecision> {
+    const runtimeConfig = parseRuntimeConfig(process.env);
+    const riskLevel = context.action.riskLevel;
+    const policy = this.deps.approvalPolicy ?? "ask";
+    if (policy === "deny") return { approved: false };
+    if (
+      policy === "auto" &&
+      runtimeConfig.environment !== "production" &&
+      (riskLevel === "low" || riskLevel === "medium")
+    ) {
+      return {
+        approved: true,
+        approvedBy: this.deps.approvedBy ?? "lhic-auto-policy",
+      };
+    }
+    if (policy === "auto") return { approved: false };
+    const challenge = createActionApproval(
+      context.action,
+      "pending-human-approval",
+    );
+    return this.deps.promptApproval({
+      surface: toolName === browserToolName ? "browser" : "desktop",
+      actionHash: challenge.actionHash,
+      riskLevel,
+      intent: context.action.intent,
+      verifier: context.verifier,
+      toolName,
+      proposal,
+    });
+  }
 
   private emitResult(
     callId: string,
@@ -297,7 +513,10 @@ export class CliHostRunner {
     this.deps.emitResult(callId, result, isError);
   }
 
-  private emitUpdate(callId: string, partialResult: Record<string, unknown>): void {
+  private emitUpdate(
+    callId: string,
+    partialResult: Record<string, unknown>,
+  ): void {
     this.deps.emitUpdate(callId, partialResult);
   }
 }
@@ -342,6 +561,24 @@ export function hostToolDefinitions(): Array<{
       },
     },
     {
+      name: desktopObserveToolName,
+      label: "LHIC Desktop Observe",
+      description:
+        "Observe a consented bounded desktop scope. Returns normalized ephemeral elements and backend evidence, never a screenshot path.",
+      parameters: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            enum: ["active_window", "all_windows", "application"],
+          },
+          application: { type: "string" },
+        },
+        required: ["scope"],
+        additionalProperties: false,
+      },
+    },
+    {
       name: desktopToolName,
       label: "LHIC Desktop",
       description:
@@ -356,7 +593,9 @@ export function hostToolDefinitions(): Array<{
   ];
 }
 
-export function planProposalFrom(plan: unknown): TaskProposalSummary | undefined {
+export function planProposalFrom(
+  plan: unknown,
+): TaskProposalSummary | undefined {
   if (isBrowserExecutionPlan(plan)) return summarizePlan(plan);
   if (isDesktopExecutionPlan(plan)) return summarizeDesktopPlan(plan);
   return undefined;

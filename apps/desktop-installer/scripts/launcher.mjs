@@ -45,11 +45,11 @@ const assetForPlatform = {
 
 function cacheDirectory() {
   if (process.platform === "win32") {
-    const local = process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local");
+    const local =
+      process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local");
     return join(local, "lhic-desktop", VERSION);
   }
-  const cacheRoot =
-    process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
+  const cacheRoot = process.env.XDG_CACHE_HOME ?? join(homedir(), ".cache");
   return join(cacheRoot, "lhic-desktop", VERSION);
 }
 
@@ -74,7 +74,9 @@ async function manifestDigest(asset) {
     .split(/\r?\n/)
     .find((candidate) => candidate.trimEnd().endsWith(`  ${asset}`));
   if (!line) {
-    throw new Error(`LHIC desktop checksum manifest has no entry for ${asset}.`);
+    throw new Error(
+      `LHIC desktop checksum manifest has no entry for ${asset}.`,
+    );
   }
   const digest = line.trim().split(/\s+/, 1)[0];
   if (!/^[a-f0-9]{64}$/.test(digest)) {

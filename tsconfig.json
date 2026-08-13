@@ -60,45 +60,20 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@lhic/schema": [
-        "packages/schema/src/index.ts"
-      ],
-      "@lhic/trace": [
-        "packages/trace/src/index.ts"
-      ],
-      "@lhic/security": [
-        "packages/security/src/index.ts"
-      ],
-      "@lhic/game-training": [
-        "packages/game-training/src/index.ts"
-      ],
-      "@lhic/game-training-2d": [
-        "packages/game-training-2d/src/index.ts"
-      ],
-      "@lhic/game-training-3d": [
-        "packages/game-training-3d/src/index.ts"
-      ],
-      "@lhic/browser": [
-        "packages/browser/src/index.ts"
-      ],
-      "@lhic/verifier": [
-        "packages/verifier/src/index.ts"
-      ],
-      "@lhic/skills": [
-        "packages/skills/src/index.ts"
-      ],
-      "@lhic/controller": [
-        "packages/controller/src/index.ts"
-      ],
-      "@lhic/memory": [
-        "packages/memory/src/index.ts"
-      ],
-      "@lhic/shared-skills": [
-        "packages/shared-skills/src/index.ts"
-      ],
-      "@lhic/mcp-server": [
-        "apps/mcp-server/src/index.ts"
-      ]
+      "@lhic/schema": ["packages/schema/src/index.ts"],
+      "@lhic/trace": ["packages/trace/src/index.ts"],
+      "@lhic/security": ["packages/security/src/index.ts"],
+      "@lhic/game-training": ["packages/game-training/src/index.ts"],
+      "@lhic/game-training-2d": ["packages/game-training-2d/src/index.ts"],
+      "@lhic/game-training-3d": ["packages/game-training-3d/src/index.ts"],
+      "@lhic/browser": ["packages/browser/src/index.ts"],
+      "@lhic/verifier": ["packages/verifier/src/index.ts"],
+      "@lhic/skills": ["packages/skills/src/index.ts"],
+      "@lhic/controller": ["packages/controller/src/index.ts"],
+      "@lhic/memory": ["packages/memory/src/index.ts"],
+      "@lhic/shared-skills": ["packages/shared-skills/src/index.ts"],
+      "@lhic/omp-rpc": ["packages/omp-rpc/src/index.ts"],
+      "@lhic/mcp-server": ["apps/mcp-server/src/index.ts"]
     }
   }
 }

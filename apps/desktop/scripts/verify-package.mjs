@@ -96,9 +96,7 @@ function isCurrentPlatformArchive(archive) {
   // electron-builder appOutDir is arch-suffixed for arm64 (`mac-arm64`) but
   // plain for x64 (`mac`); match either so cross-arch and native builds both
   // pass verification.
-  return (
-    archive.includes(`${marker}-`) || archive.includes(`${marker}${sep}`)
-  );
+  return archive.includes(`${marker}-`) || archive.includes(`${marker}${sep}`);
 }
 
 function normalizeArchiveEntry(entry) {

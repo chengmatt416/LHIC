@@ -13,7 +13,6 @@ export function resolveOmpBinary(): Promise<string> {
 /** Cache root used for omp versions and agent session files. */
 export function ompCacheDirectory(): string {
   return resolve(
-    process.env.LHIC_OMP_CACHE_DIR ??
-      join(homedir(), ".cache", "lhic", "omp"),
+    process.env.LHIC_OMP_CACHE_DIR ?? join(homedir(), ".cache", "lhic", "omp"),
   );
 }

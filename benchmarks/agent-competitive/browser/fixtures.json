@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "lhic-competitive-fixtures-v1",
+  "category": "browser",
+  "tasks": [
+    {
+      "id": "browser-semantic-search",
+      "seed": 2101,
+      "prompt": "Search for release notes and select the exact stable result despite randomized wrapper elements.",
+      "variation": "semantic-wrapper",
+      "verification": {
+        "state": { "query": "release notes", "selected": "stable" }
+      }
+    },
+    {
+      "id": "browser-form-validation",
+      "seed": 2102,
+      "prompt": "Complete the profile form, correct the inline validation error, and save it.",
+      "variation": "field-order",
+      "verification": { "state": { "saved": true, "validationErrors": 0 } }
+    },
+    {
+      "id": "browser-stale-list",
+      "seed": 2103,
+      "prompt": "Archive invoice INV-204 after the list reorders once following the first observation.",
+      "variation": "stale-reorder",
+      "verification": {
+        "state": { "archived": ["INV-204"], "wrongArchives": 0 }
+      }
+    },
+    {
+      "id": "browser-dialog-recovery",
+      "seed": 2104,
+      "prompt": "Enable the requested setting through the confirmation dialog after its accessible name changes.",
+      "variation": "dialog-label",
+      "verification": { "state": { "enabled": true, "confirmed": true } }
+    }
+  ]
+}

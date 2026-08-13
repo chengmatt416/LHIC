@@ -119,8 +119,7 @@ contextBridge.exposeInMainWorld("lhic", {
     stop: () => ipcRenderer.invoke("lhic:omp:stop"),
     prompt: (message) => ipcRenderer.invoke("lhic:omp:prompt", message),
     steer: (message) => ipcRenderer.invoke("lhic:omp:steer", message),
-    followUp: (message) =>
-      ipcRenderer.invoke("lhic:omp:follow-up", message),
+    followUp: (message) => ipcRenderer.invoke("lhic:omp:follow-up", message),
     abort: () => ipcRenderer.invoke("lhic:omp:abort"),
     newSession: () => ipcRenderer.invoke("lhic:omp:new-session"),
     state: () => ipcRenderer.invoke("lhic:omp:state"),
@@ -130,6 +129,10 @@ contextBridge.exposeInMainWorld("lhic", {
     setModel: (provider, modelId) =>
       ipcRenderer.invoke("lhic:omp:set-model", { provider, modelId }),
     listModels: () => ipcRenderer.invoke("lhic:omp:list-models"),
+    listSubagentModels: () =>
+      ipcRenderer.invoke("lhic:omp:list-subagent-models"),
+    setSubagentModels: (selectors) =>
+      ipcRenderer.invoke("lhic:omp:set-subagent-models", selectors),
     setThinkingLevel: (level) =>
       ipcRenderer.invoke("lhic:omp:set-thinking-level", level),
     setFastMode: (enabled) =>
@@ -142,9 +145,11 @@ contextBridge.exposeInMainWorld("lhic", {
     exportHtml: () => ipcRenderer.invoke("lhic:omp:export-html"),
     loginProviders: () => ipcRenderer.invoke("lhic:omp:login-providers"),
     login: (providerId) => ipcRenderer.invoke("lhic:omp:login", providerId),
-    availableCommands: () =>
-      ipcRenderer.invoke("lhic:omp:available-commands"),
+    availableCommands: () => ipcRenderer.invoke("lhic:omp:available-commands"),
     messages: (cursor) => ipcRenderer.invoke("lhic:omp:messages", cursor),
+    sessionStats: () => ipcRenderer.invoke("lhic:omp:session-stats"),
+    advanced: (input) => ipcRenderer.invoke("lhic:omp:advanced", input),
+    subagents: () => ipcRenderer.invoke("lhic:omp:subagents"),
     respondUi: (requestId, response) =>
       ipcRenderer.invoke("lhic:omp:respond-ui", requestId, response),
     approveHostTool: (callId, approvedBy) =>

@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
 
+import { createActionApproval, type ActionApproval } from "@lhic/security";
+
 import {
   isDesktopExecutionPlan,
   type DesktopExecutionPlan,
@@ -26,6 +28,11 @@ export interface GlobalRunResult {
   proposal: TaskProposalSummary;
 }
 
+export interface DesktopObserveRequest {
+  scope: "active_window" | "all_windows" | "application";
+  application?: string;
+}
+
 interface GlobalSession {
   plan: DesktopExecutionPlan;
   nextStepIndex: number;
@@ -40,8 +47,7 @@ interface GlobalSession {
 export class DesktopGlobalRunner {
   private readonly sessions = new Map<string, GlobalSession>();
   private dispatcherInitialization:
-    | Promise<GlobalActionDispatcher | undefined>
-    | undefined;
+    Promise<GlobalActionDispatcher | undefined> | undefined;
 
   public constructor(private readonly workspaceRoot: string) {}
 
@@ -63,6 +69,54 @@ export class DesktopGlobalRunner {
       });
     })();
     return this.dispatcherInitialization;
+  }
+
+  public async observe(
+    request: DesktopObserveRequest,
+    approval?: ActionApproval,
+  ) {
+    if (
+      request.scope !== "active_window" &&
+      request.scope !== "all_windows" &&
+      request.scope !== "application"
+    ) {
+      throw new Error("Desktop observation scope is invalid.");
+    }
+    if (request.scope === "application" && !request.application?.trim()) {
+      throw new Error(
+        "Application-scoped observation requires an application.",
+      );
+    }
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_observe",
+      intent: request.application
+        ? `Observe ${request.application}`
+        : `Observe ${request.scope.replace("_", " ")}`,
+      methodPreference: ["accessibility", "vision"],
+      riskLevel: "medium",
+      observeScope: request.scope,
+      ...(request.application ? { application: request.application } : {}),
+      verifier: {
+        type: "active_window",
+        ...(request.application ? { application: request.application } : {}),
+      },
+    };
+    const dispatcher = await this.resolveDispatcher();
+    const executor = new GlobalComputerExecutor({
+      taskId: `observe-${Date.now()}`,
+      traceFilePath: resolve(
+        this.workspaceRoot,
+        ".lhic/traces/desktop-observation.jsonl",
+      ),
+      ...(dispatcher ? { dispatcher } : {}),
+    });
+    const effectiveApproval =
+      approval ?? createActionApproval(action, "desktop-control-center");
+    return {
+      action,
+      result: await executor.observe(action, effectiveApproval),
+    };
   }
 
   public execute(

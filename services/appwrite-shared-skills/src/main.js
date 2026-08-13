@@ -50,11 +50,12 @@ export default async ({ req, res, error, tables: injectedTables }) => {
     const config = runtimeConfig();
     const path = requestPath(req);
     const method = String(req.method ?? "GET").toUpperCase();
-    const tables =
-      injectedTables ?? new TablesDB(adminClient(req, config));
+    const tables = injectedTables ?? new TablesDB(adminClient(req, config));
 
     if (method === "GET" && path.pathname === "/skills") {
-      return res.json(await listPublicSkills(tables, config, path.searchParams));
+      return res.json(
+        await listPublicSkills(tables, config, path.searchParams),
+      );
     }
     if (method === "POST" && path.pathname === "/skills") {
       const user = await authenticatedUser(req, config);
@@ -68,7 +69,11 @@ export default async ({ req, res, error, tables: injectedTables }) => {
     if (method === "GET" && skillVersionsMatch) {
       await requireSkill(tables, config, skillVersionsMatch[1]);
       return res.json({
-        versions: await listSkillVersions(tables, config, skillVersionsMatch[1]),
+        versions: await listSkillVersions(
+          tables,
+          config,
+          skillVersionsMatch[1],
+        ),
       });
     }
     const skillRateMatch = path.pathname.match(/^\/skills\/([^/]+)\/rate$/);
@@ -173,9 +178,7 @@ function runtimeConfig() {
     databaseId: requiredEnvironment("LHIC_SHARED_DATABASE_ID"),
     skillsTableId: requiredEnvironment("LHIC_SHARED_SKILLS_TABLE_ID"),
     devicePairsTableId: requiredEnvironment("LHIC_DEVICE_PAIRS_TABLE_ID"),
-    skillVersionsTableId: requiredEnvironment(
-      "LHIC_SKILL_VERSIONS_TABLE_ID",
-    ),
+    skillVersionsTableId: requiredEnvironment("LHIC_SKILL_VERSIONS_TABLE_ID"),
     skillRatingsTableId: requiredEnvironment("LHIC_SKILL_RATINGS_TABLE_ID"),
     usersTableId: requiredEnvironment("LHIC_USERS_TABLE_ID"),
   };
@@ -309,13 +312,13 @@ async function listPublicSkills(tables, config, searchParams) {
     config.skillsTableId,
     "revoked",
   );
-  const approved = await listRows(
-    tables,
-    config,
-    config.skillsTableId,
-    "approved",
-  );
   if (!paged) {
+    const approved = await listRows(
+      tables,
+      config,
+      config.skillsTableId,
+      "approved",
+    );
     return {
       skills: approved.map((row) => publicSkill(row)),
       revokedSkillIds: revoked.map((row) => row.$id),
@@ -323,12 +326,53 @@ async function listPublicSkills(tables, config, searchParams) {
       total: approved.length,
     };
   }
-  const filtered = approved.filter((row) =>
+
+  const baseQueries = [Query.equal("status", "approved")];
+  if (category) {
+    baseQueries.push(Query.equal("category", category));
+  }
+  let candidates;
+  if (q) {
+    const [nameMatches, descriptionMatches] = await Promise.all([
+      listTableRows(
+        tables,
+        config,
+        config.skillsTableId,
+        [...baseQueries, Query.search("name", q)],
+        undefined,
+        50,
+      ),
+      listTableRows(
+        tables,
+        config,
+        config.skillsTableId,
+        [...baseQueries, Query.search("description", q)],
+        undefined,
+        50,
+      ),
+    ]);
+    candidates = [
+      ...new Map(
+        [...nameMatches, ...descriptionMatches].map((row) => [row.$id, row]),
+      ).values(),
+    ];
+  } else {
+    candidates = await listTableRows(
+      tables,
+      config,
+      config.skillsTableId,
+      baseQueries,
+      undefined,
+      50,
+    );
+  }
+  const filtered = candidates.filter((row) =>
     matchesSkillFilters(row, category, q),
   );
-  const start = cursor
-    ? filtered.findIndex((row) => row.$id === cursor) + 1
-    : 0;
+  const cursorIndex = cursor
+    ? filtered.findIndex((row) => row.$id === cursor)
+    : -1;
+  const start = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   const page = filtered.slice(start, start + 50);
   return {
     skills: page.map((row) => publicSkill(row)),
@@ -345,8 +389,8 @@ function matchesSkillFilters(row, category, q) {
   }
   if (q) {
     const needle = q.toLocaleLowerCase();
-    const haystack = `${String(row.name ?? "")} ${String(row.description ?? "")}`
-      .toLocaleLowerCase();
+    const haystack =
+      `${String(row.name ?? "")} ${String(row.description ?? "")}`.toLocaleLowerCase();
     if (!haystack.includes(needle)) {
       return false;
     }
@@ -460,7 +504,11 @@ async function rateSkill(tables, config, userId, skillId, rating) {
     databaseId: config.databaseId,
     tableId: config.skillsTableId,
     rowId: skill.$id,
-    data: { ratingAvg, ratingCount: count, updatedAt: new Date().toISOString() },
+    data: {
+      ratingAvg,
+      ratingCount: count,
+      updatedAt: new Date().toISOString(),
+    },
   });
   return publicSkill(updated);
 }
@@ -594,25 +642,35 @@ async function purgeExpiredDevicePairs(tables, config) {
   }
 }
 
-async function listTableRows(tables, config, tableId, queries, predicate) {
+async function listTableRows(
+  tables,
+  config,
+  tableId,
+  queries,
+  predicate,
+  pageSize = 100,
+) {
   const rows = [];
-  let cursor;
-  do {
+  let offset = 0;
+  while (true) {
     const result = await tables.listRows({
       databaseId: config.databaseId,
       tableId,
       queries: [
         ...queries,
-        Query.limit(100),
-        ...(cursor ? [Query.cursorAfter(cursor)] : []),
+        Query.limit(pageSize),
+        ...(offset > 0 ? [Query.offset(offset)] : []),
       ],
       total: false,
     });
     for (const row of result.rows) {
       if (!predicate || predicate(row)) rows.push(row);
     }
-    cursor = result.rows.at(-1)?.$id;
-  } while (cursor);
+    if (result.rows.length < pageSize) {
+      break;
+    }
+    offset += result.rows.length;
+  }
   return rows;
 }
 
@@ -748,7 +806,10 @@ export function validateSubmission(value) {
     }
   }
   if (value.category !== undefined) {
-    if (typeof value.category !== "string" || !skillCategories.has(value.category)) {
+    if (
+      typeof value.category !== "string" ||
+      !skillCategories.has(value.category)
+    ) {
       throw new HttpError(400, "Shared skill category is invalid.");
     }
   }

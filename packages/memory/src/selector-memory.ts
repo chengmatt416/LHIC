@@ -134,4 +134,42 @@ export class SelectorMemory {
       ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
     }));
   }
+
+  public prune(
+    options: {
+      maxEntries?: number;
+      maxFailureCount?: number;
+    } = {},
+  ): number {
+    const maxEntries = options.maxEntries ?? 500;
+    const maxFailureCount = options.maxFailureCount ?? 3;
+    if (
+      !Number.isSafeInteger(maxEntries) ||
+      maxEntries < 1 ||
+      maxEntries > 10_000 ||
+      !Number.isSafeInteger(maxFailureCount) ||
+      maxFailureCount < 1 ||
+      maxFailureCount > 100
+    ) {
+      throw new Error("Selector memory pruning bounds are invalid.");
+    }
+    const removedFailures = this.database
+      .prepare(
+        "DELETE FROM selectors WHERE failure_count >= ? AND success_count = 0",
+      )
+      .run(maxFailureCount).changes;
+    const removedOverflow = this.database
+      .prepare(
+        `
+        DELETE FROM selectors
+        WHERE rowid IN (
+          SELECT rowid FROM selectors
+          ORDER BY success_count DESC, last_success_at DESC
+          LIMIT -1 OFFSET ?
+        )
+      `,
+      )
+      .run(maxEntries).changes;
+    return Number(removedFailures) + Number(removedOverflow);
+  }
 }
