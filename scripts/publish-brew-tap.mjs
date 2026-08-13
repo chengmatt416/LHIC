@@ -21,7 +21,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const version = process.argv[2] ?? "0.2.0";
+const version = process.argv[2] ?? "0.2.1";
 const push = process.argv.includes("--push");
 const baseUrl =
   process.env.LHIC_DESKTOP_BASE_URL ??

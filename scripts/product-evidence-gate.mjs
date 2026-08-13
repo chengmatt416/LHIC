@@ -20,8 +20,8 @@ checks.push(
   ]),
 );
 checks.push(
-  await runCheck("evidence-contract-tests", resolveExecutable("npx"), [
-    "vitest",
+  await runCheck("evidence-contract-tests", process.execPath, [
+    resolve(root, "node_modules", "vitest", "vitest.mjs"),
     "run",
     "apps/cli/src/competitive-benchmark-evidence.test.ts",
     "apps/cli/src/external-benchmark-evidence.test.ts",
@@ -34,9 +34,9 @@ if (options.competitive) {
     throw new Error("--competitive requires --comparator goose or codex.");
   const validation = await runCheck(
     "live-competitive-evidence",
-    resolveExecutable("npx"),
+    process.execPath,
     [
-      "tsx",
+      resolve(root, "node_modules", "tsx", "dist", "cli.mjs"),
       "apps/cli/src/main.ts",
       "bench",
       "validate-competitive",
@@ -202,7 +202,4 @@ function required(value, flag) {
 }
 function hash(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
-}
-function resolveExecutable(name) {
-  return process.platform === "win32" ? `${name}.cmd` : name;
 }

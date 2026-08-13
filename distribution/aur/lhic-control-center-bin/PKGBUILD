@@ -1,7 +1,7 @@
 # Maintainer: chengmatt416 <chengmatt416@gmail.com>
 # Contributor: chengmatt416 <chengmatt416@gmail.com>
 pkgname=lhic-control-center-bin
-pkgver=0.2.0
+pkgver=0.2.1
 pkgrel=1
 pkgdesc="LHIC Control Center desktop app — omp agent, browser and desktop control (prebuilt AppImage)"
 arch=('x86_64' 'aarch64')
@@ -11,7 +11,7 @@ depends=('gtk3' 'libnotify' 'nss' 'libxss' 'xdg-utils' 'at-spi2-core')
 source_x86_64=("lhic-control-center-x64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v${pkgver}/lhic-control-center-linux-${pkgver}-x64.AppImage")
 source_aarch64=("lhic-control-center-arm64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v${pkgver}/lhic-control-center-linux-${pkgver}-arm64.AppImage")
 sha256sums_x86_64=('0000000000000000000000000000000000000000000000000000000000000000')
-sha256sums_aarch64=('f2abca896e069e7e161807561fc541d8d9b6cec0aa1467e478fd26a25ffa80e0')
+sha256sums_aarch64=('0000000000000000000000000000000000000000000000000000000000000000')
 
 package() {
   cd "${srcdir}"
