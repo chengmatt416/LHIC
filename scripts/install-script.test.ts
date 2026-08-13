@@ -96,6 +96,43 @@ exit 1
     expect(generated?.[1]).not.toContain('find "\\$EXTRACTED"');
   });
 
+  it("installs Debian xz even when PRoot exposes a host xz command", async () => {
+    const directory = await temporaryDirectory();
+    const bin = join(directory, "bin");
+    const log = join(directory, "apt.log");
+    await mkdir(bin, { recursive: true });
+    await executable(
+      join(bin, "apt-get"),
+      `#!/bin/sh
+printf '%s\\n' "$*" >> '${log}'
+`,
+    );
+    await executable(join(bin, "xz"), "#!/bin/sh\nexit 0\n");
+    await executable(join(bin, "curl"), "#!/bin/sh\nprintf 'exit 0\\n'\n");
+
+    const source = await readFile(
+      resolve(root, "scripts", "install.sh"),
+      "utf8",
+    );
+    const nestedInstaller = source.match(
+      /    \/bin\/sh -c '\n([\s\S]*?)\n    '; then/,
+    )?.[1];
+    expect(nestedInstaller).toBeDefined();
+
+    await execFileAsync("sh", ["-c", nestedInstaller!], {
+      env: {
+        ...process.env,
+        PATH: `${bin}:/usr/bin:/bin`,
+        LHIC_INSTALL_URL: "https://installer.invalid/install.sh",
+        LHIC_SKIP_DESKTOP: "1",
+      },
+    });
+
+    const aptCommands = await readFile(log, "utf8");
+    expect(aptCommands).toContain("update");
+    expect(aptCommands).toContain("install -y curl ca-certificates xz-utils");
+  });
+
   it("installs native Termux through Debian PRoot and forwards launcher arguments", async () => {
     const directory = await temporaryDirectory();
     const prefix = join(directory, "prefix");

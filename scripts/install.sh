@@ -126,15 +126,12 @@ install_termux_proot() {
     "LHIC_INSTALL_URL=$INSTALL_URL" \
     /bin/sh -c '
       set -eu
-      if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ] \
-         || ! command -v curl >/dev/null 2>&1 \
-         || ! command -v xz >/dev/null 2>&1; then
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
-      fi
-      if ! command -v curl >/dev/null 2>&1 || ! command -v xz >/dev/null 2>&1; then
-        apt-get install -y curl ca-certificates xz-utils
-      fi
+      export DEBIAN_FRONTEND=noninteractive
+      # Always install Debian archive tools. Native Termux binaries can be
+      # visible through an inherited PRoot PATH yet cannot be executed by
+      # the Debian tar subprocess.
+      apt-get update
+      apt-get install -y curl ca-certificates xz-utils
       if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
         first_package() {
           for candidate in "$@"; do
