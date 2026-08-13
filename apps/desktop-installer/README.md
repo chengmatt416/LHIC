@@ -72,6 +72,23 @@ curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install
 irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
 ```
 
+### Termux / Android
+
+The Linux desktop bundle requires glibc and cannot execute in native Termux,
+which uses Android's Bionic libc. Install Termux:X11 plus a PRoot distribution
+from native Termux:
+
+```sh
+pkg install proot-distro x11-repo termux-x11-nightly
+proot-distro install debian
+termux-x11 :1 &
+proot-distro login debian --shared-tmp
+```
+
+Inside Debian, rerun the installer and launch with `DISPLAY=:1 lhicd`.
+`--shared-tmp` is required for the PRoot client to reach the Termux:X11 socket.
+Xfce is not required unless you want a complete desktop environment.
+
 Opt out of either component with `LHIC_SKIP_DESKTOP=1` (CLI only) or
 `LHIC_SKIP_CLI=1` (desktop only).
 

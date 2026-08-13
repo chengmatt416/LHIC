@@ -30,6 +30,8 @@ $baseUrl = if ($env:LHIC_DESKTOP_BASE_URL) {
 }
 $githubBaseUrl = "https://github.com/chengmatt416/LHIC/releases/download/desktop-v$version"
 $cliPackage = "@pinyencheng/lhic"
+$cliPackageName = "@pinyencheng/lhic"
+$playwrightVersion = "1.61.1"
 
 # Downloads $out from the mirror $url, falling back to the GitHub release.
 function Fetch-Url {
@@ -201,9 +203,19 @@ if ($cliOk) {
     if (-not (Get-Command lhic -ErrorAction SilentlyContinue)) {
       throw "npm install finished but the lhic binary is not on PATH."
     }
+    $npmRoot = (npm root --global).Trim()
+    $cliRoot = Join-Path $npmRoot $cliPackageName
+    npm install --prefix $cliRoot --ignore-scripts --no-save "playwright@$playwrightVersion" | Out-Null
+    if (-not (Test-Path (Join-Path $cliRoot "node_modules\playwright\index.js"))) {
+      throw "npm did not materialize Playwright in the CLI package."
+    }
+    lhic --help | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      throw "the installed lhic command failed its startup check."
+    }
     Write-Host "[lhic] CLI installed — run: lhic" -ForegroundColor Green
   } catch {
-    Write-Host "[lhic] warning: CLI install failed ($($_.Exception.Message)); install it manually with: npm install --global $cliPackage" -ForegroundColor Yellow
+    Write-Host "[lhic] warning: CLI install failed ($($_.Exception.Message))." -ForegroundColor Yellow
     $cliOk = $false
   }
 }

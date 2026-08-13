@@ -33,7 +33,9 @@ VERSION="${LHIC_DESKTOP_VERSION:-0.2.1}"
 BASE_URL="${LHIC_DESKTOP_BASE_URL:-https://lhic.techtools.qzz.io/release}"
 GITHUB_BASE_URL="https://github.com/chengmatt416/LHIC/releases/download/desktop-v${VERSION}"
 CLI_PACKAGE="${LHIC_CLI_PACKAGE:-@pinyencheng/lhic}"
+CLI_PACKAGE_NAME="${LHIC_CLI_PACKAGE_NAME:-@pinyencheng/lhic}"
 CLI_NODE_MAJOR=24
+PLAYWRIGHT_VERSION=1.61.1
 NODE_DIST_BASE_URL="${NODE_DIST_BASE_URL:-https://nodejs.org/dist}"
 
 info() { printf '\033[1;32m[lhic]\033[0m %s\n' "$*"; }
@@ -193,33 +195,43 @@ EOF
     chmod 755 "$BIN_DIR/lhic-control-center"
     [ -x "$BIN_DIR/lhic-control-center" ] \
       || fail "the lhic-control-center wrapper is not executable after install."
-
-    # lhicd: X11 launcher for Termux PRoot / WSL / remote X. Extracts the
-    # AppImage once (no FUSE needed) and runs the inner binary on an X
-    # display.
+    # lhicd: X11 launcher for glibc Linux and PRoot distributions. AppImage
+    # extraction does not require X11, but it does require a glibc loader; a
+    # native Termux shell uses Android's Bionic libc and must enter PRoot first.
     cat > "$BIN_DIR/lhicd" <<EOF
 #!/bin/sh
-# LHIC Control Center launcher for X11-forwarded environments (Termux PRoot,
-# WSL, remote X). Uses an extracted copy so no FUSE is required.
-if [ -z "\${DISPLAY:-}" ]; then
-  DISPLAY=:0
-  export DISPLAY
-fi
-export GDK_BACKEND="\${GDK_BACKEND:-x11}"
-EXTRACTED="$APP_DIR/extracted"
-INNER="\$(find "\$EXTRACTED" -maxdepth 3 -type f -name 'lhic-control-center' -perm -u+x 2>/dev/null | head -1)"
-if [ -z "\$INNER" ]; then
-  rm -rf "\$EXTRACTED"
-  mkdir -p "\$EXTRACTED"
-  (cd "\$EXTRACTED" && "$APP_DIR/lhic-control-center.AppImage" --appimage-extract >/dev/null 2>&1) \
-    || warn2="\$(printf 'AppImage extraction failed; try running termux-x11 first.')"
-  INNER="\$(find "\$EXTRACTED" -maxdepth 3 -type f -name 'lhic-control-center' -perm -u+x 2>/dev/null | head -1)"
-fi
-if [ -z "\$INNER" ]; then
-  echo "[lhicd] error: could not extract the desktop app; is Termux-X11 running?" >&2
+# LHIC Control Center launcher for X11-forwarded glibc environments.
+if [ ! -x /lib/ld-linux-aarch64.so.1 ] && [ ! -x /lib64/ld-linux-x86-64.so.2 ]; then
+  cat >&2 <<'MESSAGE'
+[lhicd] error: the Linux desktop bundle requires a glibc PRoot distribution.
+[lhicd] This shell is native Termux (Android/Bionic), so the AppImage cannot run here.
+[lhicd] Install and enter a distribution from native Termux:
+[lhicd]   pkg install proot-distro x11-repo termux-x11-nightly
+[lhicd]   proot-distro install debian
+[lhicd]   termux-x11 :1 &
+[lhicd]   proot-distro login debian --shared-tmp
+[lhicd] Then run the installer and lhicd inside Debian with DISPLAY=:1.
+MESSAGE
   exit 1
 fi
-exec "\$INNER" "\$@"
+DISPLAY="\${DISPLAY:-:1}"
+export DISPLAY
+export GDK_BACKEND="\${GDK_BACKEND:-x11}"
+EXTRACTED="$APP_DIR/extracted"
+INNER="\$EXTRACTED/squashfs-root/lhic-control-center"
+if [ ! -x "\$INNER" ]; then
+  rm -rf "\$EXTRACTED"
+  mkdir -p "\$EXTRACTED"
+  if ! (cd "\$EXTRACTED" && "$APP_DIR/lhic-control-center.AppImage" --appimage-extract >/dev/null); then
+    echo "[lhicd] error: AppImage extraction failed; verify that this PRoot uses glibc and reinstall LHIC." >&2
+    exit 1
+  fi
+fi
+if [ ! -x "\$INNER" ]; then
+  echo "[lhicd] error: the extracted desktop executable is missing: \$INNER" >&2
+  exit 1
+fi
+exec "\$INNER" --no-sandbox "\$@"
 EOF
     chmod 755 "$BIN_DIR/lhicd"
     [ -x "$BIN_DIR/lhicd" ] || warn "the lhicd launcher is not executable after install."
@@ -244,11 +256,20 @@ EOF
     fi
     info "Launch with: lhic-control-center"
 
-    # Termux PRoot detection: Android kernels inside proot-distro.
+    # Android kernels appear both in native Termux and inside PRoot. The
+    # desktop binary is glibc-only, so identify whether the current shell has
+    # the loader before giving launch instructions.
     if uname -r 2>/dev/null | grep -qiE 'android|termux' \
        || uname -o 2>/dev/null | grep -qi android; then
-      info "Termux PRoot detected — launch the desktop app with: lhicd"
-      info "Requires Termux-X11 running on the host: open the Termux-X11 app, then in Termux run: termux-x11"
+      if [ -x /lib/ld-linux-aarch64.so.1 ] || [ -x /lib64/ld-linux-x86-64.so.2 ]; then
+        info "Termux PRoot detected — in native Termux run: termux-x11 :1 &"
+        info "This PRoot must have been entered with --shared-tmp; then run: DISPLAY=:1 lhicd"
+      else
+        warn "Native Termux uses Android/Bionic and cannot execute the glibc desktop AppImage directly."
+        info "Install the bridge in native Termux: pkg install proot-distro x11-repo termux-x11-nightly"
+        info "Then: proot-distro install debian; termux-x11 :1 &; proot-distro login debian --shared-tmp"
+        info "Inside Debian rerun this installer, then launch with: DISPLAY=:1 lhicd"
+      fi
     fi
 
     # Execution-layer provisioning (best-effort, non-fatal).
@@ -317,11 +338,22 @@ elif ! command -v npm >/dev/null 2>&1; then
   CLI_OK=0
 else
   info "Installing the LHIC CLI (${CLI_PACKAGE})…"
-  # --ignore-scripts: the published CLI bundles all of its dependencies, so
-  # no lifecycle build is needed — this also avoids optional native rebuilds
-  # (e.g. fsevents) on toolchains without a compiler toolchain.
+  # The CLI tarball contains LHIC workspace packages. npm currently creates
+  # empty directories for their external dependencies, so install Playwright
+  # into the CLI package root to materialize Playwright, keyring, Transformers,
+  # and their complete transitive trees before declaring the CLI usable.
   if npm install --global --ignore-scripts "${CLI_PACKAGE}" >/dev/null 2>&1 && command -v lhic >/dev/null 2>&1; then
-    info "CLI installed — run: lhic"
+    NPM_ROOT="$(npm root --global 2>/dev/null || true)"
+    CLI_ROOT="${NPM_ROOT}/${CLI_PACKAGE_NAME}"
+    if [ -d "$CLI_ROOT" ] \
+       && npm install --prefix "$CLI_ROOT" --ignore-scripts --no-save "playwright@${PLAYWRIGHT_VERSION}" >/dev/null 2>&1 \
+       && [ -f "$CLI_ROOT/node_modules/playwright/index.js" ] \
+       && lhic --help >/dev/null 2>&1; then
+      info "CLI installed — run: lhic"
+    else
+      warn "CLI dependencies are incomplete; reinstall with: npm install --global ${CLI_PACKAGE} && npm install --prefix \"\$(npm root --global)/${CLI_PACKAGE_NAME}\" --ignore-scripts --no-save playwright@${PLAYWRIGHT_VERSION}"
+      CLI_OK=0
+    fi
   else
     warn "CLI install failed; install it manually with: npm install --global ${CLI_PACKAGE}"
     CLI_OK=0
