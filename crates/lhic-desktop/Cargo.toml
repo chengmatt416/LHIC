@@ -1,0 +1,24 @@
+[package]
+name = "lhic-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "LHIC Control Center (Rust rewrite, alpha) — egui desktop app"
+
+[[bin]]
+name = "lhic-control-center-rust"
+path = "src/main.rs"
+
+[dependencies]
+lhic-core = { path = "../lhic-core" }
+lhic-agent = { path = "../lhic-agent" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+eframe.workspace = true
+egui.workspace = true

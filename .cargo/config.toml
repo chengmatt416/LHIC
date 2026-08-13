@@ -1,0 +1,5 @@
+# The alpha must run on every aarch64 device. Some dependencies (ICU4X)
+# emit SVE instructions under the default codegen; target the generic
+# baseline so the binaries run on CPUs without SVE (e.g. older Cortex-A).
+[build]
+rustflags = ["-C", "target-cpu=generic"]
