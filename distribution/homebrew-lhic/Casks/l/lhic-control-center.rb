@@ -1,5 +1,5 @@
 cask "lhic-control-center" do
-  version "0.2.5"
+  version "0.2.6"
 
   on_arm do
     url "https://github.com/chengmatt416/LHIC/releases/download/desktop-v#{version}/lhic-control-center-mac-#{version}-arm64.dmg"
