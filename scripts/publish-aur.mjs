@@ -45,7 +45,7 @@ async function manifestDigests() {
 async function main() {
   const digests = await manifestDigests();
   const archDigests = {
-    x86_64: digests.get(`lhic-control-center-linux-${version}-x64.AppImage`),
+    x86_64: digests.get(`lhic-control-center-linux-${version}-x86_64.AppImage`),
     aarch64: digests.get(`lhic-control-center-linux-${version}-arm64.AppImage`),
   };
   for (const [arch, digest] of Object.entries(archDigests)) {

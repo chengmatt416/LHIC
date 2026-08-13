@@ -36,7 +36,7 @@ const assetForPlatform = {
   },
   linux: {
     arm64: `lhic-control-center-linux-${VERSION}-arm64.AppImage`,
-    x64: `lhic-control-center-linux-${VERSION}-x64.AppImage`,
+    x64: `lhic-control-center-linux-${VERSION}-x86_64.AppImage`,
   },
   win32: {
     x64: `lhic-control-center-win-${VERSION}-x64.exe`,

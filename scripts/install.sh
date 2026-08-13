@@ -130,7 +130,12 @@ fi
 # ---- 1. Desktop app --------------------------------------------------------
 DESKTOP_OK=1
 case "$OS" in
-  Linux) DESKTOP_ASSET="lhic-control-center-linux-${VERSION}-${ARCH}.AppImage" ;;
+  Linux)
+    case "$ARCH" in
+      x64) DESKTOP_ASSET="lhic-control-center-linux-${VERSION}-x86_64.AppImage" ;;
+      *) DESKTOP_ASSET="lhic-control-center-linux-${VERSION}-${ARCH}.AppImage" ;;
+    esac
+    ;;
   Darwin) DESKTOP_ASSET="lhic-control-center-mac-${VERSION}-${ARCH}.zip" ;;
   *) DESKTOP_ASSET="" ; DESKTOP_OK=0 ;;
 esac

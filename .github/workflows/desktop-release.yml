@@ -256,6 +256,20 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Verify required release assets
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          for asset in \
+            "lhic-control-center-linux-${RELEASE_VERSION}-x86_64.AppImage" \
+            "lhic-control-center-linux-${RELEASE_VERSION}-arm64.AppImage" \
+            "lhic-control-center-mac-${RELEASE_VERSION}-x64.dmg" \
+            "lhic-control-center-mac-${RELEASE_VERSION}-x64.zip" \
+            "lhic-control-center-mac-${RELEASE_VERSION}-arm64.dmg" \
+            "lhic-control-center-mac-${RELEASE_VERSION}-arm64.zip" \
+            "lhic-control-center-win-${RELEASE_VERSION}-x64.exe"; do
+            test -f "artifacts/$asset" || { echo "Missing required release asset: $asset"; exit 1; }
+          done
       - name: Generate SHA-256 manifest
         env:
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
