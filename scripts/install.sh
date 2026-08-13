@@ -19,7 +19,7 @@
 # scripts/install.ps1 instead.
 #
 # Env overrides:
-#   LHIC_DESKTOP_VERSION    release version (default 0.2.4)
+#   LHIC_DESKTOP_VERSION    release version (default 0.2.5)
 #   LHIC_DESKTOP_BASE_URL   release download base URL (default the mirror)
 #   LHIC_DESKTOP_PREFIX     install prefix (default $HOME/.local)
 #   LHIC_SKIP_BACKENDS      set 1 to skip execution-layer package provisioning
@@ -29,7 +29,7 @@
 #   LHIC_SKIP_CLI           set 1 to install the desktop only
 set -eu
 
-VERSION="${LHIC_DESKTOP_VERSION:-0.2.4}"
+VERSION="${LHIC_DESKTOP_VERSION:-0.2.5}"
 BASE_URL="${LHIC_DESKTOP_BASE_URL:-https://lhic.techtools.qzz.io/release}"
 GITHUB_BASE_URL="https://github.com/chengmatt416/LHIC/releases/download/desktop-v${VERSION}"
 CLI_PACKAGE="${LHIC_CLI_PACKAGE:-@pinyencheng/lhic}"
@@ -347,6 +347,14 @@ fi
 DISPLAY="\${DISPLAY:-:1}"
 export DISPLAY
 export GDK_BACKEND="\${GDK_BACKEND:-x11}"
+# Warn before the Electron binary fails with a cryptic "Missing X server"
+# error: the socket path depends on how X is forwarded, so only guide when it
+# is clearly absent (skip WSLg, which uses an abstract socket).
+if [ ! -S "/tmp/.X11-unix/X\${DISPLAY#:}" ] && [ -z "\${WSL_INTEROP:-}" ]; then
+  echo "[lhicd] warning: no X server socket at /tmp/.X11-unix/X\${DISPLAY#:} for DISPLAY=\$DISPLAY." >&2
+  echo "[lhicd]   Termux: open the Termux:X11 Android app, then run: termux-x11 :1 &" >&2
+  echo "[lhicd]   WSL/remote: start your X server and export DISPLAY." >&2
+fi
 EXTRACTED="$APP_DIR/extracted"
 INNER="\$EXTRACTED/squashfs-root/lhic-control-center"
 if [ ! -x "\$INNER" ]; then

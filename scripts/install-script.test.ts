@@ -93,6 +93,10 @@ exit 1
     expect(generated?.[1]).toContain('exec "\\$INNER" --no-sandbox');
     expect(generated?.[1]).toContain("proot-distro login debian --shared-tmp");
     expect(generated?.[1]).toContain('DISPLAY="\\${DISPLAY:-:1}"');
+    expect(generated?.[1]).toContain(
+      "no X server socket at /tmp/.X11-unix/X\\${DISPLAY#:}",
+    );
+    expect(generated?.[1]).toContain("termux-x11 :1 &");
     expect(generated?.[1]).not.toContain('find "\\$EXTRACTED"');
   });
 

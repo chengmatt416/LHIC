@@ -1,6 +1,6 @@
 pkgbase = lhic-control-center-bin
 	pkgdesc = LHIC Control Center desktop app — omp agent, browser and desktop control (prebuilt AppImage)
-	pkgver = 0.2.4
+	pkgver = 0.2.5
 	pkgrel = 1
 	url = https://github.com/chengmatt416/LHIC
 	arch = x86_64
@@ -13,8 +13,8 @@ pkgbase = lhic-control-center-bin
 	depends = libxss
 	depends = xdg-utils
 	depends = at-spi2-core
-	source_x86_64 = lhic-control-center-x86_64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v0.2.4/lhic-control-center-linux-0.2.4-x86_64.AppImage
-	source_aarch64 = lhic-control-center-arm64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v0.2.4/lhic-control-center-linux-0.2.4-arm64.AppImage
+	source_x86_64 = lhic-control-center-x86_64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v0.2.5/lhic-control-center-linux-0.2.5-x86_64.AppImage
+	source_aarch64 = lhic-control-center-arm64.AppImage::https://github.com/chengmatt416/LHIC/releases/download/desktop-v0.2.5/lhic-control-center-linux-0.2.5-arm64.AppImage
 	sha256sums_x86_64 = 0000000000000000000000000000000000000000000000000000000000000000
 	sha256sums_aarch64 = 0000000000000000000000000000000000000000000000000000000000000000
 
