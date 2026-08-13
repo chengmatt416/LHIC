@@ -74,20 +74,21 @@ irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | 
 
 ### Termux / Android
 
-The Linux desktop bundle requires glibc and cannot execute in native Termux,
-which uses Android's Bionic libc. Install Termux:X11 plus a PRoot distribution
-from native Termux:
+The Linux desktop bundle and LHIC's native dependencies require glibc; they
+cannot execute directly against Android's Bionic libc. Run the normal installer
+one-liner in native Termux. It automatically installs `proot-distro`, Debian,
+and the Termux:X11 companion package, installs LHIC inside Debian, and creates
+native-Termux forwarding launchers.
+
+After installation, open the Termux:X11 Android app, then run:
 
 ```sh
-pkg install proot-distro x11-repo termux-x11-nightly
-proot-distro install debian
 termux-x11 :1 &
-proot-distro login debian --shared-tmp
+DISPLAY=:1 lhicd
 ```
 
-Inside Debian, rerun the installer and launch with `DISPLAY=:1 lhicd`.
-`--shared-tmp` is required for the PRoot client to reach the Termux:X11 socket.
-Xfce is not required unless you want a complete desktop environment.
+Run the CLI with `lhic`. Both launchers enter Debian with `--shared-tmp`, which
+lets the desktop client reach the Termux:X11 socket. Xfce is optional.
 
 Opt out of either component with `LHIC_SKIP_DESKTOP=1` (CLI only) or
 `LHIC_SKIP_CLI=1` (desktop only).

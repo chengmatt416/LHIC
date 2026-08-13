@@ -78,19 +78,20 @@ Windows PowerShell:
 irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
 ```
 
-Termux requires a glibc PRoot distribution because the Linux desktop bundle
-cannot run directly against Android's Bionic libc. In native Termux:
+On native Termux, the same one-liner detects Android/Bionic and automatically
+installs `proot-distro`, a Debian glibc environment, and the Termux:X11
+companion package. It installs LHIC inside Debian and creates native-Termux
+`lhic`, `lhicd`, and `lhic-control-center` forwarding launchers.
+
+After installation, open the Termux:X11 Android app and start its server:
 
 ```sh
-pkg install proot-distro x11-repo termux-x11-nightly
-proot-distro install debian
 termux-x11 :1 &
-proot-distro login debian --shared-tmp
+DISPLAY=:1 lhicd
 ```
 
-Then rerun the installer inside Debian and launch with
-`DISPLAY=:1 lhicd`. The Termux:X11 Android app and companion package must both
-be installed. A full Xfce session is optional; LHIC can be the only X client.
+The CLI runs directly through the generated wrapper with `lhic`. A full Xfce
+session is optional; LHIC can be the only X client.
 
 ## CLI Commands & Usage
 

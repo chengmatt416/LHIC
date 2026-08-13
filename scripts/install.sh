@@ -19,7 +19,7 @@
 # scripts/install.ps1 instead.
 #
 # Env overrides:
-#   LHIC_DESKTOP_VERSION    release version (default 0.2.1)
+#   LHIC_DESKTOP_VERSION    release version (default 0.2.2)
 #   LHIC_DESKTOP_BASE_URL   release download base URL (default the mirror)
 #   LHIC_DESKTOP_PREFIX     install prefix (default $HOME/.local)
 #   LHIC_SKIP_BACKENDS      set 1 to skip execution-layer package provisioning
@@ -29,7 +29,7 @@
 #   LHIC_SKIP_CLI           set 1 to install the desktop only
 set -eu
 
-VERSION="${LHIC_DESKTOP_VERSION:-0.2.1}"
+VERSION="${LHIC_DESKTOP_VERSION:-0.2.2}"
 BASE_URL="${LHIC_DESKTOP_BASE_URL:-https://lhic.techtools.qzz.io/release}"
 GITHUB_BASE_URL="https://github.com/chengmatt416/LHIC/releases/download/desktop-v${VERSION}"
 CLI_PACKAGE="${LHIC_CLI_PACKAGE:-@pinyencheng/lhic}"
@@ -37,6 +37,8 @@ CLI_PACKAGE_NAME="${LHIC_CLI_PACKAGE_NAME:-@pinyencheng/lhic}"
 CLI_NODE_MAJOR=24
 PLAYWRIGHT_VERSION=1.61.1
 NODE_DIST_BASE_URL="${NODE_DIST_BASE_URL:-https://nodejs.org/dist}"
+INSTALL_URL="${LHIC_INSTALL_URL:-https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh}"
+TERMUX_PROOT_PREFIX="${LHIC_TERMUX_PROOT_PREFIX:-/root/.local}"
 
 info() { printf '\033[1;32m[lhic]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[lhic] warning:\033[0m %s\n' "$*" >&2; }
@@ -60,6 +62,20 @@ case "$ARCH" in
 esac
 PREFIX="${LHIC_DESKTOP_PREFIX:-$HOME/.local}"
 BIN_DIR="$PREFIX/bin"
+export PATH="$BIN_DIR:$PATH"
+export NPM_CONFIG_PREFIX="${NPM_CONFIG_PREFIX:-$PREFIX}"
+TERMUX_NATIVE=0
+if [ "${LHIC_TERMUX_PROOT_BOOTSTRAP:-0}" != "1" ]; then
+  if [ "${LHIC_TERMUX_NATIVE:-0}" = "1" ]; then
+    TERMUX_NATIVE=1
+  elif { [ -n "${TERMUX_VERSION:-}" ] \
+         || uname -o 2>/dev/null | grep -qi android \
+         || uname -r 2>/dev/null | grep -qiE 'android|termux'; } \
+       && [ ! -x /lib/ld-linux-aarch64.so.1 ] \
+       && [ ! -x /lib64/ld-linux-x86-64.so.2 ]; then
+    TERMUX_NATIVE=1
+  fi
+fi
 
 # Downloads $1 from the mirror $2, falling back to the GitHub release.
 fetch() {
@@ -67,6 +83,123 @@ fetch() {
     || curl -fsSL --retry 3 -o "$1" "${GITHUB_BASE_URL}/${2##*/}" \
     || fail "download failed for ${2##*/} (mirror and GitHub)."
 }
+
+# Native Termux uses Android/Bionic. LHIC's Electron, Playwright, keyring, and
+# ONNX runtimes are glibc builds, so install the complete product in Debian
+# PRoot and expose native-Termux forwarding launchers.
+install_termux_proot() {
+  command -v pkg >/dev/null 2>&1 \
+    || fail "native Termux requires the pkg command to install proot-distro."
+
+  if ! command -v proot-distro >/dev/null 2>&1; then
+    info "Installing proot-distro for the glibc runtime…"
+    pkg install -y proot-distro \
+      || fail "could not install proot-distro from the Termux repository."
+  fi
+
+  if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
+    info "Installing the Termux:X11 companion packages…"
+    pkg install -y x11-repo >/dev/null 2>&1 \
+      && pkg install -y termux-x11-nightly >/dev/null 2>&1 \
+      || warn "Termux:X11 package setup failed; the CLI will still work, but desktop launch needs Termux:X11."
+  fi
+
+  if ! proot-distro login debian --shared-tmp -- true >/dev/null 2>&1; then
+    info "Installing the Debian PRoot distribution…"
+    proot-distro install debian \
+      || fail "could not install the Debian PRoot distribution."
+  fi
+
+  info "Installing LHIC inside Debian PRoot…"
+  if ! proot-distro login debian --shared-tmp -- /usr/bin/env \
+    "LHIC_TERMUX_PROOT_BOOTSTRAP=1" \
+    "LHIC_DESKTOP_VERSION=$VERSION" \
+    "LHIC_DESKTOP_BASE_URL=$BASE_URL" \
+    "LHIC_DESKTOP_PREFIX=$TERMUX_PROOT_PREFIX" \
+    "LHIC_SKIP_BACKENDS=${LHIC_SKIP_BACKENDS:-0}" \
+    "LHIC_SKIP_NODE=${LHIC_SKIP_NODE:-0}" \
+    "LHIC_SKIP_DESKTOP=${LHIC_SKIP_DESKTOP:-0}" \
+    "LHIC_SKIP_CLI=${LHIC_SKIP_CLI:-0}" \
+    "LHIC_CLI_PACKAGE=$CLI_PACKAGE" \
+    "LHIC_CLI_PACKAGE_NAME=$CLI_PACKAGE_NAME" \
+    "NODE_DIST_BASE_URL=$NODE_DIST_BASE_URL" \
+    "LHIC_INSTALL_URL=$INSTALL_URL" \
+    /bin/sh -c '
+      set -eu
+      if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ] \
+         || ! command -v curl >/dev/null 2>&1 \
+         || ! command -v xz >/dev/null 2>&1; then
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+      fi
+      if ! command -v curl >/dev/null 2>&1 || ! command -v xz >/dev/null 2>&1; then
+        apt-get install -y curl ca-certificates xz-utils
+      fi
+      if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
+        first_package() {
+          for candidate in "$@"; do
+            if apt-cache show "$candidate" 2>/dev/null | grep -q "^Package:"; then
+              printf "%s\n" "$candidate"
+              return 0
+            fi
+          done
+          return 1
+        }
+        gtk_package="$(first_package libgtk-3-0 libgtk-3-0t64)" \
+          || { echo "[lhic] no compatible GTK 3 runtime package was found." >&2; exit 1; }
+        atspi_package="$(first_package libatspi2.0-0 libatspi2.0-0t64)" \
+          || { echo "[lhic] no compatible AT-SPI runtime package was found." >&2; exit 1; }
+        alsa_package="$(first_package libasound2 libasound2t64)" \
+          || { echo "[lhic] no compatible ALSA runtime package was found." >&2; exit 1; }
+        cups_package="$(first_package libcups2 libcups2t64)" \
+          || { echo "[lhic] no compatible CUPS runtime package was found." >&2; exit 1; }
+        apt-get install -y \
+          "$gtk_package" "$atspi_package" "$alsa_package" "$cups_package" \
+          libnotify4 libnss3 libxss1 libxtst6 libgbm1 libdrm2 \
+          libxkbcommon0 libuuid1 libsecret-1-0 xdg-utils
+      fi
+      curl -fsSL --retry 3 "$LHIC_INSTALL_URL" | /bin/sh
+    '; then
+    fail "LHIC installation inside Debian PRoot failed."
+  fi
+
+  mkdir -p "$BIN_DIR"
+  if proot-distro login debian --shared-tmp -- test -x "$TERMUX_PROOT_PREFIX/bin/lhic" >/dev/null 2>&1; then
+    cat > "$BIN_DIR/lhic" <<EOF
+#!/bin/sh
+exec proot-distro login debian --shared-tmp -- /usr/bin/env DISPLAY="\${DISPLAY:-:1}" GDK_BACKEND="\${GDK_BACKEND:-x11}" "$TERMUX_PROOT_PREFIX/bin/lhic" "\$@"
+EOF
+    chmod 755 "$BIN_DIR/lhic"
+  elif [ "${LHIC_SKIP_CLI:-0}" != "1" ]; then
+    fail "the Debian PRoot install did not create $TERMUX_PROOT_PREFIX/bin/lhic."
+  fi
+
+  if proot-distro login debian --shared-tmp -- test -x "$TERMUX_PROOT_PREFIX/bin/lhicd" >/dev/null 2>&1; then
+    for launcher in lhicd lhic-control-center; do
+      cat > "$BIN_DIR/$launcher" <<EOF
+#!/bin/sh
+exec proot-distro login debian --shared-tmp -- /usr/bin/env DISPLAY="\${DISPLAY:-:1}" GDK_BACKEND="\${GDK_BACKEND:-x11}" "$TERMUX_PROOT_PREFIX/bin/lhicd" "\$@"
+EOF
+      chmod 755 "$BIN_DIR/$launcher"
+    done
+  elif [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
+    fail "the Debian PRoot install did not create $TERMUX_PROOT_PREFIX/bin/lhicd."
+  fi
+
+  info "Termux installation complete."
+  if [ "${LHIC_SKIP_CLI:-0}" != "1" ]; then
+    info "CLI: lhic"
+  fi
+  if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
+    info "Desktop: open the Termux:X11 Android app, then run: termux-x11 :1 &"
+    info "Launch LHIC with: DISPLAY=:1 lhicd"
+  fi
+}
+
+if [ "$TERMUX_NATIVE" = "1" ]; then
+  install_termux_proot
+  exit 0
+fi
 
 # ---- Node.js 24+ (auto-install when missing or too old) --------------------
 NODE_OK=0
