@@ -81,7 +81,9 @@ irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | 
 On native Termux, the same one-liner detects Android/Bionic and automatically
 installs `proot-distro`, a Debian glibc environment, and the Termux:X11
 companion package. It installs LHIC inside Debian and creates native-Termux
-`lhic`, `lhicd`, and `lhic-control-center` forwarding launchers.
+`lhic`, `lhicd`, and `lhic-control-center` forwarding launchers. Package
+setup inside Debian runs with concise progress lines; details are logged to
+`/tmp/lhic-apt.log` and shown only on failure.
 
 After installation, open the Termux:X11 Android app and start its server:
 
@@ -90,8 +92,10 @@ termux-x11 :1 &
 DISPLAY=:1 lhicd
 ```
 
-The CLI runs directly through the generated wrapper with `lhic`. A full Xfce
-session is optional; LHIC can be the only X client.
+On first launch, open Agent Studio and add a model API key under **Model
+management** (or sign in with a provider) — the agent starts as soon as a
+model is configured. The CLI runs directly through the generated wrapper with
+`lhic`. A full Xfce session is optional; LHIC can be the only X client.
 
 ## CLI Commands & Usage
 

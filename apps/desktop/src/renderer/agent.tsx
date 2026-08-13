@@ -11,6 +11,7 @@ import type {
   OmpAdvancedCommand,
   OmpMessageView,
   OmpModelInfo,
+  OmpProviderKeyStatus,
   OmpRuntimeState,
   OmpSessionInfo,
   OmpSessionStats,
@@ -53,6 +54,10 @@ export function Agent({
   const [loginProviders, setLoginProviders] = useState<Array<{ id: string }>>(
     [],
   );
+  const [providerKeys, setProviderKeys] = useState<OmpProviderKeyStatus[]>([]);
+  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+  const [startFailed, setStartFailed] = useState(false);
+  const [managingKeys, setManagingKeys] = useState(false);
   const [subagentModels, setSubagentModels] = useState<OmpSubagentModel[]>([]);
   const [isUpdatingModelPool, setIsUpdatingModelPool] = useState(false);
   const [earlier, setEarlier] = useState<OmpMessageView[]>([]);
@@ -73,30 +78,44 @@ export function Agent({
     }
   }, []);
 
+  const refreshProviderKeys = useCallback(async () => {
+    try {
+      setProviderKeys(await window.lhic.omp.providerKeyStatus());
+    } catch {
+      setProviderKeys([]);
+    }
+  }, []);
+
+  const startAgent = useCallback(async () => {
+    setStartFailed(false);
+    try {
+      const runtime = await window.lhic.omp.start();
+      dispatch({ type: "state", state: runtime });
+      void window.lhic.omp
+        .listModels()
+        .then(setModels)
+        .catch(() => undefined);
+      void window.lhic.omp
+        .listSubagentModels()
+        .then(setSubagentModels)
+        .catch(() => undefined);
+      void window.lhic.omp
+        .loginProviders()
+        .then(setLoginProviders)
+        .catch(() => undefined);
+      void window.lhic.omp
+        .availableCommands()
+        .then((commands) => dispatch({ type: "commands", commands }))
+        .catch(() => undefined);
+    } catch (error) {
+      setStartFailed(true);
+      setNotice(`Agent engine unavailable: ${message(error)}`);
+    }
+  }, []);
+
   useEffect(() => {
-    void window.lhic.omp
-      .start()
-      .then(() => {
-        void window.lhic.omp
-          .listModels()
-          .then(setModels)
-          .catch(() => undefined);
-        void window.lhic.omp
-          .listSubagentModels()
-          .then(setSubagentModels)
-          .catch(() => undefined);
-        void window.lhic.omp
-          .loginProviders()
-          .then(setLoginProviders)
-          .catch(() => undefined);
-        void window.lhic.omp
-          .availableCommands()
-          .then((commands) => dispatch({ type: "commands", commands }))
-          .catch(() => undefined);
-      })
-      .catch((error: unknown) => {
-        setNotice(`Agent engine unavailable: ${message(error)}`);
-      });
+    void refreshProviderKeys();
+    void startAgent();
     void refreshSessions();
     return window.lhic.events.onOmp((event) => {
       dispatch(event);
@@ -104,7 +123,7 @@ export function Agent({
         void scrollToBottom();
       }
     });
-  }, []);
+  }, [startAgent, refreshProviderKeys, refreshSessions]);
 
   useEffect(() => {
     if (state.runtime?.sessionName) {
@@ -296,6 +315,38 @@ export function Agent({
       setNotice("Login opened in your browser; complete it there.");
     } catch (error) {
       setNotice(message(error));
+    }
+  };
+
+  const saveProviderKey = async (provider: string) => {
+    const key = keyDrafts[provider]?.trim();
+    if (!key) return;
+    setManagingKeys(true);
+    try {
+      const runtime = await window.lhic.omp.setProviderKey(provider, key);
+      dispatch({ type: "state", state: runtime });
+      setKeyDrafts((drafts) => ({ ...drafts, [provider]: "" }));
+      await refreshProviderKeys();
+      setStartFailed(false);
+      setNotice(`${provider} key stored; agent restarted.`);
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setManagingKeys(false);
+    }
+  };
+
+  const removeProviderKey = async (provider: string) => {
+    setManagingKeys(true);
+    try {
+      const runtime = await window.lhic.omp.removeProviderKey(provider);
+      dispatch({ type: "state", state: runtime });
+      await refreshProviderKeys();
+      setNotice(`${provider} key removed.`);
+    } catch (error) {
+      setNotice(message(error));
+    } finally {
+      setManagingKeys(false);
     }
   };
 
@@ -534,6 +585,22 @@ export function Agent({
             <h2>Runtime</h2>
           </div>
         </div>
+        <AgentModelPanel
+          providerKeys={providerKeys}
+          keyDrafts={keyDrafts}
+          setKeyDrafts={setKeyDrafts}
+          managingKeys={managingKeys}
+          onSave={saveProviderKey}
+          onRemove={removeProviderKey}
+          loginProviders={loginProviders}
+          onLogin={login}
+          models={models}
+          modelValue={modelValue}
+          onChangeModel={changeModel}
+          startFailed={startFailed}
+          running={runtime?.running === true}
+          onStart={() => void startAgent()}
+        />
         {runtime ? (
           <>
             <div className="agent-inspector-status">
@@ -544,41 +611,6 @@ export function Agent({
               </span>
               {runtime.error ? <p className="muted">{runtime.error}</p> : null}
             </div>
-            {runtime.model ? (
-              <label>
-                Model
-                <select
-                  value={modelValue}
-                  onChange={(input) => void changeModel(input.target.value)}
-                >
-                  {models.map((model) => (
-                    <option
-                      key={`${model.provider}/${model.id}`}
-                      value={`${model.provider}/${model.id}`}
-                    >
-                      {model.provider}/{model.id}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <div className="agent-connect">
-                <span className="eyebrow">CONNECT A PROVIDER</span>
-                <p className="muted">
-                  The agent engine is running locally. Choose a provider to
-                  start an agent session.
-                </p>
-                {loginProviders.map((provider) => (
-                  <button
-                    className="quick-action"
-                    key={provider.id}
-                    onClick={() => void login(provider.id)}
-                  >
-                    Sign in with {provider.id} <i aria-hidden="true">→</i>
-                  </button>
-                ))}
-              </div>
-            )}
             {subagentModels.length > 0 ? (
               <details className="agent-model-pool">
                 <summary>
@@ -736,7 +768,11 @@ export function Agent({
             />
           </>
         ) : (
-          <p className="muted">Starting the omp agent engine…</p>
+          <p className="muted">
+            {startFailed
+              ? "The agent engine could not start — add a model API key above, then retry."
+              : "Starting the omp agent engine…"}
+          </p>
         )}
       </aside>
 
@@ -766,6 +802,32 @@ export function Agent({
                 >
                   Reject
                 </button>
+              </div>
+            ) : state.uiRequest.method === "open_url" &&
+              typeof state.uiRequest.url === "string" ? (
+              <div className="agent-url-request">
+                <code className="agent-url-value">{state.uiRequest.url}</code>
+                <div className="actions">
+                  <button
+                    className="button primary"
+                    onClick={() => {
+                      const url = state.uiRequest?.url;
+                      if (!url) return;
+                      void navigator.clipboard
+                        .writeText(url)
+                        .then(() => setNotice("URL copied to clipboard."))
+                        .catch(() => setNotice("Copy failed."));
+                    }}
+                  >
+                    Copy URL
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() => void respondUi({ cancelled: true })}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="form-grid">
@@ -1290,4 +1352,146 @@ function formatTimestamp(value: string): string {
 
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function AgentModelPanel({
+  providerKeys,
+  keyDrafts,
+  setKeyDrafts,
+  managingKeys,
+  onSave,
+  onRemove,
+  loginProviders,
+  onLogin,
+  models,
+  modelValue,
+  onChangeModel,
+  startFailed,
+  running,
+  onStart,
+}: {
+  providerKeys: OmpProviderKeyStatus[];
+  keyDrafts: Record<string, string>;
+  setKeyDrafts: (drafts: Record<string, string>) => void;
+  managingKeys: boolean;
+  onSave: (provider: string) => void;
+  onRemove: (provider: string) => void;
+  loginProviders: Array<{ id: string }>;
+  onLogin: (providerId: string) => void;
+  models: OmpModelInfo[];
+  modelValue: string;
+  onChangeModel: (value: string) => void;
+  startFailed: boolean;
+  running: boolean;
+  onStart: () => void;
+}): JSX.Element {
+  const hasAnyKey = providerKeys.some((entry) => entry.hasKey);
+  return (
+    <div className="agent-model-panel">
+      <span className="eyebrow">MODEL MANAGEMENT</span>
+      {startFailed || !running ? (
+        <p className="muted">
+          {hasAnyKey
+            ? "The agent engine is not running — retry to connect it with the configured keys."
+            : "The agent needs a model to start. Add a provider API key below (stored in the OS keychain when available) or sign in."}
+        </p>
+      ) : null}
+      {!running ? (
+        <button
+          className="button primary agent-start-button"
+          disabled={managingKeys}
+          onClick={onStart}
+        >
+          {startFailed ? "Retry agent start" : "Start agent"}
+        </button>
+      ) : null}
+      <div className="agent-provider-keys">
+        {providerKeys.map((entry) => (
+          <div className="agent-provider-row" key={entry.provider}>
+            <div className="agent-provider-label">
+              <strong>{entry.provider}</strong>
+              <small>{entry.envVar}</small>
+              <span
+                className={`status ${entry.hasKey ? "running" : "revoked"}`}
+              >
+                {entry.hasKey
+                  ? entry.storage === "file"
+                    ? "key stored (file)"
+                    : "key stored"
+                  : "no key"}
+              </span>
+            </div>
+            {entry.hasKey ? (
+              <button
+                className="button agent-provider-remove"
+                disabled={managingKeys}
+                onClick={() => onRemove(entry.provider)}
+              >
+                Remove
+              </button>
+            ) : (
+              <div className="agent-provider-input">
+                <input
+                  type="password"
+                  value={keyDrafts[entry.provider] ?? ""}
+                  disabled={managingKeys}
+                  onChange={(input) =>
+                    setKeyDrafts({
+                      ...keyDrafts,
+                      [entry.provider]: input.target.value,
+                    })
+                  }
+                  onKeyDown={(input) => {
+                    if (input.key === "Enter") onSave(entry.provider);
+                  }}
+                  placeholder={`Paste ${entry.envVar}`}
+                  autoComplete="off"
+                />
+                <button
+                  className="button"
+                  disabled={managingKeys || !keyDrafts[entry.provider]?.trim()}
+                  onClick={() => onSave(entry.provider)}
+                >
+                  Add
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {running && models.length > 0 ? (
+        <label>
+          Model
+          <select
+            value={modelValue}
+            onChange={(input) => onChangeModel(input.target.value)}
+          >
+            {models.map((model) => (
+              <option
+                key={`${model.provider}/${model.id}`}
+                value={`${model.provider}/${model.id}`}
+              >
+                {model.provider}/{model.id}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {loginProviders.length > 0 ? (
+        <div className="agent-login-providers">
+          <span className="eyebrow">SIGN IN</span>
+          {loginProviders.map((provider) => (
+            <button
+              className="quick-action"
+              key={provider.id}
+              disabled={managingKeys}
+              onClick={() => onLogin(provider.id)}
+            >
+              Sign in with {provider.id} <i aria-hidden="true">→</i>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }

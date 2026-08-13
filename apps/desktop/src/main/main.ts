@@ -483,7 +483,21 @@ function registerIpc(): void {
     controller.ompLoginProviders(),
   );
   ipcMain.handle("lhic:omp:login", (_event, providerId: string) =>
-    controller.ompLogin(requiredString(providerId, "login provider")),
+    controller.ompLogin(requiredString(providerId, "provider id")),
+  );
+  ipcMain.handle("lhic:omp:provider-key:status", () =>
+    controller.ompProviderKeyStatus(),
+  );
+  ipcMain.handle(
+    "lhic:omp:provider-key:set",
+    (_event, provider: string, key: string) =>
+      controller.ompSetProviderKey(
+        requiredString(provider, "provider id"),
+        requiredString(key, "API key"),
+      ),
+  );
+  ipcMain.handle("lhic:omp:provider-key:remove", (_event, provider: string) =>
+    controller.ompRemoveProviderKey(requiredString(provider, "provider id")),
   );
   ipcMain.handle("lhic:omp:respond-ui", (_event, requestId, response) =>
     controller.ompRespondUi(

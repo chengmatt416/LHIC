@@ -435,6 +435,13 @@ export interface OmpModelInfo {
   id: string;
 }
 
+export interface OmpProviderKeyStatus {
+  provider: string;
+  envVar: string;
+  hasKey: boolean;
+  storage: "keychain" | "file" | "none";
+}
+
 export interface OmpSubagentModel {
   selector: string;
   provider: string;
@@ -562,11 +569,12 @@ export interface OmpToolCallView {
 
 export interface OmpUiRequest {
   id: string;
-  method: "confirm" | "input" | "select" | "editor" | "notify";
+  method: "confirm" | "input" | "select" | "editor" | "notify" | "open_url";
   title?: string;
   message?: string;
   placeholder?: string;
   timeout?: number;
+  url?: string;
 }
 
 export interface OmpHostToolCall {
@@ -796,6 +804,9 @@ export interface DesktopApi {
     exportHtml(): Promise<string>;
     loginProviders(): Promise<Array<{ id: string }>>;
     login(providerId: string): Promise<void>;
+    providerKeyStatus(): Promise<OmpProviderKeyStatus[]>;
+    setProviderKey(provider: string, key: string): Promise<OmpRuntimeState>;
+    removeProviderKey(provider: string): Promise<OmpRuntimeState>;
     availableCommands(): Promise<OmpCommandInfo[]>;
     messages(cursor?: string): Promise<{
       messages: OmpMessageView[];

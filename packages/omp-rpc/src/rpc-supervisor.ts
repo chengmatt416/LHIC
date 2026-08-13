@@ -404,6 +404,7 @@ export class OmpRpcSupervisor {
       ...(this.options.extensionRoots
         ? { extensionRoots: [...this.options.extensionRoots] }
         : {}),
+      ...(this.options.env ? { env: { ...this.options.env } } : {}),
       ...(this.options.spawn ? { spawn: this.options.spawn } : {}),
     };
   }

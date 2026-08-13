@@ -127,11 +127,24 @@ install_termux_proot() {
     /bin/sh -c '
       set -eu
       export DEBIAN_FRONTEND=noninteractive
+      APT_LOG=/tmp/lhic-apt.log
+      info() { printf "\033[1;32m[lhic]\033[0m %s\n" "$*"; }
+      run_apt() {
+        if "$@" >"$APT_LOG" 2>&1; then
+          rm -f "$APT_LOG"
+          return 0
+        fi
+        echo "[lhic] apt step failed; last output:" >&2
+        tail -n 40 "$APT_LOG" >&2 2>/dev/null || true
+        return 1
+      }
       # Always install Debian archive tools. Native Termux binaries can be
       # visible through an inherited PRoot PATH yet cannot be executed by
       # the Debian tar subprocess.
-      apt-get update
-      apt-get install -y curl ca-certificates xz-utils
+      info "Updating the Debian package index…"
+      run_apt apt-get update
+      info "Installing download and archive tools…"
+      run_apt apt-get install -y curl ca-certificates xz-utils
       if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
         first_package() {
           for candidate in "$@"; do
@@ -150,11 +163,13 @@ install_termux_proot() {
           || { echo "[lhic] no compatible ALSA runtime package was found." >&2; exit 1; }
         cups_package="$(first_package libcups2 libcups2t64)" \
           || { echo "[lhic] no compatible CUPS runtime package was found." >&2; exit 1; }
-        apt-get install -y \
+        info "Installing desktop runtime libraries…"
+        run_apt apt-get install -y \
           "$gtk_package" "$atspi_package" "$alsa_package" "$cups_package" \
           libnotify4 libnss3 libxss1 libxtst6 libgbm1 libdrm2 \
           libxkbcommon0 libuuid1 libsecret-1-0 zlib1g-dev xdg-utils
       fi
+      info "Installing LHIC inside Debian…"
       curl -fsSL --retry 3 "$LHIC_INSTALL_URL" | /bin/sh
     '; then
     fail "LHIC installation inside Debian PRoot failed."
@@ -190,6 +205,7 @@ EOF
   if [ "${LHIC_SKIP_DESKTOP:-0}" != "1" ]; then
     info "Desktop: open the Termux:X11 Android app, then run: termux-x11 :1 &"
     info "Launch LHIC with: DISPLAY=:1 lhicd"
+    info "First run: add a model API key in Agent Studio (Model management) to start the agent."
   fi
 }
 

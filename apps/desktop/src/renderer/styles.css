@@ -1863,6 +1863,90 @@ textarea {
   gap: 10px;
 }
 
+.agent-model-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bg-base);
+  box-shadow: var(--shadow-in);
+}
+
+.agent-model-panel > .muted {
+  font-size: 0.7rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.agent-start-button {
+  justify-self: start;
+}
+
+.agent-provider-keys {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-provider-row {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agent-provider-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.agent-provider-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-provider-label strong {
+  font-size: 0.78rem;
+}
+
+.agent-provider-label small {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.agent-provider-label .status {
+  font-size: 0.62rem;
+}
+
+.agent-provider-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.agent-provider-remove {
+  justify-self: start;
+}
+
+.agent-login-providers {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-url-value {
+  display: block;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-base);
+  box-shadow: var(--shadow-in);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  word-break: break-all;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
 .agent-model-pool {
   padding: 12px;
   border-radius: 14px;

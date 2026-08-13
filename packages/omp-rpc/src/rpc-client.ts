@@ -6,6 +6,8 @@ export interface OmpRpcClientOptions {
   sessionDir: string;
   args?: string[];
   extensionRoots?: string[];
+  /** Extra environment variables for the omp child process. */
+  env?: Record<string, string>;
   spawn?: typeof nodeSpawn;
 }
 
@@ -149,7 +151,12 @@ export class OmpRpcClient {
         ]),
         ...(this.options.args ?? []),
       ],
-      { stdio: ["pipe", "pipe", "pipe"] },
+      {
+        stdio: ["pipe", "pipe", "pipe"],
+        ...(this.options.env
+          ? { env: { ...process.env, ...this.options.env } }
+          : {}),
+      },
     );
     this.child = child;
     child.stdout?.on("data", (chunk: Buffer) => this.onStdout(chunk));

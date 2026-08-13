@@ -146,6 +146,38 @@ describe("OmpRpcClient", () => {
     harness.exit(0);
   });
 
+  it("merges extra env variables into the omp child environment", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        env: { OPENAI_API_KEY: "sk-test", ANTHROPIC_API_KEY: "sk-other" },
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [2] })}\n`,
+    );
+    await started;
+
+    expect(harness.spawn).toHaveBeenCalledWith(
+      "omp",
+      expect.any(Array),
+      expect.objectContaining({
+        env: expect.objectContaining({
+          OPENAI_API_KEY: "sk-test",
+          ANTHROPIC_API_KEY: "sk-other",
+          PATH: process.env.PATH,
+        }),
+      }),
+    );
+    harness.exit(0);
+  });
+
   it("attaches the omp stderr tail to a start failure exit error", async () => {
     const harness = fakeProcess();
     const callbacks = fakeCallbacks();

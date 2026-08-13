@@ -37,6 +37,7 @@ import type {
   OmpMessageView,
   OmpAdvancedCommand,
   OmpModelInfo,
+  OmpProviderKeyStatus,
   OmpRuntimeState,
   OmpSessionInfo,
   OmpSessionStats,
@@ -65,6 +66,7 @@ import { SecuritySettingsStore } from "./security-settings-store.js";
 import { UiSettingsStore } from "./ui-settings-store.js";
 import { TaskService } from "./task-service.js";
 import { OmpSessionService } from "./omp/omp-session-service.js";
+import { OmpProviderKeyStore } from "./omp/provider-key-store.js";
 import { bakedSharedSkillsConfig } from "./appwrite-public-config.js";
 import { ProvisioningService } from "./provisioning-service.js";
 
@@ -119,6 +121,10 @@ export class DesktopController {
       workspaceRoot,
       userDataDir: options.userDataDir ?? workspaceRoot,
       tasks: this.tasks,
+      providerKeys: new OmpProviderKeyStore(
+        this.credentials,
+        options.userDataDir ?? workspaceRoot,
+      ),
       ...(options.openExternal ? { openExternal: options.openExternal } : {}),
     });
     this.mcp = new McpService(workspaceRoot);
@@ -656,6 +662,21 @@ export class DesktopController {
 
   public ompLogin(providerId: string): Promise<void> {
     return this.omp.login(providerId);
+  }
+
+  public ompProviderKeyStatus(): Promise<OmpProviderKeyStatus[]> {
+    return this.omp.providerKeyStatus();
+  }
+
+  public ompSetProviderKey(
+    provider: string,
+    key: string,
+  ): Promise<OmpRuntimeState> {
+    return this.omp.setProviderKey(provider, key);
+  }
+
+  public ompRemoveProviderKey(provider: string): Promise<OmpRuntimeState> {
+    return this.omp.removeProviderKey(provider);
   }
 
   public ompRespondUi(

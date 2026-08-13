@@ -78,7 +78,8 @@ The Linux desktop bundle and LHIC's native dependencies require glibc; they
 cannot execute directly against Android's Bionic libc. Run the normal installer
 one-liner in native Termux. It automatically installs `proot-distro`, Debian,
 and the Termux:X11 companion package, installs LHIC inside Debian, and creates
-native-Termux forwarding launchers.
+native-Termux forwarding launchers. Debian package setup prints concise
+progress lines and logs details to `/tmp/lhic-apt.log`.
 
 After installation, open the Termux:X11 Android app, then run:
 
@@ -89,6 +90,9 @@ DISPLAY=:1 lhicd
 
 Run the CLI with `lhic`. Both launchers enter Debian with `--shared-tmp`, which
 lets the desktop client reach the Termux:X11 socket. Xfce is optional.
+
+On first launch, add a model API key in Agent Studio's **Model management**
+panel (or sign in with a provider) to start the agent.
 
 Opt out of either component with `LHIC_SKIP_DESKTOP=1` (CLI only) or
 `LHIC_SKIP_CLI=1` (desktop only).

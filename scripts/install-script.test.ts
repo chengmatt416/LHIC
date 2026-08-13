@@ -130,6 +130,8 @@ printf '%s\\n' "$*" >> '${log}'
     const aptCommands = await readFile(log, "utf8");
     expect(aptCommands).toContain("update");
     expect(aptCommands).toContain("install -y curl ca-certificates xz-utils");
+    expect(nestedInstaller).toContain("APT_LOG=/tmp/lhic-apt.log");
+    expect(nestedInstaller).toContain("run_apt apt-get update");
   });
 
   it("installs the unversioned libz required by the arm64 AppImage runtime", async () => {

@@ -13,6 +13,7 @@ import type {
   OmpEvent,
   OmpMessageView,
   OmpModelInfo,
+  OmpProviderKeyStatus,
   OmpRuntimeState,
   OmpSessionInfo,
   OmpSessionStats,
@@ -34,6 +35,7 @@ import {
   type OmpRpcClientCallbacks,
 } from "@lhic/omp-rpc";
 import { OmpHostRunner, type HostApprovalCall } from "./omp-host-runner.js";
+import { OmpProviderKeyStore } from "./provider-key-store.js";
 
 export interface OmpSessionServiceOptions {
   workspaceRoot: string;
@@ -41,6 +43,7 @@ export interface OmpSessionServiceOptions {
   tasks: TaskService;
   openExternal?: (url: string) => Promise<void>;
   listSessionsDir?: string;
+  providerKeys?: OmpProviderKeyStore;
 }
 
 const stateRefreshIntervalMs = 500;
@@ -54,6 +57,7 @@ const stateRefreshIntervalMs = 500;
 export class OmpSessionService {
   private readonly tasks: TaskService;
   private readonly openExternal: (url: string) => Promise<void>;
+  private readonly providerKeys: OmpProviderKeyStore;
   private readonly listeners = new Set<(event: OmpEvent) => void>();
   private client: OmpRpcSupervisor | undefined;
   private hostRunner: OmpHostRunner | undefined;
@@ -88,6 +92,9 @@ export class OmpSessionService {
       "omp",
       "subagent-models.json",
     );
+    this.providerKeys =
+      options.providerKeys ??
+      new OmpProviderKeyStore(undefined, options.userDataDir);
   }
 
   public async start(): Promise<OmpRuntimeState> {
@@ -129,6 +136,7 @@ export class OmpSessionService {
         workspaceRoot: this.workspaceRoot,
         sessionDir: this.sessionDir,
         stateDirectory: this.recoveryStateDir,
+        env: await this.providerKeys.buildOmpEnv(),
       },
       callbacks,
     );
@@ -408,6 +416,40 @@ export class OmpSessionService {
 
   public async login(providerId: string): Promise<void> {
     await this.requireClient().login(providerId);
+  }
+
+  public async providerKeyStatus(): Promise<OmpProviderKeyStatus[]> {
+    return this.providerKeys.status();
+  }
+
+  /**
+   * Stores a provider API key and restarts the agent so omp picks it up from
+   * its environment. Used both for first-run setup (omp refuses to start
+   * without a model) and for switching providers.
+   */
+  public async setProviderKey(
+    provider: string,
+    key: string,
+  ): Promise<OmpRuntimeState> {
+    await this.providerKeys.setKey(provider, key);
+    return this.restartAgent();
+  }
+
+  public async removeProviderKey(provider: string): Promise<OmpRuntimeState> {
+    await this.providerKeys.removeKey(provider);
+    return this.restartAgent();
+  }
+
+  private async restartAgent(): Promise<OmpRuntimeState> {
+    const wasRunning = Boolean(this.client);
+    if (wasRunning) {
+      await this.stop();
+    }
+    const started = await this.start();
+    if (!wasRunning && !started.running) {
+      return started;
+    }
+    return started;
   }
 
   public async sessionStats(): Promise<OmpSessionStats> {
@@ -868,9 +910,14 @@ export class OmpSessionService {
     const method = String(frame.method ?? "notify");
     return {
       id: String(frame.id ?? ""),
-      method: ["confirm", "input", "select", "editor", "notify"].includes(
-        method,
-      )
+      method: [
+        "confirm",
+        "input",
+        "select",
+        "editor",
+        "notify",
+        "open_url",
+      ].includes(method)
         ? (method as OmpUiRequest["method"])
         : "notify",
       ...(typeof frame.title === "string" ? { title: frame.title } : {}),
@@ -879,6 +926,7 @@ export class OmpSessionService {
         ? { placeholder: frame.placeholder }
         : {}),
       ...(typeof frame.timeout === "number" ? { timeout: frame.timeout } : {}),
+      ...(typeof frame.url === "string" ? { url: frame.url } : {}),
     };
   }
 
