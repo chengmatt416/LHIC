@@ -56,6 +56,10 @@ jobs:
         env:
           OMP_BINARY: ${{ github.workspace }}/.omp-cache/omp
           OMP_REQUIRED: "1"
+          # The engine refuses to start without any provider credential; a
+          # placeholder key keeps it alive for protocol verification. The
+          # prompt test tolerates a precise model/auth rejection.
+          OPENAI_API_KEY: sk-lhic-ci-placeholder-0000000000000000
         run: cargo test -p lhic-agent --test omp_rpc_integration
       - name: Run fake-engine protocol tests
         run: cargo test -p lhic-agent --test fake_engine_tests

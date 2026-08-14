@@ -159,14 +159,21 @@ async fn real_omp_prompt_reaches_terminal_completion() {
             );
         }
         Err(e) => {
-            // Without a configured model the engine may reject the prompt;
-            // the client must still fail fast with a precise error rather
-            // than hang or guess at completion.
+            // Without a real model credential (e.g. CI uses a placeholder
+            // key) the engine may reject the prompt: a provider/auth error is
+            // an external blocker, not a client defect. The client must still
+            // fail fast with a precise error rather than hang or guess at
+            // completion.
+            let message = e.to_string();
             assert!(
-                !e.to_string().contains("timed out"),
-                "prompt must not depend on a fixed timeout guess: {e}"
+                !message.contains("timed out"),
+                "prompt must not depend on a fixed timeout guess: {message}"
             );
-            eprintln!("prompt rejected (expected without a model): {e}");
+            assert!(
+                !message.contains("closed before ready"),
+                "engine must complete the handshake before the prompt: {message}"
+            );
+            eprintln!("prompt rejected without a real model (expected): {message}");
         }
     }
 
