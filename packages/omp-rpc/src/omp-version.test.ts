@@ -442,6 +442,22 @@ describe("omp version updater", () => {
     ).rejects.toThrow(/does not match pinned version 17\.2\.15/);
   });
 
+  it("rejects a self-certified bundled binary in managed mode", async () => {
+    const bundled = join(directory, "managed-bundled-omp");
+    await writeFile(bundled, "tampered-or-unknown-omp-bytes");
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        bundledBinary: bundled,
+        bundledBinaryVersion: "17.2.15",
+        updateCheckEnabled: false,
+        policy: { mode: "managed" },
+      }),
+    ).rejects.toThrow(
+      /Bundled omp binary SHA-256 mismatch for managed v17\.2\.15/,
+    );
+  });
+
   it("never silently rotates a version's trusted digest", async () => {
     const original = new TextEncoder().encode("original-omp-bytes");
     const republished = new TextEncoder().encode("republished-omp-bytes");

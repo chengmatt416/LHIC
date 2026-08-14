@@ -17,6 +17,26 @@ import { verifyTask } from "./verifier.mjs";
 
 const benchmarkRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(benchmarkRoot, "../..");
+
+const LHIC_OMP_VERSION = "17.2.15";
+const lhicOmpReleaseDigests = {
+  darwin: {
+    arm64: "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5",
+    x64: "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03",
+  },
+  linux: {
+    arm64: "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad",
+    x64: "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a",
+  },
+  win32: {
+    x64: "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa",
+  },
+};
+
+function trustedLhicOmpIdentity() {
+  const sha256 = lhicOmpReleaseDigests[process.platform]?.[process.arch];
+  return sha256 ? { version: LHIC_OMP_VERSION, sha256 } : undefined;
+}
 const categories = ["coding", "browser", "desktop"];
 const args = parseArguments(process.argv.slice(2));
 if (args.selfTest) {
@@ -270,9 +290,21 @@ async function resolveProductCommand(product, modelId) {
     if (!available) {
       return unavailable(`Bundled omp is missing: ${binary}`, "unknown");
     }
-    // Identity is measured, never derived from a directory name or constant:
-    // hash the executable and parse the version it reports.
-    const sha256 = await hashFile(binary);
+    const trusted = trustedLhicOmpIdentity();
+    if (!trusted) {
+      return unavailable(
+        `No trusted omp digest is pinned for ${process.platform}/${process.arch}.`,
+        LHIC_OMP_VERSION,
+      );
+    }
+    // Verify bytes against release metadata before executing the binary.
+    const observedSha256 = await hashFile(binary);
+    if (observedSha256 !== trusted.sha256) {
+      return unavailable(
+        `Bundled omp SHA-256 mismatch: expected ${trusted.sha256}, got ${observedSha256}.`,
+        trusted.version,
+      );
+    }
     const measured = await measureOmpVersion(binary);
     if (!measured.ok) {
       return unavailable(
@@ -280,18 +312,17 @@ async function resolveProductCommand(product, modelId) {
         measured.version || "unknown",
       );
     }
-    const expectedOmpVersion = "17.2.15";
-    if (!measured.version.includes(expectedOmpVersion)) {
+    if (measured.version !== trusted.version) {
       return unavailable(
-        `Bundled omp version ${measured.version} does not match expected ${expectedOmpVersion}.`,
+        `Bundled omp version ${measured.version} does not match expected ${trusted.version}.`,
         measured.version,
       );
     }
     return {
       available: true,
       reason: "",
-      version: measured.version,
-      sha256,
+      version: trusted.version,
+      sha256: trusted.sha256,
       invocation: (prompt) => ({
         file: process.execPath,
         args: [
@@ -310,8 +341,8 @@ async function resolveProductCommand(product, modelId) {
         ],
         env: {
           OMP_BINARY: binary,
-          OMP_BINARY_DIGEST: sha256,
-          OMP_BINARY_VERSION: measured.version,
+          OMP_BINARY_DIGEST: trusted.sha256,
+          OMP_BINARY_VERSION: trusted.version,
           OMP_BINARY_TRUST: "digest-required",
         },
       }),

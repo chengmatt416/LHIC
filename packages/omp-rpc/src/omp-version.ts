@@ -17,6 +17,28 @@ const defaultCheckIntervalMs = 6 * 60 * 60 * 1_000;
 const trustedRecordFileName = "trusted.json";
 const sha256Pattern = /^[a-f0-9]{64}$/;
 
+const pinnedReleaseDigests: Record<string, Record<string, string>> = {
+  "17.2.15": {
+    "omp-darwin-arm64":
+      "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5",
+    "omp-darwin-x64":
+      "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03",
+    "omp-linux-arm64":
+      "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad",
+    "omp-linux-x64":
+      "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a",
+    "omp-windows-x64.exe":
+      "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa",
+  },
+};
+
+function pinnedReleaseDigest(
+  version: string,
+  asset: string,
+): string | undefined {
+  return pinnedReleaseDigests[version]?.[asset];
+}
+
 const assetForPlatform: Record<string, Record<string, string>> = {
   darwin: { arm64: "omp-darwin-arm64", x64: "omp-darwin-x64" },
   linux: { arm64: "omp-linux-arm64", x64: "omp-linux-x64" },
@@ -672,12 +694,32 @@ export async function resolveOmpBinary(
 
   const pinned = pinnedVersionFor(options);
   if (options.bundledBinary) {
+    const asset = assetFor();
+    if (
+      options.bundledBinaryVersion &&
+      options.bundledBinaryVersion !== pinned
+    ) {
+      throw new Error(
+        `Bundled omp version ${options.bundledBinaryVersion} does not match managed version ${pinned}.`,
+      );
+    }
+    const expectedDigest = pinnedReleaseDigest(pinned, asset);
+    if (!expectedDigest) {
+      throw new Error(
+        `No independently pinned release digest is available for bundled omp v${pinned} (${asset}); refusing to execute it.`,
+      );
+    }
     let sha256 = "";
     try {
       sha256 = await sha256File(options.bundledBinary);
     } catch {
       throw new Error(
         `Bundled omp binary ${options.bundledBinary} does not exist or is unreadable.`,
+      );
+    }
+    if (sha256 !== expectedDigest) {
+      throw new Error(
+        `Bundled omp binary SHA-256 mismatch for managed v${pinned}: expected ${expectedDigest}, got ${sha256}.`,
       );
     }
     return {
