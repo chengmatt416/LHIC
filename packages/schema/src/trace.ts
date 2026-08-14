@@ -18,6 +18,9 @@ export const knownTraceEventTypes = [
   "slow_path_invoked",
   "browser_snapshot",
   "desktop_action",
+  "action_receipt",
+  "workspace_conflict",
+  "side_effect_ledger",
 ] as const;
 
 export type TraceEventType = (typeof knownTraceEventTypes)[number];

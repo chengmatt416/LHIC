@@ -5,11 +5,17 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readTraceEvents, summarizeTraceEvents } from "@lhic/trace";
+import {
+  readTraceEvents,
+  summarizeTraceEvents,
+  readReceipts,
+} from "@lhic/trace";
 import { inspectGlobalControlCapability } from "@lhic/skills";
 
 import { runInternalBenchmark } from "./internal-benchmark.js";
 import { runJudgeDemo } from "./demo.js";
+import { runCapabilitiesCommand } from "./capabilities.js";
+import { provenanceJson, renderProvenance } from "./provenance.js";
 import { parseDemoCommandOptions } from "./demo-command-options.js";
 import { startGuiCompanion } from "./gui-companion.js";
 import { parseGuiCommandOptions } from "./gui-command-options.js";
@@ -315,6 +321,17 @@ async function runCommand(
         2,
       ),
     );
+    return;
+  }
+  if (command === "trace" && subcommand === "provenance" && argument) {
+    const receipts = await readReceipts(argument);
+    const json = argumentsList.includes("--json");
+    console.log(json ? provenanceJson(receipts) : renderProvenance(receipts));
+    return;
+  }
+  if (command === "capabilities") {
+    const exitCode = await runCapabilitiesCommand();
+    process.exitCode = exitCode;
     return;
   }
   throw new Error(cliUsage);

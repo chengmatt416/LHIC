@@ -23,6 +23,9 @@ import {
 } from "@lhic/skills";
 import { materializeActionApproval } from "./approval-materializer.js";
 
+import type { ReceiptRecorder } from "./receipt-recorder.js";
+import { evidenceRefs } from "./receipt-recorder.js";
+
 import {
   CliBrowserRunner,
   summarizePlan,
@@ -46,6 +49,7 @@ export interface CliHostRunnerDeps {
     isError: boolean,
   ) => void;
   emitUpdate: (callId: string, partialResult: Record<string, unknown>) => void;
+  receiptRecorder?: ReceiptRecorder;
 }
 export interface HostApprovalRequest {
   surface: "browser" | "desktop";
@@ -85,7 +89,11 @@ export class CliHostRunner {
 
   public constructor(deps: CliHostRunnerDeps) {
     this.deps = deps;
-    this.browserRunner = new CliBrowserRunner(deps.workspaceRoot);
+    this.browserRunner = new CliBrowserRunner(deps.workspaceRoot, {
+      ...(deps.receiptRecorder
+        ? { receiptRecorder: deps.receiptRecorder }
+        : {}),
+    });
   }
 
   public handleHostToolCall(frame: Record<string, unknown>): void {
@@ -320,12 +328,25 @@ export class CliHostRunner {
     });
     const execution = await executor.execute(step.action, approval);
     if (!execution.success) {
+      await this.recordDesktopReceipt(
+        commandId,
+        step.action,
+        approval,
+        "failed",
+        execution.error ?? "Desktop action failed.",
+      );
       return this.desktopFailure(
         commandId,
         execution.error ?? "Desktop action failed.",
       );
     }
     session.evidence.push(...execution.evidence);
+    await this.recordDesktopReceipt(
+      commandId,
+      step.action,
+      approval,
+      "verified",
+    );
     session.nextStepIndex += 1;
     if (session.nextStepIndex >= session.plan.steps.length) {
       const result: DesktopRunResult = {
@@ -338,6 +359,34 @@ export class CliHostRunner {
       return result;
     }
     return this.desktopWaiting(commandId);
+  }
+
+  private async recordDesktopReceipt(
+    commandId: string,
+    action: GlobalComputerAction,
+    approval: ActionApproval,
+    state: "verified" | "failed",
+    failureReason?: string,
+  ): Promise<void> {
+    const recorder = this.deps.receiptRecorder;
+    if (!recorder) return;
+    const session = this.desktopSessions.get(commandId);
+    const evidence = session?.evidence ?? [];
+    await recorder.record({
+      surface: "desktop",
+      actionId: session?.plan.steps[session.nextStepIndex]?.id ?? commandId,
+      tool: "lhic_desktop_execute",
+      action,
+      approval,
+      approvalStatus: "approved",
+      executorBackend: "native-or-element-dispatch",
+      verificationStatus: state === "verified" ? "passed" : "failed",
+      verificationAuthority: state === "verified" ? "lhic" : "none",
+      evidenceRefs: evidenceRefs(evidence),
+      state,
+      ...(failureReason ? { failureReason } : {}),
+      startedAt: new Date().toISOString(),
+    });
   }
 
   private desktopWaiting(commandId: string): DesktopRunResult {

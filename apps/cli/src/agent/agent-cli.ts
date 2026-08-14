@@ -2,11 +2,13 @@ import { mkdir, readdir, stat } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import {
+  OmpActionReceiptObserver,
   OmpRpcSupervisor,
   SubagentModelPool,
   parseModelCatalog,
   type OmpSubagentModel,
 } from "@lhic/omp-rpc";
+import { receiptLogPath } from "@lhic/trace";
 
 import {
   resolveOmpBinary,
@@ -19,6 +21,7 @@ import {
   type HostApprovalRequest,
 } from "./cli-host-runner.js";
 import { InputArbiter, InputClosedError } from "./input-arbiter.js";
+import { ReceiptRecorder } from "./receipt-recorder.js";
 
 export interface AgentCliOptions {
   /** One-shot prompt; when set the agent runs it and exits. */
@@ -97,6 +100,14 @@ export async function runAgentCommand(
   const record = (type: string, data: Record<string, unknown> = {}): void => {
     if (jsonl) line(JSON.stringify({ type, ...data }));
   };
+  const taskId = `agent-${join(sessionDir).split(/[\\/]/).at(-1) ?? "session"}`;
+  const traceDirectory = resolve(workspaceRoot, ".lhic/traces");
+  const agentReceiptLog = receiptLogPath(traceDirectory, taskId);
+  const receiptRecorder = new ReceiptRecorder(agentReceiptLog, taskId);
+  const ompReceiptObserver = new OmpActionReceiptObserver({
+    taskId,
+    receiptLogPath: agentReceiptLog,
+  });
   const client = new OmpRpcSupervisor(
     {
       binary,
@@ -110,6 +121,7 @@ export async function runAgentCommand(
     },
     {
       onEvent: (frame) => {
+        ompReceiptObserver.feed(frame);
         switch (frame.type) {
           case "agent_start":
             streaming = true;
@@ -245,6 +257,7 @@ export async function runAgentCommand(
       client.hostToolResult(callId, result, isError),
     emitUpdate: (callId, partialResult) =>
       client.hostToolUpdate(callId, partialResult),
+    receiptRecorder,
   });
 
   async function promptApproval(

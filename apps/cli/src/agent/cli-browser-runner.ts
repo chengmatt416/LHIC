@@ -20,11 +20,18 @@ import {
 import { VerifierEngine } from "@lhic/verifier";
 import { chromium, type Browser, type Page } from "playwright";
 
+import type { ReceiptRecorder } from "./receipt-recorder.js";
+import { evidenceRefs } from "./receipt-recorder.js";
+
 export interface BrowserRunResult {
   status: "awaiting_approval" | "completed" | "failed" | "cancelled";
   message: string;
   evidence: string[];
   proposal: TaskProposalSummary;
+}
+
+export interface CliBrowserRunnerOptions {
+  receiptRecorder?: ReceiptRecorder;
 }
 
 export interface TaskProposalSummary {
@@ -55,8 +62,14 @@ interface BrowserSession {
  */
 export class CliBrowserRunner {
   private readonly sessions = new Map<string, BrowserSession>();
+  private readonly receiptRecorder: ReceiptRecorder | undefined;
 
-  public constructor(private readonly workspaceRoot: string) {}
+  public constructor(
+    private readonly workspaceRoot: string,
+    options: CliBrowserRunnerOptions = {},
+  ) {
+    this.receiptRecorder = options.receiptRecorder;
+  }
 
   public async execute(
     commandId: string,
@@ -127,6 +140,14 @@ export class CliBrowserRunner {
       });
     const execution = await session.executor.execute(step.action, approval);
     if (!execution.success) {
+      await this.recordReceipt(
+        session,
+        step,
+        "failed",
+        approval,
+        undefined,
+        execution.error ?? "The approved browser action failed.",
+      );
       return this.finishFailure(
         commandId,
         session,
@@ -135,6 +156,14 @@ export class CliBrowserRunner {
     }
     const verification = await session.verifier.verify(step.verification);
     if (!verification.success || verification.evidence.length === 0) {
+      await this.recordReceipt(
+        session,
+        step,
+        "failed",
+        approval,
+        undefined,
+        verification.error ?? "The post-action verifier produced no evidence.",
+      );
       return this.finishFailure(
         commandId,
         session,
@@ -143,6 +172,10 @@ export class CliBrowserRunner {
     }
     session.executor.rememberVerifiedAction(step.action, verification);
     session.evidence.push(...execution.evidence, ...verification.evidence);
+    await this.recordReceipt(session, step, "verified", approval, [
+      ...execution.evidence,
+      ...verification.evidence,
+    ]);
     session.nextStepIndex += 1;
     return this.run(commandId);
   }
@@ -169,6 +202,14 @@ export class CliBrowserRunner {
       }
       const execution = await session.executor.execute(step.action);
       if (!execution.success) {
+        await this.recordReceipt(
+          session,
+          step,
+          "failed",
+          undefined,
+          undefined,
+          execution.error ?? "The browser action failed.",
+        );
         return this.finishFailure(
           commandId,
           session,
@@ -177,6 +218,15 @@ export class CliBrowserRunner {
       }
       const verification = await session.verifier.verify(step.verification);
       if (!verification.success || verification.evidence.length === 0) {
+        await this.recordReceipt(
+          session,
+          step,
+          "failed",
+          undefined,
+          undefined,
+          verification.error ??
+            "The post-action verifier produced no evidence.",
+        );
         return this.finishFailure(
           commandId,
           session,
@@ -186,6 +236,10 @@ export class CliBrowserRunner {
       }
       session.executor.rememberVerifiedAction(step.action, verification);
       session.evidence.push(...execution.evidence, ...verification.evidence);
+      await this.recordReceipt(session, step, "verified", undefined, [
+        ...execution.evidence,
+        ...verification.evidence,
+      ]);
       session.nextStepIndex += 1;
     }
     const result: BrowserRunResult = {
@@ -196,6 +250,32 @@ export class CliBrowserRunner {
     };
     await this.cancel(commandId);
     return result;
+  }
+
+  private async recordReceipt(
+    session: BrowserSession,
+    step: { id: string; action: BrowserSemanticAction },
+    state: "verified" | "failed",
+    approval: ActionApproval | undefined,
+    stepEvidence: string[] | undefined,
+    failureReason?: string,
+  ): Promise<void> {
+    if (!this.receiptRecorder) return;
+    await this.receiptRecorder.record({
+      surface: "browser",
+      actionId: step.id,
+      tool: "lhic_browser_execute",
+      action: step.action,
+      ...(approval ? { approval } : {}),
+      approvalStatus: approval ? "approved" : "not_required",
+      executorBackend: "playwright",
+      verificationStatus: state === "verified" ? "passed" : "failed",
+      verificationAuthority: state === "verified" ? "lhic" : "none",
+      evidenceRefs: stepEvidence ? evidenceRefs(stepEvidence) : [],
+      state,
+      ...(failureReason ? { failureReason } : {}),
+      startedAt: new Date().toISOString(),
+    });
   }
 
   private waiting(session: BrowserSession, message: string): BrowserRunResult {

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-function stableSerialize(value: unknown): string {
+export function canonicalSerialize(value: unknown): string {
   if (value === undefined) {
     return "undefined";
   }
@@ -15,15 +15,15 @@ function stableSerialize(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `[${value.map(stableSerialize).join(",")}]`;
+    return `[${value.map(canonicalSerialize).join(",")}]`;
   }
 
   const entries = Object.entries(value as Record<string, unknown>).sort(
     ([left], [right]) => left.localeCompare(right),
   );
-  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(",")}}`;
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalSerialize(entry)}`).join(",")}}`;
 }
 
 export function hashState(input: unknown): string {
-  return createHash("sha256").update(stableSerialize(input)).digest("hex");
+  return createHash("sha256").update(canonicalSerialize(input)).digest("hex");
 }
