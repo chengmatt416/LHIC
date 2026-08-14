@@ -1,0 +1,359 @@
+name: PR-SOTA-001 autofix
+
+on:
+  push:
+    branches: [feature/sota-improvements]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.event.head_commit.message == 'chore: apply PR-SOTA-001 trust fix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply trust and audit fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          DIGESTS = '''const pinnedReleaseDigests: Record<string, Record<string, string>> = {
+            "17.2.15": {
+              "omp-darwin-arm64": "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5",
+              "omp-darwin-x64": "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03",
+              "omp-linux-arm64": "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad",
+              "omp-linux-x64": "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a",
+              "omp-windows-x64.exe": "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa",
+            },
+          };
+
+          function pinnedReleaseDigest(version: string, asset: string): string | undefined {
+            return pinnedReleaseDigests[version]?.[asset];
+          }
+          '''
+
+          p = Path('packages/omp-rpc/src/omp-version.ts')
+          text = p.read_text()
+          needle = 'const sha256Pattern = /^[a-f0-9]{64}$/;\n'
+          assert needle in text
+          text = text.replace(needle, needle + '\n' + DIGESTS, 1)
+          old = '''  const pinned = pinnedVersionFor(options);
+            if (options.bundledBinary) {
+              let sha256 = "";
+              try {
+                sha256 = await sha256File(options.bundledBinary);
+              } catch {
+                throw new Error(
+                  `Bundled omp binary ${options.bundledBinary} does not exist or is unreadable.`,
+                );
+              }
+              return {
+                path: options.bundledBinary,
+                version: pinned,
+                sha256,
+                trustSource: "release-manifest",
+              };
+            }
+          '''
+          new = '''  const pinned = pinnedVersionFor(options);
+            if (options.bundledBinary) {
+              const asset = assetFor();
+              if (
+                options.bundledBinaryVersion &&
+                options.bundledBinaryVersion !== pinned
+              ) {
+                throw new Error(
+                  `Bundled omp version ${options.bundledBinaryVersion} does not match managed version ${pinned}.`,
+                );
+              }
+              const expectedDigest = pinnedReleaseDigest(pinned, asset);
+              if (!expectedDigest) {
+                throw new Error(
+                  `No independently pinned release digest is available for bundled omp v${pinned} (${asset}); refusing to execute it.`,
+                );
+              }
+              let sha256 = "";
+              try {
+                sha256 = await sha256File(options.bundledBinary);
+              } catch {
+                throw new Error(
+                  `Bundled omp binary ${options.bundledBinary} does not exist or is unreadable.`,
+                );
+              }
+              if (sha256 !== expectedDigest) {
+                throw new Error(
+                  `Bundled omp binary SHA-256 mismatch for managed v${pinned}: expected ${expectedDigest}, got ${sha256}.`,
+                );
+              }
+              return {
+                path: options.bundledBinary,
+                version: pinned,
+                sha256,
+                trustSource: "release-manifest",
+              };
+            }
+          '''
+          assert old in text, 'managed bundled block changed upstream'
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('packages/omp-rpc/src/omp-version.test.ts')
+          text = p.read_text()
+          marker = '  it("never silently rotates a version\'s trusted digest", async () => {'
+          assert marker in text
+          test = '''  it("rejects a self-certified bundled binary in managed mode", async () => {
+            const bundled = join(directory, "managed-bundled-omp");
+            await writeFile(bundled, "tampered-or-unknown-omp-bytes");
+            await expect(
+              resolveOmpBinary({
+                cacheRoot: directory,
+                bundledBinary: bundled,
+                bundledBinaryVersion: "17.2.15",
+                updateCheckEnabled: false,
+                policy: { mode: "managed" },
+              }),
+            ).rejects.toThrow(/Bundled omp binary SHA-256 mismatch for managed v17\\.2\\.15/);
+          });
+
+          '''
+          p.write_text(text.replace(marker, test + marker, 1))
+
+          p = Path('apps/desktop/scripts/fetch-omp.mjs')
+          text = p.read_text()
+          text = text.replace(
+            'import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";',
+            'import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";',
+            1,
+          )
+          text = text.replace(
+            ' * The cached file is re-verified against the manifest on every run; a corrupt\n * or mismatched cache is deleted and re-downloaded. A previously fetched cache\n * is reused (with a warning) when the network is unavailable, so CI builds\n * never break on a transient download failure.\n',
+            ' * The cached file is verified against an independently pinned release digest\n * for supported production versions. Unknown/custom versions require a live\n * release manifest. Network failure never authorizes an unverified cache.\n',
+            1,
+          )
+          base = '''const OMP_BASE_URL =
+            process.env.OMP_BASE_URL ??
+            `https://github.com/can1357/oh-my-pi/releases/download/v${OMP_VERSION}`;
+          '''
+          pins = '''const trustedReleaseDigests = {
+            "17.2.15": {
+              "omp-darwin-arm64": "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5",
+              "omp-darwin-x64": "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03",
+              "omp-linux-arm64": "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad",
+              "omp-linux-x64": "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a",
+              "omp-windows-x64.exe": "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa",
+            },
+          };
+          '''
+          assert base in text
+          text = text.replace(base, base + '\n' + pins, 1)
+          manifest_end = '''  return digest;
+          }
+
+          async function sha256File(path) {
+          '''
+          expected_fn = '''  return digest;
+          }
+
+          async function expectedHash(asset) {
+            const pinned = trustedReleaseDigests[OMP_VERSION]?.[asset];
+            if (pinned) return pinned;
+            return manifestHash(asset);
+          }
+
+          async function sha256File(path) {
+          '''
+          assert manifest_end in text
+          text = text.replace(manifest_end, expected_fn, 1)
+          text = text.replace('  const expected = await manifestHash(asset);', '  const expected = await expectedHash(asset);', 1)
+          start = text.index('async function main() {')
+          end = text.index('\n\nawait mkdir(outputDirectory', start)
+          main = '''async function main() {
+            const asset = resolveAsset();
+            const targetPath = join(outputDirectory, outputFileName());
+            const expected = await expectedHash(asset);
+
+            let cachedDigest;
+            try {
+              cachedDigest = await sha256File(targetPath);
+            } catch {
+              cachedDigest = undefined;
+            }
+
+            if (cachedDigest) {
+              if (cachedDigest === expected) {
+                console.log(
+                  `omp ${OMP_VERSION} cache verified: ${targetPath} (sha256 ${cachedDigest}).`,
+                );
+                return;
+              }
+              await rm(targetPath, { force: true });
+            }
+
+            const digest = await downloadAsset(asset, targetPath);
+            console.log(
+              `omp ${OMP_VERSION} fetched: ${targetPath} (sha256 ${digest}).`,
+            );
+          }'''
+          p.write_text(text[:start] + main + text[end:])
+
+          p = Path('benchmarks/agent-competitive/run.mjs')
+          text = p.read_text()
+          needle = 'const repositoryRoot = resolve(benchmarkRoot, "../..");\n'
+          bench_pins = '''const LHIC_OMP_VERSION = "17.2.15";
+          const lhicOmpReleaseDigests = {
+            darwin: {
+              arm64: "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5",
+              x64: "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03",
+            },
+            linux: {
+              arm64: "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad",
+              x64: "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a",
+            },
+            win32: {
+              x64: "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa",
+            },
+          };
+
+          function trustedLhicOmpIdentity() {
+            const sha256 = lhicOmpReleaseDigests[process.platform]?.[process.arch];
+            return sha256 ? { version: LHIC_OMP_VERSION, sha256 } : undefined;
+          }
+          '''
+          assert needle in text
+          text = text.replace(needle, needle + '\n' + bench_pins, 1)
+          start = text.index('  if (product === "lhic") {')
+          end = text.index('\n\n  const expectedVersion = product === "goose"', start)
+          lhic_block = '''  if (product === "lhic") {
+            const binary = join(
+              repositoryRoot,
+              "apps",
+              "desktop",
+              "vendor",
+              "omp",
+              "current",
+              process.platform === "win32" ? "omp.exe" : "omp",
+            );
+            const available = await exists(binary);
+            if (!available) {
+              return unavailable(`Bundled omp is missing: ${binary}`, "unknown");
+            }
+            const trusted = trustedLhicOmpIdentity();
+            if (!trusted) {
+              return unavailable(
+                `No trusted omp digest is pinned for ${process.platform}/${process.arch}.`,
+                LHIC_OMP_VERSION,
+              );
+            }
+            // Verify bytes against release metadata before executing the binary.
+            const observedSha256 = await hashFile(binary);
+            if (observedSha256 !== trusted.sha256) {
+              return unavailable(
+                `Bundled omp SHA-256 mismatch: expected ${trusted.sha256}, got ${observedSha256}.`,
+                trusted.version,
+              );
+            }
+            const measured = await measureOmpVersion(binary);
+            if (!measured.ok) {
+              return unavailable(
+                `Bundled omp version could not be measured: ${measured.error}`,
+                measured.version || "unknown",
+              );
+            }
+            if (measured.version !== trusted.version) {
+              return unavailable(
+                `Bundled omp version ${measured.version} does not match expected ${trusted.version}.`,
+                measured.version,
+              );
+            }
+            return {
+              available: true,
+              reason: "",
+              version: trusted.version,
+              sha256: trusted.sha256,
+              invocation: (prompt) => ({
+                file: process.execPath,
+                args: [
+                  join(repositoryRoot, "node_modules", "tsx", "dist", "cli.mjs"),
+                  join(repositoryRoot, "apps", "cli", "src", "main.ts"),
+                  "agent",
+                  "--prompt",
+                  prompt,
+                  "--jsonl",
+                  "--approval-policy",
+                  "auto",
+                  "--approved-by",
+                  "competitive-benchmark",
+                  "--model",
+                  modelId,
+                ],
+                env: {
+                  OMP_BINARY: binary,
+                  OMP_BINARY_DIGEST: trusted.sha256,
+                  OMP_BINARY_VERSION: trusted.version,
+                  OMP_BINARY_TRUST: "digest-required",
+                },
+              }),
+            };
+          }'''
+          p.write_text(text[:start] + lhic_block + text[end:])
+
+          p = Path('package.json')
+          package = json.loads(p.read_text())
+          overrides = package.setdefault('overrides', {})
+          transformers = overrides.setdefault('@huggingface/transformers', {})
+          transformers['sharp'] = '0.35.3'
+          p.write_text(json.dumps(package, indent=2) + '\n')
+          PY
+      - name: Regenerate lockfile with patched sharp
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+      - name: Install exact dependency graph
+        run: npm ci
+      - name: Format touched source
+        run: npx prettier --write package.json packages/omp-rpc/src/omp-version.ts packages/omp-rpc/src/omp-version.test.ts apps/desktop/scripts/fetch-omp.mjs benchmarks/agent-competitive/run.mjs
+      - name: Verify production dependency audit
+        shell: bash
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high --json > npm-audit.json
+          status=$?
+          cat npm-audit.json
+          exit $status
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-sota001-audit
+          path: npm-audit.json
+          if-no-files-found: ignore
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Run OMP trust tests
+        run: npx vitest run packages/omp-rpc/src/omp-version.test.ts
+      - name: Lint
+        run: npm run lint
+      - name: Benchmark harness self-test
+        run: npm run bench:agent:self-test
+      - name: Check patch integrity
+        run: git diff --check
+      - name: Commit verified fix and remove bootstrap workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/pr-sota001-autofix.yml
+          git add package.json package-lock.json \
+            packages/omp-rpc/src/omp-version.ts \
+            packages/omp-rpc/src/omp-version.test.ts \
+            apps/desktop/scripts/fetch-omp.mjs \
+            benchmarks/agent-competitive/run.mjs
+          git commit -m "fix(sota): close PR-SOTA-001 trust and audit blockers"
+          git push origin HEAD:feature/sota-improvements
