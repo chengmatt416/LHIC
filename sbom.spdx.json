@@ -1,0 +1,1615 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "LHIC TypeScript production dependencies",
+  "documentNamespace": "https://lhic.dev/sbom/2026-08-14T15-44-25-328Z",
+  "creationInfo": {
+    "created": "2026-08-14T15:44:25.332Z",
+    "creators": [
+      "Tool: lhic-generate-sbom"
+    ]
+  },
+  "packages": [
+    {
+      "name": "local-human-intent-controller",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/browser",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-1",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/schema",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-2",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/security",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-3",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/trace",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "playwright",
+      "versionInfo": "1.61.1",
+      "SPDXID": "SPDXRef-Package-5",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/controller",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-6",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@huggingface/transformers",
+      "versionInfo": "3.8.1",
+      "SPDXID": "SPDXRef-Package-7",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@huggingface/jinja",
+      "versionInfo": "0.5.9",
+      "SPDXID": "SPDXRef-Package-8",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "onnxruntime-node",
+      "versionInfo": "1.21.0",
+      "SPDXID": "SPDXRef-Package-9",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "global-agent",
+      "versionInfo": "3.0.0",
+      "SPDXID": "SPDXRef-Package-10",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "boolean",
+      "versionInfo": "3.2.0",
+      "SPDXID": "SPDXRef-Package-11",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "es6-error",
+      "versionInfo": "4.1.1",
+      "SPDXID": "SPDXRef-Package-12",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "matcher",
+      "versionInfo": "3.0.0",
+      "SPDXID": "SPDXRef-Package-13",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "escape-string-regexp",
+      "versionInfo": "4.0.0",
+      "SPDXID": "SPDXRef-Package-14",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "roarr",
+      "versionInfo": "2.15.4",
+      "SPDXID": "SPDXRef-Package-15",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "detect-node",
+      "versionInfo": "2.1.0",
+      "SPDXID": "SPDXRef-Package-16",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "globalthis",
+      "versionInfo": "1.0.4",
+      "SPDXID": "SPDXRef-Package-17",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "define-properties",
+      "versionInfo": "1.2.1",
+      "SPDXID": "SPDXRef-Package-18",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "define-data-property",
+      "versionInfo": "1.1.4",
+      "SPDXID": "SPDXRef-Package-19",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "es-define-property",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-20",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "es-errors",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-21",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "gopd",
+      "versionInfo": "1.2.0",
+      "SPDXID": "SPDXRef-Package-22",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "has-property-descriptors",
+      "versionInfo": "1.0.2",
+      "SPDXID": "SPDXRef-Package-23",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "object-keys",
+      "versionInfo": "1.1.1",
+      "SPDXID": "SPDXRef-Package-24",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "json-stringify-safe",
+      "versionInfo": "5.0.1",
+      "SPDXID": "SPDXRef-Package-25",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "semver-compare",
+      "versionInfo": "1.0.0",
+      "SPDXID": "SPDXRef-Package-26",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "sprintf-js",
+      "versionInfo": "1.1.3",
+      "SPDXID": "SPDXRef-Package-27",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "semver",
+      "versionInfo": "7.8.5",
+      "SPDXID": "SPDXRef-Package-28",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "serialize-error",
+      "versionInfo": "7.0.1",
+      "SPDXID": "SPDXRef-Package-29",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "type-fest",
+      "versionInfo": "0.13.1",
+      "SPDXID": "SPDXRef-Package-30",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "onnxruntime-common",
+      "versionInfo": "1.21.0",
+      "SPDXID": "SPDXRef-Package-31",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "tar",
+      "versionInfo": "7.5.22",
+      "SPDXID": "SPDXRef-Package-32",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@isaacs/fs-minipass",
+      "versionInfo": "4.0.1",
+      "SPDXID": "SPDXRef-Package-33",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "minipass",
+      "versionInfo": "7.1.3",
+      "SPDXID": "SPDXRef-Package-34",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "chownr",
+      "versionInfo": "3.0.0",
+      "SPDXID": "SPDXRef-Package-35",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "minizlib",
+      "versionInfo": "3.1.0",
+      "SPDXID": "SPDXRef-Package-36",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "yallist",
+      "versionInfo": "5.0.0",
+      "SPDXID": "SPDXRef-Package-37",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "onnxruntime-web",
+      "versionInfo": "1.22.0-dev.20250409-89f8206ba4",
+      "SPDXID": "SPDXRef-Package-38",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "flatbuffers",
+      "versionInfo": "25.9.23",
+      "SPDXID": "SPDXRef-Package-39",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "guid-typescript",
+      "versionInfo": "1.0.9",
+      "SPDXID": "SPDXRef-Package-40",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "long",
+      "versionInfo": "5.3.2",
+      "SPDXID": "SPDXRef-Package-41",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "onnxruntime-common",
+      "versionInfo": "1.22.0-dev.20250409-89f8206ba4",
+      "SPDXID": "SPDXRef-Package-42",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "platform",
+      "versionInfo": "1.3.6",
+      "SPDXID": "SPDXRef-Package-43",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "protobufjs",
+      "versionInfo": "7.6.5",
+      "SPDXID": "SPDXRef-Package-44",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/aspromise",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-45",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/base64",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-46",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/codegen",
+      "versionInfo": "2.0.5",
+      "SPDXID": "SPDXRef-Package-47",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/eventemitter",
+      "versionInfo": "1.1.1",
+      "SPDXID": "SPDXRef-Package-48",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/fetch",
+      "versionInfo": "1.1.1",
+      "SPDXID": "SPDXRef-Package-49",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/float",
+      "versionInfo": "1.0.2",
+      "SPDXID": "SPDXRef-Package-50",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/path",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-51",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/pool",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-52",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@protobufjs/utf8",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-53",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@types/node",
+      "versionInfo": "24.13.3",
+      "SPDXID": "SPDXRef-Package-54",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "undici-types",
+      "versionInfo": "7.18.2",
+      "SPDXID": "SPDXRef-Package-55",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "sharp",
+      "versionInfo": "0.34.5",
+      "SPDXID": "SPDXRef-Package-56",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@img/colour",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-57",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-arm64",
+      "versionInfo": "1.2.4",
+      "SPDXID": "SPDXRef-Package-58",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@img/sharp-libvips-linuxmusl-arm64",
+      "versionInfo": "1.2.4",
+      "SPDXID": "SPDXRef-Package-59",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@img/sharp-linux-arm64",
+      "versionInfo": "0.34.5",
+      "SPDXID": "SPDXRef-Package-60",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@img/sharp-linuxmusl-arm64",
+      "versionInfo": "0.34.5",
+      "SPDXID": "SPDXRef-Package-61",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "detect-libc",
+      "versionInfo": "2.1.2",
+      "SPDXID": "SPDXRef-Package-62",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/memory",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-63",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/desktop",
+      "versionInfo": "0.2.7",
+      "SPDXID": "SPDXRef-Package-64",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/game-training",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-65",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/omp-rpc",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-66",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/shared-skills",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-67",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/skills",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-68",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/verifier",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-69",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@napi-rs/keyring",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-70",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@napi-rs/keyring-linux-arm64-gnu",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-71",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@napi-rs/keyring-linux-arm64-musl",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-72",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@pinyencheng/lhic",
+      "versionInfo": "0.1.2",
+      "SPDXID": "SPDXRef-Package-73",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "react-dom",
+      "versionInfo": "19.2.7",
+      "SPDXID": "SPDXRef-Package-74",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "react",
+      "versionInfo": "19.2.7",
+      "SPDXID": "SPDXRef-Package-75",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "scheduler",
+      "versionInfo": "0.27.0",
+      "SPDXID": "SPDXRef-Package-76",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/game-training-2d",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-77",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/game-training-3d",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-78",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/ledger",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-79",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@lhic/mcp-server",
+      "versionInfo": "0.1.0",
+      "SPDXID": "SPDXRef-Package-80",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "versionInfo": "1.29.0",
+      "SPDXID": "SPDXRef-Package-81",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "@hono/node-server",
+      "versionInfo": "1.19.17",
+      "SPDXID": "SPDXRef-Package-82",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "hono",
+      "versionInfo": "4.13.2",
+      "SPDXID": "SPDXRef-Package-83",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ajv-formats",
+      "versionInfo": "3.0.1",
+      "SPDXID": "SPDXRef-Package-84",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ajv",
+      "versionInfo": "8.20.0",
+      "SPDXID": "SPDXRef-Package-85",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "fast-deep-equal",
+      "versionInfo": "3.1.3",
+      "SPDXID": "SPDXRef-Package-86",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "fast-uri",
+      "versionInfo": "3.1.5",
+      "SPDXID": "SPDXRef-Package-87",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "json-schema-traverse",
+      "versionInfo": "1.0.0",
+      "SPDXID": "SPDXRef-Package-88",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "require-from-string",
+      "versionInfo": "2.0.2",
+      "SPDXID": "SPDXRef-Package-89",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "content-type",
+      "versionInfo": "1.0.5",
+      "SPDXID": "SPDXRef-Package-90",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "cors",
+      "versionInfo": "2.8.6",
+      "SPDXID": "SPDXRef-Package-91",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "object-assign",
+      "versionInfo": "4.1.1",
+      "SPDXID": "SPDXRef-Package-92",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "vary",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-93",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "cross-spawn",
+      "versionInfo": "7.0.6",
+      "SPDXID": "SPDXRef-Package-94",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "path-key",
+      "versionInfo": "3.1.1",
+      "SPDXID": "SPDXRef-Package-95",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "shebang-command",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-96",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "shebang-regex",
+      "versionInfo": "3.0.0",
+      "SPDXID": "SPDXRef-Package-97",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "which",
+      "versionInfo": "2.0.2",
+      "SPDXID": "SPDXRef-Package-98",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "isexe",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-99",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "eventsource-parser",
+      "versionInfo": "3.1.0",
+      "SPDXID": "SPDXRef-Package-100",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "eventsource",
+      "versionInfo": "3.0.7",
+      "SPDXID": "SPDXRef-Package-101",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "express-rate-limit",
+      "versionInfo": "8.5.2",
+      "SPDXID": "SPDXRef-Package-102",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "express",
+      "versionInfo": "5.2.1",
+      "SPDXID": "SPDXRef-Package-103",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ip-address",
+      "versionInfo": "10.5.0",
+      "SPDXID": "SPDXRef-Package-104",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "accepts",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-105",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "mime-types",
+      "versionInfo": "3.0.2",
+      "SPDXID": "SPDXRef-Package-106",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "negotiator",
+      "versionInfo": "1.0.0",
+      "SPDXID": "SPDXRef-Package-107",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "body-parser",
+      "versionInfo": "2.3.0",
+      "SPDXID": "SPDXRef-Package-108",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "bytes",
+      "versionInfo": "3.1.2",
+      "SPDXID": "SPDXRef-Package-109",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "content-type",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-110",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "debug",
+      "versionInfo": "4.4.3",
+      "SPDXID": "SPDXRef-Package-111",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "http-errors",
+      "versionInfo": "2.0.1",
+      "SPDXID": "SPDXRef-Package-112",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "iconv-lite",
+      "versionInfo": "0.7.3",
+      "SPDXID": "SPDXRef-Package-113",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "on-finished",
+      "versionInfo": "2.4.1",
+      "SPDXID": "SPDXRef-Package-114",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "qs",
+      "versionInfo": "6.15.3",
+      "SPDXID": "SPDXRef-Package-115",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "raw-body",
+      "versionInfo": "3.0.2",
+      "SPDXID": "SPDXRef-Package-116",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "type-is",
+      "versionInfo": "2.1.0",
+      "SPDXID": "SPDXRef-Package-117",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "content-disposition",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-118",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "cookie-signature",
+      "versionInfo": "1.2.2",
+      "SPDXID": "SPDXRef-Package-119",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "cookie",
+      "versionInfo": "0.7.2",
+      "SPDXID": "SPDXRef-Package-120",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ms",
+      "versionInfo": "2.1.3",
+      "SPDXID": "SPDXRef-Package-121",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "depd",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-122",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "encodeurl",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-123",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "escape-html",
+      "versionInfo": "1.0.3",
+      "SPDXID": "SPDXRef-Package-124",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "etag",
+      "versionInfo": "1.8.1",
+      "SPDXID": "SPDXRef-Package-125",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "finalhandler",
+      "versionInfo": "2.1.1",
+      "SPDXID": "SPDXRef-Package-126",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "parseurl",
+      "versionInfo": "1.3.3",
+      "SPDXID": "SPDXRef-Package-127",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "statuses",
+      "versionInfo": "2.0.2",
+      "SPDXID": "SPDXRef-Package-128",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "fresh",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-129",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "inherits",
+      "versionInfo": "2.0.4",
+      "SPDXID": "SPDXRef-Package-130",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "setprototypeof",
+      "versionInfo": "1.2.0",
+      "SPDXID": "SPDXRef-Package-131",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "toidentifier",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-132",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "merge-descriptors",
+      "versionInfo": "2.0.0",
+      "SPDXID": "SPDXRef-Package-133",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "mime-db",
+      "versionInfo": "1.54.0",
+      "SPDXID": "SPDXRef-Package-134",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ee-first",
+      "versionInfo": "1.1.1",
+      "SPDXID": "SPDXRef-Package-135",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "once",
+      "versionInfo": "1.4.0",
+      "SPDXID": "SPDXRef-Package-136",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "wrappy",
+      "versionInfo": "1.0.2",
+      "SPDXID": "SPDXRef-Package-137",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "proxy-addr",
+      "versionInfo": "2.0.7",
+      "SPDXID": "SPDXRef-Package-138",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "forwarded",
+      "versionInfo": "0.2.0",
+      "SPDXID": "SPDXRef-Package-139",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "ipaddr.js",
+      "versionInfo": "1.9.1",
+      "SPDXID": "SPDXRef-Package-140",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "side-channel",
+      "versionInfo": "1.1.1",
+      "SPDXID": "SPDXRef-Package-141",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "object-inspect",
+      "versionInfo": "1.13.4",
+      "SPDXID": "SPDXRef-Package-142",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "side-channel-list",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-143",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "side-channel-map",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-144",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "call-bound",
+      "versionInfo": "1.0.4",
+      "SPDXID": "SPDXRef-Package-145",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "call-bind-apply-helpers",
+      "versionInfo": "1.0.2",
+      "SPDXID": "SPDXRef-Package-146",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "function-bind",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-147",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "get-intrinsic",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-148",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "es-object-atoms",
+      "versionInfo": "1.1.2",
+      "SPDXID": "SPDXRef-Package-149",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "get-proto",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-150",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "dunder-proto",
+      "versionInfo": "1.0.1",
+      "SPDXID": "SPDXRef-Package-151",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "has-symbols",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-152",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "hasown",
+      "versionInfo": "2.0.4",
+      "SPDXID": "SPDXRef-Package-153",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "math-intrinsics",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-154",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "side-channel-weakmap",
+      "versionInfo": "1.0.2",
+      "SPDXID": "SPDXRef-Package-155",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "range-parser",
+      "versionInfo": "1.3.0",
+      "SPDXID": "SPDXRef-Package-156",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "router",
+      "versionInfo": "2.2.0",
+      "SPDXID": "SPDXRef-Package-157",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "is-promise",
+      "versionInfo": "4.0.0",
+      "SPDXID": "SPDXRef-Package-158",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "path-to-regexp",
+      "versionInfo": "8.4.2",
+      "SPDXID": "SPDXRef-Package-159",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "send",
+      "versionInfo": "1.2.1",
+      "SPDXID": "SPDXRef-Package-160",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "serve-static",
+      "versionInfo": "2.2.1",
+      "SPDXID": "SPDXRef-Package-161",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "media-typer",
+      "versionInfo": "1.1.0",
+      "SPDXID": "SPDXRef-Package-162",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "jose",
+      "versionInfo": "6.2.3",
+      "SPDXID": "SPDXRef-Package-163",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "json-schema-typed",
+      "versionInfo": "8.0.2",
+      "SPDXID": "SPDXRef-Package-164",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "pkce-challenge",
+      "versionInfo": "5.0.1",
+      "SPDXID": "SPDXRef-Package-165",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "safer-buffer",
+      "versionInfo": "2.1.2",
+      "SPDXID": "SPDXRef-Package-166",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "unpipe",
+      "versionInfo": "1.0.0",
+      "SPDXID": "SPDXRef-Package-167",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "zod-to-json-schema",
+      "versionInfo": "3.25.2",
+      "SPDXID": "SPDXRef-Package-168",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "zod",
+      "versionInfo": "4.4.3",
+      "SPDXID": "SPDXRef-Package-169",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "node-appwrite",
+      "versionInfo": "27.0.0",
+      "SPDXID": "SPDXRef-Package-170",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "json-bigint",
+      "versionInfo": "1.0.0",
+      "SPDXID": "SPDXRef-Package-171",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "bignumber.js",
+      "versionInfo": "9.3.1",
+      "SPDXID": "SPDXRef-Package-172",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "undici",
+      "versionInfo": "6.28.0",
+      "SPDXID": "SPDXRef-Package-173",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "lhic-desktop",
+      "versionInfo": "0.2.7",
+      "SPDXID": "SPDXRef-Package-174",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "lhic",
+      "versionInfo": "0.1.2",
+      "SPDXID": "SPDXRef-Package-175",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "name": "playwright-core",
+      "versionInfo": "1.61.1",
+      "SPDXID": "SPDXRef-Package-176",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-0"
+    }
+  ]
+}

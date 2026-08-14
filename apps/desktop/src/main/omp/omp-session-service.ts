@@ -884,10 +884,39 @@ export class OmpSessionService {
           : ("success" as const)
         : ("running" as const);
     const summary = this.toolSummary(frame);
+    const provenance = this.toolProvenance(frame);
     this.emit({
       type: "tool",
-      tool: { id, name, state, ...(summary ? { summary } : {}) },
+      tool: {
+        id,
+        name,
+        state,
+        ...(summary ? { summary } : {}),
+        ...(provenance ? { provenance } : {}),
+      },
     });
+  }
+
+  /**
+   * Truthful provenance for tool frames: OMP tools are executed by omp and
+   * never labeled LHIC-verified unless a verifier actually ran and produced
+   * evidence (LHIC host-tool results carry their own receipts).
+   */
+  private toolProvenance(
+    frame: Record<string, unknown>,
+  ): { executor: string; verifier: string; evidenceRefs: number } | undefined {
+    const result = frame.result as Record<string, unknown> | undefined;
+    if (result?.evidence && Array.isArray(result.evidence)) {
+      return {
+        executor: "lhic",
+        verifier: "lhic",
+        evidenceRefs: result.evidence.length,
+      };
+    }
+    if (frame.type === "tool_execution_end") {
+      return { executor: "omp", verifier: "none", evidenceRefs: 0 };
+    }
+    return undefined;
   }
 
   private toolSummary(frame: Record<string, unknown>): string | undefined {

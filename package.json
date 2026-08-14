@@ -56,7 +56,9 @@
     "publish:aur": "node scripts/publish-aur.mjs",
     "check:release-versions": "node scripts/check-release-versions.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"
+    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "checksums:verify": "node scripts/verify-sha256-manifest.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1"

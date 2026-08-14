@@ -40,6 +40,8 @@ jobs:
         run: npm run preflight
       - name: Audit production dependencies
         run: npm run audit:prod
+      - name: Generate production SBOM
+        run: npm run sbom -- sbom.spdx.json && node -e "require('fs').statSync('sbom.spdx.json')"
       - name: Check documentation links
         run: npm run check:docs
       - name: Check release versions

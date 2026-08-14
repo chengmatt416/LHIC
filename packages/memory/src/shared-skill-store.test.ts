@@ -65,10 +65,6 @@ describe("shared skill SQLite cache", () => {
   });
 });
 
-import { describe, expect, it } from "vitest";
-
-import { SharedSkillStore } from "./shared-skill-store.js";
-
 describe("SharedSkillStore snapshot guard", () => {
   function snapshotSkill(content: string, skillId = "s1") {
     return {

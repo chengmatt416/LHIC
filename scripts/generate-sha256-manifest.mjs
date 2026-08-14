@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey, sign, verify } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
@@ -18,6 +18,7 @@ export async function createSha256Manifest(
   directory,
   version,
   outputPath = join(directory, `SHA256SUMS-${version}.txt`),
+  options = {},
 ) {
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error("Release checksum manifests require a semantic version.");
@@ -50,7 +51,27 @@ export async function createSha256Manifest(
     },
   );
   await rename(temporaryPath, outputPath);
-  return { outputPath, artifacts: entries.length };
+  let signaturePath;
+  const signingKeyFile =
+    options?.signingKeyFile ?? process.env.LHIC_SHA256SIGNING_KEY_FILE;
+  if (signingKeyFile) {
+    const privateKey = createPrivateKey(await readFile(signingKeyFile, "utf8"));
+    const signature = sign(
+      null,
+      await readFile(outputPath),
+      privateKey,
+    ).toString("base64");
+    signaturePath = `${outputPath}.sig`;
+    await writeFile(signaturePath, `${signature}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+  }
+  return {
+    outputPath,
+    artifacts: entries.length,
+    ...(signaturePath ? { signaturePath } : {}),
+  };
 }
 
 async function findInstallerArtifacts(directory) {

@@ -515,6 +515,13 @@ export function Agent({
                         {tool.state}
                       </span>
                       {tool.summary ? <small>{tool.summary}</small> : null}
+                      {tool.provenance ? (
+                        <small className="tool-provenance">
+                          executed by {tool.provenance.executor} · verified by{" "}
+                          {tool.provenance.verifier} ·{" "}
+                          {tool.provenance.evidenceRefs} evidence ref(s)
+                        </small>
+                      ) : null}
                     </div>
                   ))}
                 </div>

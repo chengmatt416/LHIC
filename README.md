@@ -62,7 +62,11 @@ contract, redaction boundary, and fail-closed behavior.
 - `apps/cli`: LHIC CLI command entrypoint (`lhic`).
 - `apps/lhic`: Compatibility entrypoint for `npx lhic`.
 - `apps/desktop`: Electron Control Center.
-- `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint and HTTP API Control Plane.
+- `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint. The
+  HTTP API Control Plane class is an experimental, unwired stub (no
+  persistence/idempotency/leases) and must not be treated as durable remote
+  orchestration; durable task state lives in the lease-based SQLite
+  `DistributedTaskQueue` and encrypted `DurableWorkflowStore`.
 
 ## Install desktop app and CLI
 

@@ -29,7 +29,7 @@ const fixtures = JSON.parse(
   await readFile(
     join(
       dirname(fileURLToPath(import.meta.url)),
-      "../../benchmarks/architecture-stress/fixtures.json",
+      "../../../benchmarks/architecture-stress/fixtures.json",
     ),
     "utf8",
   ),

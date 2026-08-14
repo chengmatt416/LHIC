@@ -565,6 +565,12 @@ export interface OmpToolCallView {
   name: string;
   state: "running" | "success" | "error";
   summary?: string;
+  /** Provenance summary: executor/verifier authority and evidence count. */
+  provenance?: {
+    executor: string;
+    verifier: string;
+    evidenceRefs: number;
+  };
 }
 
 export interface OmpUiRequest {
