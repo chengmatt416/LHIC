@@ -209,6 +209,37 @@ if mode == "prompt_hang":
     )
     time.sleep(3600)
 
+if mode == "small_flood_turn_end":
+    cmd = read_commands(1)[0]
+    emit({"type": "response", "id": cmd.get("id"), "command": "prompt", "success": True, "data": {"agentInvoked": True}})
+    for i in range(20):
+        emit({"type": "notice", "index": i, "text": "x" * 64})
+    emit({"type": "turn_end", "message": {"role": "assistant"}})
+    sys.exit(0)
+
+if mode == "flood_then_unrelated_prompt_result":
+    cmd = read_commands(1)[0]
+    emit(
+        {
+            "type": "response",
+            "id": cmd.get("id"),
+            "command": "prompt",
+            "success": True,
+            "data": {"agentInvoked": True},
+        }
+    )
+    # An unrelated prompt_result (different id) must NOT complete the turn.
+    emit(
+        {
+            "type": "prompt_result",
+            "id": "req_OTHER",
+            "agentInvoked": False,
+        }
+    )
+    # Then the real terminal event arrives.
+    emit({"type": "turn_end", "message": {"role": "assistant"}})
+    sys.exit(0)
+
 if mode == "flood_turn_end":
     cmd = read_commands(1)[0]
     emit(

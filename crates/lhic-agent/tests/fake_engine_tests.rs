@@ -405,3 +405,49 @@ async fn cancelled_futures_do_not_leak_pending() {
 
     client.stop().await.ok();
 }
+
+/// An unrelated `prompt_result` (different id) must NOT complete the active
+/// prompt; only the real terminal event may. Correlated late failures and
+/// matching results still complete normally (covered by other tests).
+#[tokio::test]
+async fn unrelated_prompt_result_does_not_complete_active_prompt() {
+    let client = start_fake("flood_then_unrelated_prompt_result").await;
+    let outcome = prompt_and_wait(&client, "hello", Duration::from_secs(20)).await;
+    assert!(
+        outcome.is_ok(),
+        "the unrelated prompt_result must be ignored and the turn must \
+         complete via its real terminal event: {:?}",
+        outcome.err()
+    );
+    let outcome = outcome.unwrap();
+    assert!(outcome.is_terminal());
+    client.stop().await.ok();
+}
+
+/// Observer drops must be observable out-of-band and must not break protocol
+/// completion. Uses a queue capacity of 1 and an event flood.
+#[tokio::test]
+async fn observer_event_drop_is_counted_and_turn_completes() {
+    let mut config = fake_config(
+        "small_flood_turn_end",
+        Duration::from_secs(20),
+        Duration::from_millis(300),
+    );
+    config.event_queue_capacity = 8;
+    let mut client = OmpRpcClient::with_config(config);
+    client.start().await.expect("fake handshake");
+
+    let outcome = prompt_and_wait(&client, "hello", Duration::from_secs(20)).await;
+    assert!(
+        outcome.is_ok(),
+        "turn must complete despite heavy observer loss: {:?}",
+        outcome.err()
+    );
+    let outcome = outcome.unwrap();
+    assert!(outcome.is_terminal());
+    assert!(
+        client.dropped_observer_event_count() > 0,
+        "the flood with capacity 1 must have dropped at least one observer event"
+    );
+    client.stop().await.ok();
+}

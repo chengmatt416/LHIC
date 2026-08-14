@@ -119,6 +119,9 @@ pub struct RpcConfig {
     pub ready_timeout: Duration,
     /// Stale chunk-sequence timeout.
     pub chunk_stale_timeout: Duration,
+    /// Capacity of the bounded observer event queue. Tests shrink this to
+    /// force deterministic observer drops.
+    pub event_queue_capacity: usize,
 }
 
 impl RpcConfig {
@@ -138,6 +141,7 @@ impl RpcConfig {
             command_timeout: DEFAULT_COMMAND_TIMEOUT,
             ready_timeout: DEFAULT_READY_TIMEOUT,
             chunk_stale_timeout: DEFAULT_CHUNK_STALE_TIMEOUT,
+            event_queue_capacity: EVENT_QUEUE_CAPACITY,
         }
     }
 
@@ -171,6 +175,10 @@ pub struct OmpRpcClient {
     stderr_tail: Arc<parking_lot::Mutex<String>>,
     /// Non-lossy turn-coordination state (terminal events never dropped).
     turn_coordinator: TurnCoordinator,
+    /// Monotonic count of observer events dropped by the bounded queue.
+    /// Out-of-band telemetry: protocol state and command responses are
+    /// unaffected by observer loss.
+    dropped_observer_events: Arc<AtomicU64>,
     config: RpcConfig,
 }
 
@@ -185,17 +193,19 @@ impl OmpRpcClient {
     }
 
     pub fn with_config(config: RpcConfig) -> Self {
+        // mpsc::channel(0) panics; a capacity of 1 is the smallest queue that
+        // lets tests force deterministic observer drops.
+        let capacity = config.event_queue_capacity.max(1);
         Self {
             child: None,
             writer: None,
-            events: Arc::new(tokio::sync::Mutex::new(
-                mpsc::channel(EVENT_QUEUE_CAPACITY).1,
-            )),
+            events: Arc::new(tokio::sync::Mutex::new(mpsc::channel(capacity).1)),
             pending: Arc::new(Mutex::new(HashMap::new())),
             next_id: Arc::new(AtomicU64::new(0)),
             reassembly_cap: Arc::new(Mutex::new(LOCAL_MAX_REASSEMBLED_FRAME_BYTES)),
             stderr_tail: Arc::new(Mutex::new(String::new())),
             turn_coordinator: TurnCoordinator::new(),
+            dropped_observer_events: Arc::new(AtomicU64::new(0)),
             config,
         }
     }
@@ -242,12 +252,13 @@ impl OmpRpcClient {
         let stdout = child.stdout.take().context("omp stdout unavailable")?;
         let stderr = child.stderr.take().context("omp stderr unavailable")?;
 
-        let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_CAPACITY);
+        let (event_tx, event_rx) = mpsc::channel(self.config.event_queue_capacity);
         self.events = Arc::new(tokio::sync::Mutex::new(event_rx));
         let pending = self.pending.clone();
         let reassembly_cap = self.reassembly_cap.clone();
         let stderr_tail = self.stderr_tail.clone();
         let turn_coordinator = self.turn_coordinator.clone();
+        let dropped_observer_events = self.dropped_observer_events.clone();
         let chunk_stale_timeout = self.config.chunk_stale_timeout;
 
         // Stderr collector: maintains a shared bounded tail independently of
@@ -285,7 +296,6 @@ impl OmpRpcClient {
                 line.clear();
                 tokio::select! {
                     read = reader.read_line(&mut line) => {
-
                         match read {
                             Ok(0) | Err(_) => break,
                             Ok(_) => {
@@ -299,6 +309,7 @@ impl OmpRpcClient {
                                     &pending,
                                     &turn_coordinator,
                                     &reassembly_cap,
+                                    &dropped_observer_events,
                                     &event_tx,
                                 ).await {
                                     turn_coordinator.mark_protocol_error(&e.to_string());
@@ -423,7 +434,6 @@ impl OmpRpcClient {
         }
         let mut line = request.to_string();
         line.push('\n');
-
         let write_result = async {
             let mut stdin = self.writer_guard().await?;
             stdin
@@ -518,6 +528,13 @@ impl OmpRpcClient {
     /// Non-lossy turn-coordination state shared with the reader.
     pub fn turn_coordinator(&self) -> TurnCoordinator {
         self.turn_coordinator.clone()
+    }
+
+    /// Number of observer events dropped by the bounded queue since the
+    /// client started. Monotonic; protocol state and command responses are
+    /// unaffected by these drops.
+    pub fn dropped_observer_event_count(&self) -> u64 {
+        self.dropped_observer_events.load(Ordering::Relaxed)
     }
 
     /// Replies to an `extension_ui_request` dialog.
@@ -714,6 +731,7 @@ async fn handle_line(
     pending: &Arc<PendingMap>,
     coordinator: &TurnCoordinator,
     reassembly_cap: &Arc<parking_lot::Mutex<usize>>,
+    dropped_observer_events: &Arc<AtomicU64>,
     event_tx: &mpsc::Sender<AgentEvent>,
 ) -> Result<(), RpcError> {
     let value: Value = serde_json::from_str(line).map_err(|_| RpcError::Parse {
@@ -731,7 +749,14 @@ async fn handle_line(
         reassembler.set_max_frame_bytes(*reassembly_cap.lock());
         if let Some(bytes) = reassembler.feed(&chunk)? {
             let frame = decode_reassembled(bytes)?;
-            dispatch_frame(&frame, pending, coordinator, event_tx).await?;
+            dispatch_frame(
+                &frame,
+                pending,
+                coordinator,
+                dropped_observer_events,
+                event_tx,
+            )
+            .await?;
         }
         return Ok(());
     }
@@ -746,7 +771,14 @@ async fn handle_line(
         return Err(RpcError::Chunk { detail });
     }
 
-    dispatch_frame(&value, pending, coordinator, event_tx).await?;
+    dispatch_frame(
+        &value,
+        pending,
+        coordinator,
+        dropped_observer_events,
+        event_tx,
+    )
+    .await?;
     Ok(())
 }
 
@@ -756,6 +788,7 @@ async fn dispatch_frame(
     frame: &Value,
     pending: &Arc<PendingMap>,
     coordinator: &TurnCoordinator,
+    dropped_observer_events: &Arc<AtomicU64>,
     event_tx: &mpsc::Sender<AgentEvent>,
 ) -> Result<(), RpcError> {
     let frame_type = frame.get("type").and_then(Value::as_str).unwrap_or("");
@@ -816,73 +849,115 @@ async fn dispatch_frame(
             Ok(())
         }
         "rpc_chunk" => unreachable!("chunks are reassembled before dispatch"),
-        "ready" => try_send_event(event_tx, AgentEvent::Unknown { raw: frame.clone() }),
+        "ready" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::Unknown { raw: frame.clone() },
+        ),
         "extension_ui_request" => match serde_json::from_value::<UiRequest>(frame.clone()) {
-            Ok(ui) => try_send_event(event_tx, AgentEvent::UiRequested(ui)),
+            Ok(ui) => try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::UiRequested(ui),
+            ),
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("ui request decode: {e}"),
                 },
             ),
         },
         "host_tool_call" => match serde_json::from_value::<HostToolCall>(frame.clone()) {
-            Ok(req) => try_send_event(event_tx, AgentEvent::HostToolCall(req)),
+            Ok(req) => try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::HostToolCall(req),
+            ),
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("host_tool_call decode: {e}"),
                 },
             ),
         },
         "host_tool_cancel" => match serde_json::from_value::<HostToolCancel>(frame.clone()) {
-            Ok(req) => try_send_event(event_tx, AgentEvent::HostToolCancel(req)),
+            Ok(req) => try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::HostToolCancel(req),
+            ),
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("host_tool_cancel decode: {e}"),
                 },
             ),
         },
         "host_uri_request" => match serde_json::from_value::<HostUriRequest>(frame.clone()) {
-            Ok(req) => try_send_event(event_tx, AgentEvent::HostUriRequest(req)),
+            Ok(req) => try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::HostUriRequest(req),
+            ),
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("host_uri_request decode: {e}"),
                 },
             ),
         },
         "host_uri_cancel" => match serde_json::from_value::<HostUriCancel>(frame.clone()) {
-            Ok(req) => try_send_event(event_tx, AgentEvent::HostUriCancel(req)),
+            Ok(req) => try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::HostUriCancel(req),
+            ),
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("host_uri_cancel decode: {e}"),
                 },
             ),
         },
-        "available_commands_update" => {
-            try_send_event(event_tx, AgentEvent::CommandsUpdated { raw: frame.clone() })
-        }
+        "available_commands_update" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::CommandsUpdated { raw: frame.clone() },
+        ),
         "prompt_result" => match serde_json::from_value::<PromptResult>(frame.clone()) {
             Ok(result) => {
                 if let Some(id) = result.id.as_deref() {
                     coordinator.mark_prompt_result(id, result.agent_invoked);
                 }
-                try_send_event(event_tx, AgentEvent::PromptResolved(result))
+                try_send_event(
+                    event_tx,
+                    dropped_observer_events,
+                    AgentEvent::PromptResolved(result),
+                )
             }
             Err(e) => try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::ProtocolError {
                     detail: format!("prompt_result decode: {e}"),
                 },
             ),
         },
-        "extension_error" => {
-            try_send_event(event_tx, AgentEvent::ExtensionError { raw: frame.clone() })
-        }
-        "agent_start" => try_send_event(event_tx, AgentEvent::AgentStarted { raw: frame.clone() }),
+        "extension_error" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::ExtensionError { raw: frame.clone() },
+        ),
+        "agent_start" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::AgentStarted { raw: frame.clone() },
+        ),
         "agent_end" => {
             let is_terminal = frame
                 .get("isTerminal")
@@ -893,54 +968,94 @@ async fn dispatch_frame(
             }
             try_send_event(
                 event_tx,
+                dropped_observer_events,
                 AgentEvent::AgentEnded {
                     is_terminal,
                     raw: frame.clone(),
                 },
             )
         }
-        "turn_start" => try_send_event(event_tx, AgentEvent::TurnStarted { raw: frame.clone() }),
+        "turn_start" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::TurnStarted { raw: frame.clone() },
+        ),
         "turn_end" => {
             coordinator.mark_terminal();
-            try_send_event(event_tx, AgentEvent::TurnEnded { raw: frame.clone() })
+            try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::TurnEnded { raw: frame.clone() },
+            )
         }
-        "message_start" => {
-            try_send_event(event_tx, AgentEvent::MessageStarted { raw: frame.clone() })
-        }
-        "message_update" => {
-            try_send_event(event_tx, AgentEvent::MessageUpdated { raw: frame.clone() })
-        }
-        "message_end" => try_send_event(event_tx, AgentEvent::MessageEnded { raw: frame.clone() }),
-        "tool_execution_start" => {
-            try_send_event(event_tx, AgentEvent::ToolStarted { raw: frame.clone() })
-        }
-        "tool_execution_update" => {
-            try_send_event(event_tx, AgentEvent::ToolUpdated { raw: frame.clone() })
-        }
-        "tool_execution_end" => {
-            try_send_event(event_tx, AgentEvent::ToolEnded { raw: frame.clone() })
-        }
+        "message_start" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::MessageStarted { raw: frame.clone() },
+        ),
+        "message_update" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::MessageUpdated { raw: frame.clone() },
+        ),
+        "message_end" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::MessageEnded { raw: frame.clone() },
+        ),
+        "tool_execution_start" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::ToolStarted { raw: frame.clone() },
+        ),
+        "tool_execution_update" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::ToolUpdated { raw: frame.clone() },
+        ),
+        "tool_execution_end" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::ToolEnded { raw: frame.clone() },
+        ),
         "auto_compaction_start" => try_send_event(
             event_tx,
+            dropped_observer_events,
             AgentEvent::CompactionStarted { raw: frame.clone() },
         ),
-        "auto_compaction_end" => {
-            try_send_event(event_tx, AgentEvent::CompactionEnded { raw: frame.clone() })
-        }
-        "auto_retry_start" => {
-            try_send_event(event_tx, AgentEvent::RetryStarted { raw: frame.clone() })
-        }
-        "auto_retry_end" => try_send_event(event_tx, AgentEvent::RetryEnded { raw: frame.clone() }),
-        "model_changed" => {
-            try_send_event(event_tx, AgentEvent::ModelChanged { raw: frame.clone() })
-        }
-        "subagent_lifecycle" | "subagent_progress" | "subagent_event" => {
-            try_send_event(event_tx, AgentEvent::SubagentEvent { raw: frame.clone() })
-        }
+        "auto_compaction_end" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::CompactionEnded { raw: frame.clone() },
+        ),
+        "auto_retry_start" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::RetryStarted { raw: frame.clone() },
+        ),
+        "auto_retry_end" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::RetryEnded { raw: frame.clone() },
+        ),
+        "model_changed" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::ModelChanged { raw: frame.clone() },
+        ),
+        "subagent_lifecycle" | "subagent_progress" | "subagent_event" => try_send_event(
+            event_tx,
+            dropped_observer_events,
+            AgentEvent::SubagentEvent { raw: frame.clone() },
+        ),
         _ => {
             // command_output / session_info_update / config_update / notice /
             // irc_message / todo_reminder / goal_updated / ttsr_triggered ...
-            try_send_event(event_tx, AgentEvent::SideChannel { raw: frame.clone() })
+            try_send_event(
+                event_tx,
+                dropped_observer_events,
+                AgentEvent::SideChannel { raw: frame.clone() },
+            )
         }
     }
 }
@@ -961,13 +1076,18 @@ fn complete_waiter(pending: &Arc<PendingMap>, id: &str, result: Result<Value, Rp
 /// Forwards an event without ever blocking the reader on a full queue.
 /// Drops are reported once as a protocol diagnostic so consumers know the
 /// stream is lossy under overload rather than silently missing events.
-fn try_send_event(event_tx: &mpsc::Sender<AgentEvent>, event: AgentEvent) -> Result<(), RpcError> {
+fn try_send_event(
+    event_tx: &mpsc::Sender<AgentEvent>,
+    dropped_observer_events: &Arc<AtomicU64>,
+    event: AgentEvent,
+) -> Result<(), RpcError> {
     match event_tx.try_send(event) {
         Ok(()) => Ok(()),
         Err(mpsc::error::TrySendError::Full(_)) => {
-            let _ = event_tx.try_send(AgentEvent::ProtocolError {
-                detail: "event queue full; events dropped (bounded backpressure)".to_string(),
-            });
+            // Out-of-band telemetry: never try to publish the diagnostic into
+            // the same full queue (it could be dropped too). The counter is
+            // monotonic and independent of queue availability.
+            dropped_observer_events.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
         Err(mpsc::error::TrySendError::Closed(_)) => Err(RpcError::ConnectionClosed),

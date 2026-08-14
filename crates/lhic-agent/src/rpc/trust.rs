@@ -74,17 +74,59 @@ pub fn verify_omp_binary(
     Ok(())
 }
 
-/// Validates the exact engine version string reported by the binary.
+/// Parses the `omp --version` output into the canonical version token.
+///
+/// The official output is exactly `omp/<version>`; surrounding whitespace is
+/// trimmed. Loose substring matching is rejected so `omp/17.2.15-evil` or
+/// `omp/17.2.150` never pass.
+pub fn parse_omp_version_output(output: &str) -> Result<String, String> {
+    let trimmed = output.trim();
+    if trimmed.is_empty() {
+        return Err("omp --version produced no output".to_string());
+    }
+    // Official output is a single token `omp/<version>` on the first line.
+    let first_line = trimmed.lines().next().unwrap_or("").trim();
+    let Some(prefix) = first_line.strip_prefix("omp/") else {
+        return Err(format!(
+            "unexpected omp --version output (expected 'omp/<version>'): {trimmed:?}"
+        ));
+    };
+    // The version must be a pure dotted numeric token: "17.2.15" yes,
+    // "17.2.15-evil" or "17.2.150" no.
+    let is_version_token =
+        !prefix.is_empty() && prefix.chars().all(|c| c.is_ascii_digit() || c == '.');
+    if !is_version_token {
+        return Err(format!(
+            "unexpected omp --version output (expected 'omp/<dotted-version>'): {trimmed:?}"
+        ));
+    }
+    Ok(format!("omp/{prefix}"))
+}
+
+/// Validates that the binary reports exactly `omp/<expected_version>`.
 pub fn verify_omp_version(binary: &Path, expected_version: &str) -> Result<(), String> {
     let output = std::process::Command::new(binary)
         .arg("--version")
         .output()
         .map_err(|e| format!("running {} --version: {e}", binary.display()))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let line = stdout.lines().next().unwrap_or("").trim();
-    if !line.contains(&format!("omp/{expected_version}")) {
+    let parsed = parse_omp_version_output(&stdout)?;
+    let expected = format!("omp/{expected_version}");
+    if parsed != expected {
         return Err(format!(
-            "engine version mismatch: expected omp/{expected_version}, got {line:?}"
+            "engine version mismatch: expected exactly {expected:?}, got {parsed:?}"
+        ));
+    }
+    Ok(())
+}
+
+/// Exact equality check on parsed version output (helper shared by tests).
+pub fn verify_omp_version_output(output: &str, expected_version: &str) -> Result<(), String> {
+    let parsed = parse_omp_version_output(output)?;
+    let expected = format!("omp/{expected_version}");
+    if parsed != expected {
+        return Err(format!(
+            "engine version mismatch: expected exactly {expected:?}, got {parsed:?}"
         ));
     }
     Ok(())
@@ -203,5 +245,37 @@ mod tests {
             assert!(verify_omp_version(&file, "17.2.15").is_ok());
         }
         let _ = std::fs::remove_file(&file);
+    }
+
+    #[test]
+    fn exact_version_matching() {
+        // Pass cases.
+        assert_eq!(
+            parse_omp_version_output("omp/17.2.15").unwrap(),
+            "omp/17.2.15"
+        );
+        assert_eq!(
+            parse_omp_version_output("omp/17.2.15\n").unwrap(),
+            "omp/17.2.15"
+        );
+        assert_eq!(
+            parse_omp_version_output("  omp/17.2.15  \n").unwrap(),
+            "omp/17.2.15"
+        );
+        // Reject cases: loose substring matches must not pass.
+        assert!(parse_omp_version_output("omp/17.2.15-evil").is_err());
+        assert!(parse_omp_version_output("foo omp/17.2.15 bar").is_err());
+        assert!(parse_omp_version_output("17.2.15").is_err());
+        assert!(parse_omp_version_output("omp /17.2.15").is_err());
+        assert!(parse_omp_version_output("").is_err());
+        // "omp/17.2.150" parses as a dotted token but fails exact equality.
+        assert_eq!(
+            parse_omp_version_output("omp/17.2.150").unwrap(),
+            "omp/17.2.150"
+        );
+        // Exact equality against the expected version, not prefix matching.
+        assert!(verify_omp_version_output("omp/17.2.15", "17.2.15").is_ok());
+        assert!(verify_omp_version_output("omp/17.2.15", "17.2.150").is_err());
+        assert!(verify_omp_version_output("omp/17.2.15-evil", "17.2.15").is_err());
     }
 }

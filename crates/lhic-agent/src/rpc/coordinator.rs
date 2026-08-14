@@ -86,9 +86,21 @@ impl TurnCoordinator {
     }
 
     /// Records a `prompt_result` frame (local-only resolution).
+    ///
+    /// Correlation is strict request identity: a `prompt_result` with an id
+    /// completes the active prompt only when the ids match. An unrelated id
+    /// is ignored for completion (never "completion is still None" as a
+    /// proxy). An id-less frame is accepted only when the engine explicitly
+    /// documents id-less `prompt_result` semantics for the active prompt —
+    /// OMP's `prompt_result` always carries the prompt request id, so the
+    /// id-less case is treated as non-correlating.
     pub fn mark_prompt_result(&self, prompt_id: &str, agent_invoked: bool) {
         let mut guard = self.inner.lock();
-        if guard.active_prompt.as_deref() == Some(prompt_id) || guard.completion.is_none() {
+        let correlated = match guard.active_prompt.as_deref() {
+            Some(active) => prompt_id == active,
+            None => false,
+        };
+        if correlated {
             guard.completion = Some(TurnCompletion::PromptResult {
                 prompt_id: prompt_id.to_string(),
                 agent_invoked,
@@ -204,4 +216,74 @@ pub struct LateCommandResponse {
     pub data: Option<Value>,
     pub code: Option<String>,
     pub error: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unrelated_prompt_result_does_not_complete_active_prompt() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_A");
+        // prompt_result for an unrelated request must be ignored.
+        coordinator.mark_prompt_result("req_B", false);
+        assert!(
+            !coordinator.is_terminal("req_A"),
+            "an unrelated prompt_result must not complete the active prompt"
+        );
+        assert!(coordinator.take_completion("req_A").is_none());
+        // The real terminal event completes A normally.
+        coordinator.mark_terminal();
+        assert!(coordinator.is_terminal("req_A"));
+        assert!(coordinator.take_completion("req_A").is_some());
+    }
+
+    #[test]
+    fn matching_prompt_result_completes_active_prompt() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_A");
+        coordinator.mark_prompt_result("req_A", false);
+        assert!(coordinator.is_terminal("req_A"));
+        match coordinator.take_completion("req_A").unwrap() {
+            TurnCompletion::PromptResult {
+                agent_invoked: false,
+                ..
+            } => {}
+            other => panic!("unexpected completion: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn late_failure_for_active_prompt_is_correlated() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_A");
+        // Unrelated late failure must not complete A.
+        coordinator.mark_late_failure("req_B", "prompt", Some("x".into()), "boom");
+        assert!(!coordinator.is_terminal("req_A"));
+        // Correlated late failure completes A immediately.
+        coordinator.mark_late_failure("req_A", "prompt", Some("scheduling_failed".into()), "boom");
+        assert!(coordinator.is_terminal("req_A"));
+        match coordinator.take_completion("req_A").unwrap() {
+            TurnCompletion::LateFailure { code, .. } => {
+                assert_eq!(code.as_deref(), Some("scheduling_failed"));
+            }
+            other => panic!("unexpected completion: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn prompt_result_without_id_is_not_correlated() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_A");
+        // OMP's prompt_result always carries the request id; an id-less frame
+        // is treated as non-correlating (never "completion is None" proxy).
+        coordinator.mark_prompt_result("", false);
+        assert!(
+            !coordinator.is_terminal("req_A"),
+            "id-less prompt_result must not complete the active prompt"
+        );
+        coordinator.mark_terminal();
+        assert!(coordinator.is_terminal("req_A"));
+    }
 }

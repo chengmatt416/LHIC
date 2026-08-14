@@ -1,21 +1,31 @@
 #!/bin/sh
-# Fetches the omp agent engine (v17.2.15) next to the alpha binaries and
-# verifies it against the release manifest.
+# Fetches the omp agent engine next to the alpha binaries, with the same
+# fail-closed trust verification as CI.
 #
-# The omp binary is a 150+ MB third-party core and is not committed to git;
-# this script downloads it from the official release when you want a fully
-# self-contained alpha bundle.
+# This script delegates to scripts/acquire-omp.sh, which uses the committed
+# trust root (.omp-trust/manifest.json) as the single authoritative source:
+#   1. resolve expected artifact name + exact SHA-256 from the manifest
+#   2. download or reuse a verified cache
+#   3. verify SHA-256 BEFORE executing anything
+#   4. only then run --version and require exact equality
+#
+# Usage:
+#   sh alpha-dist/fetch-omp.sh <platform-target> [output-dir]
+#     platform-target: linux-x64 | linux-arm64 | darwin-x64 | darwin-arm64 |
+#                      windows-x64 | linux-musl-x64 | linux-musl-arm64
+#     output-dir: default alpha-dist/<platform-target>
+#
+# Env:
+#   OMP_VERSION  pinned engine version (default 17.2.15)
 set -eu
 
-VERSION="${OMP_VERSION:-17.2.15}"
-TARGET="${1:-$(dirname "$0")/linux-arm64}"
-URL="https://github.com/can1357/oh-my-pi/releases/download/v${VERSION}/omp-linux-arm64"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TARGET="${1:-linux-arm64}"
+OUT_DIR="${2:-$(dirname "$0")/$TARGET}"
 
-command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 1; }
+mkdir -p "$OUT_DIR"
 
-mkdir -p "$TARGET"
-echo "fetching omp ${VERSION} (linux-arm64)…"
-curl -fsSL --retry 3 -o "$TARGET/omp" "$URL"
-chmod 755 "$TARGET/omp"
-"$TARGET/omp" --version
-echo "bundled omp at $TARGET/omp"
+# Single authoritative acquisition/verification path (same as CI).
+"$REPO_ROOT/scripts/acquire-omp.sh" "$TARGET" "$OUT_DIR/omp"
+
+echo "bundled omp (verified) at $OUT_DIR/omp"

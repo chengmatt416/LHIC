@@ -92,11 +92,13 @@ fi
 
 chmod +x "$OUT" 2>/dev/null || true
 
-# Exact version verification (binary must report the pinned version).
-VERSION_OUT="$("$OUT" --version 2>&1 | head -n 1 || true)"
-echo "$VERSION_OUT" | grep -q "omp/${OMP_VERSION}" || {
-  echo "error: engine version mismatch: expected omp/$OMP_VERSION, got: $VERSION_OUT" >&2
+# Exact version verification: the binary must print exactly omp/<version>
+# (after trimming whitespace). Loose substring matching is rejected so that
+# "omp/17.2.15-evil" or "omp/17.2.150" never pass.
+VERSION_OUT="$("$OUT" --version 2>&1 | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+if [ "$VERSION_OUT" != "omp/${OMP_VERSION}" ]; then
+  echo "error: engine version mismatch: expected exactly 'omp/$OMP_VERSION', got: '$VERSION_OUT'" >&2
   exit 1
-}
+fi
 echo "[omp] verified engine: $VERSION_OUT"
 echo "[omp] verified binary ready at: $OUT"
