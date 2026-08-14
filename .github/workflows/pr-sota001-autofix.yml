@@ -24,10 +24,14 @@ jobs:
         run: python .github/pr-sota001-autofix.py
       - name: Apply production audit override
         run: python .github/pr-sota001-audit-fix.py
-      - name: Regenerate lockfile with patched sharp
+      - name: Remove stale sharp lock entries
+        run: python .github/pr-sota001-lock-fix.py
+      - name: Re-resolve patched sharp lock entries
         run: npm install --package-lock-only --ignore-scripts --no-audit
       - name: Install exact dependency graph
         run: npm ci
+      - name: Show resolved sharp
+        run: npm ls sharp || true
       - name: Format touched source
         run: npx prettier --write package.json packages/omp-rpc/src/omp-version.ts packages/omp-rpc/src/omp-version.test.ts apps/desktop/scripts/fetch-omp.mjs benchmarks/agent-competitive/run.mjs
       - name: Verify production dependency audit
@@ -62,7 +66,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/pr-sota001-autofix.yml \
             .github/pr-sota001-autofix.py \
-            .github/pr-sota001-audit-fix.py
+            .github/pr-sota001-audit-fix.py \
+            .github/pr-sota001-lock-fix.py
           git add package.json package-lock.json \
             packages/omp-rpc/src/omp-version.ts \
             packages/omp-rpc/src/omp-version.test.ts \
