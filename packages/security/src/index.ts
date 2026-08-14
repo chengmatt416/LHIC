@@ -9,3 +9,4 @@ export * from "./runtime-config.js";
 export * from "./kms.js";
 export * from "./encryption.js";
 export * from "./side-effect-classification.js";
+export * from "./skill-signature.js";

@@ -330,6 +330,17 @@ export class SkillStore {
     return row ? mapCandidateSkillRow(row) : undefined;
   }
 
+  /** Distinct task IDs behind a candidate's verified runs (independence). */
+  public candidateRunTaskIds(name: string): string[] {
+    const rows = this.database
+      .prepare(
+        `SELECT DISTINCT task_id FROM candidate_skill_runs
+         WHERE candidate_name = ? ORDER BY task_id`,
+      )
+      .all(name) as Array<{ task_id: string }>;
+    return rows.map((row) => row.task_id);
+  }
+
   public listCandidates(): CandidateSkillRecord[] {
     const rows = this.database
       .prepare("SELECT * FROM candidate_skills ORDER BY rowid DESC")

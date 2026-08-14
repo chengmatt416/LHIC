@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, type KeyLike } from "node:crypto";
 
 import type { SharedSkillRecord, SharedSkillStore } from "@lhic/memory";
 import {
@@ -6,8 +6,10 @@ import {
   isGlobalComputerAction,
   type NormalizedUIState,
   type SemanticAction,
+  type SharedSkillProvenance,
   type UserIntent,
 } from "@lhic/schema";
+import { createSharedSkillProvenance } from "@lhic/security";
 import { redactPII } from "@lhic/trace";
 
 import type { SkillRecord } from "@lhic/memory";
@@ -36,6 +38,7 @@ export interface SharedSkillPublication extends Record<string, unknown> {
   templateVariables: string[];
   definition: Record<string, unknown>;
   fastPathEligible: boolean;
+  provenance?: SharedSkillProvenance;
 }
 
 export interface SharedSkillPublisher {
@@ -79,9 +82,18 @@ export class SharedSkillResolver {
   }
 }
 
+export interface SharedSkillSigning {
+  privateKey: KeyLike;
+  publisher: string;
+  publisherKeyId: string;
+  verifierVersion: string;
+  requiredLhicVersion: string;
+}
+
 export function createSharedSkillPublication(
   request: SlowPathRequest,
   learnedSkill: SkillRecord,
+  signing?: SharedSkillSigning,
 ): SharedSkillPublication | undefined {
   const definition = learnedSkill.definition;
   if (definition.compiler !== "slow-path-v1") {
@@ -133,10 +145,24 @@ export function createSharedSkillPublication(
     },
     fastPathEligible,
   };
-  return {
+  const publication: SharedSkillPublication = {
     ...publicationWithoutHash,
-    contentHash: hashCanonical(publicationWithoutHash),
+    contentHash: hashState(publicationWithoutHash),
   };
+  if (signing) {
+    publication.provenance = createSharedSkillProvenance(
+      publication.definition,
+      signing.privateKey,
+      {
+        publisher: signing.publisher,
+        publisherKeyId: signing.publisherKeyId,
+        verifierVersion: signing.verifierVersion,
+        requiredLhicVersion: signing.requiredLhicVersion,
+        evaluationSummary: { independentRuns: 0, holdoutPassed: false },
+      },
+    );
+  }
+  return publication;
 }
 
 export function createLegacySharedSkillPublication(
@@ -170,7 +196,7 @@ export function createLegacySharedSkillPublication(
     schemaVersion: "shared-skill-v1" as const,
     name: learnedSkill.name,
     operationKey: createSharedSkillOperationKey(legacyIntent),
-    fingerprint: `legacy:${hashCanonical({ name: learnedSkill.name, actions: templateActions })}`,
+    fingerprint: `legacy:${hashState({ name: learnedSkill.name, actions: templateActions })}`,
     templateVariables: [],
     definition: {
       compiler: "shared-skill-v1",
@@ -182,7 +208,7 @@ export function createLegacySharedSkillPublication(
   };
   return {
     ...publicationWithoutHash,
-    contentHash: hashCanonical(publicationWithoutHash),
+    contentHash: hashState(publicationWithoutHash),
   };
 }
 
@@ -191,7 +217,7 @@ export function createSharedSkillOperationKey(intent: UserIntent): string {
   if (typeof operation === "string" && operation !== "unknown") {
     return `operation:${normalizeText(operation)}`;
   }
-  return `goal:${hashCanonical(normalizeText(intent.goal))}`;
+  return `goal:${hashState(normalizeText(intent.goal))}`;
 }
 
 export function createSharedSkillFingerprint(
@@ -208,7 +234,7 @@ export function createSharedSkillFingerprint(
     .sort((left, right) =>
       JSON.stringify(left).localeCompare(JSON.stringify(right)),
     );
-  return hashCanonical({ surface: uiState.surface, origin, structure });
+  return hashState({ surface: uiState.surface, origin, structure });
 }
 
 function isStableInteractiveControl(role: string | undefined): boolean {
@@ -384,7 +410,7 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function hashCanonical(value: unknown): string {
+function hashState(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 

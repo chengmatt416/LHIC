@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createHash, createPrivateKey } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 import type {
   CandidateSkillRecord,
@@ -123,7 +124,12 @@ export class SlowPathLearningCoordinator {
     if (!learnedSkill) {
       return undefined;
     }
-    const publication = createSharedSkillPublication(request, learnedSkill);
+    const signing = loadSharedSkillSigning();
+    const publication = createSharedSkillPublication(
+      request,
+      learnedSkill,
+      signing,
+    );
     if (publication && this.sharedSkillPublisher) {
       try {
         await this.sharedSkillPublisher.publish(publication);
@@ -320,4 +326,28 @@ function templateConstraintValue(value: unknown, prefix: string): unknown {
         templateConstraintValue(child, `${prefix}.${key}`),
       ]),
   );
+}
+
+function loadSharedSkillSigning() {
+  const keyPath = process.env.LHIC_SKILL_SIGNING_KEY_FILE;
+  const keyLiteral = process.env.LHIC_SKILL_SIGNING_KEY;
+  const publisher = process.env.LHIC_SKILL_PUBLISHER;
+  const publisherKeyId = process.env.LHIC_SKILL_KEY_ID;
+  if (!publisher || !publisherKeyId || (!keyPath && !keyLiteral)) {
+    return undefined;
+  }
+  try {
+    const material = keyPath
+      ? readFileSync(keyPath, "utf8")
+      : (keyLiteral as string);
+    return {
+      privateKey: createPrivateKey(material),
+      publisher,
+      publisherKeyId,
+      verifierVersion: "lhic-verifier-v1",
+      requiredLhicVersion: "0.1.0",
+    };
+  } catch {
+    return undefined;
+  }
 }
