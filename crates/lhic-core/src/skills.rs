@@ -5,6 +5,7 @@
 //! database.
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -66,7 +67,11 @@ impl SkillsClient {
             database,
             collection,
             api_key,
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(15))
+                .pool_idle_timeout(Duration::from_secs(60))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new()),
         })
     }
 
@@ -84,7 +89,11 @@ impl SkillsClient {
             "{}/databases/{}/collections/{}/documents?{}",
             self.endpoint, self.database, self.collection, params
         );
-        let mut request = self.http.get(&url).query(&[("project", &self.project)]);
+        let mut request = self
+            .http
+            .get(&url)
+            .header("X-Appwrite-Project", &self.project)
+            .header("Accept", "application/json");
         if let Some(key) = &self.api_key {
             request = request.header("X-Appwrite-Key", key);
         }
@@ -114,4 +123,16 @@ fn urlencode(input: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn urlencode_special_characters() {
+        assert_eq!(urlencode("hello world"), "hello%20world");
+        assert_eq!(urlencode("a=1&b=2"), "a%3D1%26b%3D2");
+        assert_eq!(urlencode("test-file_1.0~"), "test-file_1.0~");
+    }
 }

@@ -282,14 +282,12 @@ async fn browser_command(command: BrowserCommand) -> Result<()> {
     match command {
         BrowserCommand::Open { url } => {
             let (browser, mut tab) = browser::launch_with_tab(&url).await?;
-            tab.navigate(&url).await?;
             println!("title: {}", tab.title().await?);
             drop(tab);
             drop(browser);
         }
         BrowserCommand::Screenshot { url, path } => {
             let (browser, mut tab) = browser::launch_with_tab(&url).await?;
-            tab.navigate(&url).await?;
             tab.screenshot(&path).await?;
             println!("saved: {}", path.display());
             drop(tab);

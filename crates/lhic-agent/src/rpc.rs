@@ -2,7 +2,7 @@
 //! newline-delimited JSON on stdio, mirroring the protocol used by the
 //! TypeScript `@lhic/omp-rpc` package.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::process::Stdio;
 use std::time::Duration;
 
@@ -11,7 +11,6 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
-
 pub const OMP_VERSION: &str = "17.2.15";
 
 /// Frames emitted by the engine that are not command responses.
@@ -28,6 +27,7 @@ pub struct OmpRpcClient {
     child: Option<Child>,
     stdin: Option<tokio::process::ChildStdin>,
     events: mpsc::Receiver<AgentEvent>,
+    backlog: VecDeque<AgentEvent>,
     request_counter: u64,
     workspace_root: String,
     session_dir: String,
@@ -37,7 +37,6 @@ pub struct OmpRpcClient {
     stderr_tail: String,
     exited: bool,
 }
-
 impl OmpRpcClient {
     pub fn new(
         binary: String,
@@ -49,6 +48,7 @@ impl OmpRpcClient {
             child: None,
             stdin: None,
             events: mpsc::channel(256).1,
+            backlog: VecDeque::new(),
             request_counter: 0,
             workspace_root,
             session_dir,
@@ -222,10 +222,14 @@ impl OmpRpcClient {
         stdin.write_all(line.as_bytes()).await?;
         stdin.flush().await?;
 
-        tokio::time::timeout(Duration::from_secs(120), async {
+        let res = tokio::time::timeout(Duration::from_secs(120), async {
             loop {
-                match self.next_event().await {
-                    Some(AgentEvent::Frame(frame)) => {
+                let event = match self.events.recv().await {
+                    Some(ev) => ev,
+                    None => return Err(anyhow::anyhow!("omp RPC process closed")),
+                };
+                match &event {
+                    AgentEvent::Frame(frame) => {
                         if frame.get("id").and_then(Value::as_str) == Some(id) {
                             if frame.get("success").and_then(Value::as_bool) == Some(false)
                                 || frame.get("error").is_some()
@@ -244,25 +248,27 @@ impl OmpRpcClient {
                                 .cloned()
                                 .unwrap_or(Value::Null));
                         }
+                        self.backlog.push_back(event);
                     }
-                    Some(AgentEvent::Log(line)) => {
+                    AgentEvent::Log(line) => {
                         self.stderr_tail = line.clone();
-                    }
-                    None => {
-                        return Err(anyhow::anyhow!("omp RPC process closed"));
+                        self.backlog.push_back(event);
                     }
                 }
             }
         })
         .await
-        .context("omp command timed out")?
+        .context("omp command timed out")??;
+        Ok(res)
     }
 
     /// Polls for the next non-response frame or log line.
     pub async fn next_event(&mut self) -> Option<AgentEvent> {
+        if let Some(ev) = self.backlog.pop_front() {
+            return Some(ev);
+        }
         self.events.recv().await
     }
-
     pub async fn stop(&mut self) -> Result<()> {
         self.exited = true;
         if let Some(mut child) = self.child.take() {
@@ -274,6 +280,14 @@ impl OmpRpcClient {
 
     pub fn stderr_tail(&self) -> &str {
         &self.stderr_tail
+    }
+}
+
+impl Drop for OmpRpcClient {
+    fn drop(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            let _ = child.start_kill();
+        }
     }
 }
 

@@ -98,7 +98,7 @@ impl BrowserTab {
             match self.ws.next().await {
                 Some(Ok(Message::Text(text))) => {
                     let value: Value = serde_json::from_str(&text)?;
-                    if value["id"] == json!(id) {
+                    if value.get("id").and_then(Value::as_u64) == Some(id) {
                         if let Some(error) = value.get("error") {
                             return Err(anyhow::anyhow!(
                                 "CDP {method} error: {}",
@@ -176,14 +176,31 @@ impl BrowserTab {
 
     pub async fn type_text(&mut self, selector: &str, text: &str) -> Result<()> {
         let expression = format!(
-            "(() => {{ const el = document.querySelector({:?}); if (!el) throw new Error('selector not found'); el.focus(); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, {:?}); el.dispatchEvent(new Event('input', {{ bubbles: true }})); el.dispatchEvent(new Event('change', {{ bubbles: true }})); return true; }})()",
-            selector, text
+            "(() => {{
+                const el = document.querySelector({:?});
+                if (!el) throw new Error('selector not found');
+                el.focus();
+                const proto = (typeof HTMLTextAreaElement !== 'undefined' && el instanceof HTMLTextAreaElement)
+                    ? window.HTMLTextAreaElement.prototype
+                    : window.HTMLInputElement.prototype;
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) {{
+                    setter.call(el, {:?});
+                }} else {{
+                    el.value = {:?};
+                }}
+                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                return true;
+            }})()",
+            selector, text, text
         );
         self.eval(&expression).await?;
         Ok(())
     }
 
     async fn wait_ready(&mut self) -> Result<()> {
+        let mut delay = Duration::from_millis(10);
         for _ in 0..50 {
             if self
                 .command(
@@ -191,12 +208,15 @@ impl BrowserTab {
                     json!({ "expression": "document.readyState", "returnByValue": true }),
                 )
                 .await
-                .map(|v| v["result"]["value"].as_str() == Some("complete"))
+                .map(|v| v["result"]["value"].as_str() == Some("complete") || v["result"]["value"].as_str() == Some("interactive"))
                 .unwrap_or(false)
             {
                 return Ok(());
             }
-            tokio::time::sleep(Duration::from_millis(200)).await;
+            tokio::time::sleep(delay).await;
+            if delay < Duration::from_millis(100) {
+                delay += Duration::from_millis(10);
+            }
         }
         Ok(())
     }
@@ -261,9 +281,13 @@ impl Browser {
     }
 
     pub async fn new_tab(&self, url: &str) -> Result<BrowserTab> {
+        let endpoint = if url.is_empty() || url == "about:blank" {
+            format!("http://127.0.0.1:{}/json/new", self.port)
+        } else {
+            format!("http://127.0.0.1:{}/json/new?{}", self.port, url)
+        };
         let response: Value = reqwest::Client::new()
-            .put(format!("http://127.0.0.1:{}/json/new", self.port))
-            .body(url.to_string())
+            .put(&endpoint)
             .send()
             .await
             .context("creating tab")?
@@ -272,10 +296,13 @@ impl Browser {
         let ws_url = response["webSocketDebuggerUrl"]
             .as_str()
             .context("tab response has no websocket url")?;
-        BrowserTab::connect(ws_url).await
+        let mut tab = BrowserTab::connect(ws_url).await?;
+        if !url.is_empty() && url != "about:blank" {
+            tab.navigate(url).await?;
+        }
+        Ok(tab)
     }
 }
-
 impl Drop for Browser {
     fn drop(&mut self) {
         // The chromium process was shell-backgrounded, so terminate it by its
@@ -284,6 +311,7 @@ impl Drop for Browser {
             .arg("-f")
             .arg(format!("user-data-dir={}", self.user_data.display()))
             .status();
+        let _ = std::fs::remove_dir_all(&self.user_data);
     }
 }
 

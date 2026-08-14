@@ -95,9 +95,11 @@ impl ProviderKeyStore {
 
     /// Builds the omp child environment from configured provider keys.
     pub fn build_env(&self) -> Result<HashMap<String, String>> {
+        let file = self.read_file();
         let mut env = HashMap::new();
         for (provider, env_var) in PROVIDER_ENV {
-            if let Some(key) = self.get_key(provider)? {
+            if let Some(sealed) = file.keys.get(*provider) {
+                let key = self.vault.decrypt(sealed)?;
                 env.insert((*env_var).to_string(), key);
             }
         }
@@ -138,16 +140,19 @@ pub fn resolve_omp_binary() -> Result<String> {
         }
         return Err(anyhow::anyhow!("OMP_BINARY does not exist: {explicit}"));
     }
-    let candidates = [
-        std::env::current_dir()
-            .map(|dir| dir.join("apps/desktop/vendor/omp/current/omp"))
-            .ok(),
-        Some(std::path::PathBuf::from("omp")),
-    ]
-    .into_iter()
-    .flatten();
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(current_dir) = std::env::current_dir() {
+        candidates.push(current_dir.join("apps/desktop/vendor/omp/current/omp"));
+    }
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(home.join(".local/bin/omp"));
+        candidates.push(home.join(".cargo/bin/omp"));
+    }
+    if let Some(from_path) = which("omp") {
+        candidates.push(from_path);
+    }
     for candidate in candidates {
-        if candidate.exists() {
+        if candidate.is_file() {
             return Ok(candidate.to_string_lossy().into_owned());
         }
     }
@@ -155,4 +160,56 @@ pub fn resolve_omp_binary() -> Result<String> {
         "omp binary not found; set OMP_BINARY or run from the repository root"
     ))
     .with_context(|| "resolving omp")
+}
+
+fn which(name: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    for dir in std::env::split_paths(&path) {
+        let candidate = dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_home() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "lhic-keys-{}-{}",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn key_store_lifecycle() {
+        let home = temp_home();
+        let store = ProviderKeyStore::open(&home).unwrap();
+        assert!(store.get_key("openai").unwrap().is_none());
+
+        store.set_key("openai", "sk-test-secret-12345").unwrap();
+        assert_eq!(
+            store.get_key("openai").unwrap().as_deref(),
+            Some("sk-test-secret-12345")
+        );
+
+        let env = store.build_env().unwrap();
+        assert_eq!(
+            env.get("OPENAI_API_KEY").map(String::as_str),
+            Some("sk-test-secret-12345")
+        );
+
+        store.remove_key("openai").unwrap();
+        assert!(store.get_key("openai").unwrap().is_none());
+        let _ = std::fs::remove_dir_all(&home);
+    }
 }

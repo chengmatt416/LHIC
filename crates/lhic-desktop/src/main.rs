@@ -113,7 +113,6 @@ impl App {
                 match mode {
                     BrowserMode::Open => {
                         let (browser, mut tab) = lhic_core::browser::launch_with_tab(&url).await?;
-                        tab.navigate(&url).await?;
                         let title = tab.title().await?;
                         drop(tab);
                         drop(browser);
@@ -122,7 +121,6 @@ impl App {
                     BrowserMode::Screenshot(path) => {
                         let (browser, mut tab) =
                             lhic_core::browser::launch_with_tab(&url).await?;
-                        tab.navigate(&url).await?;
                         tab.screenshot(&path).await?;
                         drop(tab);
                         drop(browser);

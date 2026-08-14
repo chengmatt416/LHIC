@@ -60,12 +60,18 @@ impl McpServer {
             }
             "browser.navigate" => {
                 let url = required_string(args, "url")?;
-                let (browser, mut tab) = lhic_core::browser::launch_with_tab(&url).await?;
-                tab.navigate(&url).await?;
-                let title = tab.title().await?;
-                self.browser = Some(browser);
-                self.tab = Some(tab);
-                Ok(json!({ "title": title, "url": url }))
+                if let Some(tab) = self.tab.as_mut() {
+                    tab.navigate(&url).await?;
+                    let title = tab.title().await?;
+                    Ok(json!({ "title": title, "url": url }))
+                } else {
+                    let (browser, mut tab) = lhic_core::browser::launch_with_tab(&url).await?;
+                    tab.navigate(&url).await?;
+                    let title = tab.title().await?;
+                    self.browser = Some(browser);
+                    self.tab = Some(tab);
+                    Ok(json!({ "title": title, "url": url }))
+                }
             }
             "browser.screenshot" => {
                 let tab = self

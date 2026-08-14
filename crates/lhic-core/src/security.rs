@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
@@ -20,9 +21,9 @@ const NONCE_LEN: usize = 12;
 pub struct Vault {
     cipher: Aes256Gcm,
 }
-
 impl Vault {
     pub fn open(home: &Path) -> Result<Self> {
+        fs::create_dir_all(home)?;
         let key_path = home.join(VAULT_FILE);
         let key_bytes: [u8; 32] = if key_path.exists() {
             let raw = fs::read(&key_path)
@@ -56,7 +57,8 @@ impl Vault {
             .cipher
             .encrypt(nonce, plaintext.as_bytes())
             .map_err(|error| anyhow::anyhow!("vault encryption failed: {error}"))?;
-        let mut payload = nonce_bytes.to_vec();
+        let mut payload = Vec::with_capacity(NONCE_LEN + ciphertext.len());
+        payload.extend_from_slice(&nonce_bytes);
         payload.extend_from_slice(&ciphertext);
         Ok(base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
@@ -85,29 +87,28 @@ impl Vault {
 /// email addresses, phone numbers, IPv4 addresses, and long API keys.
 pub struct Redactor;
 
+static EMAIL_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").expect("static email regex")
+});
+static PHONE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:\b|\+)[0-9][0-9 ()\-]{7,}[0-9]\b").expect("static phone regex")
+});
+static IPV4_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b").expect("static ipv4 regex")
+});
+static API_KEY_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(?:sk|pk|gk|rk|ak)-[A-Za-z0-9_\-]{16,}").expect("static api key regex")
+});
+
 impl Redactor {
     pub fn redact(input: &str) -> String {
-        let mut out = input.to_string();
-        for (pattern, replacement) in [
-            (EMAIL, "[email]"),
-            (PHONE, "[phone]"),
-            (IPV4, "[ip]"),
-            (API_KEY, "[key]"),
-        ] {
-            out = Regex::new(pattern)
-                .expect("static redaction pattern")
-                .replace_all(&out, replacement)
-                .into_owned();
-        }
-        out
+        let out = API_KEY_RE.replace_all(input, "[key]");
+        let out = EMAIL_RE.replace_all(&out, "[email]");
+        let out = IPV4_RE.replace_all(&out, "[ip]");
+        let out = PHONE_RE.replace_all(&out, "[phone]");
+        out.into_owned()
     }
 }
-
-const EMAIL: &str = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}";
-const PHONE: &str = r"\+?[0-9][0-9 ()\-]{7,}[0-9]";
-const IPV4: &str = r"(?:[0-9]{1,3}\.){3}[0-9]{1,3}";
-const API_KEY: &str = r"(?:sk|pk|gk|rk|ak)-[A-Za-z0-9_\-]{16,}";
-
 fn set_private(path: &Path) {
     #[cfg(unix)]
     {
@@ -175,5 +176,12 @@ mod tests {
 
         let plain = "run the build and report failures";
         assert_eq!(Redactor::redact(plain), plain);
+    }
+
+    #[test]
+    fn redactor_handles_numeric_keys_and_boundaries() {
+        let input = "key sk-123456789012345678 and phone +15551234567 and ip 192.168.1.1";
+        let out = Redactor::redact(input);
+        assert_eq!(out, "key [key] and phone [phone] and ip [ip]");
     }
 }

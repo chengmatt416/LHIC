@@ -32,29 +32,34 @@ pub fn route(
     _memory: &MemoryStore,
 ) -> RouteDecision {
     let tokens = tokenize(intent);
+    if tokens.is_empty() {
+        return RouteDecision {
+            path: PathKind::SlowPath,
+            confidence: 0.0,
+            reason: "no intent tokens extracted; guarded agent path".to_string(),
+            skill: None,
+        };
+    }
     let mut best: Option<(&SkillDocument, f64, usize)> = None;
     for skill in skills {
-        let haystack = format!(
-            "{} {} {}",
-            skill.name.to_lowercase(),
-            skill.description.to_lowercase(),
-            skill
-                .tags
-                .as_ref()
-                .map(|tags| tags.join(" "))
-                .unwrap_or_default()
-                .to_lowercase()
-        );
+        let name_lower = skill.name.to_lowercase();
+        let desc_lower = skill.description.to_lowercase();
         let mut hits = 0usize;
         for token in &tokens {
-            if haystack.contains(token) {
+            let token_str = token.as_str();
+            if name_lower.contains(token_str)
+                || desc_lower.contains(token_str)
+                || skill.tags.as_ref().is_some_and(|tags| {
+                    tags.iter().any(|t| t.to_lowercase().contains(token_str))
+                })
+            {
                 hits += 1;
             }
         }
         if hits == 0 {
             continue;
         }
-        let coverage = hits as f64 / tokens.len().max(1) as f64;
+        let coverage = hits as f64 / tokens.len() as f64;
         if hits >= 2 && coverage >= 0.3
             && best.as_ref().is_none_or(|(_, score, _)| coverage > *score)
         {
