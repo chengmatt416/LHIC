@@ -17,6 +17,8 @@ export interface WorkspaceConflict {
   path: string;
   oldHash: string;
   newHash: string;
+  /** The agent whose read is now stale; the notification recipient. */
+  affectedAgentId: string;
   writerAgentId?: string;
   summary: string;
   createdAt: string;
@@ -114,6 +116,7 @@ export class WorkspaceConflictStore {
         path,
         oldHash: reader.content_hash,
         newHash,
+        affectedAgentId: reader.agent_id,
         ...(options.writerAgentId
           ? { writerAgentId: options.writerAgentId }
           : {}),
@@ -124,9 +127,9 @@ export class WorkspaceConflictStore {
       this.database
         .prepare(
           `INSERT INTO workspace_conflicts
-            (conflict_id, task_id, path, old_hash, new_hash, writer_agent_id,
-             summary, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            (conflict_id, task_id, path, old_hash, new_hash, affected_agent_id,
+             writer_agent_id, summary, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           conflict.conflictId,
@@ -134,6 +137,7 @@ export class WorkspaceConflictStore {
           path,
           conflict.oldHash,
           conflict.newHash,
+          conflict.affectedAgentId,
           options.writerAgentId ?? null,
           conflict.summary,
           now,
@@ -155,13 +159,14 @@ export class WorkspaceConflictStore {
   ): WorkspaceConflict | undefined {
     const row = this.database
       .prepare(
-        `SELECT conflict_id, task_id, path, old_hash, new_hash, writer_agent_id,
-                summary, created_at, acknowledged_by, acknowledged_at
+        `SELECT conflict_id, task_id, path, old_hash, new_hash, affected_agent_id,
+                writer_agent_id, summary, created_at, acknowledged_by, acknowledged_at
          FROM workspace_conflicts
-         WHERE task_id = ? AND path = ? AND acknowledged_by IS NULL
+         WHERE task_id = ? AND path = ? AND affected_agent_id = ?
+           AND acknowledged_by IS NULL
          ORDER BY created_at LIMIT 1`,
       )
-      .get(taskId, path) as Record<string, unknown> | undefined;
+      .get(taskId, path, agentId) as Record<string, unknown> | undefined;
     if (!row) return undefined;
     const readSet = this.readSet(agentId, taskId, path);
     if (readSet && readSet.contentHash === String(row.new_hash)) {
@@ -187,11 +192,28 @@ export class WorkspaceConflictStore {
   public conflictsForTask(taskId: string): WorkspaceConflict[] {
     const rows = this.database
       .prepare(
-        `SELECT conflict_id, task_id, path, old_hash, new_hash, writer_agent_id,
-                summary, created_at, acknowledged_by, acknowledged_at
+        `SELECT conflict_id, task_id, path, old_hash, new_hash, affected_agent_id,
+                writer_agent_id, summary, created_at, acknowledged_by, acknowledged_at
          FROM workspace_conflicts WHERE task_id = ? ORDER BY created_at`,
       )
       .all(taskId) as Array<Record<string, unknown>>;
+    return rows.map((row) => this.rowToConflict(row));
+  }
+
+  /** Unacknowledged conflicts for one agent (the notification recipient). */
+  public conflictsForAgent(
+    agentId: string,
+    taskId: string,
+  ): WorkspaceConflict[] {
+    const rows = this.database
+      .prepare(
+        `SELECT conflict_id, task_id, path, old_hash, new_hash, affected_agent_id,
+                writer_agent_id, summary, created_at, acknowledged_by, acknowledged_at
+         FROM workspace_conflicts
+         WHERE task_id = ? AND affected_agent_id = ? AND acknowledged_by IS NULL
+         ORDER BY created_at`,
+      )
+      .all(taskId, agentId) as Array<Record<string, unknown>>;
     return rows.map((row) => this.rowToConflict(row));
   }
 
@@ -210,6 +232,7 @@ export class WorkspaceConflictStore {
       path: String(row.path),
       oldHash: String(row.old_hash),
       newHash: String(row.new_hash),
+      affectedAgentId: String(row.affected_agent_id),
       ...(row.writer_agent_id
         ? { writerAgentId: String(row.writer_agent_id) }
         : {}),

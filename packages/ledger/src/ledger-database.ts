@@ -43,6 +43,7 @@ export function createLedgerDatabase(databaseFile: string): DatabaseSync {
       path TEXT NOT NULL,
       old_hash TEXT NOT NULL,
       new_hash TEXT NOT NULL,
+      affected_agent_id TEXT NOT NULL,
       writer_agent_id TEXT,
       summary TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -57,6 +58,19 @@ export function createLedgerDatabase(databaseFile: string): DatabaseSync {
       updated_at TEXT NOT NULL
     ) STRICT;
   `);
+  // Migration: conflict tables created before the affected-agent column
+  // gain it now (old rows have NULL = unknown recipient, fail closed).
+  const conflictColumns = database
+    .prepare("PRAGMA table_info(workspace_conflicts)")
+    .all() as Array<{ name: string }>;
+  if (
+    conflictColumns.length > 0 &&
+    !conflictColumns.some((column) => column.name === "affected_agent_id")
+  ) {
+    database.exec(
+      "ALTER TABLE workspace_conflicts ADD COLUMN affected_agent_id TEXT;",
+    );
+  }
   return database;
 }
 

@@ -1,10 +1,11 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
-import { SideEffectLedger } from "@lhic/ledger";
+import { SideEffectLedger, WorkspaceConflictStore } from "@lhic/ledger";
 import {
   OmpActionReceiptObserver,
   OmpRpcSupervisor,
+  OmpWorkspaceObserver,
   SubagentModelPool,
   parseModelCatalog,
   type OmpSubagentModel,
@@ -108,6 +109,30 @@ export async function runAgentCommand(
   const sideEffectLedger = new SideEffectLedger({
     databaseFile: join(traceDirectory, "ledger.sqlite"),
   });
+  const conflictStore = new WorkspaceConflictStore({
+    databaseFile: join(traceDirectory, "ledger.sqlite"),
+  });
+  const workspaceObserver = new OmpWorkspaceObserver({
+    store: conflictStore,
+    agentId: "lhic-agent",
+    taskId,
+    workspaceRoot,
+    onConflict: (conflict) => {
+      if (jsonl) {
+        record("conflict", {
+          conflictId: conflict.conflictId,
+          path: conflict.path,
+          oldHash: conflict.oldHash.slice(0, 12),
+          newHash: conflict.newHash.slice(0, 12),
+          writerAgentId: conflict.writerAgentId ?? "external",
+        });
+      } else {
+        line(
+          `${levelColors.warn}workspace conflict: ${conflict.path} changed by ${conflict.writerAgentId ?? "an external process"} after this agent read it (${conflict.oldHash.slice(0, 8)}… → ${conflict.newHash.slice(0, 8)}…); re-read before writing.${levelColors.reset}`,
+        );
+      }
+    },
+  });
   const ompReceiptObserver = new OmpActionReceiptObserver({
     taskId,
     receiptLogPath: agentReceiptLog,
@@ -126,6 +151,7 @@ export async function runAgentCommand(
     {
       onEvent: (frame) => {
         ompReceiptObserver.feed(frame);
+        workspaceObserver.feed(frame);
         switch (frame.type) {
           case "agent_start":
             streaming = true;
