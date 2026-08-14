@@ -1,17 +1,57 @@
 import { createHash } from "node:crypto";
-import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 export const DEFAULT_OMP_VERSION = "17.2.15";
 const OMP_RELEASE_REPO = "can1357/oh-my-pi";
 const defaultCheckIntervalMs = 6 * 60 * 60 * 1_000;
+const trustedRecordFileName = "trusted.json";
 
 const assetForPlatform: Record<string, Record<string, string>> = {
   darwin: { arm64: "omp-darwin-arm64", x64: "omp-darwin-x64" },
   linux: { arm64: "omp-linux-arm64", x64: "omp-linux-x64" },
   win32: { x64: "omp-windows-x64.exe" },
 };
+
+/**
+ * Immutable local record of a successfully verified omp binary. Written once
+ * a release manifest (or an explicit policy digest) has been matched against
+ * the actual cached bytes; consulted when the network is unavailable so that
+ * only previously trusted binaries run offline.
+ */
+export interface TrustedBinaryRecord {
+  version: string;
+  asset: string;
+  sha256: string;
+  verifiedFrom: string;
+  verifiedAt: string;
+}
+
+/**
+ * Version selection policy for the omp core binary.
+ * - `pinned`: exactly `version`; never auto-updates. `digest` additionally
+ *   anchors the executable to a specific SHA-256 (the pin itself is a trust
+ *   anchor and works offline).
+ * - `managed`: the current pinned version is ensured, then the latest stable
+ *   release is applied when it is newer (subject to the update-check TTL and
+ *   `LHIC_DISABLE_OMP_UPDATE=1`). Suitable for development/production when
+ *   the RPC compatibility gate is enforced at startup.
+ * - `development-latest`: same resolver behavior as `managed`; use only for
+ *   local development, never for benchmarks or releases.
+ */
+export type OmpVersionPolicy =
+  | { mode: "pinned"; version: string; digest?: string }
+  | { mode: "managed"; channel?: "stable"; maxProtocolVersion?: number }
+  | { mode: "development-latest" };
 
 export interface OmpUpdaterOptions {
   /** Directory that holds one subdirectory per omp version. */
@@ -25,6 +65,12 @@ export interface OmpUpdaterOptions {
   fetchImplementation?: typeof fetch;
   /** Pre-resolved binary for the pinned version (e.g. the packaged app). */
   bundledBinary?: string;
+  /**
+   * Version policy. Defaults to `{ mode: "managed" }`, which preserves the
+   * historical auto-update behavior. Benchmark and release paths MUST use
+   * `{ mode: "pinned" }` so runs never silently change the omp core.
+   */
+  policy?: OmpVersionPolicy;
 }
 
 export function isNewerOmpVersion(candidate: string, current: string): boolean {
@@ -78,10 +124,78 @@ function binaryPath(cacheRoot: string, version: string): string {
   );
 }
 
+function trustedRecordPath(cacheRoot: string, version: string): string {
+  return join(cacheRoot, version, trustedRecordFileName);
+}
+
 async function sha256File(path: string): Promise<string> {
   const digest = createHash("sha256");
   digest.update(await readFile(path));
   return digest.digest("hex");
+}
+
+function isTrustedBinaryRecord(
+  value: unknown,
+  version: string,
+  asset: string,
+): value is TrustedBinaryRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    // The record is bound to exactly this version and asset: a record moved
+    // from another version directory can never authorize execution.
+    record.version === version &&
+    record.asset === asset &&
+    typeof record.sha256 === "string" &&
+    /^[a-f0-9]{64}$/.test(record.sha256) &&
+    typeof record.verifiedFrom === "string" &&
+    record.verifiedFrom.length > 0 &&
+    typeof record.verifiedAt === "string" &&
+    Number.isFinite(Date.parse(record.verifiedAt))
+  );
+}
+
+/**
+ * Reads the trusted-digest record for one version. Returns `undefined` when
+ * the record is missing, malformed, bound to a different version/asset, or
+ * (on POSIX) group/other-accessible — all of which fail closed.
+ */
+async function readTrustRecord(
+  cacheRoot: string,
+  version: string,
+  asset: string,
+): Promise<TrustedBinaryRecord | undefined> {
+  try {
+    const path = trustedRecordPath(cacheRoot, version);
+    if (process.platform !== "win32") {
+      const mode = (await stat(path)).mode;
+      if ((mode & 0o077) !== 0) return undefined;
+    }
+    const parsed = JSON.parse(await readFile(path, "utf8")) as unknown;
+    return isTrustedBinaryRecord(parsed, version, asset) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function writeTrustRecord(
+  cacheRoot: string,
+  version: string,
+  record: Omit<TrustedBinaryRecord, "verifiedAt">,
+): Promise<void> {
+  const path = trustedRecordPath(cacheRoot, version);
+  const directory = join(cacheRoot, version);
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const serialized = `${JSON.stringify(
+    { ...record, verifiedAt: new Date().toISOString() },
+    null,
+    2,
+  )}\n`;
+  const temporary = `${path}.${process.pid}.tmp`;
+  await writeFile(temporary, serialized, { encoding: "utf8", mode: 0o600 });
+  await rename(temporary, path);
 }
 
 async function fetchText(
@@ -117,30 +231,69 @@ async function manifestDigest(
   return digest;
 }
 
+/**
+ * Ensures the requested version exists in the cache and is verified:
+ *   1. A previously written trusted-digest record authorizes the cached
+ *      binary without network access (offline reuse).
+ *   2. Otherwise a cached binary is checked against the release manifest;
+ *      when the manifest is unreachable the binary is REJECTED — an
+ *      unverified cached executable must never run merely because it exists.
+ *   3. A verified download writes both the binary and the trust record.
+ */
 async function ensureVersion(
   fetchImplementation: typeof fetch,
   cacheRoot: string,
   version: string,
-): Promise<string | undefined> {
+): Promise<string> {
   const asset = assetFor();
   const targetPath = binaryPath(cacheRoot, version);
+
+  // Offline-safe fast path: a previously verified digest is the trust anchor.
+  const trusted = await readTrustRecord(cacheRoot, version, asset);
+  if (trusted) {
+    try {
+      if ((await sha256File(targetPath)) === trusted.sha256) {
+        return targetPath;
+      }
+    } catch {
+      // Binary missing or unreadable; fall through to a fresh fetch.
+    }
+  }
+
+  let cached = "";
   try {
-    const cached = await sha256File(targetPath);
-    const expected = await manifestDigest(fetchImplementation, version, asset);
+    cached = await sha256File(targetPath);
+  } catch {
+    // Not cached yet.
+  }
+
+  if (cached) {
+    let expected = "";
+    try {
+      expected = await manifestDigest(fetchImplementation, version, asset);
+    } catch (error) {
+      // Fail closed: no matching trusted digest, and no manifest to verify
+      // against. Refusing to run beats running an unverified binary.
+      throw new Error(
+        `omp v${version} is cached but cannot be verified (${error instanceof Error ? error.message : String(error)}). ` +
+          "Refusing to execute an unverified cached omp binary; restore network access or pin an explicit digest.",
+      );
+    }
     if (cached === expected) {
+      await writeTrustRecord(cacheRoot, version, {
+        version,
+        asset,
+        sha256: cached,
+        verifiedFrom: "release-manifest",
+      });
       return targetPath;
     }
     await rm(targetPath, { force: true });
-  } catch {
-    try {
-      await stat(targetPath);
-      return targetPath; // Network unavailable; reuse the cached binary.
-    } catch {
-      // No cache yet; download below.
-    }
   }
+
+  let verifiedWrite = false;
   try {
-    await mkdir(join(cacheRoot, version), { recursive: true });
+    await mkdir(join(cacheRoot, version), { recursive: true, mode: 0o700 });
     const base = `https://github.com/${OMP_RELEASE_REPO}/releases/download/v${version}`;
     const response = await fetchImplementation(`${base}/${asset}`, {
       headers: { "User-Agent": "lhic-omp-updater" },
@@ -163,15 +316,60 @@ async function ensureVersion(
     if (process.platform !== "win32") {
       await chmod(targetPath, 0o755);
     }
+    verifiedWrite = true;
+    await writeTrustRecord(cacheRoot, version, {
+      version,
+      asset,
+      sha256: actual,
+      verifiedFrom: "release-manifest",
+    });
     return targetPath;
   } catch (error) {
+    // Only a binary verified earlier in this run may be reused; anything else
+    // (mismatch, interrupted download) must not resurrect an unverified file.
+    if (verifiedWrite) return targetPath;
+    throw error;
+  }
+}
+
+/**
+ * Resolves exactly one pinned version. The policy digest, when provided, is
+ * itself a trust anchor: a cache entry matching it executes without network
+ * access, and any resolved binary must match it.
+ */
+async function resolvePinned(
+  fetchImplementation: typeof fetch,
+  cacheRoot: string,
+  version: string,
+  digest?: string,
+): Promise<string> {
+  const asset = assetFor();
+  const targetPath = binaryPath(cacheRoot, version);
+  if (digest) {
     try {
-      await stat(targetPath);
-      return targetPath; // Partial failure; reuse whatever exists.
+      if ((await sha256File(targetPath)) === digest) {
+        await writeTrustRecord(cacheRoot, version, {
+          version,
+          asset,
+          sha256: digest,
+          verifiedFrom: "policy",
+        });
+        return targetPath;
+      }
     } catch {
-      throw error;
+      // Not cached or digest mismatch; verify/fetch below.
     }
   }
+  const ensured = await ensureVersion(fetchImplementation, cacheRoot, version);
+  if (digest) {
+    const actual = await sha256File(ensured);
+    if (actual !== digest) {
+      throw new Error(
+        `omp binary SHA-256 mismatch for pinned v${version}: expected ${digest}, got ${actual}.`,
+      );
+    }
+  }
+  return ensured;
 }
 
 interface LatestMarker {
@@ -221,15 +419,18 @@ async function latestOmpVersion(
 }
 
 /**
- * Resolves the omp RPC binary, automatically updating the omp core when a
- * newer release exists:
- *   1. `OMP_BINARY` env override wins.
- *   2. The pinned version is ensured (cache, else the bundled binary when
- *      provided, else a fresh download) — SHA-256 verified per release.
- *   3. The latest omp release is checked (GitHub API, TTL-cached); when it
- *      is newer, that version is downloaded into the cache and returned.
- * Any update failure falls back to the current binary; nothing ever breaks
- * an existing install. Disable checks with LHIC_DISABLE_OMP_UPDATE=1.
+ * Resolves the omp RPC binary according to the version policy:
+ *   1. `OMP_BINARY` env override wins (operator-supplied trust).
+ *   2. `pinned` policy: exactly one version, SHA-256-anchored when a digest
+ *      is given; never checks for or applies updates. Benchmarks MUST use
+ *      this mode so no benchmark run silently changes the omp core.
+ *   3. `managed` / `development-latest` (and the default): the pinned version
+ *      is ensured, then the latest omp release is checked (GitHub API,
+ *      TTL-cached) and applied when newer. Failures fall back to the current
+ *      verified binary; disable checks with LHIC_DISABLE_OMP_UPDATE=1.
+ * Every downloaded or reused binary is SHA-256 verified against the release
+ * manifest or a previously trusted digest record; unverified binaries never
+ * execute.
  */
 export async function resolveOmpBinary(
   options: OmpUpdaterOptions = {},
@@ -239,6 +440,19 @@ export async function resolveOmpBinary(
   }
   const fetchImplementation = options.fetchImplementation ?? fetch;
   const cacheRoot = cacheRootFor(options);
+  const policy = options.policy ?? { mode: "managed" };
+
+  if (policy.mode === "pinned") {
+    // The packaged binary is the pin itself; nothing to verify or update.
+    if (options.bundledBinary) return options.bundledBinary;
+    return resolvePinned(
+      fetchImplementation,
+      cacheRoot,
+      policy.version,
+      policy.digest,
+    );
+  }
+
   const pinned = pinnedVersionFor(options);
   const currentPath =
     options.bundledBinary ??

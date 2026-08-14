@@ -205,6 +205,129 @@ describe("OmpRpcClient", () => {
       }),
     );
   });
+
+  it("rejects a server advertising only newer protocol versions", async () => {
+    const harness = fakeProcess();
+    const callbacks = fakeCallbacks();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      callbacks,
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [3] })}\n`,
+    );
+    await expect(started).rejects.toThrow(
+      /protocol incompatibility.*advertises 3.*supports protocol 1\.\.2/,
+    );
+    // A capability failure is fatal: no crash-recovery retry signal.
+    expect(callbacks.onClosed).not.toHaveBeenCalled();
+    expect(client.capabilities()).toBeUndefined();
+  });
+
+  it("fails closed when the server explicitly disables host tools", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({
+        type: "ready",
+        supportedProtocolVersions: [1, 2],
+        hostTools: false,
+      })}\n`,
+    );
+    await expect(started).rejects.toThrow(
+      /host tools are disabled.*LHIC requires them/,
+    );
+  });
+
+  it("exposes negotiated capabilities after ready", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({
+        type: "ready",
+        supportedProtocolVersions: [1, 2],
+        hostToolCancellation: true,
+        interruptModes: ["immediate"],
+      })}\n`,
+    );
+    await started;
+    expect(client.capabilities()).toEqual({
+      rpcProtocolVersion: 2,
+      hostTools: true,
+      hostToolCancellation: true,
+      subagentEvents: true,
+      sessionSwitch: true,
+      interruptModes: ["immediate"],
+    });
+    harness.exit(0);
+  });
+
+  it("honors the max protocol version cap", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        maxRpcProtocolVersion: 1,
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
+    );
+    await started;
+    expect(client.capabilities()?.rpcProtocolVersion).toBe(1);
+    expect(
+      harness
+        .writes()
+        .some((frame) => frame.type === "negotiate_protocol"),
+    ).toBe(false);
+    harness.exit(0);
+
+    const incompatible = fakeProcess();
+    const capped = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        maxRpcProtocolVersion: 1,
+        spawn: incompatible.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const cappedStart = capped.start();
+    incompatible.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [2] })}\n`,
+    );
+    await expect(cappedStart).rejects.toThrow(/protocol incompatibility/);
+  });
 });
 
 function fakeCallbacks(): OmpRpcClientCallbacks {

@@ -9,6 +9,28 @@ export interface OmpRpcClientOptions {
   /** Extra environment variables for the omp child process. */
   env?: Record<string, string>;
   spawn?: typeof nodeSpawn;
+  /**
+   * Upper bound on the RPC protocol version this client will negotiate
+   * (default 2). A server that advertises only higher versions is rejected at
+   * startup instead of being guessed at.
+   */
+  maxRpcProtocolVersion?: number;
+}
+
+/**
+ * Capability surface negotiated from the omp `ready` frame at startup.
+ * Optional features that the server does not advertise are reported as
+ * disabled so callers never rely on semantics the server never promised.
+ */
+export interface OmpCapabilities {
+  /** Negotiated RPC protocol version (1 when the server pre-dates negotiation). */
+  rpcProtocolVersion: number;
+  /** Host-tool support; LHIC treats an explicit `false` as fatal. */
+  hostTools: boolean;
+  hostToolCancellation: boolean;
+  subagentEvents: boolean;
+  sessionSwitch: boolean;
+  interruptModes: string[];
 }
 
 export type OmpSubagentFrame = Record<string, unknown> & {
@@ -90,6 +112,11 @@ export function lhicHostToolDefinitions(): Array<{
   ];
 }
 
+function formatProtocolVersions(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return "no protocol versions";
+  return value.map(String).join(", ");
+}
+
 interface PendingRequest {
   resolve(data: Record<string, unknown>): void;
   reject(error: Error): void;
@@ -117,6 +144,9 @@ export class OmpRpcClient {
   private requestCounter = 0;
   private assembly: ChunkAssembly | undefined;
   private ready: { maxReassembledFrameBytes: number } | undefined;
+  private negotiatedCapabilities: OmpCapabilities | undefined;
+  private readonly maxProtocolVersion: number;
+  private startFailure: Error | undefined;
   private exited = false;
   private stderrTail = "";
   private startResolve: (() => void) | undefined;
@@ -125,7 +155,10 @@ export class OmpRpcClient {
   public constructor(
     private readonly options: OmpRpcClientOptions,
     private readonly callbacks: OmpRpcClientCallbacks,
-  ) {}
+  ) {
+    const configured = options.maxRpcProtocolVersion ?? 2;
+    this.maxProtocolVersion = Math.min(2, Math.max(1, configured));
+  }
 
   public start(): Promise<void> {
     if (this.child) {
@@ -171,7 +204,7 @@ export class OmpRpcClient {
       this.startReject?.(error);
       this.startResolve = undefined;
       this.startReject = undefined;
-      this.callbacks.onClosed(error);
+      if (!this.startFailure) this.callbacks.onClosed(error);
     });
     child.once("exit", (code, signal) => {
       this.exited = true;
@@ -186,7 +219,7 @@ export class OmpRpcClient {
       this.startReject?.(error ?? new Error("omp RPC process exited early."));
       this.startResolve = undefined;
       this.startReject = undefined;
-      this.callbacks.onClosed(error);
+      if (!this.startFailure) this.callbacks.onClosed(error);
     });
     return new Promise<void>((resolve, reject) => {
       this.startResolve = resolve;
@@ -478,6 +511,14 @@ export class OmpRpcClient {
     });
   }
 
+  /**
+   * Negotiated capabilities, populated once the omp `ready` frame arrives.
+   * Returns `undefined` before startup completes or after the process closed.
+   */
+  public capabilities(): OmpCapabilities | undefined {
+    return this.negotiatedCapabilities;
+  }
+
   private onStdout(chunk: Buffer): void {
     this.buffer += String(chunk);
     let newlineIndex: number;
@@ -504,16 +545,38 @@ export class OmpRpcClient {
             ? frame.maxReassembledFrameBytes
             : defaultReassemblyLimit,
       };
-      const supported = frame.supportedProtocolVersions;
-      if (Array.isArray(supported) && supported.includes(2)) {
+      if (frame.hostTools === false) {
+        // LHIC's integration is built on host tools; an explicit refusal is
+        // an incompatible server, not a feature to silently disable.
+        this.failStart(
+          new Error(
+            "omp RPC capability check failed: the omp binary reports host tools are disabled, but LHIC requires them.",
+          ),
+        );
+        return;
+      }
+      const negotiated = this.negotiateProtocol(frame);
+      if (negotiated === undefined) {
+        this.failStart(
+          new Error(
+            `omp RPC protocol incompatibility: the omp binary advertises ${formatProtocolVersions(frame.supportedProtocolVersions)}, but LHIC supports protocol 1..${this.maxProtocolVersion}. Refusing to run an incompatible omp binary.`,
+          ),
+        );
+        return;
+      }
+      if (negotiated >= 2) {
         this.writeLine(
           JSON.stringify({
             id: "protocol-1",
             type: "negotiate_protocol",
-            protocolVersion: 2,
+            protocolVersion: negotiated,
           }),
         );
       }
+      this.negotiatedCapabilities = this.capabilitiesFromFrame(
+        frame,
+        negotiated,
+      );
       this.startResolve?.();
       this.startResolve = undefined;
       this.startReject = undefined;
@@ -650,6 +713,70 @@ export class OmpRpcClient {
       pending.reject(error ?? new Error("omp RPC process closed."));
     }
     this.pending.clear();
+  }
+
+  /**
+   * Picks the highest protocol version the server supports within
+   * `1..maxProtocolVersion`. Servers that pre-date capability advertisement
+   * default to v1. Returns `undefined` when no overlap exists — the server
+   * must be rejected, never guessed at.
+   */
+  private negotiateProtocol(frame: Record<string, unknown>): number | undefined {
+    const raw = frame.supportedProtocolVersions;
+    if (!Array.isArray(raw)) return 1;
+    const supported = raw.filter(
+      (value): value is number =>
+        typeof value === "number" &&
+        Number.isInteger(value) &&
+        value >= 1 &&
+        value <= this.maxProtocolVersion,
+    );
+    if (supported.length === 0) return undefined;
+    return Math.max(...supported);
+  }
+
+  private capabilitiesFromFrame(
+    frame: Record<string, unknown>,
+    rpcProtocolVersion: number,
+  ): OmpCapabilities {
+    const advertised = (key: string, fallback: boolean): boolean =>
+      frame[key] === undefined ? fallback : frame[key] === true;
+    const interruptModes = Array.isArray(frame.interruptModes)
+      ? frame.interruptModes.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [];
+    return {
+      rpcProtocolVersion,
+      hostTools: advertised("hostTools", true),
+      hostToolCancellation: advertised("hostToolCancellation", false),
+      subagentEvents: advertised("subagentEvents", true),
+      sessionSwitch: advertised("sessionSwitch", true),
+      interruptModes:
+        interruptModes.length > 0 ? interruptModes : ["immediate", "wait"],
+    };
+  }
+
+  /**
+   * Terminates a start that failed a capability check. The failure is fatal:
+   * the supervisor must not retry an incompatible binary, so no `onClosed`
+   * recovery signal is emitted.
+   */
+  private failStart(error: Error): void {
+    this.startFailure = error;
+    this.startReject?.(error);
+    this.startResolve = undefined;
+    this.startReject = undefined;
+    const child = this.child;
+    this.child = undefined;
+    if (!child || this.exited) return;
+    const timer = setTimeout(() => child.kill("SIGKILL"), 2_000);
+    child.once("exit", () => clearTimeout(timer));
+    try {
+      child.stdin?.end();
+    } catch {
+      child.kill("SIGTERM");
+    }
   }
 
   private writeLine(line: string): void {

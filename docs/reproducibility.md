@@ -65,3 +65,20 @@ version, Playwright version, browser revision, exact commit SHA, command
 output, start/end time, and any failure. A clean-room three-platform matrix and
 a published-package smoke test are still required before claiming cross-platform
 `npx` success.
+
+## Benchmark omp pinning
+
+No benchmark run may silently change the omp core. The competitive harness
+invokes `lhic agent` with `OMP_BINARY` set to the pinned bundled binary, so the
+resolver never auto-updates during a run. Evidence artifacts record the exact
+omp product version and executable SHA-256 per run, plus the LHIC commit, OS,
+architecture, and runtime in the manifest `environment` block. For manual
+runs, pin explicitly:
+
+```bash
+lhic agent --omp-policy pinned --omp-version 17.2.15 --omp-digest <sha256> --prompt "…"
+```
+
+A pinned run never contacts the release API; an offline machine executes the
+pin only when the cached binary matches the pin digest or a previously
+verified trust record.

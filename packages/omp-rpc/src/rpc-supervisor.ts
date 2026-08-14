@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import {
   OmpRpcClient,
+  type OmpCapabilities,
   type OmpRpcClientCallbacks,
   type OmpRpcClientOptions,
   type OmpUiResponse,
@@ -372,6 +373,11 @@ export class OmpRpcSupervisor {
     return structuredClone(this.state);
   }
 
+  /** Negotiated omp RPC capabilities, once the process has started. */
+  public capabilities(): OmpCapabilities | undefined {
+    return this.client?.capabilities?.();
+  }
+
   private createClient(): OmpRpcClient {
     const generation = ++this.generation;
     let closeHandled = false;
@@ -406,6 +412,9 @@ export class OmpRpcSupervisor {
         : {}),
       ...(this.options.env ? { env: { ...this.options.env } } : {}),
       ...(this.options.spawn ? { spawn: this.options.spawn } : {}),
+      ...(this.options.maxRpcProtocolVersion !== undefined
+        ? { maxRpcProtocolVersion: this.options.maxRpcProtocolVersion }
+        : {}),
     };
   }
 

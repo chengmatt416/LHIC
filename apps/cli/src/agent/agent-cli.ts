@@ -8,7 +8,7 @@ import {
   type OmpSubagentModel,
 } from "@lhic/omp-rpc";
 
-import { resolveOmpBinary, ompCacheDirectory } from "./omp-binary.js";
+import { resolveOmpBinary, ompCacheDirectory, type OmpVersionPolicy } from "./omp-binary.js";
 import {
   CliHostRunner,
   hostToolDefinitions,
@@ -30,6 +30,10 @@ export interface AgentCliOptions {
   approvedBy?: string;
   approvalPolicy?: "ask" | "deny" | "auto";
   binary?: string;
+  /** omp binary version policy; benchmark/release runs MUST pin. */
+  ompPolicy?: OmpVersionPolicy;
+  /** Upper bound on the omp RPC protocol version to negotiate. */
+  maxRpcProtocolVersion?: number;
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
   errorOutput?: NodeJS.WritableStream;
@@ -64,7 +68,7 @@ export async function runAgentCommand(
   const sessionDir =
     options.sessionDir ?? join(ompCacheDirectory(), "sessions");
   await mkdir(sessionDir, { recursive: true });
-  const binary = options.binary ?? (await resolveOmpBinary());
+  const binary = options.binary ?? (await resolveOmpBinary(options.ompPolicy));
   const output = options.output ?? process.stdout;
   const errorOutput = options.errorOutput ?? process.stderr;
   const input = options.input ?? process.stdin;
@@ -92,6 +96,9 @@ export async function runAgentCommand(
       sessionDir,
       stateDirectory: join(sessionDir, ".recovery"),
       ...(oneShot ? { args: ["--approval-mode", "write"] } : {}),
+      ...(options.maxRpcProtocolVersion !== undefined
+        ? { maxRpcProtocolVersion: options.maxRpcProtocolVersion }
+        : {}),
     },
     {
       onEvent: (frame) => {

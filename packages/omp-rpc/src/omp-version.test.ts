@@ -1,11 +1,15 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { isNewerOmpVersion, resolveOmpBinary } from "./omp-version.js";
+import {
+  isNewerOmpVersion,
+  resolveOmpBinary,
+  type TrustedBinaryRecord,
+} from "./omp-version.js";
 
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -19,6 +23,13 @@ const assetForPlatform: Record<string, Record<string, string>> = {
   win32: { x64: "omp-windows-x64.exe" },
 };
 const asset = assetForPlatform[platform]?.[arch] ?? "omp";
+const binaryName = platform === "win32" ? "omp.exe" : "omp";
+
+function offlineFetch(): typeof fetch {
+  return async () => {
+    throw new Error("network unavailable");
+  };
+}
 
 function mockFetch(binaries: Record<string, Uint8Array>, apiCalls: string[]) {
   return async (url: string) => {
@@ -139,5 +150,183 @@ describe("omp version updater", () => {
       fetchImplementation: failingFetch as typeof fetch,
     });
     expect(resolver.endsWith(join("17.2.15", "omp"))).toBe(true);
+  });
+
+  it("writes a permission-restricted trust record after verification", async () => {
+    const bytes = new TextEncoder().encode("omp-17.2.15-bytes");
+    await resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      checkIntervalMs: 3_600_000,
+      updateCheckEnabled: false,
+      fetchImplementation: mockFetch({ "17.2.15": bytes }, []) as typeof fetch,
+    });
+    const recordPath = join(directory, "17.2.15", "trusted.json");
+    const record = JSON.parse(
+      await readFile(recordPath, "utf8"),
+    ) as TrustedBinaryRecord;
+    expect(record.version).toBe("17.2.15");
+    expect(record.asset).toBe(asset);
+    expect(record.sha256).toBe(sha256(bytes));
+    expect(record.verifiedFrom).toBe("release-manifest");
+    expect(Number.isFinite(Date.parse(record.verifiedAt))).toBe(true);
+    if (platform !== "win32") {
+      const mode = (await stat(recordPath)).mode;
+      expect(mode & 0o077).toBe(0); // Not group/other-accessible.
+    }
+  });
+
+  it("reuses a previously verified cached binary offline", async () => {
+    const bytes = new TextEncoder().encode("omp-17.2.15-bytes");
+    await resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      checkIntervalMs: 3_600_000,
+      updateCheckEnabled: false,
+      fetchImplementation: mockFetch({ "17.2.15": bytes }, []) as typeof fetch,
+    });
+    const resolver = await resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      updateCheckEnabled: false,
+      fetchImplementation: offlineFetch(),
+    });
+    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(Buffer.from(await readFile(resolver)).toString()).toBe(
+      "omp-17.2.15-bytes",
+    );
+  });
+
+  it("fails closed offline when the cached binary is tampered", async () => {
+    const bytes = new TextEncoder().encode("omp-17.2.15-bytes");
+    await resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      checkIntervalMs: 3_600_000,
+      updateCheckEnabled: false,
+      fetchImplementation: mockFetch({ "17.2.15": bytes }, []) as typeof fetch,
+    });
+    await writeFile(
+      join(directory, "17.2.15", binaryName),
+      Buffer.concat([Buffer.from(bytes), new Uint8Array([0x00])]),
+    );
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        pinnedVersion: "17.2.15",
+        updateCheckEnabled: false,
+        fetchImplementation: offlineFetch(),
+      }),
+    ).rejects.toThrow(/cached but cannot be verified/);
+  });
+
+  it("fails closed offline when the cache has no trust record", async () => {
+    await mkdir(join(directory, "17.2.15"), { recursive: true });
+    await writeFile(
+      join(directory, "17.2.15", binaryName),
+      "unverified-omp-bytes",
+    );
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        pinnedVersion: "17.2.15",
+        updateCheckEnabled: false,
+        fetchImplementation: offlineFetch(),
+      }),
+    ).rejects.toThrow(/cached but cannot be verified/);
+  });
+
+  it("fails closed offline when no cache exists at all", async () => {
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        pinnedVersion: "17.2.15",
+        updateCheckEnabled: false,
+        fetchImplementation: offlineFetch(),
+      }),
+    ).rejects.toThrow(/network unavailable/);
+  });
+
+  it("rejects a trust record moved from another version", async () => {
+    const bytes = new TextEncoder().encode("omp-17.2.15-bytes");
+    await resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      checkIntervalMs: 3_600_000,
+      updateCheckEnabled: false,
+      fetchImplementation: mockFetch({ "17.2.15": bytes }, []) as typeof fetch,
+    });
+    // Plant a 17.3.0 cache carrying 17.2.15's trust record (version bound).
+    await mkdir(join(directory, "17.3.0"), { recursive: true });
+    await writeFile(
+      join(directory, "17.3.0", binaryName),
+      Buffer.from(bytes),
+    );
+    await writeFile(
+      join(directory, "17.3.0", "trusted.json"),
+      await readFile(join(directory, "17.2.15", "trusted.json")),
+    );
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        pinnedVersion: "17.3.0",
+        updateCheckEnabled: false,
+        fetchImplementation: offlineFetch(),
+      }),
+    ).rejects.toThrow(/cached but cannot be verified/);
+  });
+
+  it("pinned policy never checks for updates and uses exactly the pinned version", async () => {
+    const current = new TextEncoder().encode("omp-17.2.15-bytes");
+    const latest = new TextEncoder().encode("omp-17.3.0-bytes");
+    const apiCalls: string[] = [];
+    const resolver = await resolveOmpBinary({
+      cacheRoot: directory,
+      policy: { mode: "pinned", version: "17.2.15" },
+      fetchImplementation: mockFetch(
+        { "17.2.15": current, "17.3.0": latest },
+        apiCalls,
+      ) as typeof fetch,
+    });
+    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(Buffer.from(await readFile(resolver)).toString()).toBe(
+      "omp-17.2.15-bytes",
+    );
+    expect(apiCalls.length).toBe(0); // No latest-release check in pinned mode.
+  });
+
+  it("pinned policy with a matching digest runs offline from cache", async () => {
+    const bytes = new TextEncoder().encode("omp-17.2.15-bytes");
+    await mkdir(join(directory, "17.2.15"), { recursive: true });
+    await writeFile(join(directory, "17.2.15", binaryName), bytes);
+    const resolver = await resolveOmpBinary({
+      cacheRoot: directory,
+      policy: { mode: "pinned", version: "17.2.15", digest: sha256(bytes) },
+      fetchImplementation: offlineFetch(),
+    });
+    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
+    const record = JSON.parse(
+      await readFile(join(directory, "17.2.15", "trusted.json"), "utf8"),
+    ) as TrustedBinaryRecord;
+    expect(record.verifiedFrom).toBe("policy");
+    expect(record.sha256).toBe(sha256(bytes));
+  });
+
+  it("pinned policy with a mismatched digest fails closed", async () => {
+    const current = new TextEncoder().encode("omp-17.2.15-bytes");
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        policy: {
+          mode: "pinned",
+          version: "17.2.15",
+          digest: "0".repeat(64),
+        },
+        fetchImplementation: mockFetch(
+          { "17.2.15": current },
+          [],
+        ) as typeof fetch,
+      }),
+    ).rejects.toThrow(/SHA-256 mismatch for pinned v17\.2\.15/);
   });
 });

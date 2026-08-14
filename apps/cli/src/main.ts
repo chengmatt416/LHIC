@@ -46,6 +46,7 @@ import {
 } from "./public-web-training.js";
 import { runGameTrainingCommand } from "./game-training.js";
 import { runAgentCommand } from "./agent/agent-cli.js";
+import type { OmpVersionPolicy } from "./agent/omp-binary.js";
 import { installCliRuntime, installDesktopApplication } from "./installer.js";
 import {
   cliUsage,
@@ -94,6 +95,7 @@ async function runCommand(
         : {}),
       ...(parsed.fast ? { fast: true } : {}),
       ...(parsed.jsonl ? { jsonl: true } : {}),
+      ...(parsed.ompPolicy ? { ompPolicy: parsed.ompPolicy } : {}),
       approvalPolicy: parsed.approvalPolicy,
       ...(process.env.LHIC_AGENT_SESSION_DIR
         ? { sessionDir: process.env.LHIC_AGENT_SESSION_DIR }
@@ -326,6 +328,7 @@ export function parseAgentCommandOptions(argumentsList: string[]): {
   subagentModels?: string[];
   fast: boolean;
   jsonl: boolean;
+  ompPolicy?: OmpVersionPolicy;
   approvalPolicy: "ask" | "deny" | "auto";
 } {
   const result: {
@@ -336,6 +339,7 @@ export function parseAgentCommandOptions(argumentsList: string[]): {
     subagentModels?: string[];
     fast: boolean;
     jsonl: boolean;
+    ompPolicy?: OmpVersionPolicy;
     approvalPolicy: "ask" | "deny" | "auto";
   } = {
     fast: false,
@@ -344,6 +348,9 @@ export function parseAgentCommandOptions(argumentsList: string[]): {
   };
   const promptParts: string[] = [];
   let subagentModelsDisabled = false;
+  let ompPolicyMode: "pinned" | "managed" | "development-latest" | undefined;
+  let ompPolicyVersion: string | undefined;
+  let ompPolicyDigest: string | undefined;
   for (let index = 0; index < argumentsList.length; index += 1) {
     const value = argumentsList[index]!;
     const next = argumentsList[index + 1];
@@ -401,6 +408,36 @@ export function parseAgentCommandOptions(argumentsList: string[]): {
       index += 1;
       continue;
     }
+    if (value === "--omp-policy") {
+      if (
+        next !== "pinned" &&
+        next !== "managed" &&
+        next !== "development-latest"
+      ) {
+        throw new Error(
+          "--omp-policy must be pinned, managed, or development-latest.",
+        );
+      }
+      ompPolicyMode = next;
+      index += 1;
+      continue;
+    }
+    if (value === "--omp-version") {
+      if (!next || next.startsWith("--")) {
+        throw new Error("--omp-version requires a value.");
+      }
+      ompPolicyVersion = next;
+      index += 1;
+      continue;
+    }
+    if (value === "--omp-digest") {
+      if (!next || !/^[a-f0-9]{64}$/.test(next)) {
+        throw new Error("--omp-digest requires a 64-character hex SHA-256.");
+      }
+      ompPolicyDigest = next;
+      index += 1;
+      continue;
+    }
     if (value.startsWith("--")) {
       throw new Error(`Unknown agent option: ${value}.`);
     }
@@ -409,6 +446,25 @@ export function parseAgentCommandOptions(argumentsList: string[]): {
   if (promptParts.length > 0) result.prompt = promptParts.join(" ");
   if (result.jsonl && !result.prompt) {
     throw new Error("--jsonl requires a one-shot agent prompt.");
+  }
+  if (ompPolicyMode === "pinned") {
+    if (!ompPolicyVersion) {
+      throw new Error("--omp-policy pinned requires --omp-version.");
+    }
+    result.ompPolicy = {
+      mode: "pinned",
+      version: ompPolicyVersion,
+      ...(ompPolicyDigest ? { digest: ompPolicyDigest } : {}),
+    };
+  } else if (ompPolicyMode) {
+    if (ompPolicyVersion || ompPolicyDigest) {
+      throw new Error(
+        "--omp-version/--omp-digest require --omp-policy pinned.",
+      );
+    }
+    result.ompPolicy = { mode: ompPolicyMode };
+  } else if (ompPolicyVersion || ompPolicyDigest) {
+    throw new Error("--omp-version/--omp-digest require --omp-policy pinned.");
   }
   return result;
 }

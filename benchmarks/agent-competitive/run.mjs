@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   access,
   mkdir,
@@ -61,10 +61,26 @@ for (const manifest of manifests) {
   }
 }
 
+let lhicCommit = "unknown";
+try {
+  lhicCommit = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  }).trim();
+} catch {
+  // Evidence still records that the commit is unknown; it never fabricates one.
+}
+
 const evidence = {
   schemaVersion: "lhic-agent-competitive-v1",
   generatedAt: new Date().toISOString(),
   fixtureSetSha256,
+  environment: {
+    lhicCommit,
+    os: process.platform,
+    arch: process.arch,
+    runtime: process.version,
+  },
   runs,
 };
 const evidencePath = join(artifactRoot, "evidence.json");
