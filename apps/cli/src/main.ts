@@ -15,6 +15,10 @@ import { inspectGlobalControlCapability } from "@lhic/skills";
 import { runInternalBenchmark } from "./internal-benchmark.js";
 import { runJudgeDemo } from "./demo.js";
 import { runCapabilitiesCommand } from "./capabilities.js";
+import {
+  runBenchmarkEvidenceSign,
+  runBenchmarkEvidenceValidate,
+} from "./benchmark-evidence.js";
 import { provenanceJson, renderProvenance } from "./provenance.js";
 import { runVerifyCodingCommand } from "./verify-coding.js";
 import { parseDemoCommandOptions } from "./demo-command-options.js";
@@ -337,6 +341,16 @@ async function runCommand(
   }
   if (command === "verify" && subcommand === "coding") {
     const exitCode = await runVerifyCodingCommand(argumentsList.slice(2));
+    process.exitCode = exitCode;
+    return;
+  }
+  if (command === "bench" && subcommand === "evidence-sign") {
+    const exitCode = await runBenchmarkEvidenceSign(argumentsList.slice(2));
+    process.exitCode = exitCode;
+    return;
+  }
+  if (command === "bench" && subcommand === "evidence-validate") {
+    const exitCode = await runBenchmarkEvidenceValidate(argumentsList.slice(2));
     process.exitCode = exitCode;
     return;
   }
