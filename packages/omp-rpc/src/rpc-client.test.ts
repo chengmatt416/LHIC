@@ -25,6 +25,14 @@ describe("OmpRpcClient", () => {
     harness.stdout.write(
       `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
     );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
+    );
     await started;
 
     expect(harness.spawn).toHaveBeenCalledWith(
@@ -121,6 +129,14 @@ describe("OmpRpcClient", () => {
         maxReassembledFrameBytes: 8,
       })}\n`,
     );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
+    );
     await started;
 
     const state = client.getState();
@@ -146,6 +162,104 @@ describe("OmpRpcClient", () => {
     harness.exit(0);
   });
 
+  it("reassembles valid multi-byte UTF-8 across chunks", async () => {
+    const harness = fakeProcess();
+    const callbacks = fakeCallbacks();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      callbacks,
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
+    );
+    await started;
+
+    const logical = Buffer.from(
+      JSON.stringify({ type: "message_update", text: "héllo 世界" }),
+      "utf8",
+    );
+    const split = Math.ceil(logical.length / 2);
+    for (const [index, bytes] of [
+      logical.subarray(0, split),
+      logical.subarray(split),
+    ].entries()) {
+      harness.stdout.write(
+        `${JSON.stringify({
+          type: "rpc_chunk",
+          chunkId: "chunk-utf8",
+          index,
+          count: 2,
+          byteLength: logical.length,
+          data: bytes.toString("base64"),
+        })}\n`,
+      );
+    }
+    expect(callbacks.onEvent).toHaveBeenCalledWith({
+      type: "message_update",
+      text: "héllo 世界",
+    });
+    harness.exit(0);
+  });
+
+  it("rejects reassembled frames with malformed UTF-8", async () => {
+    const harness = fakeProcess();
+    const callbacks = fakeCallbacks();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      callbacks,
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
+    );
+    await started;
+
+    // 0xFF is never valid UTF-8; it must be rejected, not decoded with U+FFFD.
+    const malformed = Buffer.from([0x7b, 0x22, 0x61, 0x22, 0x3a, 0xff, 0x7d]);
+    harness.stdout.write(
+      `${JSON.stringify({
+        type: "rpc_chunk",
+        chunkId: "chunk-bad-utf8",
+        index: 0,
+        count: 1,
+        byteLength: malformed.length,
+        data: malformed.toString("base64"),
+      })}\n`,
+    );
+    expect(callbacks.onLog).toHaveBeenCalledWith(
+      "Rejecting omp RPC chunk frame with malformed UTF-8.",
+    );
+    expect(callbacks.onEvent).not.toHaveBeenCalled();
+    harness.exit(0);
+  });
+
   it("merges extra env variables into the omp child environment", async () => {
     const harness = fakeProcess();
     const client = new OmpRpcClient(
@@ -161,6 +275,14 @@ describe("OmpRpcClient", () => {
     const started = client.start();
     harness.stdout.write(
       `${JSON.stringify({ type: "ready", supportedProtocolVersions: [2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
     );
     await started;
 
@@ -270,20 +392,145 @@ describe("OmpRpcClient", () => {
       `${JSON.stringify({
         type: "ready",
         supportedProtocolVersions: [1, 2],
+        hostTools: true,
         hostToolCancellation: true,
         interruptModes: ["immediate"],
+      })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
       })}\n`,
     );
     await started;
     expect(client.capabilities()).toEqual({
       rpcProtocolVersion: 2,
-      hostTools: true,
-      hostToolCancellation: true,
-      subagentEvents: true,
-      sessionSwitch: true,
-      interruptModes: ["immediate"],
+      hostTools: "supported",
+      hostToolCancellation: "supported",
+      // Never invented: absent advertisements are unknown, not supported.
+      subagentEvents: "unknown",
+      sessionSwitch: "unknown",
+      interruptModes: "supported",
+      interruptModeValues: ["immediate"],
     });
     harness.exit(0);
+  });
+
+  it("reports absent feature advertisements as unknown", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: {},
+      })}\n`,
+    );
+    await started;
+    expect(client.capabilities()).toEqual({
+      rpcProtocolVersion: 2,
+      hostTools: "unknown",
+      hostToolCancellation: "unknown",
+      subagentEvents: "unknown",
+      sessionSwitch: "unknown",
+      interruptModes: "unknown",
+      interruptModeValues: [],
+    });
+    harness.exit(0);
+  });
+
+  it("fails startup when the server rejects protocol negotiation", async () => {
+    const harness = fakeProcess();
+    const callbacks = fakeCallbacks();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      callbacks,
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: false,
+        error: "protocol v2 unavailable",
+      })}\n`,
+    );
+    await expect(started).rejects.toThrow(
+      /protocol negotiation failed.*protocol v2 unavailable/,
+    );
+    // A negotiation failure is fatal: no crash-recovery retry signal.
+    expect(callbacks.onClosed).not.toHaveBeenCalled();
+  });
+
+  it("fails startup on a malformed negotiation acknowledgement", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
+    );
+    harness.stdout.write(
+      `${JSON.stringify({
+        id: "protocol-1",
+        type: "response",
+        success: true,
+        data: { protocolVersion: 3 },
+      })}\n`,
+    );
+    await expect(started).rejects.toThrow(
+      /negotiation mismatch.*requested v2.*acknowledged v3/,
+    );
+  });
+
+  it("fails startup when protocol negotiation times out", async () => {
+    const harness = fakeProcess();
+    const client = new OmpRpcClient(
+      {
+        binary: "omp",
+        workspaceRoot: "/workspace",
+        sessionDir: "/sessions",
+        negotiationTimeoutMs: 25,
+        spawn: harness.spawn,
+      },
+      fakeCallbacks(),
+    );
+    const started = client.start();
+    harness.stdout.write(
+      `${JSON.stringify({ type: "ready", supportedProtocolVersions: [1, 2] })}\n`,
+    );
+    await expect(started).rejects.toThrow(/negotiation timed out/);
   });
 
   it("honors the max protocol version cap", async () => {
@@ -305,9 +552,7 @@ describe("OmpRpcClient", () => {
     await started;
     expect(client.capabilities()?.rpcProtocolVersion).toBe(1);
     expect(
-      harness
-        .writes()
-        .some((frame) => frame.type === "negotiate_protocol"),
+      harness.writes().some((frame) => frame.type === "negotiate_protocol"),
     ).toBe(false);
     harness.exit(0);
 

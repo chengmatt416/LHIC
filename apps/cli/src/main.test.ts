@@ -114,11 +114,8 @@ describe("parseAgentCommandOptions", () => {
       parseAgentCommandOptions(["run", "--omp-policy", "managed"]).ompPolicy,
     ).toEqual({ mode: "managed" });
     expect(
-      parseAgentCommandOptions([
-        "run",
-        "--omp-policy",
-        "development-latest",
-      ]).ompPolicy,
+      parseAgentCommandOptions(["run", "--omp-policy", "development-latest"])
+        .ompPolicy,
     ).toEqual({ mode: "development-latest" });
   });
 
@@ -127,13 +124,25 @@ describe("parseAgentCommandOptions", () => {
       "requires --omp-version",
     );
     expect(() =>
-      parseAgentCommandOptions(["--omp-policy", "managed", "--omp-version", "17.2.15"]),
+      parseAgentCommandOptions([
+        "--omp-policy",
+        "managed",
+        "--omp-version",
+        "17.2.15",
+      ]),
     ).toThrow("require --omp-policy pinned");
     expect(() =>
       parseAgentCommandOptions(["--omp-digest", "a".repeat(64)]),
     ).toThrow("require --omp-policy pinned");
     expect(() =>
-      parseAgentCommandOptions(["--omp-policy", "pinned", "--omp-version", "17.2.15", "--omp-digest", "xyz"]),
+      parseAgentCommandOptions([
+        "--omp-policy",
+        "pinned",
+        "--omp-version",
+        "17.2.15",
+        "--omp-digest",
+        "xyz",
+      ]),
     ).toThrow("64-character hex SHA-256");
     expect(() => parseAgentCommandOptions(["--omp-policy", "latest"])).toThrow(
       "pinned, managed, or development-latest",

@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -65,6 +72,9 @@ describe("omp version updater", () => {
 
   afterEach(async () => {
     delete process.env.OMP_BINARY;
+    delete process.env.OMP_BINARY_DIGEST;
+    delete process.env.OMP_BINARY_VERSION;
+    delete process.env.OMP_BINARY_TRUST;
     await rm(directory, { recursive: true, force: true });
   });
 
@@ -76,11 +86,21 @@ describe("omp version updater", () => {
     expect(isNewerOmpVersion("v17.3.0", "17.2.15")).toBe(true);
   });
 
-  it("honors the OMP_BINARY override", async () => {
-    process.env.OMP_BINARY = "/tmp/omp-custom";
-    await expect(resolveOmpBinary({ cacheRoot: directory })).resolves.toBe(
-      "/tmp/omp-custom",
+  it("honors an OMP_BINARY override only with a trust mode or digest", async () => {
+    const overridePath = join(directory, "custom-omp");
+    const bytes = new TextEncoder().encode("custom-omp-bytes");
+    await writeFile(overridePath, bytes);
+    // Bare override (no digest, no trust mode) is rejected in production.
+    process.env.OMP_BINARY = overridePath;
+    await expect(resolveOmpBinary({ cacheRoot: directory })).rejects.toThrow(
+      /is unverified/,
     );
+    // An explicit development trust mode authorizes it and records identity.
+    process.env.OMP_BINARY_TRUST = "development-only";
+    const resolved = await resolveOmpBinary({ cacheRoot: directory });
+    expect(resolved.path).toBe(overridePath);
+    expect(resolved.sha256).toBe(sha256(bytes));
+    expect(resolved.trustSource).toBe("explicit-operator");
   });
 
   it("auto-updates to the newest omp release with SHA-256 verification", async () => {
@@ -97,11 +117,11 @@ describe("omp version updater", () => {
       ) as typeof fetch,
     });
     expect(
-      resolver.endsWith(
+      resolver.path.endsWith(
         join("17.3.0", platform === "win32" ? "omp.exe" : "omp"),
       ),
     ).toBe(true);
-    const resolvedBytes = await readFile(resolver);
+    const resolvedBytes = await readFile(resolver.path);
     expect(Buffer.from(resolvedBytes).toString()).toBe("omp-17.3.0-bytes");
     expect(apiCalls.length).toBe(1);
     const marker = JSON.parse(
@@ -149,7 +169,7 @@ describe("omp version updater", () => {
       checkIntervalMs: 0,
       fetchImplementation: failingFetch as typeof fetch,
     });
-    expect(resolver.endsWith(join("17.2.15", "omp"))).toBe(true);
+    expect(resolver.path.endsWith(join("17.2.15", "omp"))).toBe(true);
   });
 
   it("writes a permission-restricted trust record after verification", async () => {
@@ -191,8 +211,8 @@ describe("omp version updater", () => {
       updateCheckEnabled: false,
       fetchImplementation: offlineFetch(),
     });
-    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
-    expect(Buffer.from(await readFile(resolver)).toString()).toBe(
+    expect(resolver.path.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(Buffer.from(await readFile(resolver.path)).toString()).toBe(
       "omp-17.2.15-bytes",
     );
   });
@@ -258,10 +278,7 @@ describe("omp version updater", () => {
     });
     // Plant a 17.3.0 cache carrying 17.2.15's trust record (version bound).
     await mkdir(join(directory, "17.3.0"), { recursive: true });
-    await writeFile(
-      join(directory, "17.3.0", binaryName),
-      Buffer.from(bytes),
-    );
+    await writeFile(join(directory, "17.3.0", binaryName), Buffer.from(bytes));
     await writeFile(
       join(directory, "17.3.0", "trusted.json"),
       await readFile(join(directory, "17.2.15", "trusted.json")),
@@ -288,8 +305,8 @@ describe("omp version updater", () => {
         apiCalls,
       ) as typeof fetch,
     });
-    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
-    expect(Buffer.from(await readFile(resolver)).toString()).toBe(
+    expect(resolver.path.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(Buffer.from(await readFile(resolver.path)).toString()).toBe(
       "omp-17.2.15-bytes",
     );
     expect(apiCalls.length).toBe(0); // No latest-release check in pinned mode.
@@ -304,7 +321,7 @@ describe("omp version updater", () => {
       policy: { mode: "pinned", version: "17.2.15", digest: sha256(bytes) },
       fetchImplementation: offlineFetch(),
     });
-    expect(resolver.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(resolver.path.endsWith(join("17.2.15", binaryName))).toBe(true);
     const record = JSON.parse(
       await readFile(join(directory, "17.2.15", "trusted.json"), "utf8"),
     ) as TrustedBinaryRecord;
@@ -328,5 +345,192 @@ describe("omp version updater", () => {
         ) as typeof fetch,
       }),
     ).rejects.toThrow(/SHA-256 mismatch for pinned v17\.2\.15/);
+  });
+
+  it("accepts an OMP_BINARY override matching the pinned digest", async () => {
+    const bytes = new TextEncoder().encode("override-omp-bytes");
+    const overridePath = join(directory, "override-omp");
+    await writeFile(overridePath, bytes);
+    process.env.OMP_BINARY = overridePath;
+    const resolved = await resolveOmpBinary({
+      cacheRoot: directory,
+      policy: { mode: "pinned", version: "17.2.15", digest: sha256(bytes) },
+      fetchImplementation: offlineFetch(),
+    });
+    expect(resolved.path).toBe(overridePath);
+    expect(resolved.trustSource).toBe("explicit-digest");
+    expect(resolved.version).toBe("17.2.15");
+  });
+
+  it("rejects an OMP_BINARY override with a wrong digest", async () => {
+    const bytes = new TextEncoder().encode("override-omp-bytes");
+    const overridePath = join(directory, "override-omp");
+    await writeFile(overridePath, bytes);
+    process.env.OMP_BINARY = overridePath;
+    process.env.OMP_BINARY_DIGEST = "1".repeat(64);
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        policy: { mode: "pinned", version: "17.2.15", digest: "2".repeat(64) },
+      }),
+    ).rejects.toThrow(/OMP_BINARY SHA-256 mismatch/);
+  });
+
+  it("rejects an OMP_BINARY override under a pinned policy without a digest", async () => {
+    const overridePath = join(directory, "override-omp");
+    await writeFile(overridePath, "override-omp-bytes");
+    process.env.OMP_BINARY = overridePath;
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        policy: { mode: "pinned", version: "17.2.15" },
+      }),
+    ).rejects.toThrow(/requires a digest for OMP_BINARY override/);
+  });
+
+  it("rejects an OMP_BINARY override whose version conflicts with the pin", async () => {
+    const overridePath = join(directory, "override-omp");
+    await writeFile(overridePath, "override-omp-bytes");
+    process.env.OMP_BINARY = overridePath;
+    process.env.OMP_BINARY_VERSION = "18.0.0";
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        policy: { mode: "pinned", version: "17.2.15" },
+      }),
+    ).rejects.toThrow(/does not match pinned version 17\.2\.15/);
+  });
+
+  it("verifies a bundled binary against the pinned digest", async () => {
+    const bytes = new TextEncoder().encode("bundled-omp-bytes");
+    const bundled = join(directory, "bundled-omp");
+    await writeFile(bundled, bytes);
+    const options = {
+      cacheRoot: directory,
+      bundledBinary: bundled,
+      bundledBinaryVersion: "17.2.15",
+      policy: {
+        mode: "pinned" as const,
+        version: "17.2.15",
+        digest: sha256(bytes),
+      },
+    };
+    const resolved = await resolveOmpBinary(options);
+    expect(resolved.path).toBe(bundled);
+    expect(resolved.trustSource).toBe("explicit-digest");
+    // Wrong digest fails.
+    await expect(
+      resolveOmpBinary({
+        ...options,
+        policy: { mode: "pinned", version: "17.2.15", digest: "3".repeat(64) },
+      }),
+    ).rejects.toThrow(/Bundled omp binary SHA-256 mismatch/);
+    // No digest fails: a pinned bundled binary must have a verified identity.
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        bundledBinary: bundled,
+        policy: { mode: "pinned", version: "17.2.15" },
+      }),
+    ).rejects.toThrow(/requires a digest to verify the bundled binary/);
+    // Version mismatch fails.
+    await expect(
+      resolveOmpBinary({
+        ...options,
+        bundledBinaryVersion: "18.0.0",
+      }),
+    ).rejects.toThrow(/does not match pinned version 17\.2\.15/);
+  });
+
+  it("never silently rotates a version's trusted digest", async () => {
+    const original = new TextEncoder().encode("original-omp-bytes");
+    const republished = new TextEncoder().encode("republished-omp-bytes");
+    await mkdir(join(directory, "17.2.15"), { recursive: true });
+    // The cache now holds the republished bytes while the trust record is
+    // still anchored to the originally verified digest.
+    await writeFile(join(directory, "17.2.15", binaryName), republished);
+    await writeFile(
+      join(directory, "17.2.15", "trusted.json"),
+      `${JSON.stringify(
+        {
+          version: "17.2.15",
+          asset,
+          sha256: sha256(original),
+          verifiedFrom: "release-manifest",
+          verifiedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+      { mode: 0o600 },
+    );
+    // The manifest serves the republished binary. The resolver verifies the
+    // download but the record must stay anchored to the original digest.
+    const resolving = resolveOmpBinary({
+      cacheRoot: directory,
+      pinnedVersion: "17.2.15",
+      checkIntervalMs: 3_600_000,
+      updateCheckEnabled: false,
+      fetchImplementation: mockFetch(
+        { "17.2.15": republished },
+        [],
+      ) as typeof fetch,
+    });
+    const resolved = await resolving;
+    expect(resolved.path.endsWith(join("17.2.15", binaryName))).toBe(true);
+    expect(resolved.sha256).toBe(sha256(republished));
+    const record = JSON.parse(
+      await readFile(join(directory, "17.2.15", "trusted.json"), "utf8"),
+    ) as TrustedBinaryRecord;
+    expect(record.sha256).toBe(sha256(original)); // Not rotated.
+    // Offline after the republish: no trust match, no manifest -> fail closed.
+    await expect(
+      resolveOmpBinary({
+        cacheRoot: directory,
+        pinnedVersion: "17.2.15",
+        updateCheckEnabled: false,
+        fetchImplementation: offlineFetch(),
+      }),
+    ).rejects.toThrow(/cached but cannot be verified/);
+  });
+
+  it("rotates the trusted digest only through an explicit pinned digest", async () => {
+    const original = new TextEncoder().encode("original-omp-bytes");
+    const pinned = new TextEncoder().encode("pinned-omp-bytes");
+    await mkdir(join(directory, "17.2.15"), { recursive: true });
+    await writeFile(join(directory, "17.2.15", binaryName), original);
+    await writeFile(
+      join(directory, "17.2.15", "trusted.json"),
+      `${JSON.stringify(
+        {
+          version: "17.2.15",
+          asset,
+          sha256: sha256(original),
+          verifiedFrom: "release-manifest",
+          verifiedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+      { mode: 0o600 },
+    );
+    // An explicit administrative pin (policy digest) is the rotation
+    // authority: it replaces the record with the pinned digest.
+    await writeFile(join(directory, "17.2.15", binaryName), pinned);
+    const resolved = await resolveOmpBinary({
+      cacheRoot: directory,
+      policy: {
+        mode: "pinned",
+        version: "17.2.15",
+        digest: sha256(pinned),
+      },
+      fetchImplementation: offlineFetch(),
+    });
+    expect(resolved.sha256).toBe(sha256(pinned));
+    const record = JSON.parse(
+      await readFile(join(directory, "17.2.15", "trusted.json"), "utf8"),
+    ) as TrustedBinaryRecord;
+    expect(record.sha256).toBe(sha256(pinned));
+    expect(record.verifiedFrom).toBe("policy");
   });
 });

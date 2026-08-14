@@ -15,22 +15,39 @@ export interface OmpRpcClientOptions {
    * startup instead of being guessed at.
    */
   maxRpcProtocolVersion?: number;
+  /** How long to wait for the v2 negotiation acknowledgement (ms). */
+  negotiationTimeoutMs?: number;
 }
 
 /**
+ * Feature support is never invented: a server either advertises the feature,
+ * proves it (probe), or reports it as unknown.
+ */
+export type CapabilityState = "supported" | "unsupported" | "unknown";
+
+/**
  * Capability surface negotiated from the omp `ready` frame at startup.
- * Optional features that the server does not advertise are reported as
- * disabled so callers never rely on semantics the server never promised.
+ * Absent advertisements are `"unknown"`, never silently treated as
+ * supported.
  */
 export interface OmpCapabilities {
   /** Negotiated RPC protocol version (1 when the server pre-dates negotiation). */
   rpcProtocolVersion: number;
-  /** Host-tool support; LHIC treats an explicit `false` as fatal. */
-  hostTools: boolean;
-  hostToolCancellation: boolean;
-  subagentEvents: boolean;
-  sessionSwitch: boolean;
-  interruptModes: string[];
+  /** Host-tool support; an explicit `unsupported` is fatal to startup. */
+  hostTools: CapabilityState;
+  hostToolCancellation: CapabilityState;
+  subagentEvents: CapabilityState;
+  sessionSwitch: CapabilityState;
+  interruptModes: CapabilityState;
+  /** Advertised interrupt modes; empty when not advertised. */
+  interruptModeValues: string[];
+}
+
+interface Negotiation {
+  requested: number;
+  resolve(version: number): void;
+  reject(error: Error): void;
+  timer: NodeJS.Timeout;
 }
 
 export type OmpSubagentFrame = Record<string, unknown> & {
@@ -113,7 +130,8 @@ export function lhicHostToolDefinitions(): Array<{
 }
 
 function formatProtocolVersions(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) return "no protocol versions";
+  if (!Array.isArray(value) || value.length === 0)
+    return "no protocol versions";
   return value.map(String).join(", ");
 }
 
@@ -146,6 +164,8 @@ export class OmpRpcClient {
   private ready: { maxReassembledFrameBytes: number } | undefined;
   private negotiatedCapabilities: OmpCapabilities | undefined;
   private readonly maxProtocolVersion: number;
+  private readonly negotiationTimeoutMs: number;
+  private negotiation: Negotiation | undefined;
   private startFailure: Error | undefined;
   private exited = false;
   private stderrTail = "";
@@ -158,6 +178,10 @@ export class OmpRpcClient {
   ) {
     const configured = options.maxRpcProtocolVersion ?? 2;
     this.maxProtocolVersion = Math.min(2, Math.max(1, configured));
+    this.negotiationTimeoutMs = Math.max(
+      1,
+      options.negotiationTimeoutMs ?? 10_000,
+    );
   }
 
   public start(): Promise<void> {
@@ -200,6 +224,11 @@ export class OmpRpcClient {
     });
     child.once("error", (error) => {
       this.exited = true;
+      this.negotiation?.reject(
+        error ??
+          new Error("omp RPC process failed during protocol negotiation."),
+      );
+      this.negotiation = undefined;
       this.rejectAll(error);
       this.startReject?.(error);
       this.startResolve = undefined;
@@ -215,6 +244,11 @@ export class OmpRpcClient {
           : new Error(
               `omp RPC process exited with code ${code ?? "null"}${signal ? ` (${signal})` : ""}.${diagnostic ? `\n${diagnostic}` : ""}`,
             );
+      this.negotiation?.reject(
+        error ??
+          new Error("omp RPC process exited during protocol negotiation."),
+      );
+      this.negotiation = undefined;
       this.rejectAll(error);
       this.startReject?.(error ?? new Error("omp RPC process exited early."));
       this.startResolve = undefined;
@@ -565,6 +599,8 @@ export class OmpRpcClient {
         return;
       }
       if (negotiated >= 2) {
+        // Protocol v2 is a real request/response: startup completes only
+        // after the server acknowledges the negotiated version.
         this.writeLine(
           JSON.stringify({
             id: "protocol-1",
@@ -572,11 +608,47 @@ export class OmpRpcClient {
             protocolVersion: negotiated,
           }),
         );
+        const timer = setTimeout(() => {
+          this.negotiation?.reject(
+            new Error(
+              "omp RPC protocol negotiation timed out; the omp binary did not acknowledge the negotiated protocol.",
+            ),
+          );
+        }, this.negotiationTimeoutMs);
+        const negotiation = new Promise<number>((resolve, reject) => {
+          this.negotiation = {
+            requested: negotiated,
+            resolve: (version) => {
+              clearTimeout(timer);
+              resolve(version);
+            },
+            reject: (error) => {
+              clearTimeout(timer);
+              reject(error);
+            },
+            timer,
+          };
+        });
+        void negotiation.then(
+          (confirmed) => {
+            this.negotiation = undefined;
+            this.negotiatedCapabilities = this.capabilitiesFromFrame(
+              frame,
+              confirmed,
+            );
+            this.startResolve?.();
+            this.startResolve = undefined;
+            this.startReject = undefined;
+          },
+          (error: Error) => {
+            this.negotiation = undefined;
+            this.failStart(error);
+          },
+        );
+        return;
       }
-      this.negotiatedCapabilities = this.capabilitiesFromFrame(
-        frame,
-        negotiated,
-      );
+      // Protocol v1: no negotiation round-trip.
+      this.negotiatedCapabilities = this.capabilitiesFromFrame(frame, 1);
       this.startResolve?.();
       this.startResolve = undefined;
       this.startReject = undefined;
@@ -683,11 +755,53 @@ export class OmpRpcClient {
       );
       return;
     }
-    this.handleLine(reassembled.toString("utf8"));
+    let decoded: string;
+    try {
+      // Fatal decoding: malformed UTF-8 must be rejected, never silently
+      // replaced with U+FFFD and then executed as a frame.
+      decoded = new TextDecoder("utf-8", { fatal: true }).decode(reassembled);
+    } catch {
+      this.callbacks.onLog(
+        "Rejecting omp RPC chunk frame with malformed UTF-8.",
+      );
+      return;
+    }
+    this.handleLine(decoded);
   }
 
   private handleResponse(frame: Record<string, unknown>): void {
     const id = String(frame.id ?? "");
+    if (id === "protocol-1" && this.negotiation) {
+      const negotiation = this.negotiation;
+      if (frame.success === false) {
+        negotiation.reject(
+          new Error(
+            `omp RPC protocol negotiation failed: ${String(frame.error ?? "the omp binary rejected the negotiated protocol")}.`,
+          ),
+        );
+        return;
+      }
+      const confirmedData =
+        frame.data &&
+        typeof frame.data === "object" &&
+        !Array.isArray(frame.data)
+          ? (frame.data as Record<string, unknown>)
+          : undefined;
+      const confirmed =
+        confirmedData && typeof confirmedData.protocolVersion === "number"
+          ? confirmedData.protocolVersion
+          : undefined;
+      if (confirmed !== undefined && confirmed !== negotiation.requested) {
+        negotiation.reject(
+          new Error(
+            `omp RPC protocol negotiation mismatch: requested v${negotiation.requested}, the omp binary acknowledged v${confirmed}.`,
+          ),
+        );
+        return;
+      }
+      negotiation.resolve(negotiation.requested);
+      return;
+    }
     const pending = this.pending.get(id);
     if (!pending) return;
     this.pending.delete(id);
@@ -721,7 +835,9 @@ export class OmpRpcClient {
    * default to v1. Returns `undefined` when no overlap exists — the server
    * must be rejected, never guessed at.
    */
-  private negotiateProtocol(frame: Record<string, unknown>): number | undefined {
+  private negotiateProtocol(
+    frame: Record<string, unknown>,
+  ): number | undefined {
     const raw = frame.supportedProtocolVersions;
     if (!Array.isArray(raw)) return 1;
     const supported = raw.filter(
@@ -739,21 +855,29 @@ export class OmpRpcClient {
     frame: Record<string, unknown>,
     rpcProtocolVersion: number,
   ): OmpCapabilities {
-    const advertised = (key: string, fallback: boolean): boolean =>
-      frame[key] === undefined ? fallback : frame[key] === true;
-    const interruptModes = Array.isArray(frame.interruptModes)
+    const stateOf = (key: string): CapabilityState =>
+      frame[key] === true
+        ? "supported"
+        : frame[key] === false
+          ? "unsupported"
+          : "unknown";
+    const interruptModeValues = Array.isArray(frame.interruptModes)
       ? frame.interruptModes.filter(
           (value): value is string => typeof value === "string",
         )
       : [];
     return {
       rpcProtocolVersion,
-      hostTools: advertised("hostTools", true),
-      hostToolCancellation: advertised("hostToolCancellation", false),
-      subagentEvents: advertised("subagentEvents", true),
-      sessionSwitch: advertised("sessionSwitch", true),
-      interruptModes:
-        interruptModes.length > 0 ? interruptModes : ["immediate", "wait"],
+      hostTools: stateOf("hostTools"),
+      hostToolCancellation: stateOf("hostToolCancellation"),
+      subagentEvents: stateOf("subagentEvents"),
+      sessionSwitch: stateOf("sessionSwitch"),
+      interruptModes: Array.isArray(frame.interruptModes)
+        ? interruptModeValues.length > 0
+          ? "supported"
+          : "unsupported"
+        : "unknown",
+      interruptModeValues,
     };
   }
 

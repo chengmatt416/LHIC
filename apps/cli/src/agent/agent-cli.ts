@@ -8,7 +8,11 @@ import {
   type OmpSubagentModel,
 } from "@lhic/omp-rpc";
 
-import { resolveOmpBinary, ompCacheDirectory, type OmpVersionPolicy } from "./omp-binary.js";
+import {
+  resolveOmpBinary,
+  ompCacheDirectory,
+  type OmpVersionPolicy,
+} from "./omp-binary.js";
 import {
   CliHostRunner,
   hostToolDefinitions,
@@ -68,7 +72,11 @@ export async function runAgentCommand(
   const sessionDir =
     options.sessionDir ?? join(ompCacheDirectory(), "sessions");
   await mkdir(sessionDir, { recursive: true });
-  const binary = options.binary ?? (await resolveOmpBinary(options.ompPolicy));
+  const resolved =
+    options.binary !== undefined
+      ? { path: options.binary }
+      : await resolveOmpBinary(options.ompPolicy);
+  const binary = resolved.path;
   const output = options.output ?? process.stdout;
   const errorOutput = options.errorOutput ?? process.stderr;
   const input = options.input ?? process.stdin;

@@ -267,11 +267,31 @@ async function resolveProductCommand(product, modelId) {
       process.platform === "win32" ? "omp.exe" : "omp",
     );
     const available = await exists(binary);
+    if (!available) {
+      return unavailable(`Bundled omp is missing: ${binary}`, "unknown");
+    }
+    // Identity is measured, never derived from a directory name or constant:
+    // hash the executable and parse the version it reports.
+    const sha256 = await hashFile(binary);
+    const measured = await measureOmpVersion(binary);
+    if (!measured.ok) {
+      return unavailable(
+        `Bundled omp version could not be measured: ${measured.error}`,
+        measured.version || "unknown",
+      );
+    }
+    const expectedOmpVersion = "17.2.15";
+    if (!measured.version.includes(expectedOmpVersion)) {
+      return unavailable(
+        `Bundled omp version ${measured.version} does not match expected ${expectedOmpVersion}.`,
+        measured.version,
+      );
+    }
     return {
-      available,
-      reason: available ? "" : `Bundled omp is missing: ${binary}`,
-      version: "0.2.0+omp-17.2.15",
-      sha256: available ? await hashFile(binary) : "0".repeat(64),
+      available: true,
+      reason: "",
+      version: measured.version,
+      sha256,
       invocation: (prompt) => ({
         file: process.execPath,
         args: [
@@ -288,7 +308,12 @@ async function resolveProductCommand(product, modelId) {
           "--model",
           modelId,
         ],
-        env: { OMP_BINARY: binary },
+        env: {
+          OMP_BINARY: binary,
+          OMP_BINARY_DIGEST: sha256,
+          OMP_BINARY_VERSION: measured.version,
+          OMP_BINARY_TRUST: "digest-required",
+        },
       }),
     };
   }
@@ -433,6 +458,41 @@ function spawnCapture(file, commandArgs, options) {
     });
   });
   return { child, result };
+}
+
+/**
+ * Measures the omp executable's actual version by running `--version`.
+ * Identity comes from the executable itself, never from a directory name or
+ * constant.
+ */
+async function measureOmpVersion(binary) {
+  try {
+    const execution = spawnCapture(binary, ["--version"], {
+      cwd: repositoryRoot,
+      env: process.env,
+      timeoutMs: 10_000,
+    });
+    const completed = await execution.result;
+    const output = `${completed.stdout}\n${completed.stderr}`;
+    const match = /(\d+\.\d+\.\d+)/.exec(output);
+    if (completed.timedOut) {
+      return {
+        ok: false,
+        version: "",
+        error: "omp --version timed out",
+      };
+    }
+    if (!match) {
+      return {
+        ok: false,
+        version: output.trim().split("\n")[0] ?? "",
+        error: `omp --version produced no version token (exit ${completed.exitCode}): ${output.slice(0, 200)}`,
+      };
+    }
+    return { ok: true, version: match[1] };
+  } catch (error) {
+    return { ok: false, version: "", error: String(error.message ?? error) };
+  }
 }
 
 async function startFixture(file, commandArgs, cwd) {

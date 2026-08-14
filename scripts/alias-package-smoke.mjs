@@ -48,7 +48,16 @@ try {
     ],
     { cwd: installDirectory },
   );
-  if (!helpOutput.startsWith("Usage: lhic [install <cli|desktop>")) {
+  // Robust forwarding check: the alias help must be the canonical CLI help,
+  // which begins with the usage banner and lists the current command set.
+  // Assert on the stable prefix and representative commands rather than a
+  // fixed first command, so help-text evolution does not break packaging.
+  if (
+    !/^Usage: lhic \[/.test(helpOutput) ||
+    !/\bagent\b/.test(helpOutput) ||
+    !/\binstall\b/.test(helpOutput) ||
+    !/\bpreflight\b/.test(helpOutput)
+  ) {
     throw new Error(
       "The installed lhic compatibility package did not forward to the full CLI.",
     );

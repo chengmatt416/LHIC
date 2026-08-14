@@ -69,11 +69,15 @@ a published-package smoke test are still required before claiming cross-platform
 ## Benchmark omp pinning
 
 No benchmark run may silently change the omp core. The competitive harness
-invokes `lhic agent` with `OMP_BINARY` set to the pinned bundled binary, so the
-resolver never auto-updates during a run. Evidence artifacts record the exact
-omp product version and executable SHA-256 per run, plus the LHIC commit, OS,
-architecture, and runtime in the manifest `environment` block. For manual
-runs, pin explicitly:
+invokes `lhic agent` with `OMP_BINARY` set to the pinned bundled binary **and**
+its measured SHA-256 (`OMP_BINARY_DIGEST`) and measured version
+(`OMP_BINARY_VERSION`), so the resolver verifies the override instead of
+trusting the path. Before any run the harness executes `omp --version`, parses
+the actual version, rejects a mismatch with the expected 17.2.15, and records
+the measured version and executable digest per run, plus the LHIC commit, OS,
+architecture, and runtime in the manifest `environment` block. Identity is
+never derived from a directory name or constant. For manual runs, pin
+explicitly:
 
 ```bash
 lhic agent --omp-policy pinned --omp-version 17.2.15 --omp-digest <sha256> --prompt "…"
@@ -81,4 +85,6 @@ lhic agent --omp-policy pinned --omp-version 17.2.15 --omp-digest <sha256> --pro
 
 A pinned run never contacts the release API; an offline machine executes the
 pin only when the cached binary matches the pin digest or a previously
-verified trust record.
+verified trust record. An `OMP_BINARY` override follows the same rules: a
+digest (the pin's, or `OMP_BINARY_DIGEST`) is required, or an explicit
+`OMP_BINARY_TRUST=explicit-operator|development-only` must authorize it.

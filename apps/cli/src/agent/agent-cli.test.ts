@@ -50,6 +50,9 @@ describe("lhic agent (omp RPC pipeline)", () => {
 
   afterEach(async () => {
     delete process.env.OMP_BINARY;
+    delete process.env.OMP_BINARY_DIGEST;
+    delete process.env.OMP_BINARY_VERSION;
+    delete process.env.OMP_BINARY_TRUST;
     await rm(directory, { recursive: true, force: true });
   });
 
@@ -74,9 +77,13 @@ describe("lhic agent (omp RPC pipeline)", () => {
     expect(exitCode).toBe(0);
   });
 
-  it("honors the OMP_BINARY override without downloading", async () => {
+  it("honors an OMP_BINARY override with an explicit trust mode", async () => {
     process.env.OMP_BINARY = binary;
-    await expect(resolveOmpBinary()).resolves.toBe(binary);
+    process.env.OMP_BINARY_TRUST = "development-only";
+    const resolved = await resolveOmpBinary();
+    expect(resolved.path).toBe(binary);
+    expect(resolved.sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(resolved.trustSource).toBe("explicit-operator");
   });
 
   it("registers the approval-gated LHIC host tools with the agent", async () => {

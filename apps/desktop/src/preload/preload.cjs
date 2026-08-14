@@ -145,8 +145,7 @@ contextBridge.exposeInMainWorld("lhic", {
     exportHtml: () => ipcRenderer.invoke("lhic:omp:export-html"),
     loginProviders: () => ipcRenderer.invoke("lhic:omp:login-providers"),
     login: (providerId) => ipcRenderer.invoke("lhic:omp:login", providerId),
-    providerKeyStatus: () =>
-      ipcRenderer.invoke("lhic:omp:provider-key:status"),
+    providerKeyStatus: () => ipcRenderer.invoke("lhic:omp:provider-key:status"),
     setProviderKey: (provider, key) =>
       ipcRenderer.invoke("lhic:omp:provider-key:set", provider, key),
     removeProviderKey: (provider) =>
