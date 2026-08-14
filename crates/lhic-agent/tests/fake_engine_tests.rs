@@ -31,8 +31,10 @@ fn python3() -> String {
     })
 }
 
-/// Writes the fake engine to a temp file with a python3 shebang and makes it
-/// executable.
+/// Writes the fake engine to a temp file and returns a path the client can
+/// spawn directly. Unix: python3 shebang script (chmod +x). Windows: a
+/// `fake-omp.cmd` wrapper that invokes the python interpreter (no shebang
+/// support on Windows).
 fn fake_engine_binary() -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "lhic-fake-{}-{}",
@@ -43,15 +45,32 @@ fn fake_engine_binary() -> PathBuf {
             .as_nanos()
     ));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("fake-omp");
-    let script = format!("#!{}\n{}", python3(), FAKE_SRC);
-    std::fs::write(&path, script).unwrap();
+    let script_path = dir.join("fake-omp.py");
+    std::fs::write(&script_path, FAKE_SRC).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let wrapper = dir.join("fake-omp");
+        std::fs::write(&wrapper, format!("#!{}\n{}", python3(), FAKE_SRC)).unwrap();
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+        wrapper
     }
-    path
+    #[cfg(windows)]
+    {
+        let wrapper = dir.join("fake-omp.cmd");
+        let body = format!(
+            "@echo off\r\n\"{}\" \"{}\" %*\r\n",
+            python3(),
+            script_path.display()
+        );
+        std::fs::write(&wrapper, body).unwrap();
+        wrapper
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        script_path
+    }
 }
 
 fn fake_config(mode: &str, command_timeout: Duration, chunk_stale: Duration) -> RpcConfig {

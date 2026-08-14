@@ -23,13 +23,40 @@ jobs:
         with:
           toolchain: "1.86"
           components: rustfmt, clippy
+      - name: Install Python (fake-engine tests)
+        if: runner.os == 'Windows'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Check (all targets)
+        if: runner.os != 'macOS'
+        run: cargo check --workspace --all-targets
+      - name: Check (all targets, macOS)
+        if: runner.os == 'macOS'
+        # ring 0.17.14 const-asserts that aarch64-apple-darwin exposes
+        # exactly {neon,aes,sha2,pmull}; macos-14 arm64 runners report a
+        # mismatched static feature set under target-cpu=generic. Pin the
+        # target CPU for macOS so the static features match.
+        env:
+          RUSTFLAGS: "-C target-cpu=apple-m1"
         run: cargo check --workspace --all-targets
       - name: Clippy (deny warnings)
+        if: runner.os != 'macOS'
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Clippy (deny warnings, macOS)
+        if: runner.os == 'macOS'
+        env:
+          RUSTFLAGS: "-C target-cpu=apple-m1"
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test workspace
+        if: runner.os != 'macOS'
+        run: cargo test --workspace
+      - name: Test workspace (macOS)
+        if: runner.os == 'macOS'
+        env:
+          RUSTFLAGS: "-C target-cpu=apple-m1"
         run: cargo test --workspace
 
   omp-integration:
