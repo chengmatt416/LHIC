@@ -1,3 +1,4 @@
+export * from "./coding-verifier.js";
 export * from "./desktop-observation-verifier.js";
 export * from "./desktop-verifier.js";
 export * from "./dom-verifier.js";

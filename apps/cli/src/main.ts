@@ -16,6 +16,7 @@ import { runInternalBenchmark } from "./internal-benchmark.js";
 import { runJudgeDemo } from "./demo.js";
 import { runCapabilitiesCommand } from "./capabilities.js";
 import { provenanceJson, renderProvenance } from "./provenance.js";
+import { runVerifyCodingCommand } from "./verify-coding.js";
 import { parseDemoCommandOptions } from "./demo-command-options.js";
 import { startGuiCompanion } from "./gui-companion.js";
 import { parseGuiCommandOptions } from "./gui-command-options.js";
@@ -331,6 +332,11 @@ async function runCommand(
   }
   if (command === "capabilities") {
     const exitCode = await runCapabilitiesCommand();
+    process.exitCode = exitCode;
+    return;
+  }
+  if (command === "verify" && subcommand === "coding") {
+    const exitCode = await runVerifyCodingCommand(argumentsList.slice(2));
     process.exitCode = exitCode;
     return;
   }
