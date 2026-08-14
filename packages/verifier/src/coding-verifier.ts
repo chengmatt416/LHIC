@@ -378,6 +378,6 @@ function boundedRedactedExcerpt(output: string): string {
   return typeof redacted === "string" ? redacted : bounded;
 }
 
-function sha256Hex(value: string): string {
+function sha256Hex(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
