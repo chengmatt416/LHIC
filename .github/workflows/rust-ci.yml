@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.82"
+          toolchain: "1.85"
           components: rustfmt, clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -33,26 +33,29 @@ jobs:
         run: cargo test --workspace
 
   omp-integration:
-    name: OMP RPC integration (Linux, pinned engine)
+    name: OMP RPC integration (Linux, verified pinned engine)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.82"
-      - name: Verify pinned OMP engine checksum
+          toolchain: "1.85"
+      - name: Acquire and verify pinned OMP engine
         shell: bash
         run: |
           set -eu
-          OMP_PATH="apps/desktop/vendor/omp/current/omp"
-          if [ ! -f "$OMP_PATH" ]; then
-            echo "::error::pinned omp binary is missing; add it from the verified release manifest"
-            exit 1
-          fi
-          chmod +x "$OMP_PATH"
-          "$OMP_PATH" --version
-      - name: Run real-OMP integration tests
+          mkdir -p .omp-cache
+          # Downloads omp-linux-x64 from the official v17.2.15 release,
+          # verifies its SHA-256 against .omp-trust/manifest.json, verifies
+          # the exact engine version, then writes the verified binary.
+          sh scripts/acquire-omp.sh linux-x64 .omp-cache/omp
+      - name: Run supply-chain trust tests
+        run: cargo test -p lhic-agent --lib rpc::trust
+      - name: Run real-OMP integration tests (missing engine fails)
+        env:
+          OMP_BINARY: ${{ github.workspace }}/.omp-cache/omp
+          OMP_REQUIRED: "1"
         run: cargo test -p lhic-agent --test omp_rpc_integration
       - name: Run fake-engine protocol tests
         run: cargo test -p lhic-agent --test fake_engine_tests

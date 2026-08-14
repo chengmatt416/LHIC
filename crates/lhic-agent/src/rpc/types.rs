@@ -342,6 +342,13 @@ pub enum AgentEvent {
         code: Option<String>,
         error: String,
     },
+    /// A late successful response for a request that already completed or was
+    /// never registered. Surfaced diagnostically instead of silently dropped.
+    LateCommandResponse {
+        id: String,
+        command: String,
+        data: Option<Value>,
+    },
     /// A protocol violation surfaced by the transport (chunk errors,
     /// interruption of a chunk sequence, parse failures, …).
     ProtocolError { detail: String },
@@ -383,6 +390,7 @@ impl AgentEvent {
             AgentEvent::SubagentEvent { .. } => Some("subagent_event"),
             AgentEvent::SideChannel { .. } => Some("side_channel"),
             AgentEvent::LateCommandFailure { .. } => Some("late_command_failure"),
+            AgentEvent::LateCommandResponse { .. } => Some("late_command_response"),
             AgentEvent::ProtocolError { .. } => Some("protocol_error"),
             AgentEvent::Log(_) | AgentEvent::ChildClosed | AgentEvent::Unknown { .. } => None,
         }

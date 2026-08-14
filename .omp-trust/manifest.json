@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "version": "17.2.15",
+  "source": "https://github.com/can1357/oh-my-pi/releases/tag/v17.2.15",
+  "sha256sumsUrl": "https://github.com/can1357/oh-my-pi/releases/download/v17.2.15/SHA256SUMS.txt",
+  "artifacts": {
+    "linux-x64": {
+      "assetName": "omp-linux-x64",
+      "assetSha256": "fa884941f932f4f5d2046acba971790ae6aae18fd4806472b01f041de670368a"
+    },
+    "linux-arm64": {
+      "assetName": "omp-linux-arm64",
+      "assetSha256": "36507ba3d98332f52649d22009ead86f154ab007cb169d68690fa2b0111769ad"
+    },
+    "linux-musl-x64": {
+      "assetName": "omp-linux-musl-x64",
+      "assetSha256": "aa0b76d1a2834950fd3757d117edf8ec6c371e3301ee7953aef14b9fc63960a3"
+    },
+    "linux-musl-arm64": {
+      "assetName": "omp-linux-musl-arm64",
+      "assetSha256": "148e2099173f831886241bd9ef3764731e5624c933173211a42b9ccf2b6c2e73"
+    },
+    "darwin-x64": {
+      "assetName": "omp-darwin-x64",
+      "assetSha256": "019281f10e416bc19716c29fc8928b7278573c7a011bcaf22d15dfd39b045d03"
+    },
+    "darwin-arm64": {
+      "assetName": "omp-darwin-arm64",
+      "assetSha256": "e280d25bc7ad889c87af101a8b9c8b7aa9853c373acb259eda6007a9659ac2a5"
+    },
+    "windows-x64": {
+      "assetName": "omp-windows-x64.exe",
+      "assetSha256": "d10d6281ce9993ef0454b2760afa67f5e99a0e092aad4d9fee2068381103c1aa"
+    }
+  }
+}

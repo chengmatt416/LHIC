@@ -10,9 +10,11 @@
 
 pub mod client;
 pub mod codec;
+pub mod coordinator;
 pub mod error;
 pub mod host;
 pub mod lifecycle;
+pub mod trust;
 pub mod types;
 
 pub use client::{
@@ -20,11 +22,13 @@ pub use client::{
     DEFAULT_READY_TIMEOUT, OMP_VERSION,
 };
 pub use codec::ChunkReassembler;
+pub use coordinator::{LateCommandResponse, TurnCompletion, TurnCoordinator};
 pub use error::RpcError;
 pub use host::{
     HostToolDefinition, HostToolResult, HostUriRequest, HostUriResult, HostUriSchemeDefinition,
 };
 pub use lifecycle::{prompt_and_wait, PromptOutcome};
+pub use trust::{sha256_file, verify_omp_binary, verify_omp_version, ArtifactTrust, OmpManifest};
 pub use types::{
     AgentEvent, HostToolCall, HostToolCancel, HostUriCancel, PromptResult, ReadyFrame, RpcChunk,
     RpcResponse, UiRequest, UiResponse, DEFAULT_MAX_REASSEMBLED_FRAME_BYTES,

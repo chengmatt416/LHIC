@@ -249,3 +249,161 @@ async fn turn_timeout_is_enforced_on_silent_engine() {
     );
     client.stop().await.ok();
 }
+
+/// Event flood followed by turn_end must not lose turn completion.
+#[tokio::test]
+async fn flood_then_turn_end_completes_turn() {
+    let client = start_fake("flood_turn_end").await;
+    let outcome = prompt_and_wait(&client, "hello", Duration::from_secs(20)).await;
+    assert!(
+        outcome.is_ok(),
+        "turn must complete despite event flood: {:?}",
+        outcome.err()
+    );
+    let outcome = outcome.unwrap();
+    assert!(outcome.is_terminal());
+    client.stop().await.ok();
+}
+
+/// Event flood followed by terminal agent_end must not lose completion.
+#[tokio::test]
+async fn flood_then_agent_end_completes_turn() {
+    let client = start_fake("flood_agent_end").await;
+    let outcome = prompt_and_wait(&client, "hello", Duration::from_secs(20)).await;
+    assert!(
+        outcome.is_ok(),
+        "turn must complete despite event flood: {:?}",
+        outcome.err()
+    );
+    let outcome = outcome.unwrap();
+    assert!(outcome.is_terminal());
+    client.stop().await.ok();
+}
+
+/// Command response during an event flood must still resolve promptly.
+#[tokio::test]
+async fn command_response_during_flood_resolves() {
+    let client = start_fake("flood").await;
+    let started = tokio::time::Instant::now();
+    let result = client.get_state().await;
+    assert!(result.is_ok());
+    assert!(started.elapsed() < Duration::from_secs(8));
+    client.stop().await.ok();
+}
+
+/// Prompt ACK followed by a correlated async scheduling failure must return
+/// that failure immediately (not wait for the turn timeout).
+#[tokio::test]
+async fn prompt_ack_then_fail_returns_immediately() {
+    let client = start_fake("prompt_ack_then_fail").await;
+    let started = tokio::time::Instant::now();
+    let outcome = prompt_and_wait(&client, "hello", Duration::from_secs(30)).await;
+    assert!(outcome.is_err(), "late scheduling failure must surface");
+    let error = outcome.err().unwrap().to_string();
+    assert!(
+        error.contains("scheduling_failed"),
+        "error must preserve the machine-readable code: {error}"
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "must fail immediately, not after the turn timeout"
+    );
+    client.stop().await.ok();
+}
+
+/// An unknown successful response id must be surfaced diagnostically, never
+/// silently dropped, and must not mutate the pending map.
+#[tokio::test]
+async fn unknown_success_id_is_surfaced() {
+    let client = start_fake("unknown_success").await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    let mut saw_late = false;
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            break;
+        }
+        match client.next_event().await.expect("event stream healthy") {
+            Some(AgentEvent::LateCommandResponse { id, command, data }) => {
+                assert_eq!(id, "req_777");
+                assert_eq!(command, "get_state");
+                assert!(data.is_some());
+                saw_late = true;
+                break;
+            }
+            Some(_) => {}
+            None => break,
+        }
+    }
+    assert!(
+        saw_late,
+        "expected LateCommandResponse for unknown success id"
+    );
+    client.stop().await.ok();
+}
+
+/// The server-advertised reassembly ceiling must apply before the first
+/// chunk: a 16 KiB logical frame with an advertised 8 KiB cap is rejected.
+#[tokio::test]
+async fn negotiated_reassembly_cap_enforced_before_first_chunk() {
+    let client = start_fake("negotiated_cap").await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
+    let mut saw_reject = false;
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            break;
+        }
+        match client.next_event().await.expect("event stream healthy") {
+            Some(AgentEvent::ProtocolError { detail }) => {
+                assert!(
+                    detail.contains("exceeds") || detail.contains("cap"),
+                    "unexpected detail: {detail}"
+                );
+                saw_reject = true;
+                break;
+            }
+            Some(_) => {}
+            None => break,
+        }
+    }
+    assert!(saw_reject, "oversize frame must be rejected");
+    client.stop().await.ok();
+}
+
+/// Cancelled command futures must not leak pending map entries.
+#[tokio::test]
+async fn cancelled_futures_do_not_leak_pending() {
+    let client = start_fake("never_answer").await;
+    let baseline = client.pending_len();
+    assert_eq!(baseline, 0);
+
+    // Start N command futures as spawned tasks so they register their
+    // pending entries, then drop the handles (aborting the tasks) before any
+    // response arrives.
+    let client = std::sync::Arc::new(client);
+    let mut handles = Vec::new();
+    for _ in 0..16 {
+        let client = client.clone();
+        handles.push(tokio::spawn(async move { client.get_state().await }));
+    }
+    // Let the spawned command tasks run and register their pending entries.
+    tokio::task::yield_now().await;
+    tokio::task::yield_now().await;
+    assert_eq!(client.pending_len(), 16, "all futures must register");
+
+    // Abort (cancel) every command task; the RAII registration guard must
+    // remove each pending entry.
+    for handle in &handles {
+        handle.abort();
+    }
+    drop(handles);
+
+    tokio::task::yield_now().await;
+    tokio::task::yield_now().await;
+    assert_eq!(
+        client.pending_len(),
+        0,
+        "pending map must return to baseline"
+    );
+
+    client.stop().await.ok();
+}

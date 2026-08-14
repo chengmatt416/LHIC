@@ -30,12 +30,56 @@ use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot, Mutex as AsyncMutex};
 
 use super::codec::{decode_reassembled, ChunkReassembler};
+use super::coordinator::TurnCoordinator;
 use super::error::RpcError;
 use super::types::*;
 
 /// A registered command waiter keyed by request id.
 pub(crate) type PendingMap =
     parking_lot::Mutex<HashMap<String, oneshot::Sender<Result<Value, RpcError>>>>;
+
+/// RAII registration of a pending request: removing the entry on drop makes
+/// command-future cancellation leak-free. A completed response disarms the
+/// guard by removing the entry first.
+struct PendingRegistration<'a> {
+    pending: &'a Arc<PendingMap>,
+    id: String,
+    armed: bool,
+}
+
+impl<'a> PendingRegistration<'a> {
+    fn insert(
+        pending: &'a Arc<PendingMap>,
+        id: &str,
+        tx: oneshot::Sender<Result<Value, RpcError>>,
+    ) -> Result<Self, RpcError> {
+        let mut guard = pending.lock();
+        if guard.contains_key(id) {
+            return Err(RpcError::Malformed {
+                detail: format!("duplicate request id {id}"),
+            });
+        }
+        guard.insert(id.to_string(), tx);
+        Ok(Self {
+            pending,
+            id: id.to_string(),
+            armed: true,
+        })
+    }
+
+    /// Disarms before delivering a response (the reader already removed it).
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for PendingRegistration<'_> {
+    fn drop(&mut self) {
+        if self.armed {
+            self.pending.lock().remove(&self.id);
+        }
+    }
+}
 
 /// The engine version this client is built and validated against.
 pub const OMP_VERSION: &str = "17.2.15";
@@ -120,6 +164,8 @@ pub struct OmpRpcClient {
     reassembly_cap: Arc<parking_lot::Mutex<usize>>,
     /// Shared bounded stderr tail maintained by the collector task.
     stderr_tail: Arc<parking_lot::Mutex<String>>,
+    /// Non-lossy turn-coordination state (terminal events never dropped).
+    turn_coordinator: TurnCoordinator,
     config: RpcConfig,
 }
 
@@ -144,6 +190,7 @@ impl OmpRpcClient {
             next_id: Arc::new(AtomicU64::new(0)),
             reassembly_cap: Arc::new(Mutex::new(LOCAL_MAX_REASSEMBLED_FRAME_BYTES)),
             stderr_tail: Arc::new(Mutex::new(String::new())),
+            turn_coordinator: TurnCoordinator::new(),
             config,
         }
     }
@@ -190,6 +237,7 @@ impl OmpRpcClient {
         let pending = self.pending.clone();
         let reassembly_cap = self.reassembly_cap.clone();
         let stderr_tail = self.stderr_tail.clone();
+        let turn_coordinator = self.turn_coordinator.clone();
         let chunk_stale_timeout = self.config.chunk_stale_timeout;
 
         // Stderr collector: maintains a shared bounded tail independently of
@@ -239,8 +287,11 @@ impl OmpRpcClient {
                                     trimmed,
                                     &mut reassembler,
                                     &pending,
+                                    &turn_coordinator,
+                                    &reassembly_cap,
                                     &event_tx,
                                 ).await {
+                                    turn_coordinator.mark_protocol_error(&e.to_string());
                                     let _ = event_tx.try_send(AgentEvent::ProtocolError {
                                         detail: e.to_string(),
                                     });
@@ -252,6 +303,7 @@ impl OmpRpcClient {
                         let cap = *reassembly_cap.lock();
                         reassembler.set_max_frame_bytes(cap);
                         if let Err(e) = reassembler.check_stale(chunk_stale_timeout) {
+                            turn_coordinator.mark_protocol_error(&e.to_string());
                             let _ = event_tx.try_send(AgentEvent::ProtocolError {
                                 detail: e.to_string(),
                             });
@@ -259,7 +311,9 @@ impl OmpRpcClient {
                     }
                 }
             }
-            // EOF / process exit: fail every pending waiter immediately.
+            // EOF / process exit: fail every pending waiter immediately and
+            // mark the turn coordinator (non-lossy terminal state).
+            turn_coordinator.mark_child_closed();
             let mut guard = pending.lock();
             for (_, tx) in guard.drain() {
                 let _ = tx.send(Err(RpcError::ConnectionClosed));
@@ -286,7 +340,9 @@ impl OmpRpcClient {
             ));
         }
 
-        // Effective v2 logical-frame cap = min(local, server advertised).
+        // Effective v2 logical-frame cap = min(local, server advertised),
+        // applied before protocol negotiation so the reader rejects any
+        // oversize chunk sequence from its very first chunk.
         if let Some(advertised) = ready.max_reassembled_frame_bytes {
             let mut cap = self.reassembly_cap.lock();
             *cap = (*cap).min(advertised);
@@ -349,15 +405,7 @@ impl OmpRpcClient {
 
     async fn command_raw(&self, id: &str, payload: Value) -> Result<Value, RpcError> {
         let (tx, rx) = oneshot::channel();
-        {
-            let mut pending = self.pending.lock();
-            if pending.contains_key(id) {
-                return Err(RpcError::Malformed {
-                    detail: format!("duplicate request id {id}"),
-                });
-            }
-            pending.insert(id.to_string(), tx);
-        }
+        let mut registration = PendingRegistration::insert(&self.pending, id, tx)?;
 
         let mut request = payload;
         if let Some(obj) = request.as_object_mut() {
@@ -376,20 +424,27 @@ impl OmpRpcClient {
         }
         .await;
         if let Err(e) = write_result {
-            self.pending.lock().remove(id);
+            // Registration guard removes the entry on drop.
+            drop(registration);
             return Err(e);
         }
 
         let seconds = self.config.command_timeout.as_secs();
-        match tokio::time::timeout(self.config.command_timeout, rx).await {
-            Ok(Ok(result)) => result,
+        let result = tokio::time::timeout(self.config.command_timeout, rx).await;
+        match result {
+            Ok(Ok(result)) => {
+                registration.disarm();
+                result
+            }
             Ok(Err(_)) => {
                 // Waiter dropped without a value (e.g. child closed): the
                 // reader completed it with ConnectionClosed.
+                registration.disarm();
                 Err(RpcError::ConnectionClosed)
             }
             Err(_) => {
-                self.pending.lock().remove(id);
+                // Timeout: the guard removes the entry on drop.
+                drop(registration);
                 Err(RpcError::Timeout {
                     command: request
                         .get("type")
@@ -400,6 +455,16 @@ impl OmpRpcClient {
                 })
             }
         }
+    }
+
+    /// Number of registered pending requests (introspection for tests).
+    pub fn pending_len(&self) -> usize {
+        self.pending.lock().len()
+    }
+
+    /// Registered pending request ids (introspection for tests).
+    pub fn pending_entries(&self) -> Vec<String> {
+        self.pending.lock().keys().cloned().collect()
     }
 
     /// Polls for the next normalized event. Returns `None` when the engine
@@ -438,6 +503,11 @@ impl OmpRpcClient {
 
     pub fn stderr_tail(&self) -> String {
         self.stderr_tail.lock().clone()
+    }
+
+    /// Non-lossy turn-coordination state shared with the reader.
+    pub fn turn_coordinator(&self) -> TurnCoordinator {
+        self.turn_coordinator.clone()
     }
 
     /// Replies to an `extension_ui_request` dialog.
@@ -503,6 +573,20 @@ impl OmpRpcClient {
     /// Sends a prompt and returns the immediate acknowledgement.
     pub async fn prompt(&self, message: &str) -> Result<Value, RpcError> {
         self.command("prompt", json!({ "message": message })).await
+    }
+
+    /// Sends a prompt tracked by the turn coordinator so a correlated late
+    /// scheduling failure or terminal lifecycle event completes the turn
+    /// immediately. Returns the ack and the request id.
+    pub(crate) async fn prompt_tracked(&self, message: &str) -> Result<(Value, String), RpcError> {
+        let id = format!("req_{}", self.next_id.fetch_add(1, Ordering::Relaxed));
+        self.turn_coordinator.register(&id);
+        let mut payload = json!({ "message": message, "type": "prompt" });
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("id".to_string(), json!(id));
+        }
+        let ack = self.command_raw(&id, payload).await?;
+        Ok((ack, id))
     }
 
     pub async fn get_state(&self) -> Result<Value, RpcError> {
@@ -618,6 +702,8 @@ async fn handle_line(
     line: &str,
     reassembler: &mut ChunkReassembler,
     pending: &Arc<PendingMap>,
+    coordinator: &TurnCoordinator,
+    reassembly_cap: &Arc<parking_lot::Mutex<usize>>,
     event_tx: &mpsc::Sender<AgentEvent>,
 ) -> Result<(), RpcError> {
     let value: Value = serde_json::from_str(line).map_err(|_| RpcError::Parse {
@@ -629,9 +715,13 @@ async fn handle_line(
         let chunk: RpcChunk = serde_json::from_value(value).map_err(|e| RpcError::Chunk {
             detail: format!("bad chunk frame: {e}"),
         })?;
+        // The effective negotiated cap is read immediately before every
+        // feed so a lowered server-advertised ceiling applies to the very
+        // first chunk of a sequence.
+        reassembler.set_max_frame_bytes(*reassembly_cap.lock());
         if let Some(bytes) = reassembler.feed(&chunk)? {
             let frame = decode_reassembled(bytes)?;
-            dispatch_frame(&frame, pending, event_tx).await?;
+            dispatch_frame(&frame, pending, coordinator, event_tx).await?;
         }
         return Ok(());
     }
@@ -646,7 +736,7 @@ async fn handle_line(
         return Err(RpcError::Chunk { detail });
     }
 
-    dispatch_frame(&value, pending, event_tx).await?;
+    dispatch_frame(&value, pending, coordinator, event_tx).await?;
     Ok(())
 }
 
@@ -655,6 +745,7 @@ async fn handle_line(
 async fn dispatch_frame(
     frame: &Value,
     pending: &Arc<PendingMap>,
+    coordinator: &TurnCoordinator,
     event_tx: &mpsc::Sender<AgentEvent>,
 ) -> Result<(), RpcError> {
     let frame_type = frame.get("type").and_then(Value::as_str).unwrap_or("");
@@ -666,9 +757,22 @@ async fn dispatch_frame(
                 .get("success")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            if id.is_empty() {
+                // Unknown-command/parse failures carry no id.
+                let _ = event_tx.try_send(AgentEvent::Unknown { raw: frame.clone() });
+                return Ok(());
+            }
             if success {
                 let result = frame.get("data").cloned().unwrap_or(Value::Null);
-                complete_waiter(pending, id, Ok(result));
+                if !complete_waiter(pending, id, Ok(result)) {
+                    // Unknown/late successful response: surface diagnostically,
+                    // never silently drop.
+                    let _ = event_tx.try_send(AgentEvent::LateCommandResponse {
+                        id: id.to_string(),
+                        command: command.to_string(),
+                        data: frame.get("data").cloned(),
+                    });
+                }
             } else {
                 let code = frame
                     .get("code")
@@ -681,29 +785,21 @@ async fn dispatch_frame(
                     .to_string();
                 let failure = Err(RpcError::CommandFailed {
                     command: command.to_string(),
-                    code,
-                    error,
+                    code: code.clone(),
+                    error: error.clone(),
                 });
-                if id.is_empty() {
-                    // Unknown-command/parse failures carry no id.
-                    let _ = event_tx.try_send(AgentEvent::Unknown { raw: frame.clone() });
-                } else if !complete_waiter(pending, id, failure) {
+                if !complete_waiter(pending, id, failure) {
                     // Late failure for an already-completed request (e.g. a
                     // prompt that was acknowledged and later failed during
-                    // async scheduling): route to a diagnostic event, never
-                    // into the pending map.
+                    // async scheduling): correlate with the turn coordinator
+                    // so prompt_and_wait fails immediately, and surface the
+                    // diagnostic event.
+                    coordinator.mark_late_failure(id, command, code.clone(), &error);
                     let _ = event_tx.try_send(AgentEvent::LateCommandFailure {
                         id: id.to_string(),
                         command: command.to_string(),
-                        code: frame
-                            .get("code")
-                            .and_then(Value::as_str)
-                            .map(str::to_string),
-                        error: frame
-                            .get("error")
-                            .and_then(Value::as_str)
-                            .unwrap_or("unknown error")
-                            .to_string(),
+                        code,
+                        error,
                     });
                 }
             }
@@ -760,7 +856,12 @@ async fn dispatch_frame(
             try_send_event(event_tx, AgentEvent::CommandsUpdated { raw: frame.clone() })
         }
         "prompt_result" => match serde_json::from_value::<PromptResult>(frame.clone()) {
-            Ok(result) => try_send_event(event_tx, AgentEvent::PromptResolved(result)),
+            Ok(result) => {
+                if let Some(id) = result.id.as_deref() {
+                    coordinator.mark_prompt_result(id, result.agent_invoked);
+                }
+                try_send_event(event_tx, AgentEvent::PromptResolved(result))
+            }
             Err(e) => try_send_event(
                 event_tx,
                 AgentEvent::ProtocolError {
@@ -777,6 +878,9 @@ async fn dispatch_frame(
                 .get("isTerminal")
                 .and_then(Value::as_bool)
                 .unwrap_or(true);
+            if is_terminal {
+                coordinator.mark_terminal();
+            }
             try_send_event(
                 event_tx,
                 AgentEvent::AgentEnded {
@@ -786,7 +890,10 @@ async fn dispatch_frame(
             )
         }
         "turn_start" => try_send_event(event_tx, AgentEvent::TurnStarted { raw: frame.clone() }),
-        "turn_end" => try_send_event(event_tx, AgentEvent::TurnEnded { raw: frame.clone() }),
+        "turn_end" => {
+            coordinator.mark_terminal();
+            try_send_event(event_tx, AgentEvent::TurnEnded { raw: frame.clone() })
+        }
         "message_start" => {
             try_send_event(event_tx, AgentEvent::MessageStarted { raw: frame.clone() })
         }

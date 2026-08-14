@@ -58,16 +58,18 @@ def response_for(cmd, success=True, error=None, code=None, extra=None):
     return payload
 
 
-# Startup: always emit ready first (v1 shape).
-emit(
-    {
-        "type": "ready",
-        "protocolVersion": 1,
-        "supportedProtocolVersions": [1, 2],
-        "maxFrameBytes": 1048576,
-        "maxReassembledFrameBytes": 67108864,
-    }
-)
+# Startup: always emit ready first (v1 shape). negotiated_cap mode
+# advertises a small reassembly ceiling to test cap enforcement.
+ready = {
+    "type": "ready",
+    "protocolVersion": 1,
+    "supportedProtocolVersions": [1, 2],
+    "maxFrameBytes": 1048576,
+    "maxReassembledFrameBytes": 67108864,
+}
+if mode == "negotiated_cap":
+    ready["maxReassembledFrameBytes"] = 8192  # 8 KiB ceiling
+emit(ready)
 
 # The client always negotiates v2 right after ready; answer before the
 # The client always negotiates v2 right after ready; answer it.
@@ -88,6 +90,15 @@ else:
     if negotiate:
         emit(response_for(negotiate[0]))
 
+if mode == "never_answer":
+    # Handshake completed above; consume commands without ever replying so
+    # the client's pending map is cleaned up by cancelled futures.
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+    sys.exit(0)
+
 if mode == "reverse2":
     cmds = read_commands(2)
     if len(cmds) == 2:
@@ -104,6 +115,19 @@ if mode == "flood":
 
 if mode == "close":
     cmd = read_commands(1)
+    sys.exit(0)
+
+if mode == "unknown_success":
+    # Emit a successful response for an unregistered id.
+    emit(
+        {
+            "type": "response",
+            "id": "req_777",
+            "command": "get_state",
+            "success": True,
+            "data": {"model": {"id": "fake"}},
+        }
+    )
     sys.exit(0)
 
 if mode == "unknown_id":
@@ -184,6 +208,101 @@ if mode == "prompt_hang":
         }
     )
     time.sleep(3600)
+
+if mode == "flood_turn_end":
+    cmd = read_commands(1)[0]
+    emit(
+        {
+            "type": "response",
+            "id": cmd.get("id"),
+            "command": "prompt",
+            "success": True,
+            "data": {"agentInvoked": True},
+        }
+    )
+    for i in range(400):
+        emit({"type": "notice", "index": i, "text": "x" * 64})
+    emit({"type": "turn_end", "message": {"role": "assistant"}})
+    sys.exit(0)
+
+if mode == "flood_agent_end":
+    cmd = read_commands(1)[0]
+    emit(
+        {
+            "type": "response",
+            "id": cmd.get("id"),
+            "command": "prompt",
+            "success": True,
+            "data": {"agentInvoked": True},
+        }
+    )
+    for i in range(400):
+        emit({"type": "notice", "index": i, "text": "x" * 64})
+    emit({"type": "agent_end", "messages": [], "isTerminal": True})
+    sys.exit(0)
+
+if mode == "prompt_ack_then_fail":
+    cmd = read_commands(1)[0]
+    emit(
+        {
+            "type": "response",
+            "id": cmd.get("id"),
+            "command": "prompt",
+            "success": True,
+            "data": {"agentInvoked": True},
+        }
+    )
+    emit(
+        {
+            "type": "response",
+            "id": cmd.get("id"),
+            "command": "prompt",
+            "success": False,
+            "code": "scheduling_failed",
+            "error": "async scheduling failed",
+        }
+    )
+    sys.exit(0)
+
+if mode == "never_answer":
+    # Consume commands without ever replying; the client's pending map must
+    # be cleaned up by cancelled futures, not by responses.
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+    sys.exit(0)
+
+if mode == "negotiated_cap":
+    # Ready advertises an 8 KiB ceiling; send a 16 KiB logical frame that
+    # must be rejected before complete reassembly.
+    payload = json.dumps(
+        {"type": "response", "id": "req_big", "success": True, "data": {"blob": "x" * 16384}}
+    ).encode()
+    half = len(payload) // 2
+    import base64
+
+    emit(
+        {
+            "type": "rpc_chunk",
+            "chunkId": "rpc-1",
+            "index": 0,
+            "count": 2,
+            "byteLength": len(payload),
+            "data": base64.b64encode(payload[:half]).decode(),
+        }
+    )
+    emit(
+        {
+            "type": "rpc_chunk",
+            "chunkId": "rpc-1",
+            "index": 1,
+            "count": 2,
+            "byteLength": len(payload),
+            "data": base64.b64encode(payload[half:]).decode(),
+        }
+    )
+    sys.exit(0)
 
 if mode == "ui_request":
     emit(

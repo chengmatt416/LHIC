@@ -17,6 +17,13 @@ fn resolve_omp() -> Option<String> {
         if std::path::Path::new(&explicit).exists() {
             return Some(explicit);
         }
+        if std::env::var("OMP_REQUIRED").is_ok() {
+            panic!(
+                "OMP_REQUIRED is set and OMP_BINARY={explicit} does not exist; \
+                 the real-OMP CI job must fail when the engine is missing"
+            );
+        }
+        return None;
     }
     let candidates = [
         std::env::current_dir()

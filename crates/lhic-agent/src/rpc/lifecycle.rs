@@ -3,16 +3,18 @@
 //! `prompt` is acknowledged immediately by the engine; an agent turn
 //! completes only on an `agent_end` frame with `isTerminal !== false`, a
 //! `turn_end`, or a local-only `prompt_result` / `data.agentInvoked: false`.
-//! This module turns that wire contract into a blocking-with-streaming API.
 //!
-//! The turn deadline is enforced with `tokio::time::timeout_at` around every
-//! blocking event receive, so a silent-but-alive engine cannot stall the
-//! caller past the configured deadline.
+//! Terminal protocol state is tracked non-lossily by the `TurnCoordinator`
+//! (written by the stdout reader), so an event-flooded bounded observer
+//! queue can never lose turn completion. This module polls the coordinator
+//! and enforces the turn deadline with `tokio::time::timeout_at` around every
+//! blocking event receive.
 
 use serde_json::Value;
 use tokio::time::{Duration, Instant};
 
 use super::client::OmpRpcClient;
+use super::coordinator::TurnCompletion;
 use super::error::RpcError;
 use super::types::AgentEvent;
 
@@ -44,16 +46,18 @@ impl PromptOutcome {
 
 /// Sends a prompt and blocks until terminal completion, streaming deltas.
 ///
-/// Completion is driven by engine lifecycle semantics — `agent_end` with
-/// `isTerminal !== false`, `turn_end`, or a local-only `prompt_result` /
-/// `data.agentInvoked: false` — never by a fixed wall-clock guess.
+/// Completion is driven by engine lifecycle semantics tracked in the
+/// non-lossy `TurnCoordinator` — `agent_end` with `isTerminal !== false`,
+/// `turn_end`, or a local-only `prompt_result` / `data.agentInvoked: false`
+/// — and by a correlated late scheduling failure for the prompt's request id.
+/// Never a fixed wall-clock guess.
 pub async fn prompt_and_wait(
     client: &OmpRpcClient,
     message: &str,
     timeout: Duration,
 ) -> Result<PromptOutcome, anyhow::Error> {
-    let ack = client
-        .prompt(message)
+    let (ack, prompt_id) = client
+        .prompt_tracked(message)
         .await
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     let agent_invoked = ack
@@ -72,11 +76,20 @@ pub async fn prompt_and_wait(
         });
     }
 
+    let coordinator = client.turn_coordinator();
     let deadline = Instant::now() + timeout;
     let seconds = timeout.as_secs();
     loop {
-        // The deadline wraps the blocking receive: a silent engine cannot
-        // outlive the configured turn timeout.
+        // The coordinator may already hold the terminal state (turn finished
+        // while the bounded observer queue was still draining).
+        if coordinator.is_terminal(&prompt_id) {
+            if let Some(completion) = coordinator.take_completion(&prompt_id) {
+                return finish_with_completion(completion, ack, text);
+            }
+        }
+
+        // Poll the bounded observer stream with a hard deadline; a silent
+        // engine cannot outlive the configured turn timeout.
         let event = match tokio::time::timeout_at(deadline, client.next_event()).await {
             Ok(Ok(Some(event))) => event,
             Ok(Ok(None)) => {
@@ -93,22 +106,63 @@ pub async fn prompt_and_wait(
                     text.push_str(&delta);
                 }
             }
-            AgentEvent::AgentEnded { is_terminal, .. } if is_terminal => break,
-            AgentEvent::TurnEnded { .. } => break,
-            AgentEvent::PromptResolved(result) if !result.agent_invoked => break,
             AgentEvent::ChildClosed => {
                 return Err(anyhow::anyhow!("omp engine closed during the turn"));
             }
             _ => {}
         }
     }
+}
 
-    Ok(PromptOutcome {
-        accepted: true,
-        agent_invoked: true,
-        streamed_text: text,
-        raw_ack: ack,
-    })
+fn finish_with_completion(
+    completion: TurnCompletion,
+    ack: Value,
+    streamed_text: String,
+) -> Result<PromptOutcome, anyhow::Error> {
+    match completion {
+        TurnCompletion::Terminal { .. } => Ok(PromptOutcome {
+            accepted: true,
+            agent_invoked: true,
+            streamed_text,
+            raw_ack: ack,
+        }),
+        TurnCompletion::PromptResult {
+            agent_invoked: false,
+            ..
+        } => Ok(PromptOutcome {
+            accepted: true,
+            agent_invoked: false,
+            streamed_text,
+            raw_ack: ack,
+        }),
+        TurnCompletion::PromptResult {
+            agent_invoked: true,
+            ..
+        } => Ok(PromptOutcome {
+            accepted: true,
+            agent_invoked: true,
+            streamed_text,
+            raw_ack: ack,
+        }),
+        TurnCompletion::LateFailure {
+            command,
+            code,
+            error,
+            ..
+        } => Err(anyhow::anyhow!(
+            "omp prompt failed during scheduling ({command}{}{}): {error}",
+            code.as_deref()
+                .map(|c| format!(" code={c}"))
+                .unwrap_or_default(),
+            ""
+        )),
+        TurnCompletion::ChildClosed { .. } => {
+            Err(anyhow::anyhow!("omp engine closed during the turn"))
+        }
+        TurnCompletion::ProtocolError { detail, .. } => Err(anyhow::anyhow!(
+            "omp protocol error during the turn: {detail}"
+        )),
+    }
 }
 
 /// Extracts the streamed assistant text from a `message_update` frame.
@@ -130,6 +184,7 @@ fn extract_text_delta(frame: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rpc::coordinator::{completion_is_success, TurnCoordinator};
 
     #[test]
     fn extracts_text_delta() {
@@ -160,5 +215,32 @@ mod tests {
             raw_ack: Value::Null,
         };
         assert!(outcome.is_terminal());
+    }
+
+    #[test]
+    fn coordinator_terminal_is_not_lossy() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_1");
+        coordinator.mark_terminal();
+        assert!(coordinator.is_terminal("req_1"));
+        assert!(completion_is_success(
+            &coordinator.take_completion("req_1").unwrap()
+        ));
+    }
+
+    #[test]
+    fn coordinator_correlates_late_failure() {
+        let coordinator = TurnCoordinator::new();
+        coordinator.register("req_1");
+        coordinator.mark_late_failure("req_1", "prompt", Some("scheduling_failed".into()), "boom");
+        let completion = coordinator.take_completion("req_1").unwrap();
+        assert!(!completion_is_success(&completion));
+        match completion {
+            TurnCompletion::LateFailure { code, error, .. } => {
+                assert_eq!(code.as_deref(), Some("scheduling_failed"));
+                assert_eq!(error, "boom");
+            }
+            other => panic!("unexpected completion: {other:?}"),
+        }
     }
 }
