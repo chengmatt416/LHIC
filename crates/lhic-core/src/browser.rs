@@ -91,7 +91,7 @@ impl BrowserTab {
         self.next_id += 1;
         let frame = json!({ "id": id, "method": method, "params": params });
         self.ws
-            .send(Message::Text(frame.to_string().into()))
+            .send(Message::Text(frame.to_string()))
             .await
             .context("CDP send failed")?;
         loop {
@@ -208,7 +208,10 @@ impl BrowserTab {
                     json!({ "expression": "document.readyState", "returnByValue": true }),
                 )
                 .await
-                .map(|v| v["result"]["value"].as_str() == Some("complete") || v["result"]["value"].as_str() == Some("interactive"))
+                .map(|v| {
+                    v["result"]["value"].as_str() == Some("complete")
+                        || v["result"]["value"].as_str() == Some("interactive")
+                })
                 .unwrap_or(false)
             {
                 return Ok(());
@@ -277,7 +280,9 @@ impl Browser {
             tokio::time::sleep(Duration::from_millis(300)).await;
         }
         let _ = std::fs::remove_file(&pid_file);
-        Err(anyhow::anyhow!("chromium devtools endpoint did not come up"))
+        Err(anyhow::anyhow!(
+            "chromium devtools endpoint did not come up"
+        ))
     }
 
     pub async fn new_tab(&self, url: &str) -> Result<BrowserTab> {

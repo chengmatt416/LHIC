@@ -7,7 +7,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 
 use anyhow::Result;
 
-use lhic_agent::{AgentManager, models::ProviderKeyStatus};
+use lhic_agent::{models::ProviderKeyStatus, AgentManager};
 use lhic_core::lhic_home;
 
 #[derive(Default, PartialEq)]
@@ -43,7 +43,11 @@ struct App {
 }
 
 impl App {
-    fn new(cc: &eframe::CreationContext<'_>, manager: AgentManager, keys: Vec<ProviderKeyStatus>) -> Self {
+    fn new(
+        cc: &eframe::CreationContext<'_>,
+        manager: AgentManager,
+        keys: Vec<ProviderKeyStatus>,
+    ) -> Self {
         cc.egui_ctx.set_visuals(egui::Visuals::light());
         let (tx, rx) = mpsc::channel();
         Self {
@@ -71,6 +75,10 @@ impl App {
 
     fn drain(&mut self) {
         while let Ok(line) = self.rx.try_recv() {
+            if line == "\u{0}DONE" {
+                self.agent_busy = false;
+                continue;
+            }
             self.agent_output.push_str(&line);
             self.agent_output.push('\n');
         }
@@ -82,6 +90,7 @@ impl App {
         }
         self.agent_busy = true;
         let tx = self.tx.clone();
+        let (busy_tx, busy_rx) = tokio::sync::oneshot::channel::<()>();
         let manager = self.manager.clone();
         self.runtime.spawn(async move {
             let result = async {
@@ -93,17 +102,33 @@ impl App {
                     .and_then(serde_json::Value::as_str)
                     .unwrap_or("unset")
                     .to_string();
-                let accepted = client.prompt(&message).await?;
+                // Stream the full turn to terminal completion instead of
+                // stopping after prompt acceptance.
+                let outcome = lhic_agent::prompt_and_wait(
+                    &mut client,
+                    &message,
+                    std::time::Duration::from_secs(600),
+                )
+                .await?;
                 client.stop().await?;
-                Ok::<_, anyhow::Error>(format!("model: {model}\naccepted: {accepted}"))
+                Ok::<_, anyhow::Error>(format!(
+                    "model: {model}\nagent_invoked: {}\n\n{}",
+                    outcome.agent_invoked, outcome.streamed_text
+                ))
             }
             .await;
             let _ = tx.send(match result {
                 Ok(text) => text,
                 Err(error) => format!("error: {error}"),
             });
+            let _ = busy_tx.send(());
         });
-        self.agent_busy = false;
+        // The busy flag stays set until the spawned task completes.
+        let tx2 = self.tx.clone();
+        self.runtime.spawn(async move {
+            let _ = busy_rx.await;
+            let _ = tx2.send("\u{0}DONE".to_string());
+        });
     }
 
     fn spawn_browser(&mut self, url: String, mode: BrowserMode) {
@@ -119,8 +144,7 @@ impl App {
                         Ok(format!("title: {title}"))
                     }
                     BrowserMode::Screenshot(path) => {
-                        let (browser, mut tab) =
-                            lhic_core::browser::launch_with_tab(&url).await?;
+                        let (browser, mut tab) = lhic_core::browser::launch_with_tab(&url).await?;
                         tab.screenshot(&path).await?;
                         drop(tab);
                         drop(browser);
@@ -205,7 +229,11 @@ impl App {
                 "{} ({}) — {}",
                 status.provider,
                 status.env_var,
-                if status.has_key { "key stored" } else { "no key" }
+                if status.has_key {
+                    "key stored"
+                } else {
+                    "no key"
+                }
             ));
         }
         ui.add_space(6.0);
@@ -259,9 +287,7 @@ impl App {
                 let url = self.browser_url.clone();
                 self.spawn_browser(
                     url,
-                    BrowserMode::Screenshot(std::path::PathBuf::from(
-                        "/tmp/lhic-desktop-shot.png",
-                    )),
+                    BrowserMode::Screenshot(std::path::PathBuf::from("/tmp/lhic-desktop-shot.png")),
                 );
             }
         });

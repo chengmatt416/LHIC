@@ -4,8 +4,11 @@
 pub mod models;
 pub mod rpc;
 
-pub use models::{ProviderKeyStore, resolve_omp_binary};
-pub use rpc::{AgentEvent, OmpRpcClient, OMP_VERSION};
+pub use models::{resolve_omp_binary, ProviderKeyStore};
+pub use rpc::{
+    prompt_and_wait, AgentEvent, OmpRpcClient, PromptOutcome, RpcConfig, RpcError, UiResponse,
+    OMP_VERSION,
+};
 
 use std::path::Path;
 
@@ -33,10 +36,7 @@ impl AgentManager {
         Ok(Self {
             keys: ProviderKeyStore::open(home)?,
             workspace_root: workspace_root.to_string_lossy().into_owned(),
-            session_dir: home
-                .join("omp-sessions")
-                .to_string_lossy()
-                .into_owned(),
+            session_dir: home.join("omp-sessions").to_string_lossy().into_owned(),
             binary: resolve_omp_binary()?,
         })
     }

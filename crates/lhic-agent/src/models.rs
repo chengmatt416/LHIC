@@ -122,10 +122,7 @@ impl ProviderKeyStore {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(
-                &self.path,
-                std::fs::Permissions::from_mode(0o600),
-            )?;
+            std::fs::set_permissions(&self.path, std::fs::Permissions::from_mode(0o600))?;
         }
         Ok(())
     }

@@ -54,10 +54,10 @@ impl SkillsClient {
     pub fn from_env() -> Result<Self> {
         let endpoint = std::env::var("LHIC_APPWRITE_ENDPOINT")
             .unwrap_or_else(|_| "https://cloud.appwrite.io/v1".to_string());
-        let project = std::env::var("LHIC_APPWRITE_PROJECT")
-            .context("LHIC_APPWRITE_PROJECT is required")?;
-        let database =
-            std::env::var("LHIC_APPWRITE_DATABASE").context("LHIC_APPWRITE_DATABASE is required")?;
+        let project =
+            std::env::var("LHIC_APPWRITE_PROJECT").context("LHIC_APPWRITE_PROJECT is required")?;
+        let database = std::env::var("LHIC_APPWRITE_DATABASE")
+            .context("LHIC_APPWRITE_DATABASE is required")?;
         let collection = std::env::var("LHIC_APPWRITE_COLLECTION")
             .context("LHIC_APPWRITE_COLLECTION is required")?;
         let api_key = std::env::var("LHIC_APPWRITE_API_KEY").ok();
@@ -81,7 +81,8 @@ impl SkillsClient {
 
     pub async fn search(&self, query: &str, limit: i64) -> Result<Vec<SkillDocument>> {
         let clause = format!("search(\"{}\")", query.replace('"', "\\\""));
-        self.query(&format!("queries[]={}&limit={limit}", urlencode(&clause))).await
+        self.query(&format!("queries[]={}&limit={limit}", urlencode(&clause)))
+            .await
     }
 
     async fn query(&self, params: &str) -> Result<Vec<SkillDocument>> {

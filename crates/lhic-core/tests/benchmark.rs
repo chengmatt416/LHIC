@@ -1,8 +1,8 @@
-use std::time::Instant;
-use lhic_core::security::{Redactor, Vault};
-use lhic_core::memory::MemoryStore;
 use lhic_core::controller::{route, PathKind};
+use lhic_core::memory::MemoryStore;
+use lhic_core::security::{Redactor, Vault};
 use lhic_core::skills::SkillDocument;
+use std::time::Instant;
 
 #[test]
 fn benchmark_core_performance() {
@@ -23,7 +23,10 @@ fn benchmark_core_performance() {
     let elapsed = start.elapsed();
     let ns_per_op = elapsed.as_nanos() / (iters as u128);
     let ops_per_sec = (iters as f64) / elapsed.as_secs_f64();
-    println!("\n[Benchmark] Redactor::redact: {:.2} ops/sec ({} ns/op, total: {:?})", ops_per_sec, ns_per_op, elapsed);
+    println!(
+        "\n[Benchmark] Redactor::redact: {:.2} ops/sec ({} ns/op, total: {:?})",
+        ops_per_sec, ns_per_op, elapsed
+    );
     assert!(ops_per_sec > 10_000.0, "Redactor must exceed 10k ops/sec");
 
     // 2. Benchmark Vault Encryption / Decryption
@@ -39,7 +42,10 @@ fn benchmark_core_performance() {
     }
     let vault_elapsed = start.elapsed();
     let vault_ops = (vault_iters as f64) / vault_elapsed.as_secs_f64();
-    println!("[Benchmark] Vault AES-GCM Encrypt+Decrypt: {:.2} ops/sec (total: {:?})", vault_ops, vault_elapsed);
+    println!(
+        "[Benchmark] Vault AES-GCM Encrypt+Decrypt: {:.2} ops/sec (total: {:?})",
+        vault_ops, vault_elapsed
+    );
     let _ = std::fs::remove_dir_all(&temp_dir);
 
     // 3. Benchmark MemoryStore SQLite Performance
@@ -51,12 +57,18 @@ fn benchmark_core_performance() {
     let start = Instant::now();
     let msg_iters = 5_000;
     for i in 0..msg_iters {
-        let content = format!("Message content index {} for testing search and insertion", i);
+        let content = format!(
+            "Message content index {} for testing search and insertion",
+            i
+        );
         store.append_message(session.id, "user", &content).unwrap();
     }
     let write_elapsed = start.elapsed();
     let write_ops = (msg_iters as f64) / write_elapsed.as_secs_f64();
-    println!("[Benchmark] MemoryStore SQLite Insert: {:.2} ops/sec (total: {:?})", write_ops, write_elapsed);
+    println!(
+        "[Benchmark] MemoryStore SQLite Insert: {:.2} ops/sec (total: {:?})",
+        write_ops, write_elapsed
+    );
 
     let start = Instant::now();
     let search_iters = 1_000;
@@ -67,7 +79,10 @@ fn benchmark_core_performance() {
     }
     let search_elapsed = start.elapsed();
     let search_ops = (search_iters as f64) / search_elapsed.as_secs_f64();
-    println!("[Benchmark] MemoryStore SQLite Search: {:.2} ops/sec (total: {:?})", search_ops, search_elapsed);
+    println!(
+        "[Benchmark] MemoryStore SQLite Search: {:.2} ops/sec (total: {:?})",
+        search_ops, search_elapsed
+    );
     let _ = std::fs::remove_dir_all(&mem_dir);
 
     // 4. Benchmark Controller Routing
@@ -77,7 +92,11 @@ fn benchmark_core_performance() {
             name: "daily workflow".to_string(),
             description: "complete login, search, and form updates".to_string(),
             category: None,
-            tags: Some(vec!["login".to_string(), "form".to_string(), "search".to_string()]),
+            tags: Some(vec![
+                "login".to_string(),
+                "form".to_string(),
+                "search".to_string(),
+            ]),
             rating: None,
             downloads: None,
             version: None,
@@ -112,5 +131,8 @@ fn benchmark_core_performance() {
     }
     let route_elapsed = start.elapsed();
     let route_ops = (route_iters as f64) / route_elapsed.as_secs_f64();
-    println!("[Benchmark] Controller Routing: {:.2} ops/sec (total: {:?})", route_ops, route_elapsed);
+    println!(
+        "[Benchmark] Controller Routing: {:.2} ops/sec (total: {:?})",
+        route_ops, route_elapsed
+    );
 }

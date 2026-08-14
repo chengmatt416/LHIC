@@ -9,9 +9,9 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use lhic_core::browser::{Browser, BrowserTab};
+use lhic_core::lhic_home;
 use lhic_core::memory::MemoryStore;
 use lhic_core::security::Redactor;
-use lhic_core::lhic_home;
 
 /// One stdio MCP session. The browser is started lazily on first use.
 pub struct McpServer {
@@ -104,10 +104,18 @@ impl McpServer {
                     .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
                 let manager = lhic_agent::AgentManager::open(&home, &workspace)?;
                 let mut client = manager.start_client().await?;
-                let _ = client.prompt(&message).await?;
-                // Drain events until the turn completes (response arrives
-                // first; alpha returns immediately after acceptance).
-                Ok(json!({ "accepted": true, "message": message }))
+                let outcome = lhic_agent::prompt_and_wait(
+                    &mut client,
+                    &message,
+                    std::time::Duration::from_secs(300),
+                )
+                .await?;
+                Ok(json!({
+                    "accepted": outcome.accepted,
+                    "agentInvoked": outcome.agent_invoked,
+                    "text": outcome.streamed_text,
+                    "message": message,
+                }))
             }
             other => Err(anyhow::anyhow!("unknown tool: {other}")),
         }
@@ -187,8 +195,7 @@ pub async fn run_stdio() -> Result<()> {
         reader
             .read_exact(&mut body)
             .context("reading MCP message body")?;
-        let request: Value =
-            serde_json::from_slice(&body).context("parsing MCP message")?;
+        let request: Value = serde_json::from_slice(&body).context("parsing MCP message")?;
         let response = handle_message(&mut server, request).await;
         let framed = frame_message(&response);
         writer.write_all(&framed)?;

@@ -28,17 +28,15 @@ impl Vault {
         let key_bytes: [u8; 32] = if key_path.exists() {
             let raw = fs::read(&key_path)
                 .with_context(|| format!("reading vault key {}", key_path.display()))?;
-            let decoded =
-                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, raw)
-                    .context("vault key is not valid base64")?;
+            let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, raw)
+                .context("vault key is not valid base64")?;
             decoded
                 .try_into()
                 .map_err(|_| anyhow::anyhow!("vault key must be 32 bytes"))?
         } else {
             let mut key = [0u8; 32];
             rand::thread_rng().fill_bytes(&mut key);
-            let encoded =
-                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key);
+            let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key);
             fs::write(&key_path, encoded)?;
             set_private(&key_path);
             key
@@ -67,9 +65,8 @@ impl Vault {
     }
 
     pub fn decrypt(&self, sealed: &str) -> Result<String> {
-        let payload =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sealed)
-                .context("sealed value is not valid base64")?;
+        let payload = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sealed)
+            .context("sealed value is not valid base64")?;
         if payload.len() < NONCE_LEN {
             return Err(anyhow::anyhow!("sealed value is truncated"));
         }
@@ -93,9 +90,8 @@ static EMAIL_RE: LazyLock<Regex> = LazyLock::new(|| {
 static PHONE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?:\b|\+)[0-9][0-9 ()\-]{7,}[0-9]\b").expect("static phone regex")
 });
-static IPV4_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b").expect("static ipv4 regex")
-});
+static IPV4_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b").expect("static ipv4 regex"));
 static API_KEY_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b(?:sk|pk|gk|rk|ak)-[A-Za-z0-9_\-]{16,}").expect("static api key regex")
 });
@@ -155,8 +151,7 @@ mod tests {
         let vault = Vault::open(&home).unwrap();
         let sealed = vault.encrypt("value").unwrap();
         let mut bytes =
-            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sealed)
-                .unwrap();
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, sealed).unwrap();
         bytes[NONCE_LEN] ^= 0xff;
         let tampered = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
         assert!(vault.decrypt(&tampered).is_err());

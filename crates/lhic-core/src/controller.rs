@@ -26,11 +26,7 @@ pub enum PathKind {
 /// The alpha scorer is keyword-based: a strong overlap between the intent and
 /// a reviewed skill's name/description/tags routes to that skill; otherwise
 /// the guarded agent path is chosen.
-pub fn route(
-    intent: &str,
-    skills: &[SkillDocument],
-    _memory: &MemoryStore,
-) -> RouteDecision {
+pub fn route(intent: &str, skills: &[SkillDocument], _memory: &MemoryStore) -> RouteDecision {
     let tokens = tokenize(intent);
     if tokens.is_empty() {
         return RouteDecision {
@@ -49,9 +45,10 @@ pub fn route(
             let token_str = token.as_str();
             if name_lower.contains(token_str)
                 || desc_lower.contains(token_str)
-                || skill.tags.as_ref().is_some_and(|tags| {
-                    tags.iter().any(|t| t.to_lowercase().contains(token_str))
-                })
+                || skill
+                    .tags
+                    .as_ref()
+                    .is_some_and(|tags| tags.iter().any(|t| t.to_lowercase().contains(token_str)))
             {
                 hits += 1;
             }
@@ -60,7 +57,8 @@ pub fn route(
             continue;
         }
         let coverage = hits as f64 / tokens.len() as f64;
-        if hits >= 2 && coverage >= 0.3
+        if hits >= 2
+            && coverage >= 0.3
             && best.as_ref().is_none_or(|(_, score, _)| coverage > *score)
         {
             best = Some((skill, coverage, hits));
@@ -123,11 +121,19 @@ mod tests {
     #[test]
     fn routes_matching_intent_to_fast_path() {
         let skills = vec![
-            skill("daily workflow", "complete login, search, and form updates", &["login", "form"]),
-            skill("pdf merge", "merge multiple pdf documents", &["pdf", "documents"]),
+            skill(
+                "daily workflow",
+                "complete login, search, and form updates",
+                &["login", "form"],
+            ),
+            skill(
+                "pdf merge",
+                "merge multiple pdf documents",
+                &["pdf", "documents"],
+            ),
         ];
-        let mut memory = memory_at();
-        let decision = route("merge these pdf documents into one file", &skills, &mut memory);
+        let memory = memory_at();
+        let decision = route("merge these pdf documents into one file", &skills, &memory);
         assert_eq!(decision.path, PathKind::FastPath);
         assert_eq!(decision.skill.as_deref(), Some("pdf merge"));
         assert!(decision.confidence >= 0.4);
@@ -136,8 +142,8 @@ mod tests {
     #[test]
     fn routes_unmatched_intent_to_slow_path() {
         let skills = vec![skill("pdf merge", "merge pdf documents", &["pdf"])];
-        let mut memory = memory_at();
-        let decision = route("investigate the failing build pipeline", &skills, &mut memory);
+        let memory = memory_at();
+        let decision = route("investigate the failing build pipeline", &skills, &memory);
         assert_eq!(decision.path, PathKind::SlowPath);
         assert!(decision.skill.is_none());
     }

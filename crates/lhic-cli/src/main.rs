@@ -71,9 +71,16 @@ enum AgentCommand {
 #[derive(Subcommand)]
 enum MemoryCommand {
     /// List recent sessions.
-    List { #[arg(long, default_value_t = 10)] limit: i64 },
+    List {
+        #[arg(long, default_value_t = 10)]
+        limit: i64,
+    },
     /// Search message content.
-    Search { query: String, #[arg(long, default_value_t = 20)] limit: i64 },
+    Search {
+        query: String,
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+    },
     /// Append a message to the default session.
     Add { content: String },
 }
@@ -88,8 +95,13 @@ enum BrowserCommand {
 
 #[derive(Subcommand)]
 enum SkillsCommand {
-    List { #[arg(long, default_value_t = 20)] limit: i64 },
-    Search { query: String },
+    List {
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+    },
+    Search {
+        query: String,
+    },
 }
 
 #[tokio::main]
@@ -134,20 +146,32 @@ fn print_status(home: &std::path::Path, workspace: &std::path::Path) -> Result<(
     let keys = manager.keys.status()?;
     println!("LHIC Rust alpha");
     println!("  data dir:  {}", home.display());
-    println!("  omp:       {} ({})", manager.binary(), lhic_agent::OMP_VERSION);
+    println!(
+        "  omp:       {} ({})",
+        manager.binary(),
+        lhic_agent::OMP_VERSION
+    );
     println!("  providers:");
     for status in keys {
         println!(
             "    {:<12} {:<22} {}",
             status.provider,
             status.env_var,
-            if status.has_key { "key stored" } else { "no key" }
+            if status.has_key {
+                "key stored"
+            } else {
+                "no key"
+            }
         );
     }
     Ok(())
 }
 
-async fn agent(home: &std::path::Path, workspace: &std::path::Path, command: AgentCommand) -> Result<()> {
+async fn agent(
+    home: &std::path::Path,
+    workspace: &std::path::Path,
+    command: AgentCommand,
+) -> Result<()> {
     let manager = AgentManager::open(home, workspace)?;
     match command {
         AgentCommand::KeySet { provider, key } => {
@@ -184,62 +208,20 @@ async fn agent(home: &std::path::Path, workspace: &std::path::Path, command: Age
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("unset");
             println!("agent model: {model}");
-            let accepted = client.prompt(&message).await?;
-            println!("prompt accepted: {}", pretty(&accepted));
-            // Stream the turn: message/delta frames carry the assistant text.
-            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(25);
-            let mut text = String::new();
-            loop {
-                if tokio::time::Instant::now() >= deadline {
-                    break;
-                }
-                let event = tokio::time::timeout(
-                    std::time::Duration::from_secs(1),
-                    client.next_event(),
-                )
-                .await;
-                let Ok(Some(event)) = event else { break };
-                match event {
-                    lhic_agent::AgentEvent::Frame(frame) => {
-                        match frame.get("type").and_then(serde_json::Value::as_str) {
-                            Some("delta") => {
-                                if let Some(chunk) = frame
-                                    .get("data")
-                                    .and_then(|d| d.get("text"))
-                                    .and_then(serde_json::Value::as_str)
-                                {
-                                    text.push_str(chunk);
-                                }
-                            }
-                            Some("message") => {
-                                if let Some(content) = frame
-                                    .get("data")
-                                    .and_then(|d| d.get("text"))
-                                    .and_then(serde_json::Value::as_str)
-                                {
-                                    text = content.to_string();
-                                }
-                            }
-                            Some("agent") => {
-                                if frame
-                                    .get("data")
-                                    .and_then(|d| d.get("phase"))
-                                    .and_then(serde_json::Value::as_str)
-                                    == Some("end")
-                                {
-                                    break;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    lhic_agent::AgentEvent::Log(line) => {
-                        eprintln!("omp: {line}");
-                    }
-                }
-            }
-            if !text.trim().is_empty() {
-                println!("\n{text}");
+
+            // Run the turn to terminal completion. Completion is driven by
+            // engine lifecycle semantics (agent_end/turn_end/prompt_result),
+            // never by a fixed wall-clock guess.
+            let outcome = lhic_agent::prompt_and_wait(
+                &mut client,
+                &message,
+                std::time::Duration::from_secs(600),
+            )
+            .await?;
+            if !outcome.streamed_text.trim().is_empty() {
+                println!("\n{}", outcome.streamed_text);
+            } else {
+                println!("prompt completed (agent_invoked={})", outcome.agent_invoked);
             }
             client.stop().await?;
         }
@@ -259,9 +241,7 @@ fn memory(home: &std::path::Path, command: MemoryCommand) -> Result<()> {
             for message in store.search(&query, limit)? {
                 println!(
                     "[{}] {}: {}",
-                    message.session_id,
-                    message.role,
-                    message.content
+                    message.session_id, message.role, message.content
                 );
             }
         }
@@ -307,7 +287,10 @@ async fn skills(command: SkillsCommand) -> Result<()> {
         println!("no skills found (is the Appwrite configuration set?)");
     }
     for document in documents {
-        println!("{} — {} ({})", document.id, document.name, document.description);
+        println!(
+            "{} — {} ({})",
+            document.id, document.name, document.description
+        );
     }
     Ok(())
 }

@@ -104,9 +104,8 @@ impl MemoryStore {
             )?;
             stmt1.execute(rusqlite::params![session_id, role, content, now.as_str()])?;
             let id = tx.last_insert_rowid();
-            let mut stmt2 = tx.prepare_cached(
-                "UPDATE sessions SET updated_at = ?1 WHERE id = ?2",
-            )?;
+            let mut stmt2 =
+                tx.prepare_cached("UPDATE sessions SET updated_at = ?1 WHERE id = ?2")?;
             stmt2.execute(rusqlite::params![now.as_str(), session_id])?;
             id
         };
@@ -156,7 +155,9 @@ impl MemoryStore {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
     pub fn delete_session(&mut self, session_id: i64) -> Result<bool> {
-        let mut stmt = self.conn.prepare_cached("DELETE FROM sessions WHERE id = ?1")?;
+        let mut stmt = self
+            .conn
+            .prepare_cached("DELETE FROM sessions WHERE id = ?1")?;
         let rows = stmt.execute(rusqlite::params![session_id])?;
         Ok(rows > 0)
     }
@@ -177,6 +178,10 @@ impl MemoryStore {
             Ok(None)
         }
     }
+}
+
+fn timestamp() -> String {
+    chrono::Utc::now().to_rfc3339()
 }
 
 #[cfg(test)]
@@ -201,8 +206,12 @@ mod tests {
         let session = store.create_session("test-session").unwrap();
         assert_eq!(session.name, "test-session");
 
-        let msg1 = store.append_message(session.id, "user", "Hello World").unwrap();
-        let msg2 = store.append_message(session.id, "assistant", "Hi there! How can I help?").unwrap();
+        let msg1 = store
+            .append_message(session.id, "user", "Hello World")
+            .unwrap();
+        let msg2 = store
+            .append_message(session.id, "assistant", "Hi there! How can I help?")
+            .unwrap();
         assert_eq!(msg1.role, "user");
         assert_eq!(msg2.role, "assistant");
 
@@ -226,8 +235,4 @@ mod tests {
         let res = store.append_message(9999, "user", "Orphaned message");
         assert!(res.is_err());
     }
-}
-
-fn timestamp() -> String {
-    chrono::Utc::now().to_rfc3339()
 }
