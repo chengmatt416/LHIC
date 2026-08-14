@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -24,11 +25,14 @@ export interface ExecutionElement {
 }
 
 export interface ElementObservation {
+  /** Stable observation identity; ties targets to the tree they came from. */
+  observationId: string;
   elements: ExecutionElement[];
   capturedAt: string;
 }
 
 export interface BoundedDesktopObservation {
+  observationId: string;
   elements: Array<ExecutionElement & { backend: ExecutionBackendId }>;
   capturedAt: string;
   backend: ExecutionBackendId;
@@ -495,7 +499,11 @@ export class OmniParserBackend implements ExecutionBackend {
   }): Promise<ElementObservation> {
     const screenshot = await captureScreenshot(options.application);
     if (!screenshot) {
-      return { elements: [], capturedAt: new Date().toISOString() };
+      return {
+        observationId: randomUUID(),
+        elements: [],
+        capturedAt: new Date().toISOString(),
+      };
     }
     try {
       return await this.parseScreenshot(screenshot);
@@ -783,7 +791,11 @@ function parseElementObservation(stdout: string): ElementObservation {
   } catch {
     // Non-JSON output (or an empty tree) means no usable elements.
   }
-  return { elements, capturedAt: new Date().toISOString() };
+  return {
+    observationId: randomUUID(),
+    elements,
+    capturedAt: new Date().toISOString(),
+  };
 }
 
 const observationElementLimit = 500;
@@ -826,6 +838,7 @@ function boundObservation(
     bytes += encodedBytes + 1;
   }
   return {
+    observationId: observation.observationId,
     elements,
     capturedAt: observation.capturedAt,
     backend,

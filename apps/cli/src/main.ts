@@ -19,6 +19,7 @@ import {
   runBenchmarkEvidenceSign,
   runBenchmarkEvidenceValidate,
 } from "./benchmark-evidence.js";
+import { runDesktopObservationBenchmarkCommand } from "./desktop-observation-benchmark.js";
 import { provenanceJson, renderProvenance } from "./provenance.js";
 import { runVerifyCodingCommand } from "./verify-coding.js";
 import { parseDemoCommandOptions } from "./demo-command-options.js";
@@ -351,6 +352,11 @@ async function runCommand(
   }
   if (command === "bench" && subcommand === "evidence-validate") {
     const exitCode = await runBenchmarkEvidenceValidate(argumentsList.slice(2));
+    process.exitCode = exitCode;
+    return;
+  }
+  if (command === "bench" && subcommand === "desktop-observation") {
+    const exitCode = await runDesktopObservationBenchmarkCommand();
     process.exitCode = exitCode;
     return;
   }

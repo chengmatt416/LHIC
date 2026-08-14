@@ -116,6 +116,7 @@ describe("PeekabooBackend (macOS)", () => {
     });
 
     const observation = {
+      observationId: "obs-test",
       capturedAt: "2026-08-12T00:00:00.000Z",
       elements: [
         { id: "el-1", label: "Reload", role: "AXButton" },
@@ -290,6 +291,7 @@ describe("ElementGroundedDispatcher chain", () => {
     const backend = {
       id: "peekaboo",
       observe: vi.fn(async () => ({
+        observationId: "obs-test",
         capturedAt: "2026-08-12T00:00:00.000Z",
         elements: [{ id: "el-1", label: "Reload" }],
       })),
@@ -318,6 +320,7 @@ describe("ElementGroundedDispatcher chain", () => {
     const backend = {
       id: "peekaboo",
       observe: vi.fn(async () => ({
+        observationId: "obs-test",
         capturedAt: "2026-08-12T00:00:00.000Z",
         elements: Array.from({ length: 510 }, (_, index) => ({
           id: `el-${index}`,
@@ -361,6 +364,7 @@ describe("ElementGroundedDispatcher chain", () => {
     const parseScreenshot = vi
       .spyOn(omniparser, "parseScreenshot")
       .mockResolvedValue({
+        observationId: "obs-test",
         capturedAt: "",
         elements: [
           {
