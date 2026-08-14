@@ -7,7 +7,7 @@
 //! response ids, stalled/interrupted chunk sequences, and silent turns.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+
 use std::time::Duration;
 
 use lhic_agent::rpc::RpcConfig;
@@ -31,11 +31,11 @@ fn python3() -> String {
     })
 }
 
-/// Writes the fake engine to a temp file and returns a path the client can
-/// spawn directly. Unix: python3 shebang script (chmod +x). Windows: a
-/// `fake-omp.cmd` wrapper that invokes the python interpreter (no shebang
-/// support on Windows).
-fn fake_engine_binary() -> PathBuf {
+/// Writes the fake engine script to a temp file and returns the program +
+/// args the client should spawn: `python3 <script>` on every platform.
+/// This avoids shebang/.cmd indirection so stdin/stdout pipes reach the
+/// Python process directly.
+fn fake_engine_binary() -> (String, Vec<String>) {
     let dir = std::env::temp_dir().join(format!(
         "lhic-fake-{}-{}",
         std::process::id(),
@@ -47,30 +47,7 @@ fn fake_engine_binary() -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     let script_path = dir.join("fake-omp.py");
     std::fs::write(&script_path, FAKE_SRC).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let wrapper = dir.join("fake-omp");
-        std::fs::write(&wrapper, format!("#!{}\n{}", python3(), FAKE_SRC)).unwrap();
-        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
-        wrapper
-    }
-    #[cfg(windows)]
-    {
-        let wrapper = dir.join("fake-omp.cmd");
-        let body = format!(
-            "@echo off\r\n\"{}\" \"{}\" %*\r\n",
-            python3(),
-            script_path.display()
-        );
-        std::fs::write(&wrapper, body).unwrap();
-        wrapper
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        script_path
-    }
+    (python3(), vec![script_path.to_string_lossy().into_owned()])
 }
 
 fn fake_config(mode: &str, command_timeout: Duration, chunk_stale: Duration) -> RpcConfig {
@@ -85,12 +62,14 @@ fn fake_config(mode: &str, command_timeout: Duration, chunk_stale: Duration) -> 
     std::fs::create_dir_all(&workspace).unwrap();
     let mut env = HashMap::new();
     env.insert("FAKE_MODE".to_string(), mode.to_string());
+    let (program, args) = fake_engine_binary();
     let mut config = RpcConfig::new(
-        fake_engine_binary().to_string_lossy().into_owned(),
+        program,
         workspace.to_string_lossy().into_owned(),
         workspace.join("sess").to_string_lossy().into_owned(),
         env,
     );
+    config.child_args = args;
     config.command_timeout = command_timeout;
     config.chunk_stale_timeout = chunk_stale;
     config

@@ -109,6 +109,10 @@ pub struct RpcConfig {
     pub env: HashMap<String, String>,
     /// Extension roots (`--extension`, repeatable).
     pub extension_roots: Vec<String>,
+    /// Extra arguments appended to the spawned engine command. Tests use
+    /// this to spawn `python <fake-engine-script>` directly instead of a
+    /// platform-specific wrapper (avoids .cmd/.bat indirection on Windows).
+    pub child_args: Vec<String>,
     /// Command response timeout.
     pub command_timeout: Duration,
     /// Ready-frame timeout.
@@ -130,6 +134,7 @@ impl RpcConfig {
             session_dir,
             env,
             extension_roots: Vec::new(),
+            child_args: Vec::new(),
             command_timeout: DEFAULT_COMMAND_TIMEOUT,
             ready_timeout: DEFAULT_READY_TIMEOUT,
             chunk_stale_timeout: DEFAULT_CHUNK_STALE_TIMEOUT,
@@ -207,6 +212,11 @@ impl OmpRpcClient {
             return Err(anyhow::anyhow!("omp RPC client is already started"));
         }
         let mut command = Command::new(&self.config.binary);
+        // Test-injected child args (e.g. `python <script>`) must come right
+        // after the program, before the engine flags.
+        for arg in &self.config.child_args {
+            command.arg(arg);
+        }
         command
             .args([
                 "--mode",
