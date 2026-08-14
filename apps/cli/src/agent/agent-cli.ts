@@ -1,6 +1,7 @@
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
+import { SideEffectLedger } from "@lhic/ledger";
 import {
   OmpActionReceiptObserver,
   OmpRpcSupervisor,
@@ -104,6 +105,9 @@ export async function runAgentCommand(
   const traceDirectory = resolve(workspaceRoot, ".lhic/traces");
   const agentReceiptLog = receiptLogPath(traceDirectory, taskId);
   const receiptRecorder = new ReceiptRecorder(agentReceiptLog, taskId);
+  const sideEffectLedger = new SideEffectLedger({
+    databaseFile: join(traceDirectory, "ledger.sqlite"),
+  });
   const ompReceiptObserver = new OmpActionReceiptObserver({
     taskId,
     receiptLogPath: agentReceiptLog,
@@ -250,6 +254,7 @@ export async function runAgentCommand(
 
   const hostRunner = new CliHostRunner({
     workspaceRoot,
+    taskId,
     ...(options.approvedBy ? { approvedBy: options.approvedBy } : {}),
     approvalPolicy: options.approvalPolicy ?? (oneShot ? "deny" : "ask"),
     promptApproval,
@@ -258,6 +263,7 @@ export async function runAgentCommand(
     emitUpdate: (callId, partialResult) =>
       client.hostToolUpdate(callId, partialResult),
     receiptRecorder,
+    ledger: sideEffectLedger,
   });
 
   async function promptApproval(

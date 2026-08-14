@@ -17,9 +17,13 @@ import {
   parseRuntimeConfig,
   type ActionApproval,
 } from "@lhic/security";
+import { effectiveSideEffectClass, inferSideEffectClass } from "@lhic/security";
+import { hashState } from "@lhic/trace";
 import { VerifierEngine } from "@lhic/verifier";
+import type { VerificationCondition, VerificationResult } from "@lhic/schema";
 import { chromium, type Browser, type Page } from "playwright";
 
+import type { LedgerCoordinator } from "./ledger-coordinator.js";
 import type { ReceiptRecorder } from "./receipt-recorder.js";
 import { evidenceRefs } from "./receipt-recorder.js";
 
@@ -32,6 +36,7 @@ export interface BrowserRunResult {
 
 export interface CliBrowserRunnerOptions {
   receiptRecorder?: ReceiptRecorder;
+  coordinator?: LedgerCoordinator;
 }
 
 export interface TaskProposalSummary {
@@ -63,12 +68,14 @@ interface BrowserSession {
 export class CliBrowserRunner {
   private readonly sessions = new Map<string, BrowserSession>();
   private readonly receiptRecorder: ReceiptRecorder | undefined;
+  private readonly coordinator: LedgerCoordinator | undefined;
 
   public constructor(
     private readonly workspaceRoot: string,
     options: CliBrowserRunnerOptions = {},
   ) {
     this.receiptRecorder = options.receiptRecorder;
+    this.coordinator = options.coordinator;
   }
 
   public async execute(
@@ -104,7 +111,114 @@ export class CliBrowserRunner {
       evidence: ["Browser execution session opened locally."],
     };
     this.sessions.set(commandId, session);
-    return this.run(commandId);
+    return this.recoverAndRun(commandId);
+  }
+
+  /**
+   * Recovers ambiguous ledger state before running: a possibly-committed
+   * step is re-observed (never blindly replayed). Verified steps are skipped;
+   * unprovable ones fail the task as needs_resolution.
+   */
+  private async recoverAndRun(commandId: string): Promise<BrowserRunResult> {
+    const session = this.require(commandId);
+    if (!this.coordinator) return this.run(commandId);
+    const pending = this.coordinator.recoverPending();
+    if (pending.length === 0) return this.run(commandId);
+    let furthestRecovered = -1;
+    for (const entry of pending) {
+      const stepIndex = session.plan.steps.findIndex(
+        (step) => step.id === entry.actionId,
+      );
+      if (stepIndex < 0) continue;
+      const step = session.plan.steps[stepIndex]!;
+      const verification = await session.verifier.verify(step.verification);
+      const happened = verification.success && verification.evidence.length > 0;
+      const outcome = this.coordinator.recover(entry.actionId, {
+        sideEffectHappened: happened,
+        evidenceRefs: evidenceRefs(verification.evidence),
+      });
+      if (outcome === "verified") {
+        session.evidence.push(...verification.evidence);
+        furthestRecovered = Math.max(furthestRecovered, stepIndex);
+      }
+    }
+    if (furthestRecovered >= 0) {
+      session.nextStepIndex = furthestRecovered + 1;
+      return this.run(commandId);
+    }
+    return this.finishFailure(
+      commandId,
+      session,
+      "A previous dispatch of this task is ambiguous (needs resolution); refusing to replay a possibly-committed side effect.",
+    );
+  }
+
+  /**
+   * Ledger-guarded dispatch: possibly_committed is recorded before the
+   * physical side effect; verified only after non-empty verifier evidence.
+   */
+  private async dispatchStep(
+    session: BrowserSession,
+    step: {
+      id: string;
+      action: BrowserSemanticAction;
+      verification: VerificationCondition;
+    },
+    approval?: ActionApproval,
+  ): Promise<{
+    ok: boolean;
+    error?: string;
+    verification?: VerificationResult;
+    evidence: string[];
+  }> {
+    if (this.coordinator) {
+      const actionId = step.id;
+      const actionHash = hashState(step.action);
+      const sideEffectClass = effectiveSideEffectClass(
+        undefined,
+        inferSideEffectClass(step.action),
+      );
+      const entry = this.coordinator.get(actionId);
+      if (!entry) {
+        this.coordinator.begin(
+          actionId,
+          actionHash,
+          sideEffectClass,
+          approval?.expiresAt,
+        );
+      }
+      if (approval) this.coordinator.approve(actionId);
+      this.coordinator.beforeDispatch(actionId);
+    }
+    const execution = await session.executor.execute(step.action, approval);
+    if (this.coordinator) this.coordinator.afterDispatch(step.id);
+    if (!execution.success) {
+      if (this.coordinator) this.coordinator.verifyFailed(step.id);
+      const error = execution.error ?? "The browser action failed.";
+      return { ok: false, error, evidence: [] };
+    }
+    const verification = await session.verifier.verify(step.verification);
+    if (!verification.success || verification.evidence.length === 0) {
+      if (this.coordinator) this.coordinator.verifyFailed(step.id);
+      return {
+        ok: false,
+        error:
+          verification.error ??
+          "The post-action verifier produced no evidence.",
+        evidence: [],
+      };
+    }
+    if (this.coordinator) {
+      this.coordinator.verifySucceeded(
+        step.id,
+        evidenceRefs(verification.evidence),
+      );
+    }
+    return {
+      ok: true,
+      verification,
+      evidence: [...execution.evidence, ...verification.evidence],
+    };
   }
   public pendingAction(commandId: string): {
     action: BrowserSemanticAction;
@@ -138,8 +252,8 @@ export class CliBrowserRunner {
         now: new Date(),
         expiresInMs: 5 * 60_000,
       });
-    const execution = await session.executor.execute(step.action, approval);
-    if (!execution.success) {
+    const execution = await this.dispatchStep(session, step, approval);
+    if (!execution.ok) {
       await this.recordReceipt(
         session,
         step,
@@ -154,28 +268,20 @@ export class CliBrowserRunner {
         execution.error ?? "The approved browser action failed.",
       );
     }
-    const verification = await session.verifier.verify(step.verification);
-    if (!verification.success || verification.evidence.length === 0) {
-      await this.recordReceipt(
-        session,
-        step,
-        "failed",
-        approval,
-        undefined,
-        verification.error ?? "The post-action verifier produced no evidence.",
-      );
-      return this.finishFailure(
-        commandId,
-        session,
-        verification.error ?? "The post-action verifier produced no evidence.",
+    if (execution.verification) {
+      session.executor.rememberVerifiedAction(
+        step.action,
+        execution.verification,
       );
     }
-    session.executor.rememberVerifiedAction(step.action, verification);
-    session.evidence.push(...execution.evidence, ...verification.evidence);
-    await this.recordReceipt(session, step, "verified", approval, [
-      ...execution.evidence,
-      ...verification.evidence,
-    ]);
+    session.evidence.push(...execution.evidence);
+    await this.recordReceipt(
+      session,
+      step,
+      "verified",
+      approval,
+      execution.evidence,
+    );
     session.nextStepIndex += 1;
     return this.run(commandId);
   }
@@ -200,8 +306,8 @@ export class CliBrowserRunner {
           `Approval is required before step ${session.nextStepIndex + 1}: ${step.action.intent}.`,
         );
       }
-      const execution = await session.executor.execute(step.action);
-      if (!execution.success) {
+      const execution = await this.dispatchStep(session, step);
+      if (!execution.ok) {
         await this.recordReceipt(
           session,
           step,
@@ -216,30 +322,20 @@ export class CliBrowserRunner {
           execution.error ?? "The browser action failed.",
         );
       }
-      const verification = await session.verifier.verify(step.verification);
-      if (!verification.success || verification.evidence.length === 0) {
-        await this.recordReceipt(
-          session,
-          step,
-          "failed",
-          undefined,
-          undefined,
-          verification.error ??
-            "The post-action verifier produced no evidence.",
-        );
-        return this.finishFailure(
-          commandId,
-          session,
-          verification.error ??
-            "The post-action verifier produced no evidence.",
+      if (execution.verification) {
+        session.executor.rememberVerifiedAction(
+          step.action,
+          execution.verification,
         );
       }
-      session.executor.rememberVerifiedAction(step.action, verification);
-      session.evidence.push(...execution.evidence, ...verification.evidence);
-      await this.recordReceipt(session, step, "verified", undefined, [
-        ...execution.evidence,
-        ...verification.evidence,
-      ]);
+      session.evidence.push(...execution.evidence);
+      await this.recordReceipt(
+        session,
+        step,
+        "verified",
+        undefined,
+        execution.evidence,
+      );
       session.nextStepIndex += 1;
     }
     const result: BrowserRunResult = {

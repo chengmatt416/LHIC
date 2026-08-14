@@ -20,6 +20,9 @@
       "path": "./packages/game-training-3d"
     },
     {
+      "path": "./packages/ledger"
+    },
+    {
       "path": "./packages/browser"
     },
     {
@@ -71,6 +74,7 @@
       "@lhic/skills": ["packages/skills/src/index.ts"],
       "@lhic/controller": ["packages/controller/src/index.ts"],
       "@lhic/memory": ["packages/memory/src/index.ts"],
+      "@lhic/ledger": ["packages/ledger/src/index.ts"],
       "@lhic/shared-skills": ["packages/shared-skills/src/index.ts"],
       "@lhic/omp-rpc": ["packages/omp-rpc/src/index.ts"],
       "@lhic/mcp-server": ["apps/mcp-server/src/index.ts"]

@@ -12,6 +12,8 @@ import {
   parseRuntimeConfig,
   type ActionApproval,
 } from "@lhic/security";
+import { effectiveSideEffectClass, inferSideEffectClass } from "@lhic/security";
+import { hashState } from "@lhic/trace";
 import {
   buildGlobalComputerCommand,
   ElementGroundedDispatcher,
@@ -21,7 +23,9 @@ import {
   GlobalComputerExecutor,
   resolveExecutionChain,
 } from "@lhic/skills";
+import type { SideEffectLedger } from "@lhic/ledger";
 import { materializeActionApproval } from "./approval-materializer.js";
+import { LedgerCoordinator } from "./ledger-coordinator.js";
 
 import type { ReceiptRecorder } from "./receipt-recorder.js";
 import { evidenceRefs } from "./receipt-recorder.js";
@@ -38,6 +42,7 @@ export type { TaskProposalSummary };
 
 export interface CliHostRunnerDeps {
   workspaceRoot: string;
+  taskId: string;
   approvedBy?: string;
   promptApproval: (
     request: HostApprovalRequest,
@@ -50,6 +55,7 @@ export interface CliHostRunnerDeps {
   ) => void;
   emitUpdate: (callId: string, partialResult: Record<string, unknown>) => void;
   receiptRecorder?: ReceiptRecorder;
+  ledger?: SideEffectLedger;
 }
 export interface HostApprovalRequest {
   surface: "browser" | "desktop";
@@ -86,12 +92,29 @@ export class CliHostRunner {
     { plan: DesktopExecutionPlan; nextStepIndex: number; evidence: string[] }
   >();
   private readonly deps: CliHostRunnerDeps;
+  private readonly browserCoordinator: LedgerCoordinator | undefined;
+  private readonly desktopCoordinator: LedgerCoordinator | undefined;
 
   public constructor(deps: CliHostRunnerDeps) {
     this.deps = deps;
+    if (deps.ledger) {
+      this.browserCoordinator = new LedgerCoordinator({
+        ledger: deps.ledger,
+        taskId: deps.taskId,
+        surface: "browser",
+      });
+      this.desktopCoordinator = new LedgerCoordinator({
+        ledger: deps.ledger,
+        taskId: deps.taskId,
+        surface: "desktop",
+      });
+    }
     this.browserRunner = new CliBrowserRunner(deps.workspaceRoot, {
       ...(deps.receiptRecorder
         ? { receiptRecorder: deps.receiptRecorder }
+        : {}),
+      ...(this.browserCoordinator
+        ? { coordinator: this.browserCoordinator }
         : {}),
     });
   }
@@ -312,6 +335,24 @@ export class CliHostRunner {
     if (!session) throw new Error("The desktop session does not exist.");
     const step = session.plan.steps[session.nextStepIndex];
     if (!step) throw new Error("This desktop task has no pending action.");
+    const actionId = step.id;
+    const coordinator = this.desktopCoordinator;
+    if (coordinator) {
+      const sideEffectClass = effectiveSideEffectClass(
+        undefined,
+        inferSideEffectClass(step.action),
+      );
+      if (!coordinator.get(actionId)) {
+        coordinator.begin(
+          actionId,
+          hashState(step.action),
+          sideEffectClass,
+          approval.expiresAt,
+        );
+      }
+      coordinator.approve(actionId);
+      coordinator.beforeDispatch(actionId);
+    }
     const runtimeConfig = parseRuntimeConfig({
       ...process.env,
       LHIC_TRACE_DIRECTORY: resolve(this.deps.workspaceRoot, ".lhic/traces"),
@@ -327,7 +368,9 @@ export class CliHostRunner {
       },
     });
     const execution = await executor.execute(step.action, approval);
+    if (coordinator) coordinator.afterDispatch(actionId);
     if (!execution.success) {
+      if (coordinator) coordinator.verifyFailed(actionId);
       await this.recordDesktopReceipt(
         commandId,
         step.action,
@@ -339,6 +382,9 @@ export class CliHostRunner {
         commandId,
         execution.error ?? "Desktop action failed.",
       );
+    }
+    if (coordinator) {
+      coordinator.verifySucceeded(actionId, evidenceRefs(execution.evidence));
     }
     session.evidence.push(...execution.evidence);
     await this.recordDesktopReceipt(
