@@ -1,6 +1,13 @@
-import type { SideEffectClass } from "@lhic/schema";
+import type { SideEffectClass, SemanticAction } from "@lhic/schema";
 import type { SideEffectLedgerEntry } from "@lhic/schema";
 import type { SideEffectLedger } from "@lhic/ledger";
+import type { ActionApproval } from "@lhic/security";
+import {
+  effectiveSideEffectClass,
+  inferSideEffectClass,
+  parseApprovalScope,
+  validateApprovalScope,
+} from "@lhic/security";
 
 export interface LedgerCoordinatorOptions {
   ledger: SideEffectLedger;
@@ -29,6 +36,37 @@ export class LedgerCoordinator {
   /** Current durable entry for an action, if any. */
   public get(actionId: string): SideEffectLedgerEntry | undefined {
     return this.ledger.get(actionId);
+  }
+
+  /**
+   * Enforces a structured approval scope at dispatch: an
+   * origin_action_class scope is validated (expiry, origin, class) and its
+   * action budget consumed. High-risk classes were already refused at scope
+   * creation; unknown scope shapes fail closed.
+   */
+  public enforceScope(
+    approval: ActionApproval,
+    action: SemanticAction,
+    resolvedOrigin?: string,
+  ): void {
+    const scope = parseApprovalScope(approval.scope ?? "");
+    if (!scope) return;
+    if (scope.type === "origin_action_class") {
+      const used = this.ledger.scopeUsage(approval.approvalId);
+      const sideEffectClass = effectiveSideEffectClass(
+        undefined,
+        inferSideEffectClass(action),
+      );
+      const validation = validateApprovalScope(scope, approval, {
+        sideEffectClass,
+        ...(resolvedOrigin ? { resolvedOrigin } : {}),
+        usageCount: used,
+      });
+      if (!validation.valid) {
+        throw new Error(validation.reason ?? "Approval scope rejected.");
+      }
+      this.ledger.consumeScopeAction(approval.approvalId);
+    }
   }
 
   public begin(

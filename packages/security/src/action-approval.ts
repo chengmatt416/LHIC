@@ -3,7 +3,7 @@ import { randomUUID, sign, verify, type KeyLike } from "node:crypto";
 import type { SemanticAction } from "@lhic/schema";
 import { hashState } from "@lhic/trace";
 
-import { evaluateRisk, type RiskDecision } from "./risk-policy.js";
+import { evaluateStructuredRisk, type RiskDecision } from "./risk-policy.js";
 
 const maximumApprovalLifetimeMs = 5 * 60 * 1_000;
 const maximumApprovalClockSkewMs = 30_000;
@@ -82,7 +82,7 @@ export function validateActionApproval(
   now = new Date(),
   options: ActionApprovalValidationOptions = {},
 ): ApprovalDecision {
-  const policy = evaluateRisk(action);
+  const policy = evaluateStructuredRisk(action);
   const requiresConfirmation =
     policy.requiresConfirmation || options.forceConfirmation;
   const confirmationReason = options.confirmationReason ?? policy.reason;

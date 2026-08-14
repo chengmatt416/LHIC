@@ -13,7 +13,7 @@ import {
 } from "@lhic/schema";
 import {
   createActionApproval,
-  evaluateRisk,
+  evaluateStructuredRisk,
   parseRuntimeConfig,
   type ActionApproval,
 } from "@lhic/security";
@@ -252,6 +252,7 @@ export class CliBrowserRunner {
         now: new Date(),
         expiresInMs: 5 * 60_000,
       });
+    if (this.coordinator) this.coordinator.enforceScope(approval, step.action);
     const execution = await this.dispatchStep(session, step, approval);
     if (!execution.ok) {
       await this.recordReceipt(
@@ -409,7 +410,7 @@ export class CliBrowserRunner {
 export function requiresInteractiveApproval(
   action: BrowserSemanticAction,
 ): boolean {
-  const risk = evaluateRisk(action);
+  const risk = evaluateStructuredRisk(action);
   return (
     risk.requiresConfirmation ||
     action.riskLevel === "high" ||

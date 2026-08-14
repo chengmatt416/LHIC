@@ -12,7 +12,11 @@ import {
   parseRuntimeConfig,
   type ActionApproval,
 } from "@lhic/security";
-import { effectiveSideEffectClass, inferSideEffectClass } from "@lhic/security";
+import {
+  effectiveSideEffectClass,
+  inferSideEffectClass,
+  structuredRiskLevel,
+} from "@lhic/security";
 import { hashState } from "@lhic/trace";
 import {
   buildGlobalComputerCommand,
@@ -350,6 +354,7 @@ export class CliHostRunner {
           approval.expiresAt,
         );
       }
+      coordinator.enforceScope(approval, step.action);
       coordinator.approve(actionId);
       coordinator.beforeDispatch(actionId);
     }
@@ -571,7 +576,7 @@ export class CliHostRunner {
     context: { action: SemanticAction; verifier: string },
   ): Promise<HostApprovalDecision> {
     const runtimeConfig = parseRuntimeConfig(process.env);
-    const riskLevel = context.action.riskLevel;
+    const riskLevel = structuredRiskLevel(context.action);
     const policy = this.deps.approvalPolicy ?? "ask";
     if (policy === "deny") return { approved: false };
     if (

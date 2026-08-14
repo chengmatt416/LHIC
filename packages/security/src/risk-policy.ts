@@ -4,6 +4,11 @@ import {
   type RiskLevel,
 } from "@lhic/schema";
 
+import {
+  inferSideEffectClass,
+  isHighRiskSideEffectClass,
+} from "./side-effect-classification.js";
+
 export interface RiskDecision {
   allowed: boolean;
   requiresConfirmation: boolean;
@@ -28,6 +33,21 @@ export function classifyActionRisk(
   action: Pick<SemanticAction, "type" | "intent" | "riskLevel" | "target">,
 ): RiskLevel {
   return isDestructiveAction(action) ? "high" : action.riskLevel;
+}
+
+/**
+ * Typed, taxonomy-first risk level: the independently inferred side-effect
+ * class is primary (high-risk classes always escalate), keyword patterns are
+ * only the conservative backstop. The planner's own label can never lower the
+ * result.
+ */
+export function structuredRiskLevel(action: SemanticAction): RiskLevel {
+  const inferred = inferSideEffectClass(action);
+  if (isHighRiskSideEffectClass(inferred)) return "high";
+  // An unclassifiable action never inherits the planner's label: unknown
+  // class means unknown risk, which requires confirmation.
+  if (inferred === "unknown") return "unknown";
+  return classifyActionRisk(action);
 }
 
 export function evaluateRisk(
@@ -67,6 +87,44 @@ export function evaluateRisk(
   };
 }
 
+/**
+ * Structured risk decision used at approval boundaries: the side-effect
+ * taxonomy is primary, so a planner-labeled "low risk" purchase/destructive/
+ * credential action still requires confirmation.
+ */
+export function evaluateStructuredRisk(
+  action: SemanticAction,
+  options: RiskPolicyOptions = {},
+): RiskDecision {
+  const riskLevel = structuredRiskLevel(action);
+  if (riskLevel === "high") {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "High-risk side-effect class requires human confirmation.",
+    };
+  }
+  if (riskLevel === "unknown") {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Unknown-risk actions require human confirmation.",
+    };
+  }
+  if (action.type === "custom" && !options.allowCustom) {
+    return {
+      allowed: false,
+      requiresConfirmation: true,
+      reason: "Custom actions require human confirmation.",
+    };
+  }
+  return {
+    allowed: true,
+    requiresConfirmation: false,
+    reason: "Action is permitted by the structured side-effect policy.",
+  };
+}
+
 function isDestructiveAction(action: RiskEvaluatedAction): boolean {
   if (destructiveIntentPattern.test(action.intent)) {
     return true;
@@ -96,7 +154,7 @@ export function actionRequiresApproval(
   if (action.type === "upload") {
     return "Uploading a local file requires explicit human approval.";
   }
-  const policy = evaluateRisk(action);
+  const policy = evaluateStructuredRisk(action);
   if (policy.requiresConfirmation) {
     return policy.reason;
   }
