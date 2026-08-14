@@ -20,8 +20,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Apply trust and audit fixes
+      - name: Apply trust fixes
         run: python .github/pr-sota001-autofix.py
+      - name: Apply production audit override
+        run: python .github/pr-sota001-audit-fix.py
       - name: Regenerate lockfile with patched sharp
         run: npm install --package-lock-only --ignore-scripts --no-audit
       - name: Install exact dependency graph
@@ -58,7 +60,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/pr-sota001-autofix.yml .github/pr-sota001-autofix.py
+          git rm .github/workflows/pr-sota001-autofix.yml \
+            .github/pr-sota001-autofix.py \
+            .github/pr-sota001-audit-fix.py
           git add package.json package-lock.json \
             packages/omp-rpc/src/omp-version.ts \
             packages/omp-rpc/src/omp-version.test.ts \
