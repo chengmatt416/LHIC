@@ -193,14 +193,14 @@ async fn agent(
             println!("removed key for {provider}.");
         }
         AgentCommand::ModelSet { selector } => {
-            let mut client = manager.start_client().await?;
+            let client = manager.start_client().await?;
             let (provider, model) = split_selector(&selector);
             let result = client.set_model(provider, model).await?;
             println!("model set: {}", pretty(&result));
             client.stop().await?;
         }
         AgentCommand::Prompt { message } => {
-            let mut client = manager.start_client().await?;
+            let client = manager.start_client().await?;
             let state = client.get_state().await.unwrap_or(json!({}));
             let model = state
                 .get("model")
@@ -212,12 +212,9 @@ async fn agent(
             // Run the turn to terminal completion. Completion is driven by
             // engine lifecycle semantics (agent_end/turn_end/prompt_result),
             // never by a fixed wall-clock guess.
-            let outcome = lhic_agent::prompt_and_wait(
-                &mut client,
-                &message,
-                std::time::Duration::from_secs(600),
-            )
-            .await?;
+            let outcome =
+                lhic_agent::prompt_and_wait(&client, &message, std::time::Duration::from_secs(600))
+                    .await?;
             if !outcome.streamed_text.trim().is_empty() {
                 println!("\n{}", outcome.streamed_text);
             } else {

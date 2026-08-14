@@ -156,6 +156,21 @@ impl ChunkReassembler {
         self.check_stale_at(stale_after, Instant::now())
     }
 
+    /// Rejects and resets the active sequence (e.g. an ordinary frame
+    /// interrupted the chunk stream). No-op when no sequence is active.
+    pub fn reset_interrupted(&mut self) {
+        if self.chunk_id.is_some() {
+            self.reset();
+        }
+    }
+
+    /// Updates the effective reassembly cap (min of local and advertised).
+    pub fn set_max_frame_bytes(&mut self, cap: usize) {
+        if cap > 0 {
+            self.max_frame_bytes = cap;
+        }
+    }
+
     /// `check_stale` with an injectable clock (testable).
     fn check_stale_at(&mut self, stale_after: Duration, now: Instant) -> Result<(), RpcError> {
         if self.chunk_id.is_none() {
@@ -375,9 +390,30 @@ mod tests {
     }
 
     #[test]
-    fn parse_line_rejects_garbage() {
-        assert!(parse_line("{not json}").is_err());
-        assert!(parse_line("").is_err());
-        assert!(parse_line("{\"type\":\"ready\"}").is_ok());
+    fn rejects_garbage_chunk_data() {
+        let mut reassembler = ChunkReassembler::new(1024);
+        let c = RpcChunk {
+            frame_type: "rpc_chunk".to_string(),
+            chunk_id: "rpc-1".to_string(),
+            index: 0,
+            count: 1,
+            byte_length: 10,
+            data: "!!!not-base64!!!".to_string(),
+        };
+        assert!(reassembler.feed(&c).is_err());
+    }
+
+    #[test]
+    fn interrupted_sequence_resets() {
+        let mut reassembler = ChunkReassembler::new(1024);
+        let payload = b"{\"type\":\"response\"}".to_vec();
+        let c0 = chunk("rpc-1", 0, 2, &payload, payload.len());
+        assert!(reassembler.feed(&c0).unwrap().is_none());
+        assert!(reassembler.is_active());
+        reassembler.reset_interrupted();
+        assert!(!reassembler.is_active());
+        // A fresh complete sequence must work after the interruption.
+        let c1 = chunk("rpc-2", 0, 1, &payload, payload.len());
+        assert!(reassembler.feed(&c1).unwrap().is_some());
     }
 }

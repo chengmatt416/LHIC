@@ -4,12 +4,17 @@
 //! completes only on an `agent_end` frame with `isTerminal !== false`, a
 //! `turn_end`, or a local-only `prompt_result` / `data.agentInvoked: false`.
 //! This module turns that wire contract into a blocking-with-streaming API.
+//!
+//! The turn deadline is enforced with `tokio::time::timeout_at` around every
+//! blocking event receive, so a silent-but-alive engine cannot stall the
+//! caller past the configured deadline.
 
 use serde_json::Value;
 use tokio::time::{Duration, Instant};
 
+use super::client::OmpRpcClient;
+use super::error::RpcError;
 use super::types::AgentEvent;
-use crate::rpc::OmpRpcClient;
 
 /// Default cap on a single prompt turn before `prompt_and_wait` gives up.
 pub const DEFAULT_TURN_TIMEOUT: Duration = Duration::from_secs(600);
@@ -43,11 +48,14 @@ impl PromptOutcome {
 /// `isTerminal !== false`, `turn_end`, or a local-only `prompt_result` /
 /// `data.agentInvoked: false` — never by a fixed wall-clock guess.
 pub async fn prompt_and_wait(
-    client: &mut OmpRpcClient,
+    client: &OmpRpcClient,
     message: &str,
     timeout: Duration,
 ) -> Result<PromptOutcome, anyhow::Error> {
-    let ack = client.prompt(message).await?;
+    let ack = client
+        .prompt(message)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let agent_invoked = ack
         .get("agentInvoked")
         .and_then(Value::as_bool)
@@ -65,35 +73,33 @@ pub async fn prompt_and_wait(
     }
 
     let deadline = Instant::now() + timeout;
+    let seconds = timeout.as_secs();
     loop {
-        if Instant::now() >= deadline {
-            return Err(anyhow::anyhow!(
-                "prompt turn timed out after {}s",
-                timeout.as_secs()
-            ));
-        }
-        match client.next_event().await? {
-            Some(AgentEvent::MessageUpdated { raw }) => {
+        // The deadline wraps the blocking receive: a silent engine cannot
+        // outlive the configured turn timeout.
+        let event = match tokio::time::timeout_at(deadline, client.next_event()).await {
+            Ok(Ok(Some(event))) => event,
+            Ok(Ok(None)) => {
+                return Err(anyhow::anyhow!("omp engine closed during the turn"));
+            }
+            Ok(Err(e)) => return Err(anyhow::anyhow!("{e}")),
+            Err(_) => {
+                return Err(anyhow::anyhow!("{}", RpcError::TurnTimeout { seconds }));
+            }
+        };
+        match event {
+            AgentEvent::MessageUpdated { raw } => {
                 if let Some(delta) = extract_text_delta(&raw) {
                     text.push_str(&delta);
                 }
             }
-            Some(AgentEvent::AgentEnded { is_terminal, .. }) if is_terminal => {
-                break;
-            }
-            Some(AgentEvent::TurnEnded { .. }) => {
-                break;
-            }
-            Some(AgentEvent::PromptResolved(result)) if !result.agent_invoked => {
-                break;
-            }
-            Some(AgentEvent::ChildClosed) => {
+            AgentEvent::AgentEnded { is_terminal, .. } if is_terminal => break,
+            AgentEvent::TurnEnded { .. } => break,
+            AgentEvent::PromptResolved(result) if !result.agent_invoked => break,
+            AgentEvent::ChildClosed => {
                 return Err(anyhow::anyhow!("omp engine closed during the turn"));
             }
-            Some(_) => {}
-            None => {
-                return Err(anyhow::anyhow!("omp engine closed during the turn"));
-            }
+            _ => {}
         }
     }
 
@@ -140,6 +146,17 @@ mod tests {
             accepted: true,
             agent_invoked: false,
             streamed_text: String::new(),
+            raw_ack: Value::Null,
+        };
+        assert!(outcome.is_terminal());
+    }
+
+    #[test]
+    fn agent_turn_is_also_terminal() {
+        let outcome = PromptOutcome {
+            accepted: true,
+            agent_invoked: true,
+            streamed_text: "done".to_string(),
             raw_ack: Value::Null,
         };
         assert!(outcome.is_terminal());

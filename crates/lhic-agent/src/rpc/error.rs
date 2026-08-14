@@ -14,10 +14,17 @@ pub enum RpcError {
     Chunk { detail: String },
     /// A frame had the right shape but failed validation.
     Malformed { detail: String },
-    /// Command response reported `success: false`.
-    CommandFailed { command: String, error: String },
+    /// Command response reported `success: false`, with the optional
+    /// machine-readable code (`session_busy`, `stale_cursor`, …).
+    CommandFailed {
+        command: String,
+        code: Option<String>,
+        error: String,
+    },
     /// A command did not answer within its timeout.
     Timeout { command: String, seconds: u64 },
+    /// A prompt turn did not reach terminal completion in time.
+    TurnTimeout { seconds: u64 },
     /// Protocol/version negotiation failed.
     Negotiation { detail: String },
 }
@@ -31,11 +38,19 @@ impl fmt::Display for RpcError {
             }
             RpcError::Chunk { detail } => write!(f, "invalid rpc_chunk sequence: {detail}"),
             RpcError::Malformed { detail } => write!(f, "malformed RPC frame: {detail}"),
-            RpcError::CommandFailed { command, error } => {
-                write!(f, "omp command {command} failed: {error}")
-            }
+            RpcError::CommandFailed {
+                command,
+                code,
+                error,
+            } => match code {
+                Some(code) => write!(f, "omp command {command} failed ({code}): {error}"),
+                None => write!(f, "omp command {command} failed: {error}"),
+            },
             RpcError::Timeout { command, seconds } => {
                 write!(f, "omp command {command} timed out after {seconds}s")
+            }
+            RpcError::TurnTimeout { seconds } => {
+                write!(f, "prompt turn timed out after {seconds}s")
             }
             RpcError::Negotiation { detail } => write!(f, "protocol negotiation failed: {detail}"),
         }

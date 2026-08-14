@@ -103,9 +103,9 @@ impl McpServer {
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
                 let manager = lhic_agent::AgentManager::open(&home, &workspace)?;
-                let mut client = manager.start_client().await?;
+                let client = manager.start_client().await?;
                 let outcome = lhic_agent::prompt_and_wait(
-                    &mut client,
+                    &client,
                     &message,
                     std::time::Duration::from_secs(300),
                 )

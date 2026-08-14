@@ -36,7 +36,7 @@ fn resolve_omp() -> Option<String> {
         .map(|p| p.to_string_lossy().into_owned())
 }
 
-fn temp_session_dir(tag: &str) -> std::path::PathBuf {
+fn temp_dir(tag: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "lhic-rpc-it-{}-{tag}-{}",
         std::process::id(),
@@ -68,8 +68,8 @@ async fn real_omp_handshake_and_command_correlation() {
         eprintln!("skipping: no omp binary available (set OMP_BINARY)");
         return;
     };
-    let workspace = temp_session_dir("ws");
-    let session = temp_session_dir("sess");
+    let workspace = temp_dir("ws");
+    let session = temp_dir("sess");
     let config = client_config(binary, &workspace, &session);
 
     let mut client = OmpRpcClient::with_config(config);
@@ -98,20 +98,47 @@ async fn real_omp_handshake_and_command_correlation() {
 }
 
 #[tokio::test]
+async fn real_omp_concurrent_commands() {
+    let Some(binary) = resolve_omp() else {
+        eprintln!("skipping: no omp binary available (set OMP_BINARY)");
+        return;
+    };
+    let workspace = temp_dir("ws");
+    let session = temp_dir("sess");
+    let config = client_config(binary, &workspace, &session);
+
+    let mut client = OmpRpcClient::with_config(config);
+    client.start().await.expect("start should succeed");
+
+    // Two commands outstanding at once; both must resolve independently.
+    let a = client.get_state();
+    let b = client.get_available_commands();
+    let (state, commands) = tokio::join!(a, b);
+    assert!(state.is_ok(), "get_state must resolve: {:?}", state.err());
+    let commands = commands.expect("get_available_commands must resolve");
+    assert!(commands
+        .get("commands")
+        .and_then(|v| v.as_array())
+        .is_some());
+
+    client.stop().await.expect("clean stop");
+}
+
+#[tokio::test]
 async fn real_omp_prompt_reaches_terminal_completion() {
     let Some(binary) = resolve_omp() else {
         eprintln!("skipping: no omp binary available (set OMP_BINARY)");
         return;
     };
-    let workspace = temp_session_dir("ws");
-    let session = temp_session_dir("sess");
+    let workspace = temp_dir("ws");
+    let session = temp_dir("sess");
     let config = client_config(binary, &workspace, &session);
 
     let mut client = OmpRpcClient::with_config(config);
     client.start().await.expect("start should succeed");
 
     let outcome = prompt_and_wait(
-        &mut client,
+        &client,
         "Reply with the single word ok",
         Duration::from_secs(90),
     )
@@ -145,8 +172,8 @@ async fn real_omp_events_are_normalized() {
         eprintln!("skipping: no omp binary available (set OMP_BINARY)");
         return;
     };
-    let workspace = temp_session_dir("ws");
-    let session = temp_session_dir("sess");
+    let workspace = temp_dir("ws");
+    let session = temp_dir("sess");
     let config = client_config(binary, &workspace, &session);
 
     let mut client = OmpRpcClient::with_config(config);

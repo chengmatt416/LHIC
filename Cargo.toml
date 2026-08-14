@@ -36,6 +36,7 @@ tokio-tungstenite = "0.24"
 futures-util = "0.3"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
+parking_lot = "0.12"
 eframe = "0.29"
 egui = "0.29"
 

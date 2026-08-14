@@ -2117,6 +2117,7 @@ dependencies = [
  "base64",
  "dirs",
  "lhic-core",
+ "parking_lot",
  "serde",
  "serde_json",
  "tokio",

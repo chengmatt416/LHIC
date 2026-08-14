@@ -3,32 +3,39 @@
 //! id-correlated responses, normalized events, and lifecycle-aware turn
 //! completion.
 //!
+//! Architecture:
+//! - command requests are registered in a shared pending map **before** the
+//!   write; each waiter is a oneshot channel, so multiple commands can be
+//!   outstanding and responses may arrive out of order;
+//! - a single reader task owns stdout parsing and chunk reassembly; it
+//!   completes exactly the registered waiter for a response id and never
+//!   blocks on the (bounded) event queue, so event floods cannot stall
+//!   command responses;
+//! - unknown/late response ids are routed to a diagnostic event instead of
+//!   leaking into the pending map.
+//!
 //! Wire contract: <https://github.com/can1357/oh-my-pi/blob/main/docs/rpc.md>
 
-pub mod codec;
-pub mod error;
-pub mod host;
-pub mod lifecycle;
-pub mod types;
-
-pub use codec::ChunkReassembler;
-pub use error::RpcError;
-pub use host::{HostToolDefinition, HostToolRequest, HostToolResult, HostUriRequest, HostUriResult, HostUriSchemeDefinition};
-pub use lifecycle::{AgentTask, PromptOutcome};
-pub use types::{
-    AgentEvent, HostToolDefinition as _HostToolDefinition, PromptResult, ReadyFrame, RpcChunk,
-    RpcResponse, UiRequest, UiResponse, RPC_PROTOCOL_VERSION,
-};
-
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{mpsc, oneshot, Mutex as AsyncMutex};
+
+use super::codec::{decode_reassembled, ChunkReassembler};
+use super::error::RpcError;
+use super::types::*;
+
+/// A registered command waiter keyed by request id.
+pub(crate) type PendingMap =
+    parking_lot::Mutex<HashMap<String, oneshot::Sender<Result<Value, RpcError>>>>;
 
 /// The engine version this client is built and validated against.
 pub const OMP_VERSION: &str = "17.2.15";
@@ -92,17 +99,28 @@ impl RpcConfig {
 }
 
 /// Streaming client for `omp --mode rpc`.
+///
+/// All command methods take `&self` and are safe to drive concurrently with
+/// event consumption; the command and event paths are decoupled.
 pub struct OmpRpcClient {
-    child: Option<Child>,
-    stdin: Option<tokio::process::ChildStdin>,
-    events: mpsc::Receiver<AgentEvent>,
-    /// Responses waiting on a command id; the reader task fills them in.
-    pending: std::sync::Arc<std::sync::Mutex<HashMap<String, Option<Result<Value, RpcError>>>>>,
-    wake: std::sync::Arc<Notify>,
+    /// Child process handle (shared so `stop` works with `&self`).
+    child: Option<Arc<tokio::sync::Mutex<Option<Child>>>>,
+    /// Serialized writes to the engine's stdin (None until start()).
+    writer: Option<AsyncMutex<tokio::process::ChildStdin>>,
+    /// Event stream. Shared so `next_event` and `command` can operate
+    /// concurrently (both take `&self`). Tokio mutex: the guard is Send
+    /// across awaits so clients can be driven from spawned tasks.
+    events: Arc<tokio::sync::Mutex<mpsc::Receiver<AgentEvent>>>,
+    /// Registered request id -> waiter. Inserted before the request is
+    /// written; removed by the waiter on completion/timeout/cancellation.
+    pending: Arc<PendingMap>,
+    /// Request id counter (atomic: concurrent commands).
+    next_id: Arc<AtomicU64>,
+    /// Effective v2 reassembly cap: `min(local_cap, server_advertised)`.
+    reassembly_cap: Arc<parking_lot::Mutex<usize>>,
+    /// Shared bounded stderr tail maintained by the collector task.
+    stderr_tail: Arc<parking_lot::Mutex<String>>,
     config: RpcConfig,
-    request_counter: u64,
-    stderr_tail: String,
-    chunk_stale_timeout: Duration,
 }
 
 impl OmpRpcClient {
@@ -116,17 +134,17 @@ impl OmpRpcClient {
     }
 
     pub fn with_config(config: RpcConfig) -> Self {
-        let chunk_stale_timeout = config.chunk_stale_timeout;
         Self {
             child: None,
-            stdin: None,
-            events: mpsc::channel(EVENT_QUEUE_CAPACITY).1,
-            pending: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
-            wake: std::sync::Arc::new(Notify::new()),
+            writer: None,
+            events: Arc::new(tokio::sync::Mutex::new(
+                mpsc::channel(EVENT_QUEUE_CAPACITY).1,
+            )),
+            pending: Arc::new(Mutex::new(HashMap::new())),
+            next_id: Arc::new(AtomicU64::new(0)),
+            reassembly_cap: Arc::new(Mutex::new(LOCAL_MAX_REASSEMBLED_FRAME_BYTES)),
+            stderr_tail: Arc::new(Mutex::new(String::new())),
             config,
-            request_counter: 0,
-            stderr_tail: String::new(),
-            chunk_stale_timeout,
         }
     }
 
@@ -138,6 +156,9 @@ impl OmpRpcClient {
     /// Spawns the engine, waits for the `ready` frame, negotiates protocol
     /// v2, and starts the reader/event tasks.
     pub async fn start(&mut self) -> Result<()> {
+        if self.child.is_some() {
+            return Err(anyhow::anyhow!("omp RPC client is already started"));
+        }
         let mut command = Command::new(&self.config.binary);
         command
             .args([
@@ -165,112 +186,119 @@ impl OmpRpcClient {
         let stderr = child.stderr.take().context("omp stderr unavailable")?;
 
         let (event_tx, event_rx) = mpsc::channel(EVENT_QUEUE_CAPACITY);
-        self.events = event_rx;
+        self.events = Arc::new(tokio::sync::Mutex::new(event_rx));
         let pending = self.pending.clone();
-        let wake = self.wake.clone();
+        let reassembly_cap = self.reassembly_cap.clone();
+        let stderr_tail = self.stderr_tail.clone();
+        let chunk_stale_timeout = self.config.chunk_stale_timeout;
 
-        // Stdout reader: parses frames, reassembles v2 chunks, correlates
-        // command responses and forwards normalized events.
+        // Stderr collector: maintains a shared bounded tail independently of
+        // the event stream and surfaces log events best-effort.
+        {
+            let event_tx = event_tx.clone();
+            let tail = stderr_tail.clone();
+            tokio::spawn(async move {
+                let mut reader = BufReader::new(stderr);
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end().to_string();
+                            push_tail(&tail, &trimmed, STDERR_TAIL_CAP);
+                            let _ = event_tx.try_send(AgentEvent::Log(trimmed));
+                        }
+                    }
+                }
+            });
+        }
+
+        // Stdout reader: parses frames, reassembles v2 chunks, completes
+        // registered waiters, and forwards normalized events without ever
+        // blocking on the event queue.
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
             let mut line = String::new();
-            let mut reassembler = ChunkReassembler::new(super::types::DEFAULT_MAX_REASSEMBLED_FRAME_BYTES);
+            let mut reassembler = ChunkReassembler::new(*reassembly_cap.lock());
+            let mut stale_tick = tokio::time::interval(Duration::from_secs(1));
+            stale_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 line.clear();
-                match reader.read_line(&mut line).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() {
-                            continue;
-                        }
-                        match serde_json::from_str::<Value>(trimmed) {
-                            Ok(Value::Object(map)) if map.get("type").and_then(Value::as_str) == Some("rpc_chunk") => {
-                                match serde_json::from_value::<super::types::RpcChunk>(Value::Object(map)) {
-                                    Ok(chunk) => match reassembler.feed(&chunk) {
-                                        Ok(Some(bytes)) => match super::codec::decode_reassembled(bytes) {
-                                            Ok(frame) => {
-                                                dispatch_frame(&frame, &pending, &wake, &event_tx).await;
-                                            }
-                                            Err(e) => {
-                                                if event_tx.send(AgentEvent::Unknown { raw: json!({"type": "rpc_error", "error": e.to_string()}) }).await.is_err() {
-                                                    break;
-                                                }
-                                            }
-                                        },
-                                        Ok(None) => {}
-                                        Err(e) => {
-                                            if event_tx.send(AgentEvent::Unknown { raw: json!({"type": "rpc_error", "error": e.to_string()}) }).await.is_err() {
-                                                break;
-                                            }
-                                        }
-                                    },
-                                    Err(e) => {
-                                        if event_tx.send(AgentEvent::Unknown { raw: json!({"type": "rpc_error", "error": format!("bad chunk: {e}")}) }).await.is_err() {
-                                            break;
-                                        }
-                                    }
+                tokio::select! {
+                    read = reader.read_line(&mut line) => {
+
+                        match read {
+                            Ok(0) | Err(_) => break,
+                            Ok(_) => {
+                                let trimmed = line.trim();
+                                if trimmed.is_empty() {
+                                    continue;
                                 }
-                            }
-                            Ok(frame) => {
-                                dispatch_frame(&frame, &pending, &wake, &event_tx).await;
-                            }
-                            Err(_) => {
-                                if event_tx.send(AgentEvent::Unknown { raw: json!({"type": "parse_error", "line": trimmed}) }).await.is_err() {
-                                    break;
+                                if let Err(e) = handle_line(
+                                    trimmed,
+                                    &mut reassembler,
+                                    &pending,
+                                    &event_tx,
+                                ).await {
+                                    let _ = event_tx.try_send(AgentEvent::ProtocolError {
+                                        detail: e.to_string(),
+                                    });
                                 }
                             }
                         }
                     }
-                }
-            }
-            let _ = event_tx.send(AgentEvent::ChildClosed).await;
-        });
-
-        // Stderr collector: surfaced as Log events and kept as a tail for
-        // diagnostics when the engine exits.
-        let tx = event_tx.clone();
-        tokio::spawn(async move {
-            let mut reader = BufReader::new(stderr);
-            let mut line = String::new();
-            loop {
-                line.clear();
-                match reader.read_line(&mut line).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        if tx.send(AgentEvent::Log(line.trim_end().to_string())).await.is_err() {
-                            break;
+                    _ = stale_tick.tick(), if reassembler.is_active() => {
+                        let cap = *reassembly_cap.lock();
+                        reassembler.set_max_frame_bytes(cap);
+                        if let Err(e) = reassembler.check_stale(chunk_stale_timeout) {
+                            let _ = event_tx.try_send(AgentEvent::ProtocolError {
+                                detail: e.to_string(),
+                            });
                         }
                     }
                 }
             }
+            // EOF / process exit: fail every pending waiter immediately.
+            let mut guard = pending.lock();
+            for (_, tx) in guard.drain() {
+                let _ = tx.send(Err(RpcError::ConnectionClosed));
+            }
+            drop(guard);
+            let _ = event_tx.try_send(AgentEvent::ChildClosed);
         });
 
-        self.child = Some(child);
-        self.stdin = Some(stdin);
+        self.child = Some(Arc::new(tokio::sync::Mutex::new(Some(child))));
+        self.writer = Some(AsyncMutex::new(stdin));
 
         // Wait for the ready frame (bounded).
         let ready = tokio::time::timeout(self.config.ready_timeout, self.wait_for_ready())
             .await
             .context("timed out waiting for omp ready")??;
-        if !ready.supported_protocol_versions.contains(&RPC_PROTOCOL_VERSION) {
+        if !ready
+            .supported_protocol_versions
+            .contains(&RPC_PROTOCOL_VERSION)
+        {
             return Err(anyhow::anyhow!(
                 "omp engine does not support protocol v{RPC_PROTOCOL_VERSION} (supports: {:?}); \
-                 expected omp >= {OMP_VERSION}",
+                 Rust LHIC requires OMP RPC v2 (expected omp >= {OMP_VERSION})",
                 ready.supported_protocol_versions
             ));
         }
-        if let Some(max) = ready.max_reassembled_frame_bytes {
-            // Informational: the reassembler already enforces its own cap.
-            let _ = max;
+
+        // Effective v2 logical-frame cap = min(local, server advertised).
+        if let Some(advertised) = ready.max_reassembled_frame_bytes {
+            let mut cap = self.reassembly_cap.lock();
+            *cap = (*cap).min(advertised);
         }
 
         // Protocol negotiation (v2 enables lossless chunked transport).
-        self.send_raw(
+        self.command_raw(
             "protocol-1",
-            &json!({ "type": "negotiate_protocol", "protocolVersion": RPC_PROTOCOL_VERSION }),
+            json!({ "type": "negotiate_protocol", "protocolVersion": RPC_PROTOCOL_VERSION }),
         )
-        .await?;
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
         Ok(())
     }
 
@@ -279,143 +307,169 @@ impl OmpRpcClient {
             match self.next_event().await? {
                 Some(AgentEvent::Unknown { raw }) => {
                     if raw.get("type").and_then(Value::as_str) == Some("ready") {
-                        let ready: ReadyFrame = serde_json::from_value(raw)
+                        let ready: ReadyFrame = serde_json::from_value::<ReadyFrame>(raw)
                             .map_err(|e| anyhow::anyhow!("malformed ready frame: {e}"))?;
                         return Ok(ready);
                     }
                 }
                 Some(AgentEvent::ChildClosed) => {
-                    let tail = self.stderr_tail.trim();
                     return Err(anyhow::anyhow!(
-                        "omp closed before ready{}{}",
-                        if tail.is_empty() { "" } else { ": " },
-                        tail
+                        "omp closed before ready{}",
+                        format_stderr_tail(&self.stderr_tail())
                     ));
                 }
                 Some(AgentEvent::Log(line)) => {
-                    self.stderr_tail = line;
-                    tracing::debug!("omp stderr: {}", self.stderr_tail);
+                    tracing::debug!("omp stderr: {line}");
                 }
                 Some(_) => {}
                 None => {
-                    let tail = self.stderr_tail.trim();
                     return Err(anyhow::anyhow!(
-                        "omp closed before ready{}{}",
-                        if tail.is_empty() { "" } else { ": " },
-                        tail
+                        "omp closed before ready{}",
+                        format_stderr_tail(&self.stderr_tail())
                     ));
                 }
             }
         }
     }
 
-    /// Sends a raw command and waits for the correlated response `data`.
-    pub async fn command(&mut self, command_type: &str, params: Value) -> Result<Value> {
-        let id = format!("req_{}", self.request_counter);
-        self.request_counter += 1;
+    /// Sends a command and waits for the correlated response `data`.
+    ///
+    /// Safe to call concurrently: each call registers its own waiter before
+    /// writing, so responses may arrive in any order.
+    pub async fn command(&self, command_type: &str, params: Value) -> Result<Value, RpcError> {
+        let id = format!("req_{}", self.next_id.fetch_add(1, Ordering::Relaxed));
         let mut payload = params;
         if let Some(obj) = payload.as_object_mut() {
             obj.insert("type".to_string(), json!(command_type));
         } else {
             payload = json!({ "type": command_type, "value": payload });
         }
-        self.send_raw(&id, &payload).await
+        self.command_raw(&id, payload).await
     }
 
-    async fn send_raw(&mut self, id: &str, payload: &Value) -> Result<Value> {
-        let mut request = payload.clone();
+    async fn command_raw(&self, id: &str, payload: Value) -> Result<Value, RpcError> {
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut pending = self.pending.lock();
+            if pending.contains_key(id) {
+                return Err(RpcError::Malformed {
+                    detail: format!("duplicate request id {id}"),
+                });
+            }
+            pending.insert(id.to_string(), tx);
+        }
+
+        let mut request = payload;
         if let Some(obj) = request.as_object_mut() {
             obj.insert("id".to_string(), json!(id));
         }
-        let stdin = self.stdin.as_mut().context("omp stdin is closed")?;
         let mut line = request.to_string();
         line.push('\n');
-        stdin.write_all(line.as_bytes()).await?;
-        stdin.flush().await?;
 
-        self.wait_for_response(id).await
-    }
+        let write_result = async {
+            let mut stdin = self.writer_guard().await?;
+            stdin
+                .write_all(line.as_bytes())
+                .await
+                .map_err(|_| RpcError::ConnectionClosed)?;
+            stdin.flush().await.map_err(|_| RpcError::ConnectionClosed)
+        }
+        .await;
+        if let Err(e) = write_result {
+            self.pending.lock().remove(id);
+            return Err(e);
+        }
 
-    async fn wait_for_response(&mut self, id: &str) -> Result<Value> {
-        let deadline = tokio::time::Instant::now() + self.config.command_timeout;
-        let pending = self.pending.clone();
-        let wake = self.wake.clone();
-        let pending_id = id.to_string();
-
-        loop {
-            let now = tokio::time::Instant::now();
-            if now >= deadline {
-                pending.lock().unwrap().remove(&pending_id);
-                return Err(anyhow::anyhow!(
-                    "omp command timed out after {}s",
-                    self.config.command_timeout.as_secs()
-                ));
+        let seconds = self.config.command_timeout.as_secs();
+        match tokio::time::timeout(self.config.command_timeout, rx).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(_)) => {
+                // Waiter dropped without a value (e.g. child closed): the
+                // reader completed it with ConnectionClosed.
+                Err(RpcError::ConnectionClosed)
             }
-            let wait = deadline - now;
-            tokio::select! {
-                _ = tokio::time::sleep(wait) => {}
-                _ = wake.notified() => {}
-            }
-            let response = pending.lock().unwrap().remove(&pending_id);
-            match response {
-                Some(Some(Ok(data))) => return Ok(data),
-                Some(Some(Err(e))) => return Err(anyhow::anyhow!("{e}")),
-                Some(None) => {
-                    // Response frame arrived; a consumer will fill it. This
-                    // should not happen (we own the map), so treat as error.
-                    return Err(anyhow::anyhow!("omp command {id} response lost"));
-                }
-                None => {}
+            Err(_) => {
+                self.pending.lock().remove(id);
+                Err(RpcError::Timeout {
+                    command: request
+                        .get("type")
+                        .and_then(Value::as_str)
+                        .unwrap_or("?")
+                        .to_string(),
+                    seconds,
+                })
             }
         }
     }
 
     /// Polls for the next normalized event. Returns `None` when the engine
     /// closed cleanly; protocol failures are returned as errors.
-    pub async fn next_event(&mut self) -> Result<Option<AgentEvent>> {
-        self.events.recv().await.map(Some).or(Ok(None))
+    ///
+    /// Takes `&self` so it can be driven concurrently with commands.
+    pub async fn next_event(&self) -> Result<Option<AgentEvent>> {
+        let mut receiver = self.events.lock().await;
+        match receiver.recv().await {
+            Some(event) => Ok(Some(event)),
+            None => Ok(None),
+        }
     }
 
-    /// Stops the engine process. Safe to call multiple times.
-    pub async fn stop(&mut self) -> Result<()> {
-        if let Some(mut child) = self.child.take() {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
+    /// Stops the engine process and fails any pending requests. Safe to call
+    /// multiple times.
+    pub async fn stop(&self) -> Result<()> {
+        if let Some(handle) = &self.child {
+            let mut guard = handle.lock().await;
+            if let Some(mut child) = guard.take() {
+                drop(guard);
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+            }
         }
-        self.stdin = None;
+        self.fail_all_pending();
         Ok(())
     }
 
-    pub fn stderr_tail(&self) -> &str {
-        &self.stderr_tail
+    fn fail_all_pending(&self) {
+        let mut guard = self.pending.lock();
+        for (_, tx) in guard.drain() {
+            let _ = tx.send(Err(RpcError::ConnectionClosed));
+        }
+    }
+
+    pub fn stderr_tail(&self) -> String {
+        self.stderr_tail.lock().clone()
     }
 
     /// Replies to an `extension_ui_request` dialog.
-    pub async fn respond_ui(&mut self, response: UiResponse) -> Result<()> {
-        let line = serde_json::to_string(&response)?;
+    pub async fn respond_ui(&self, response: UiResponse) -> Result<(), RpcError> {
+        let line = serde_json::to_string(&response).map_err(|e| RpcError::Malformed {
+            detail: format!("ui response serialization: {e}"),
+        })?;
         self.write_line(&line).await
     }
 
     /// Registers host-owned tools with the engine (`set_host_tools`).
-    pub async fn set_host_tools(&mut self, tools: &[HostToolDefinition]) -> Result<Value> {
-        self.command(
-            "set_host_tools",
-            json!({ "tools": tools }),
-        )
-        .await
+    pub async fn set_host_tools(&self, tools: &[HostToolDefinition]) -> Result<Value, RpcError> {
+        self.command("set_host_tools", json!({ "tools": tools }))
+            .await
     }
 
     /// Registers host-owned URI schemes (`set_host_uri_schemes`).
-    pub async fn set_host_uri_schemes(&mut self, schemes: &[HostUriSchemeDefinition]) -> Result<Value> {
-        self.command(
-            "set_host_uri_schemes",
-            json!({ "schemes": schemes }),
-        )
-        .await
+    pub async fn set_host_uri_schemes(
+        &self,
+        schemes: &[HostUriSchemeDefinition],
+    ) -> Result<Value, RpcError> {
+        self.command("set_host_uri_schemes", json!({ "schemes": schemes }))
+            .await
     }
 
     /// Delivers a host-tool result for a pending `host_tool_call`.
-    pub async fn respond_host_tool(&mut self, id: &str, result: Value, is_error: bool) -> Result<()> {
+    pub async fn respond_host_tool(
+        &self,
+        id: &str,
+        result: Value,
+        is_error: bool,
+    ) -> Result<(), RpcError> {
         let frame = json!({
             "type": "host_tool_result",
             "id": id,
@@ -425,22 +479,8 @@ impl OmpRpcClient {
         self.write_line(&frame.to_string()).await
     }
 
-    /// Delivers a host-URI result for a pending `host_uri_request`.
-    pub async fn respond_host_uri(&mut self, id: &str, result: HostUriResult) -> Result<()> {
-        let frame = serde_json::to_value(&result)?;
-        self.write_line(&frame.to_string()).await
-    }
-
-    async fn write_line(&mut self, line: &str) -> Result<()> {
-        let stdin = self.stdin.as_mut().context("omp stdin is closed")?;
-        stdin.write_all(line.as_bytes()).await?;
-        stdin.write_all(b"\n").await?;
-        stdin.flush().await?;
-        Ok(())
-    }
-
     /// Sends an inbound `host_tool_update` progress frame.
-    pub async fn host_tool_update(&mut self, id: &str, partial: Value) -> Result<()> {
+    pub async fn host_tool_update(&self, id: &str, partial: Value) -> Result<(), RpcError> {
         let frame = json!({
             "type": "host_tool_update",
             "id": id,
@@ -448,158 +488,371 @@ impl OmpRpcClient {
         });
         self.write_line(&frame.to_string()).await
     }
-}
 
-impl Drop for OmpRpcClient {
-    fn drop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            let _ = child.start_kill();
+    /// Delivers a host-URI result for a pending `host_uri_request`.
+    pub async fn respond_host_uri(&self, id: &str, result: HostUriResult) -> Result<(), RpcError> {
+        let mut frame = serde_json::to_value(&result).map_err(|e| RpcError::Malformed {
+            detail: format!("host uri result serialization: {e}"),
+        })?;
+        if let Some(obj) = frame.as_object_mut() {
+            obj.insert("id".to_string(), json!(id));
+        }
+        self.write_line(&frame.to_string()).await
+    }
+
+    /// Sends a prompt and returns the immediate acknowledgement.
+    pub async fn prompt(&self, message: &str) -> Result<Value, RpcError> {
+        self.command("prompt", json!({ "message": message })).await
+    }
+
+    pub async fn get_state(&self) -> Result<Value, RpcError> {
+        self.command("get_state", json!({})).await
+    }
+
+    pub async fn get_available_models(&self) -> Result<Value, RpcError> {
+        self.command("get_available_models", json!({})).await
+    }
+
+    pub async fn set_model(&self, provider: &str, model_id: &str) -> Result<Value, RpcError> {
+        self.command(
+            "set_model",
+            json!({ "provider": provider, "modelId": model_id }),
+        )
+        .await
+    }
+
+    pub async fn get_login_providers(&self) -> Result<Value, RpcError> {
+        self.command("get_login_providers", json!({})).await
+    }
+
+    pub async fn login(&self, provider_id: &str) -> Result<Value, RpcError> {
+        self.command("login", json!({ "providerId": provider_id }))
+            .await
+    }
+
+    pub async fn get_available_commands(&self) -> Result<Value, RpcError> {
+        self.command("get_available_commands", json!({})).await
+    }
+
+    /// Aborts the current turn (`abort` command).
+    pub async fn abort(&self) -> Result<Value, RpcError> {
+        self.command("abort", json!({})).await
+    }
+
+    /// Queues a steering message while the agent is running.
+    pub async fn steer(&self, message: &str) -> Result<Value, RpcError> {
+        self.command("steer", json!({ "message": message })).await
+    }
+
+    /// Queues a follow-up message (post-turn).
+    pub async fn follow_up(&self, message: &str) -> Result<Value, RpcError> {
+        self.command("follow_up", json!({ "message": message }))
+            .await
+    }
+
+    async fn write_line(&self, line: &str) -> Result<(), RpcError> {
+        let mut stdin = self.writer_guard().await?;
+        stdin
+            .write_all(line.as_bytes())
+            .await
+            .map_err(|_| RpcError::ConnectionClosed)?;
+        stdin
+            .write_all(b"\n")
+            .await
+            .map_err(|_| RpcError::ConnectionClosed)?;
+        stdin.flush().await.map_err(|_| RpcError::ConnectionClosed)
+    }
+
+    /// Returns the stdin guard, or an error when the client is not started.
+    async fn writer_guard(
+        &self,
+    ) -> Result<tokio::sync::MutexGuard<'_, tokio::process::ChildStdin>, RpcError> {
+        match &self.writer {
+            Some(mutex) => Ok(mutex.lock().await),
+            None => Err(RpcError::ConnectionClosed),
         }
     }
 }
 
-/// Routes one decoded JSON frame: command responses go to the pending map,
-/// everything else becomes a normalized event.
+impl Drop for OmpRpcClient {
+    fn drop(&mut self) {
+        // Best-effort synchronous kill: tokio's Child::start_kill is not
+        // async and works without a runtime.
+        if let Some(handle) = &self.child {
+            if let Ok(mut guard) = handle.try_lock() {
+                if let Some(mut child) = guard.take() {
+                    let _ = child.start_kill();
+                }
+            }
+        }
+    }
+}
+
+fn push_tail(tail: &Mutex<String>, line: &str, cap: usize) {
+    let mut guard = tail.lock();
+    if guard.len() + line.len() + 1 > cap {
+        let drop = guard.len() + line.len() + 1 - cap;
+        let cut = guard
+            .char_indices()
+            .nth(drop)
+            .map(|(i, _)| i)
+            .unwrap_or(guard.len());
+        guard.drain(..cut);
+    }
+    guard.push_str(line);
+    guard.push('\n');
+}
+
+fn format_stderr_tail(tail: &str) -> String {
+    let tail = tail.trim();
+    if tail.is_empty() {
+        String::new()
+    } else {
+        format!(": {tail}")
+    }
+}
+
+/// Handles one physical stdout line: plain JSON frame or `rpc_chunk`.
+/// Rejects ordinary frames that interrupt an active chunk sequence.
+async fn handle_line(
+    line: &str,
+    reassembler: &mut ChunkReassembler,
+    pending: &Arc<PendingMap>,
+    event_tx: &mpsc::Sender<AgentEvent>,
+) -> Result<(), RpcError> {
+    let value: Value = serde_json::from_str(line).map_err(|_| RpcError::Parse {
+        line: line.to_string(),
+    })?;
+    let frame_type = value.get("type").and_then(Value::as_str).unwrap_or("");
+
+    if frame_type == "rpc_chunk" {
+        let chunk: RpcChunk = serde_json::from_value(value).map_err(|e| RpcError::Chunk {
+            detail: format!("bad chunk frame: {e}"),
+        })?;
+        if let Some(bytes) = reassembler.feed(&chunk)? {
+            let frame = decode_reassembled(bytes)?;
+            dispatch_frame(&frame, pending, event_tx).await?;
+        }
+        return Ok(());
+    }
+
+    // An ordinary frame while a chunk sequence is active interrupts it.
+    if reassembler.is_active() {
+        let detail = format!(
+            "chunk sequence interrupted by ordinary frame type {frame_type:?}; \
+             sequence rejected"
+        );
+        reassembler.reset_interrupted();
+        return Err(RpcError::Chunk { detail });
+    }
+
+    dispatch_frame(&value, pending, event_tx).await?;
+    Ok(())
+}
+
+/// Routes one decoded JSON frame: command responses complete the registered
+/// waiter, everything else becomes a normalized event.
 async fn dispatch_frame(
     frame: &Value,
-    pending: &std::sync::Mutex<HashMap<String, Option<Result<Value, RpcError>>>>,
-    wake: &Notify,
+    pending: &Arc<PendingMap>,
     event_tx: &mpsc::Sender<AgentEvent>,
-) {
+) -> Result<(), RpcError> {
     let frame_type = frame.get("type").and_then(Value::as_str).unwrap_or("");
     match frame_type {
         "response" => {
             let id = frame.get("id").and_then(Value::as_str).unwrap_or("");
             let command = frame.get("command").and_then(Value::as_str).unwrap_or("?");
-            let success = frame.get("success").and_then(Value::as_bool).unwrap_or(false);
-            let result = if success {
-                Ok(frame.get("data").cloned().unwrap_or(Value::Null))
+            let success = frame
+                .get("success")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if success {
+                let result = frame.get("data").cloned().unwrap_or(Value::Null);
+                complete_waiter(pending, id, Ok(result));
             } else {
-                Err(RpcError::CommandFailed {
+                let code = frame
+                    .get("code")
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                let error = frame
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown error")
+                    .to_string();
+                let failure = Err(RpcError::CommandFailed {
                     command: command.to_string(),
-                    error: frame
-                        .get("error")
-                        .and_then(Value::as_str)
-                        .unwrap_or("unknown error")
-                        .to_string(),
-                })
-            };
-            let mut guard = pending.lock().unwrap();
-            if id.is_empty() {
-                // Unknown-command/parse failures carry no id; surface as event.
-                drop(guard);
-                let _ = event_tx
-                    .send(AgentEvent::Unknown { raw: frame.clone() })
-                    .await;
-                return;
+                    code,
+                    error,
+                });
+                if id.is_empty() {
+                    // Unknown-command/parse failures carry no id.
+                    let _ = event_tx.try_send(AgentEvent::Unknown { raw: frame.clone() });
+                } else if !complete_waiter(pending, id, failure) {
+                    // Late failure for an already-completed request (e.g. a
+                    // prompt that was acknowledged and later failed during
+                    // async scheduling): route to a diagnostic event, never
+                    // into the pending map.
+                    let _ = event_tx.try_send(AgentEvent::LateCommandFailure {
+                        id: id.to_string(),
+                        command: command.to_string(),
+                        code: frame
+                            .get("code")
+                            .and_then(Value::as_str)
+                            .map(str::to_string),
+                        error: frame
+                            .get("error")
+                            .and_then(Value::as_str)
+                            .unwrap_or("unknown error")
+                            .to_string(),
+                    });
+                }
             }
-            guard.insert(id.to_string(), Some(result));
-            drop(guard);
-            wake.notify_waiters();
-        }
-        "ready" => {
-            let _ = event_tx
-                .send(AgentEvent::Unknown { raw: frame.clone() })
-                .await;
+            Ok(())
         }
         "rpc_chunk" => unreachable!("chunks are reassembled before dispatch"),
-        "extension_ui_request" => {
-            if let Ok(ui) = serde_json::from_value::<UiRequest>(frame.clone()) {
-                let _ = event_tx.send(AgentEvent::UiRequested(ui)).await;
-            } else {
-                let _ = event_tx.send(AgentEvent::Unknown { raw: frame.clone() }).await;
-            }
-        }
-        "host_tool_call" | "host_tool_cancel" => {
-            if let Ok(req) = serde_json::from_value::<HostToolRequest>(frame.clone()) {
-                let _ = event_tx.send(AgentEvent::HostToolRequested(req)).await;
-            } else {
-                let _ = event_tx.send(AgentEvent::Unknown { raw: frame.clone() }).await;
-            }
-        }
-        "host_uri_request" | "host_uri_cancel" => {
-            if let Ok(req) = serde_json::from_value::<HostUriRequest>(frame.clone()) {
-                let _ = event_tx.send(AgentEvent::HostUriRequested(req)).await;
-            } else {
-                let _ = event_tx.send(AgentEvent::Unknown { raw: frame.clone() }).await;
-            }
-        }
+        "ready" => try_send_event(event_tx, AgentEvent::Unknown { raw: frame.clone() }),
+        "extension_ui_request" => match serde_json::from_value::<UiRequest>(frame.clone()) {
+            Ok(ui) => try_send_event(event_tx, AgentEvent::UiRequested(ui)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("ui request decode: {e}"),
+                },
+            ),
+        },
+        "host_tool_call" => match serde_json::from_value::<HostToolCall>(frame.clone()) {
+            Ok(req) => try_send_event(event_tx, AgentEvent::HostToolCall(req)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("host_tool_call decode: {e}"),
+                },
+            ),
+        },
+        "host_tool_cancel" => match serde_json::from_value::<HostToolCancel>(frame.clone()) {
+            Ok(req) => try_send_event(event_tx, AgentEvent::HostToolCancel(req)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("host_tool_cancel decode: {e}"),
+                },
+            ),
+        },
+        "host_uri_request" => match serde_json::from_value::<HostUriRequest>(frame.clone()) {
+            Ok(req) => try_send_event(event_tx, AgentEvent::HostUriRequest(req)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("host_uri_request decode: {e}"),
+                },
+            ),
+        },
+        "host_uri_cancel" => match serde_json::from_value::<HostUriCancel>(frame.clone()) {
+            Ok(req) => try_send_event(event_tx, AgentEvent::HostUriCancel(req)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("host_uri_cancel decode: {e}"),
+                },
+            ),
+        },
         "available_commands_update" => {
-            let _ = event_tx.send(AgentEvent::CommandsUpdated { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::CommandsUpdated { raw: frame.clone() })
         }
-        "prompt_result" => {
-            let _ = event_tx
-                .send(AgentEvent::PromptResolved(PromptResult {
-                    frame_type: "prompt_result".to_string(),
-                    id: frame.get("id").and_then(Value::as_str).map(str::to_string),
-                    agent_invoked: frame
-                        .get("agentInvoked")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
-                }))
-                .await;
-        }
+        "prompt_result" => match serde_json::from_value::<PromptResult>(frame.clone()) {
+            Ok(result) => try_send_event(event_tx, AgentEvent::PromptResolved(result)),
+            Err(e) => try_send_event(
+                event_tx,
+                AgentEvent::ProtocolError {
+                    detail: format!("prompt_result decode: {e}"),
+                },
+            ),
+        },
         "extension_error" => {
-            let _ = event_tx.send(AgentEvent::ExtensionError { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::ExtensionError { raw: frame.clone() })
         }
-        "agent_start" => {
-            let _ = event_tx.send(AgentEvent::AgentStarted { raw: frame.clone() }).await;
-        }
+        "agent_start" => try_send_event(event_tx, AgentEvent::AgentStarted { raw: frame.clone() }),
         "agent_end" => {
             let is_terminal = frame
                 .get("isTerminal")
                 .and_then(Value::as_bool)
                 .unwrap_or(true);
-            let _ = event_tx.send(AgentEvent::AgentEnded { is_terminal, raw: frame.clone() }).await;
+            try_send_event(
+                event_tx,
+                AgentEvent::AgentEnded {
+                    is_terminal,
+                    raw: frame.clone(),
+                },
+            )
         }
-        "turn_start" => {
-            let _ = event_tx.send(AgentEvent::TurnStarted { raw: frame.clone() }).await;
-        }
-        "turn_end" => {
-            let _ = event_tx.send(AgentEvent::TurnEnded { raw: frame.clone() }).await;
-        }
+        "turn_start" => try_send_event(event_tx, AgentEvent::TurnStarted { raw: frame.clone() }),
+        "turn_end" => try_send_event(event_tx, AgentEvent::TurnEnded { raw: frame.clone() }),
         "message_start" => {
-            let _ = event_tx.send(AgentEvent::MessageStarted { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::MessageStarted { raw: frame.clone() })
         }
         "message_update" => {
-            let _ = event_tx.send(AgentEvent::MessageUpdated { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::MessageUpdated { raw: frame.clone() })
         }
-        "message_end" => {
-            let _ = event_tx.send(AgentEvent::MessageEnded { raw: frame.clone() }).await;
-        }
+        "message_end" => try_send_event(event_tx, AgentEvent::MessageEnded { raw: frame.clone() }),
         "tool_execution_start" => {
-            let _ = event_tx.send(AgentEvent::ToolStarted { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::ToolStarted { raw: frame.clone() })
         }
         "tool_execution_update" => {
-            let _ = event_tx.send(AgentEvent::ToolUpdated { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::ToolUpdated { raw: frame.clone() })
         }
         "tool_execution_end" => {
-            let _ = event_tx.send(AgentEvent::ToolEnded { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::ToolEnded { raw: frame.clone() })
         }
-        "auto_compaction_start" => {
-            let _ = event_tx.send(AgentEvent::CompactionStarted { raw: frame.clone() }).await;
-        }
+        "auto_compaction_start" => try_send_event(
+            event_tx,
+            AgentEvent::CompactionStarted { raw: frame.clone() },
+        ),
         "auto_compaction_end" => {
-            let _ = event_tx.send(AgentEvent::CompactionEnded { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::CompactionEnded { raw: frame.clone() })
         }
         "auto_retry_start" => {
-            let _ = event_tx.send(AgentEvent::RetryStarted { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::RetryStarted { raw: frame.clone() })
         }
-        "auto_retry_end" => {
-            let _ = event_tx.send(AgentEvent::RetryEnded { raw: frame.clone() }).await;
-        }
+        "auto_retry_end" => try_send_event(event_tx, AgentEvent::RetryEnded { raw: frame.clone() }),
         "model_changed" => {
-            let _ = event_tx.send(AgentEvent::ModelChanged { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::ModelChanged { raw: frame.clone() })
         }
         "subagent_lifecycle" | "subagent_progress" | "subagent_event" => {
-            let _ = event_tx.send(AgentEvent::SubagentEvent { raw: frame.clone() }).await;
+            try_send_event(event_tx, AgentEvent::SubagentEvent { raw: frame.clone() })
         }
         _ => {
             // command_output / session_info_update / config_update / notice /
             // irc_message / todo_reminder / goal_updated / ttsr_triggered ...
-            let _ = event_tx
-                .send(AgentEvent::SideChannel { raw: frame.clone() })
-                .await;
+            try_send_event(event_tx, AgentEvent::SideChannel { raw: frame.clone() })
         }
+    }
+}
+
+/// Completes the registered waiter for `id`, if any. Returns `false` when
+/// the id was not registered (unknown or late response).
+fn complete_waiter(pending: &Arc<PendingMap>, id: &str, result: Result<Value, RpcError>) -> bool {
+    let waiter = pending.lock().remove(id);
+    match waiter {
+        Some(tx) => {
+            let _ = tx.send(result);
+            true
+        }
+        None => false,
+    }
+}
+
+/// Forwards an event without ever blocking the reader on a full queue.
+/// Drops are reported once as a protocol diagnostic so consumers know the
+/// stream is lossy under overload rather than silently missing events.
+fn try_send_event(event_tx: &mpsc::Sender<AgentEvent>, event: AgentEvent) -> Result<(), RpcError> {
+    match event_tx.try_send(event) {
+        Ok(()) => Ok(()),
+        Err(mpsc::error::TrySendError::Full(_)) => {
+            let _ = event_tx.try_send(AgentEvent::ProtocolError {
+                detail: "event queue full; events dropped (bounded backpressure)".to_string(),
+            });
+            Ok(())
+        }
+        Err(mpsc::error::TrySendError::Closed(_)) => Err(RpcError::ConnectionClosed),
     }
 }

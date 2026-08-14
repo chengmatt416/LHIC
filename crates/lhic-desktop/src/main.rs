@@ -94,7 +94,7 @@ impl App {
         let manager = self.manager.clone();
         self.runtime.spawn(async move {
             let result = async {
-                let mut client = manager.start_client().await?;
+                let client = manager.start_client().await?;
                 let state = client.get_state().await?;
                 let model = state
                     .get("model")
@@ -105,7 +105,7 @@ impl App {
                 // Stream the full turn to terminal completion instead of
                 // stopping after prompt acceptance.
                 let outcome = lhic_agent::prompt_and_wait(
-                    &mut client,
+                    &client,
                     &message,
                     std::time::Duration::from_secs(600),
                 )

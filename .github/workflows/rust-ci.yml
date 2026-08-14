@@ -1,0 +1,58 @@
+name: Rust CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, rust-rewrite-alpha]
+
+permissions:
+  contents: read
+
+jobs:
+  rust-verify:
+    name: Rust verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.82"
+          components: rustfmt, clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check (all targets)
+        run: cargo check --workspace --all-targets
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test workspace
+        run: cargo test --workspace
+
+  omp-integration:
+    name: OMP RPC integration (Linux, pinned engine)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.82"
+      - name: Verify pinned OMP engine checksum
+        shell: bash
+        run: |
+          set -eu
+          OMP_PATH="apps/desktop/vendor/omp/current/omp"
+          if [ ! -f "$OMP_PATH" ]; then
+            echo "::error::pinned omp binary is missing; add it from the verified release manifest"
+            exit 1
+          fi
+          chmod +x "$OMP_PATH"
+          "$OMP_PATH" --version
+      - name: Run real-OMP integration tests
+        run: cargo test -p lhic-agent --test omp_rpc_integration
+      - name: Run fake-engine protocol tests
+        run: cargo test -p lhic-agent --test fake_engine_tests
