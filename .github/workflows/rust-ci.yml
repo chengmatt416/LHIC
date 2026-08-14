@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.85"
+          toolchain: "1.86"
           components: rustfmt, clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.85"
+          toolchain: "1.86"
       - name: Acquire and verify pinned OMP engine
         shell: bash
         run: |
