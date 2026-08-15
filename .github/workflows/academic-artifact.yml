@@ -1,0 +1,20 @@
+name: Academic Artifact
+
+on:
+  push:
+    branches:
+      - research/lhic-core-academic
+  pull_request:
+
+jobs:
+  invariant-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run LHIC-Core invariants
+        run: npm test
+      - name: Run deterministic failure injection
+        run: npm run bench
