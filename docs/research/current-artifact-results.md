@@ -5,20 +5,20 @@ These results are **artifact-validation and controlled integration results**, no
 ## Validated implementation
 
 - Branch: `research/lhic-core-academic`
-- Real-surface experiment commit: `4ba7e227936d3be6c670a72ba88655f1929c8b7b`
+- Current artifact commit: `3916eeb8b5c88ed362e8863ef7ac8b30b5d9e959`
 - GitHub Actions workflow: `Real Failure Injection`
-- Workflow run: `31878534758`
-- Attempt 1 artifact: `9245405184`
-- Attempt 2 artifact: `9245462560`
+- Validated run: `31879445101`
+- Evidence artifact: `9245643081`
+- Evidence artifact digest: `sha256:82e1c7982d21ef1299c63eaf1034f1c2141b041c4291d488d77c068fdca70b32`
 - Environment: Ubuntu 24.04 / Linux x64 / Node.js v22.23.2
-- Trials per attempt: 10 per surface, 30 total
-- Combined real-surface trial executions across two workflow attempts: 60
+- Real-surface trials: 10 per surface, 30 total
+- Expanded semantic matrix: 5 failure-mode cases
 
-The real workflow contains a hard acceptance gate: it fails unless every trial demonstrates a duplicate in the blind-retry baseline and reaches `verified` with exactly one LHIC dispatch, one recovery observation, one verification, and zero duplicate side effects.
+The workflow contains a hard acceptance gate: it fails unless every real-surface trial demonstrates a duplicate in the blind-retry baseline and reaches `verified` with exactly one LHIC dispatch, one recovery observation, one verification, and zero duplicate side effects. The expanded matrix fails unless each semantic variant matches the expected non-replay state and produces zero duplicate side effects.
 
 ## Core invariant and kernel tests
 
-The academic artifact currently has eight tests:
+The academic artifact currently has thirteen tests:
 
 1. planner cannot lower independently inferred risk;
 2. high-risk action cannot use reusable origin scope;
@@ -27,9 +27,14 @@ The academic artifact currently has eight tests:
 5. verified action identity cannot be dispatched again;
 6. trusted skill promotion requires three independent verified task IDs;
 7. lost response after an external effect is recovered without a second dispatch;
-8. verified action identity remains terminal across later runs.
+8. verified action identity remains terminal across later runs;
+9. pre-dispatch ambiguity with absent effect does not auto-dispatch;
+10. delayed visibility can verify later without duplicate dispatch;
+11. repeated inconclusive observations remain `needs_resolution` and non-dispatchable;
+12. duplicate action delivery after verification is blocked without a second dispatch;
+13. workspace conflict during recovery prevents verified completion without replay.
 
-The 30-trial experiment commit passed the normal `Academic Artifact` workflow as well as the real-surface workflow.
+The current artifact commit passed the normal `Academic Artifact` workflow and the real-surface workflow.
 
 ## Controlled real-surface failure injection
 
@@ -47,7 +52,7 @@ persist possibly_committed
         -> do not replay
 ```
 
-### Primary 30-trial results
+### Current 30-trial results
 
 | Surface | Trials | Blind-retry baseline duplicate effects | LHIC-Core duplicate effects | LHIC recovery success |
 |---|---:|---:|---:|---:|
@@ -72,7 +77,7 @@ Every blind-retry baseline trial produced two committed effects for the same log
 
 ## Fresh-run repeatability check
 
-The exact same implementation commit and 30-trial workflow were re-run in a fresh GitHub Actions attempt.
+Before the expanded matrix was added, the exact same 30-trial real-surface workflow was re-run on commit `4ba7e227936d3be6c670a72ba88655f1929c8b7b`.
 
 Attempt 2 reproduced the same aggregate outcome:
 
@@ -83,9 +88,23 @@ Attempt 2 reproduced the same aggregate outcome:
 | Code / Git | 10 | 10 | 0 | 10 / 10 |
 | **Total** | **30** | **30** | **0** | **30 / 30** |
 
-Across the two workflow attempts, this gives **60 controlled real-surface trial executions** with the same qualitative outcome: 60 baseline duplicate effects, 0 LHIC duplicate effects, and 60 verified LHIC recoveries.
+Across the primary run and the rerun, this gives **60 controlled real-surface trial executions** with the same qualitative outcome: 60 baseline duplicate effects, 0 LHIC duplicate effects, and 60 verified LHIC recoveries. The current commit keeps the same 30-trial real-surface result and adds the expanded matrix below.
 
-This repeatability check is useful evidence that the primary result is not a one-off runner artifact. It is still not a new task distribution or an external benchmark sample; both attempts use the same controlled fixtures and failure semantics.
+## Expanded failure matrix
+
+The expanded matrix varies adjacent ambiguity semantics beyond the flagship post-commit / pre-response crash window.
+
+| Case | Expected final state | Observed state | Durable ledger state | Dispatches | Observations | Verifications | Side effects | Duplicate effects | Result |
+|---|---|---|---|---:|---:|---:|---:|---:|---|
+| Pre-dispatch crash | `needs_resolution` | `needs_resolution` | `needs_resolution` | 1 | 1 | 0 | 0 | 0 | PASS |
+| Delayed visibility | `verified` | `verified` | `verified` | 1 | 2 | 1 | 1 | 0 | PASS |
+| Inconclusive observation | `needs_resolution` | `needs_resolution` | `needs_resolution` | 1 | 1 | 0 | 1 | 0 | PASS |
+| Duplicate delivery | `executed` receipt / `verified` ledger | `executed` | `verified` | 1 | 0 | 1 | 1 | 0 | PASS |
+| Workspace conflict | `executed` | `executed` | `executed` | 1 | 1 | 1 | 1 | 0 | PASS |
+
+The five matrix cases completed in 65 ms total in the CI artifact. The latency value is a harness sanity measurement, not an optimized performance result.
+
+## Surface details
 
 ### Browser
 
@@ -116,21 +135,16 @@ The synthetic results are not substituted for the real-surface experiments; they
 
 The controlled real-surface result supports a narrow claim:
 
-> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 30 primary controlled browser, desktop, and code trials and reproduced the same outcome in a second 30-trial workflow attempt, while the blind-retry baseline duplicated the effect in every trial.
+> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 30 current controlled browser, desktop, and code trials, reproduced the same outcome in an earlier independent 30-trial workflow attempt, and passed five adjacent ambiguity cases in the expanded matrix, while the blind-retry baseline duplicated the effect in every flagship real-surface trial.
 
 This does **not** establish general computer-use capability, statistical superiority in open-world tasks, or SOTA performance on OSWorld, SWE-bench, tau-bench, or other official benchmarks. The fixtures are deliberately controlled to isolate execution semantics.
 
 ## Next evaluation layer
 
-The next publication-facing experiments should vary the failure window rather than only repeat the flagship case:
+The next publication-facing experiments should add:
 
-1. crash after durable ambiguity persistence but before physical dispatch;
-2. crash after effect commit but before response (current flagship);
-3. delayed postcondition visibility after commit;
-4. inconclusive observation that must remain `needs_resolution`;
-5. duplicate/delayed executor response;
-6. stale workspace mutation during recovery;
-7. policy understatement and approval replay negative controls;
-8. latency / extra-observation / verifier overhead.
-
-After those controlled variants, the same fault injector should wrap official benchmark adapters while preserving their scoring rules.
+1. multiple randomized visibility delays rather than a single delayed-visibility case;
+2. partial commit cases where verifier evidence is mixed;
+3. larger same-repo concurrent workspace mutations;
+4. latency / added-observation / verifier overhead across repeated runs;
+5. official benchmark adapters that preserve evaluator scoring rules.
