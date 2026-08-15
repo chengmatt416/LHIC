@@ -6,6 +6,7 @@ import tkinter as tk
 
 state_path = pathlib.Path(sys.argv[1])
 token = sys.argv[2]
+mode = sys.argv[3] if len(sys.argv) > 3 else "complete"
 
 def read_count() -> int:
     try:
@@ -29,7 +30,8 @@ def persist() -> None:
 
 def refresh() -> None:
     label.config(text=f"Committed desktop actions: {count}")
-    root.title(f"LHIC Desktop Fixture {token} count={count}")
+    status = "partial" if mode == "partial" and count > 0 else "complete"
+    root.title(f"LHIC Desktop Fixture {token} count={count} status={status}")
 
 def commit() -> None:
     global count
