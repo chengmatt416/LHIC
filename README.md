@@ -31,7 +31,7 @@ postcondition verifier
         +---- success + evidence ----> verified receipt
         |
         +---- crash / timeout -------> re-observe external state
-                                        | present -> do not replay
+                                        | present -> verify; do not replay
                                         | absent  -> safe retry path
                                         | unclear -> needs_resolution
 ```
@@ -51,6 +51,8 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 
 ## Repository map
 
+### Executable research kernel
+
 - `src/model.ts` — minimal academic types for actions, approvals, ledger entries, receipts, evidence, and memory.
 - `src/policy.ts` — conservative independent side-effect classification and the “planner may raise risk, never lower it” rule.
 - `src/approval.ts` — exact-action, plan-step, read-only, and bounded origin/class approval scopes.
@@ -61,11 +63,18 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 - `src/kernel.ts` — minimal execution kernel composing policy, approval, ledger, adapters, verification, and recovery.
 - `test/core.test.ts` — executable checks for the core invariants.
 - `benchmark/failure-injection.ts` — deterministic synthetic non-atomic failure harness.
-- `core/invariants.md` — paper-facing safety/correctness invariants.
-- `docs/research/formal-model.md` — compact formal model and transition rules.
+
+### Paper-facing material
+
+- `core/invariants.md` — safety and correctness invariants.
+- `docs/research/formal-model.md` — operational model and transition relation.
 - `docs/research/ablation-matrix.md` — evaluation variants, failure modes, and metrics.
-- `docs/research/references.md` — related-work positioning map.
-- `paper/lhic-core-paper.md` — English paper draft scaffold.
+- `docs/research/evaluation-protocol.md` — planned controlled and external-validity evaluation.
+- `docs/research/current-artifact-results.md` — reproducible sanity-check output from the current reference harness.
+- `docs/research/code-provenance.md` — mapping from product modules to academic transformations.
+- `docs/research/academic-positioning.md` — novelty boundary and research framing.
+- `docs/research/references.md` — related-work map and claim discipline.
+- `paper/lhic-core-paper.md` — pre-results paper draft.
 
 ## Run the artifact
 
@@ -77,6 +86,12 @@ npm run bench
 ```
 
 The benchmark is a **controlled synthetic failure-injection harness**, not an official OSWorld, SWE-bench, or tau-bench score.
+
+Current reference checks:
+
+- 6 invariant tests, expected `6 passed / 0 failed`;
+- 100 deterministic synthetic trials per runtime strategy;
+- current synthetic harness demonstrates the intended safety/availability trade-off and is recorded in `docs/research/current-artifact-results.md`.
 
 ## Primary research contributions
 
@@ -91,6 +106,8 @@ The benchmark is a **controlled synthetic failure-injection harness**, not an of
 The intended claim is not “LHIC is a smarter planner” or “LHIC is universally SOTA.” The intended claim is:
 
 > With the same planner, a deterministic execution kernel with durable side-effect state, independent verification, and authority-aware receipts can reduce duplicate side effects, false completion, and unsafe replay under non-atomic failures.
+
+The synthetic harness is internal-validity evidence only. Real-world publication claims require repeated experiments on real browser/desktop/coding adapters and external benchmark harnesses.
 
 ## Suggested paper title
 
