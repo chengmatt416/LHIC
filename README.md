@@ -61,9 +61,20 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 - `src/receipt.ts` — authority-separated evidence-carrying action receipts.
 - `src/memory.ts` — independent-task + holdout promotion rule and code-anchor staleness.
 - `src/kernel.ts` — minimal execution kernel composing policy, approval, ledger, adapters, verification, and recovery.
-- `test/core.test.ts` — six focused invariant tests.
-- `test/kernel.integration.test.ts` — two end-to-end crash-recovery / replay-exclusion kernel tests.
+- `test/core.test.ts` — six executable invariant checks.
+- `test/kernel.integration.test.ts` — two end-to-end crash/recovery checks.
 - `benchmark/failure-injection.ts` — deterministic synthetic non-atomic failure harness.
+
+### Real failure-injection experiments
+
+- `experiments/real/browser.ts` — real Chromium + HTTP form side effects through Playwright.
+- `experiments/real/desktop.ts` — real X11/Tk GUI actions injected through `xdotool`.
+- `experiments/real/desktop-fixture.py` — deterministic native desktop fixture.
+- `experiments/real/code.ts` — real isolated Git repository edits and commits.
+- `experiments/real/run-all.ts` — aggregate runner and evidence writer.
+- `docs/research/real-failure-injection.md` — experiment protocol, reproduction, and claim boundary.
+
+The flagship injected failure is identical across surfaces: **the external effect commits, then the dispatcher process is killed before the agent receives completion**. The vanilla baseline blindly retries; LHIC-Core reloads its durable ledger, re-observes the real external state, verifies the postcondition, and should avoid duplicate dispatch.
 
 ### Paper-facing material
 
@@ -71,7 +82,7 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 - `docs/research/formal-model.md` — operational model and transition relation.
 - `docs/research/ablation-matrix.md` — evaluation variants, failure modes, and metrics.
 - `docs/research/evaluation-protocol.md` — planned controlled and external-validity evaluation.
-- `docs/research/current-artifact-results.md` — reproducible sanity-check output from the current reference harness.
+- `docs/research/current-artifact-results.md` — reproducible sanity-check output from the reference harness.
 - `docs/research/code-provenance.md` — mapping from product modules to academic transformations.
 - `docs/research/academic-positioning.md` — novelty boundary and research framing.
 - `docs/research/references.md` — related-work map and claim discipline.
@@ -79,21 +90,57 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 
 ## Run the artifact
 
-Node.js 22.6+ can execute the TypeScript directly using type stripping. There are no third-party runtime dependencies.
+Node.js 22.6+ can execute the TypeScript directly using type stripping.
+
+Fast dependency-free checks:
 
 ```bash
 npm test
 npm run bench
 ```
 
-The benchmark is a **controlled synthetic failure-injection harness**, not an official OSWorld, SWE-bench, or tau-bench score.
-
-Current reference checks:
+Current core checks:
 
 - 8 tests total: 6 invariant tests + 2 kernel-level crash/recovery integration tests;
-- expected `8 passed / 0 failed`;
-- 100 deterministic synthetic trials per runtime strategy;
-- current synthetic harness demonstrates the intended safety/availability trade-off and is recorded in `docs/research/current-artifact-results.md`.
+- deterministic synthetic trials for fast semantic regression;
+- real browser/desktop/code experiments in a separate integration workflow.
+
+### Run the real experiments
+
+Code-only experiment needs only Node and Git:
+
+```bash
+LHIC_REAL_TRIALS=3 npm run experiment:code
+```
+
+Browser experiment uses pinned Playwright + Chromium:
+
+```bash
+npm install --no-save --ignore-scripts playwright@1.62.1
+npx playwright install --with-deps chromium
+LHIC_REAL_TRIALS=3 npm run experiment:browser
+```
+
+Desktop experiment on Debian/Ubuntu:
+
+```bash
+sudo apt-get install xvfb xauth xdotool python3-tk
+LHIC_REAL_TRIALS=3 npm run experiment:desktop
+```
+
+Full integration suite:
+
+```bash
+LHIC_REAL_TRIALS=3 npm run experiment:real
+```
+
+The aggregate evidence is written to:
+
+```text
+artifacts/real-failure-injection-results.json
+```
+
+The synthetic benchmark and controlled real fixtures are **not** official OSWorld, SWE-bench, or τ-bench scores.
 
 ## Primary research contributions
 
@@ -109,7 +156,7 @@ The intended claim is not “LHIC is a smarter planner” or “LHIC is universa
 
 > With the same planner, a deterministic execution kernel with durable side-effect state, independent verification, and authority-aware receipts can reduce duplicate side effects, false completion, and unsafe replay under non-atomic failures.
 
-The synthetic harness is internal-validity evidence only. Real-world publication claims require repeated experiments on real browser/desktop/coding adapters and external benchmark harnesses.
+The real-surface fixture experiments strengthen internal validity because the side effects happen in actual Chromium, a native X11/Tk window, and an isolated Git repository. Publication-level external validity still requires repeated experiments on real benchmark tasks and official evaluator harnesses.
 
 ## Suggested paper title
 
