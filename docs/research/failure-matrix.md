@@ -16,7 +16,7 @@ The matrix is still an artifact-validation harness, not an official benchmark. I
 
 ## Latest result
 
-Validated on commit `3916eeb8b5c88ed362e8863ef7ac8b30b5d9e959`, workflow run `31879445101`, artifact `9245643081`.
+Validated on commit `18c6ababa50b6f7a63afc49708cb7ebb1fc01201`, workflow run `31879578627`, artifact `9245677516`.
 
 | Case | Expected final state | Observed state | Durable ledger state | Dispatches | Observations | Verifications | Side effects | Duplicate effects | Result |
 |---|---|---|---|---:|---:|---:|---:|---:|---|
@@ -26,7 +26,7 @@ Validated on commit `3916eeb8b5c88ed362e8863ef7ac8b30b5d9e959`, workflow run `31
 | Duplicate delivery | `executed` receipt / `verified` ledger | `executed` | `verified` | 1 | 0 | 1 | 1 | 0 | PASS |
 | Workspace conflict | `executed` | `executed` | `executed` | 1 | 1 | 1 | 1 | 0 | PASS |
 
-The full matrix completed in 65 ms in the CI runner. This is a harness sanity measurement, not a performance claim.
+The machine-readable artifact includes per-case latency. Those values are useful for sanity checking but are not treated as optimized performance results.
 
 ## Why this matters
 

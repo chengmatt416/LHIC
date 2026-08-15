@@ -5,11 +5,10 @@ These results are **artifact-validation and controlled integration results**, no
 ## Validated implementation
 
 - Branch: `research/lhic-core-academic`
-- Current artifact commit: `3916eeb8b5c88ed362e8863ef7ac8b30b5d9e959`
-- GitHub Actions workflow: `Real Failure Injection`
-- Validated run: `31879445101`
-- Evidence artifact: `9245643081`
-- Evidence artifact digest: `sha256:82e1c7982d21ef1299c63eaf1034f1c2141b041c4291d488d77c068fdca70b32`
+- Current artifact commit: `18c6ababa50b6f7a63afc49708cb7ebb1fc01201`
+- Current real workflow run: `31879578627`
+- Current evidence artifact: `9245677516`
+- Current evidence artifact digest: `sha256:efc4bb668a7fd6263efce07dd527665da179f2bf721ed177ad2ede8149d27558`
 - Environment: Ubuntu 24.04 / Linux x64 / Node.js v22.23.2
 - Real-surface trials: 10 per surface, 30 total
 - Expanded semantic matrix: 5 failure-mode cases
@@ -102,7 +101,7 @@ The expanded matrix varies adjacent ambiguity semantics beyond the flagship post
 | Duplicate delivery | `executed` receipt / `verified` ledger | `executed` | `verified` | 1 | 0 | 1 | 1 | 0 | PASS |
 | Workspace conflict | `executed` | `executed` | `executed` | 1 | 1 | 1 | 1 | 0 | PASS |
 
-The five matrix cases completed in 65 ms total in the CI artifact. The latency value is a harness sanity measurement, not an optimized performance result.
+The matrix also records per-case latency in the machine-readable artifact. Latency is treated as a harness sanity measurement, not an optimized performance result.
 
 ## Surface details
 
