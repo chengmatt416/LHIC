@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "bench": "node --experimental-strip-types benchmark/failure-injection.ts",
+    "bench:overhead": "node --experimental-strip-types benchmark/no-fault-overhead.ts",
     "experiment:browser": "node --experimental-strip-types experiments/real/browser.ts",
     "experiment:desktop": "xvfb-run -a node --experimental-strip-types experiments/real/desktop.ts",
     "experiment:code": "node --experimental-strip-types experiments/real/code.ts",
