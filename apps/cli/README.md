@@ -4,6 +4,35 @@ LHIC is a local-first controller for deterministic browser and global desktop
 actions. It runs browser Fast Path actions directly through Playwright and
 controls macOS, Windows, and Linux desktops through native OS APIs.
 
+## Agent
+
+`lhic agent` embeds the omp coding agent as a complete terminal application —
+the CLI twin of the desktop Agent Studio:
+
+```bash
+# interactive REPL (sessions, models, thinking, todos, export, …)
+lhic agent
+
+# one-shot prompt
+lhic agent "Refactor the upload handler and run the tests"
+```
+
+While the agent runs, typed input steers it (Ctrl-C aborts). The agent can
+call the approval-gated LHIC host tools — `lhic_browser_execute` and
+`lhic_desktop_execute` — which run the plan locally with per-step terminal
+approval and verifier evidence, exactly like the desktop app's gates. The omp
+binary is downloaded on first use (SHA-256 verified) and cached under
+`~/.cache/lhic/omp`; override with `OMP_BINARY`. Slash commands: `/help`,
+`/new`, `/sessions`, `/switch`, `/model`, `/thinking`, `/fast`, `/todos`,
+`/export`, `/abort`, `/exit`.
+
+The omp core auto-updates: on every agent start LHIC checks the latest omp
+release (cached for 6 hours) and downloads newer versions, SHA-256 verified,
+into `~/.cache/lhic/omp/<version>`; the newest version is used automatically
+from the next start. The desktop app does the same. Disable with
+`LHIC_DISABLE_OMP_UPDATE=1`; override the pinned version with `OMP_VERSION`
+and the cache location with `LHIC_OMP_CACHE_DIR`.
+
 ## Beginner workflow
 
 After installing the CLI, start with one command:

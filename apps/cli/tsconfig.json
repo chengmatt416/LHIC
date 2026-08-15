@@ -8,18 +8,48 @@
     "outDir": "./dist"
   },
   "references": [
-    { "path": "../../packages/browser" },
-    { "path": "../../packages/controller" },
-    { "path": "../../packages/game-training" },
-    { "path": "../../packages/game-training-2d" },
-    { "path": "../../packages/game-training-3d" },
-    { "path": "../../packages/memory" },
-    { "path": "../../packages/schema" },
-    { "path": "../../packages/security" },
-    { "path": "../../packages/shared-skills" },
-    { "path": "../../packages/skills" },
-    { "path": "../../packages/trace" },
-    { "path": "../../packages/verifier" }
+    {
+      "path": "../../packages/browser"
+    },
+    {
+      "path": "../../packages/controller"
+    },
+    {
+      "path": "../../packages/game-training"
+    },
+    {
+      "path": "../../packages/game-training-2d"
+    },
+    {
+      "path": "../../packages/game-training-3d"
+    },
+    {
+      "path": "../../packages/ledger"
+    },
+    {
+      "path": "../../packages/memory"
+    },
+    {
+      "path": "../../packages/omp-rpc"
+    },
+    {
+      "path": "../../packages/schema"
+    },
+    {
+      "path": "../../packages/security"
+    },
+    {
+      "path": "../../packages/shared-skills"
+    },
+    {
+      "path": "../../packages/skills"
+    },
+    {
+      "path": "../../packages/trace"
+    },
+    {
+      "path": "../../packages/verifier"
+    }
   ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]

@@ -6,6 +6,11 @@ import type {
   SlowPathRequest,
   SlowPathResponse,
 } from "./slow-path.js";
+import { validateCredentialedModelEndpoint } from "./model-endpoint.js";
+import {
+  OperationInterruptedError,
+  runInterruptible,
+} from "./interruptible-operation.js";
 
 const defaultEndpoint = "https://api.openai.com/v1/responses";
 const defaultModel = "gpt-5.6";
@@ -120,12 +125,18 @@ export class OpenAISlowPathProvider implements SlowPathProvider {
       process.env.LHIC_OPENAI_API_KEY ??
       process.env.OPENAI_API_KEY;
     this.model = options.model ?? process.env.LHIC_OPENAI_MODEL ?? defaultModel;
-    this.endpoint = options.endpoint ?? defaultEndpoint;
+    this.endpoint = validateCredentialedModelEndpoint(
+      options.endpoint ?? defaultEndpoint,
+      "OpenAI endpoint",
+    ).href;
     this.timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
     this.fetchImplementation = options.fetchImplementation ?? fetch;
   }
 
-  public async reason(request: SlowPathRequest): Promise<SlowPathResponse> {
+  public async reason(
+    request: SlowPathRequest,
+    signal?: AbortSignal,
+  ): Promise<SlowPathResponse> {
     if (!this.enabled) {
       return {
         decision: "blocked",
@@ -139,6 +150,7 @@ export class OpenAISlowPathProvider implements SlowPathProvider {
           "OpenAI Slow Path is enabled but OPENAI_API_KEY is not configured.",
       };
     }
+    const apiKey = this.apiKey;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs <= 0) {
       return {
         decision: "blocked",
@@ -146,86 +158,92 @@ export class OpenAISlowPathProvider implements SlowPathProvider {
       };
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     const safeRequest = redactPII(request);
     try {
-      const response = await this.fetchImplementation(this.endpoint, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.apiKey}`,
-          "content-type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: this.model,
-          store: false,
-          max_output_tokens: 1_200,
-          instructions:
-            "You are LHIC's Slow Path planner. Return only the required JSON schema. Never request, infer, repeat, or emit credentials, tokens, cookies, API keys, passwords, or personally identifying information. Propose browser semantic actions only. Use ask_user or blocked when information is missing or a safe plan cannot be formed.",
-          input: JSON.stringify(safeRequest),
-          text: {
-            format: {
-              type: "json_schema",
-              name: "lhic_slow_path_plan",
-              strict: true,
-              schema: slowPathResponseSchema,
+      return await runInterruptible<SlowPathResponse>(
+        "OpenAI Slow Path",
+        this.timeoutMs,
+        async (requestSignal) => {
+          const response = await this.fetchImplementation(this.endpoint, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${apiKey}`,
+              "content-type": "application/json",
             },
-          },
-        }),
-      });
-      if (!response.ok) {
-        return {
-          decision: "blocked",
-          message: `OpenAI Slow Path request failed with HTTP ${response.status}.`,
-        };
-      }
+            signal: requestSignal,
+            body: JSON.stringify({
+              model: this.model,
+              store: false,
+              max_output_tokens: 1_200,
+              instructions:
+                "You are LHIC's Slow Path planner. Return only the required JSON schema. Never request, infer, repeat, or emit credentials, tokens, cookies, API keys, passwords, or personally identifying information. Propose browser semantic actions only. Use ask_user or blocked when information is missing or a safe plan cannot be formed.",
+              input: JSON.stringify(safeRequest),
+              text: {
+                format: {
+                  type: "json_schema",
+                  name: "lhic_slow_path_plan",
+                  strict: true,
+                  schema: slowPathResponseSchema,
+                },
+              },
+            }),
+          });
+          if (!response.ok) {
+            return {
+              decision: "blocked",
+              message: `OpenAI Slow Path request failed with HTTP ${response.status}.`,
+            };
+          }
 
-      const body = (await response.json()) as OpenAIResponsesResponse;
-      const refusal = findRefusal(body);
-      if (refusal) {
-        return {
-          decision: "blocked",
-          message: `OpenAI Slow Path refused the request: ${refusal}`,
-        };
-      }
-      const text = findOutputText(body);
-      if (!text) {
-        return {
-          decision: "blocked",
-          message: "OpenAI Slow Path returned no structured output.",
-        };
-      }
+          const body = (await response.json()) as OpenAIResponsesResponse;
+          const refusal = findRefusal(body);
+          if (refusal) {
+            return {
+              decision: "blocked",
+              message: `OpenAI Slow Path refused the request: ${refusal}`,
+            };
+          }
+          const text = findOutputText(body);
+          if (!text) {
+            return {
+              decision: "blocked",
+              message: "OpenAI Slow Path returned no structured output.",
+            };
+          }
 
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        return {
-          decision: "blocked",
-          message: "OpenAI Slow Path returned invalid JSON.",
-        };
-      }
-      if (!isSlowPathResponse(parsed)) {
-        return {
-          decision: "blocked",
-          message:
-            "OpenAI Slow Path returned a plan that failed LHIC semantic-action validation.",
-        };
-      }
-      return parsed;
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            return {
+              decision: "blocked",
+              message: "OpenAI Slow Path returned invalid JSON.",
+            };
+          }
+          if (!isSlowPathResponse(parsed)) {
+            return {
+              decision: "blocked",
+              message:
+                "OpenAI Slow Path returned a plan that failed LHIC semantic-action validation.",
+            };
+          }
+          return parsed;
+        },
+        signal,
+      );
     } catch (error) {
-      const timedOut = controller.signal.aborted;
       return {
         decision: "blocked",
-        message: timedOut
-          ? `OpenAI Slow Path timed out after ${this.timeoutMs} ms.`
-          : error instanceof Error
-            ? `OpenAI Slow Path failed: ${error.message}`
-            : "OpenAI Slow Path failed.",
+        message:
+          error instanceof OperationInterruptedError &&
+          error.reason === "timeout"
+            ? `OpenAI Slow Path timed out after ${this.timeoutMs} ms.`
+            : error instanceof OperationInterruptedError
+              ? "OpenAI Slow Path request was aborted."
+              : error instanceof Error
+                ? `OpenAI Slow Path failed: ${error.message}`
+                : "OpenAI Slow Path failed.",
       };
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }

@@ -5,3 +5,4 @@ export * from "./trace-summary.js";
 export * from "./otel-exporter.js";
 export * from "./path-routing.js";
 export * from "./prune.js";
+export * from "./receipt-log.js";

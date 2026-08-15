@@ -104,7 +104,7 @@ export class PlaywrightDirectExecutor {
     { actionHash: string; memory: ResolvedTarget["memory"] } | undefined;
 
   public constructor(
-    private readonly page: Page,
+    private page: Page,
     options: PlaywrightDirectExecutorOptions = {},
   ) {
     this.taskId = options.taskId ?? "browser-session";
@@ -161,12 +161,12 @@ export class PlaywrightDirectExecutor {
   }
 
   private async waitForStability(): Promise<void> {
-    // Dimension 2: Smart Adaptive Wait
-    // 1. Wait for network idle with a short timeout to prevent hanging forever
+    // DOMContentLoaded resolves immediately for an already-loaded document,
+    // unlike networkidle which burns its full timeout on polling/websocket apps.
+    // Playwright locators still auto-wait for actionable targets.
     await this.page
-      .waitForLoadState("networkidle", { timeout: 1500 })
+      .waitForLoadState("domcontentloaded", { timeout: 1500 })
       .catch(() => {});
-    // 2. Wait for rendering frame stability
     await this.page
       .evaluate(
         () =>
@@ -225,6 +225,20 @@ export class PlaywrightDirectExecutor {
         if (!replayDecision.allowed) {
           throw new Error(replayDecision.reason);
         }
+      }
+      if (approval && approvalDecision.approvalId) {
+        await this.trace(
+          "approval_granted",
+          {
+            approvalId: approval.approvalId,
+            actionHash: approval.actionHash,
+            approvedBy: approval.approvedBy,
+            approvedAt: approval.approvedAt,
+            expiresAt: approval.expiresAt,
+            ...(approval.scope ? { scope: approval.scope } : {}),
+          },
+          action.riskLevel,
+        );
       }
 
       this.blockedNavigation = undefined;
@@ -411,6 +425,23 @@ export class PlaywrightDirectExecutor {
         );
       case "custom":
         throw new Error("custom is not a direct executor action.");
+      case "scroll":
+        return this.scroll(action);
+      case "hover":
+        return this.hover(action);
+      case "keyboard":
+        return this.keyboard(action);
+      case "tab":
+      case "multi_tab":
+        return this.tab(action);
+      case "upload":
+        return this.upload(action);
+      case "screenshot":
+        return this.screenshot(action);
+      case "drag":
+        return this.drag(action);
+      default:
+        throw new Error(`Unsupported action type: ${action.type}`);
     }
   }
 
@@ -454,6 +485,161 @@ export class PlaywrightDirectExecutor {
     return {
       method: target.method,
       evidence: [`Downloaded one file (${fileStats.size} bytes).`],
+    };
+  }
+
+  private async scroll(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const direction = action.scrollDirection ?? "down";
+    const amount = action.scrollAmount ?? 3;
+    const scrollMap = {
+      up: { x: 0, y: -amount * 100 },
+      down: { x: 0, y: amount * 100 },
+      left: { x: -amount * 100, y: 0 },
+      right: { x: amount * 100, y: 0 },
+    };
+    const delta = scrollMap[direction];
+    await this.page.mouse.wheel(delta.x, delta.y);
+    await this.page.waitForTimeout(500);
+    return {
+      method: "mouse",
+      evidence: [`Scrolled ${direction} ${amount} units.`],
+    };
+  }
+
+  private async hover(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const target = await this.requireTarget(action);
+    await target.locator.hover({ timeout: this.actionTimeoutMs });
+    return {
+      method: target.method,
+      evidence: [`Hovered over ${action.target}.`],
+    };
+  }
+
+  private async keyboard(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const key = action.key ?? "";
+    const modifiers = action.modifiers ?? [];
+    const combo = [...modifiers, key].join("+");
+    await this.page.keyboard.press(combo);
+    return {
+      method: "keyboard",
+      evidence: [`Pressed ${combo}.`],
+    };
+  }
+
+  private async tab(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const tabAction = action.tabAction ?? "new";
+    const context = this.page.context();
+
+    switch (tabAction) {
+      case "new":
+        this.page = await context.newPage();
+        break;
+      case "close": {
+        await this.page.close();
+        const remainingPage = context.pages().at(-1);
+        if (remainingPage) {
+          this.page = remainingPage;
+          await remainingPage.bringToFront();
+        }
+        break;
+      }
+      case "switch": {
+        const pages = context.pages();
+        const index = action.tabIndex;
+        if (
+          index === undefined ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= pages.length
+        ) {
+          throw new Error(
+            `Tab switch index must be an integer between 0 and ${Math.max(0, pages.length - 1)}.`,
+          );
+        }
+        const selectedPage = pages[index];
+        if (!selectedPage) {
+          throw new Error(`Browser tab ${index} is unavailable.`);
+        }
+        this.page = selectedPage;
+        await selectedPage.bringToFront();
+        break;
+      }
+      case "next":
+      case "previous": {
+        const pages = context.pages();
+        const currentIndex = pages.indexOf(this.page);
+        if (currentIndex < 0 || pages.length === 0) {
+          throw new Error("The current browser tab is unavailable.");
+        }
+        const nextIndex =
+          tabAction === "next"
+            ? (currentIndex + 1) % pages.length
+            : (currentIndex - 1 + pages.length) % pages.length;
+        const selectedPage = pages[nextIndex];
+        if (!selectedPage) {
+          throw new Error(`Browser tab ${nextIndex} is unavailable.`);
+        }
+        this.page = selectedPage;
+        await selectedPage.bringToFront();
+        break;
+      }
+    }
+
+    return {
+      method: "api",
+      evidence: [`Tab ${tabAction} completed.`],
+    };
+  }
+
+  private async upload(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const target = await this.requireTarget(action);
+    const filePath = action.filePath ?? "";
+    await target.locator.setInputFiles(filePath);
+    return {
+      method: target.method,
+      evidence: ["Uploaded one approved local file."],
+    };
+  }
+
+  private async screenshot(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const outputPath =
+      action.outputPath ?? `/tmp/lhic-screenshot-${Date.now()}.png`;
+    await this.page.screenshot({ path: outputPath, fullPage: false });
+    return {
+      method: "vision",
+      evidence: [`Screenshot saved to ${outputPath}.`],
+    };
+  }
+
+  private async drag(
+    action: BrowserSemanticAction,
+  ): Promise<{ method: ActionMethod; evidence: string[] }> {
+    const source = await this.requireTarget(action);
+    const targetSelector = action.dragTarget ?? "";
+    const target = await resolveTarget(
+      this.page,
+      targetSelector,
+      this.selectorMemory,
+      action.type,
+    );
+    await source.locator.dragTo(target.locator, {
+      timeout: this.actionTimeoutMs,
+    });
+    return {
+      method: source.method,
+      evidence: [`Dragged from ${action.target} to ${targetSelector}.`],
     };
   }
 
@@ -546,6 +732,13 @@ function additionalApprovalRequirement(
   ActionApprovalValidationOptions,
   "forceConfirmation" | "confirmationReason"
 > {
+  if (action.type === "upload") {
+    return {
+      forceConfirmation: true,
+      confirmationReason:
+        "Uploads disclose a local file to the current page and require human confirmation.",
+    };
+  }
   if (action.type === "download") {
     return {
       forceConfirmation: true,
@@ -580,14 +773,18 @@ function redactActionInputs(
   const action = payload.action;
   if (!action || typeof action !== "object") return payload;
   const safeAction = { ...(action as Record<string, unknown>) };
-  const actionValue = safeAction.value;
+  const sensitiveValues = [safeAction.value, safeAction.filePath].filter(
+    (value): value is string => typeof value === "string",
+  );
   if ("value" in safeAction) safeAction.value = "[REDACTED]";
+  if ("filePath" in safeAction) safeAction.filePath = "[REDACTED]";
   const result = payload.result;
   if (
-    typeof actionValue !== "string" ||
+    sensitiveValues.length === 0 ||
     !result ||
     typeof result !== "object" ||
-    typeof (result as { error?: unknown }).error !== "string"
+    !("error" in result) ||
+    typeof result.error !== "string"
   ) {
     return { ...payload, action: safeAction };
   }
@@ -595,10 +792,10 @@ function redactActionInputs(
     ...payload,
     action: safeAction,
     result: {
-      ...(result as Record<string, unknown>),
-      error: redactActionValueFromError(
-        (result as { error: string }).error,
-        actionValue,
+      ...result,
+      error: sensitiveValues.reduce(
+        (error, value) => redactActionValueFromError(error, value),
+        result.error,
       ),
     },
   };

@@ -368,6 +368,28 @@ describe("testWebFlow", () => {
             },
           ],
           approvals: {
+            0: createActionApproval(
+              {
+                type: "fill",
+                intent: "fill password",
+                target: "#pwd",
+                value: "secret123",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
+            1: createActionApproval(
+              {
+                type: "fill",
+                intent: "confirm password",
+                target: "#pwd-confirm",
+                value: "secret123",
+                methodPreference: ["dom"],
+                riskLevel: "low",
+              },
+              "operator@example.test",
+            ),
             2: createActionApproval(
               {
                 type: "click",

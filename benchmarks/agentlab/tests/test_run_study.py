@@ -9,9 +9,30 @@ from unittest.mock import patch
 from run_study import STUDY_COMMENT, StudyConfig, parse_args, run_study
 
 
+class _FakeResultFrame:
+    def __init__(self, records: list[dict[str, object]]) -> None:
+        self.records = records
+
+    def to_dict(self, *, orient: str) -> list[dict[str, object]]:
+        if orient != "records":
+            raise AssertionError(f"unexpected orientation: {orient}")
+        return self.records
+
+
 class _FakeStudy:
-    def __init__(self, directory: Path) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        records: list[dict[str, object]] | None = None,
+        expected_experiments: int = 1,
+    ) -> None:
         self.dir = directory
+        self.exp_args_list = [object()] * expected_experiments
+        self.records = (
+            [{"cum_reward": 1.0, "err_msg": None}]
+            if records is None
+            else records
+        )
         self.override_max_steps_value: int | None = None
         self.run_arguments: dict[str, object] | None = None
 
@@ -23,12 +44,20 @@ class _FakeStudy:
         self.dir.mkdir(parents=True, exist_ok=True)
         (self.dir / "result.csv").write_text("reward\n1\n", encoding="utf-8")
 
+    def get_results(
+        self, *, also_save: bool
+    ) -> tuple[_FakeResultFrame, object, str]:
+        if not also_save:
+            raise AssertionError("result artifacts must be saved")
+        return _FakeResultFrame(self.records), object(), ""
+
 
 class RunStudyTests(unittest.TestCase):
     def test_parser_requires_full_benchmark_and_rejects_nonpositive_jobs(self) -> None:
         config = parse_args(["--benchmark", "workarena_l1"])
 
         self.assertEqual(config.benchmark, "workarena_l1")
+        self.assertEqual(config.seed, 0)
         self.assertEqual(config.jobs, 1)
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
@@ -61,6 +90,7 @@ class RunStudyTests(unittest.TestCase):
                 manifest_path = run_study(
                     StudyConfig(
                         benchmark="workarena_l1",
+                        seed=7,
                         jobs=1,
                         backend="sequential",
                         relaunches=1,
@@ -79,6 +109,15 @@ class RunStudyTests(unittest.TestCase):
             self.assertIsNone(study.override_max_steps_value)
             self.assertEqual(study.run_arguments["n_jobs"], 1)
             self.assertEqual(manifest["config"]["benchmark"], "workarena_l1")
+            self.assertEqual(manifest["config"]["seed"], 7)
+            self.assertEqual(
+                manifest["outcome"],
+                {
+                    "expectedExperiments": 1,
+                    "completedExperiments": 1,
+                    "erroredExperiments": 0,
+                },
+            )
             self.assertEqual(manifest["files"][0]["path"], "result.csv")
             self.assertEqual(
                 manifest["runtime"]["imageDigest"], "sha256:" + "1" * 64
@@ -88,11 +127,12 @@ class RunStudyTests(unittest.TestCase):
                 ["agentlab==0.4.0", "browsergym==0.14.3"],
             )
             self.assertRegex(manifest["runtime"]["pythonPackagesSha256"], r"^[0-9a-f]{64}$")
-            self.assertTrue(manifest["secretValuesInspected"] is False)
+            self.assertTrue(manifest["secretValuesRecorded"] is False)
 
     def test_strict_run_rejects_a_debug_step_limit_or_missing_source_revision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = StudyConfig(
+                seed=0,
                 benchmark="workarena_l1",
                 jobs=1,
                 backend="sequential",
@@ -107,6 +147,7 @@ class RunStudyTests(unittest.TestCase):
 
             without_limit = StudyConfig(
                 benchmark=config.benchmark,
+                seed=config.seed,
                 jobs=config.jobs,
                 backend=config.backend,
                 relaunches=config.relaunches,
@@ -134,6 +175,60 @@ class RunStudyTests(unittest.TestCase):
                         without_limit,
                         lambda **_: _FakeStudy(Path(directory)),
                         "agent",
+                    )
+
+    def test_runner_rejects_incomplete_or_errored_studies_without_a_manifest(self) -> None:
+        cases = [
+            (
+                _FakeStudy(
+                    Path("unused"),
+                    records=[],
+                    expected_experiments=1,
+                ),
+                "incomplete",
+            ),
+            (
+                _FakeStudy(
+                    Path("unused"),
+                    records=[{"cum_reward": 0.0, "err_msg": "browser crashed"}],
+                ),
+                "errored",
+            ),
+            (
+                _FakeStudy(
+                    Path("unused"),
+                    records=[{"cum_reward": None, "err_msg": None}],
+                ),
+                "missing-reward",
+            ),
+        ]
+        for study_template, expected_message in cases:
+            with self.subTest(expected_message):
+                with tempfile.TemporaryDirectory() as directory:
+                    study = _FakeStudy(
+                        Path(directory) / "agent-study",
+                        records=study_template.records,
+                        expected_experiments=len(study_template.exp_args_list),
+                    )
+
+                    with self.assertRaisesRegex(RuntimeError, expected_message):
+                        run_study(
+                            StudyConfig(
+                                benchmark="workarena_l1",
+                                seed=0,
+                                jobs=1,
+                                backend="sequential",
+                                relaunches=1,
+                                strict_reproducibility=False,
+                                output_dir=Path(directory),
+                                max_steps=None,
+                            ),
+                            lambda **_: study,
+                            "agent",
+                        )
+
+                    self.assertFalse(
+                        (study.dir / "lhic-study-manifest.json").exists()
                     )
 
 

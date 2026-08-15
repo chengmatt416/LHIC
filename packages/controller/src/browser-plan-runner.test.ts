@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BrowserExecutionPlan } from "@lhic/schema";
-import { createActionApproval } from "@lhic/security";
+import { createActionApproval, type ActionApproval } from "@lhic/security";
 
 import {
   executeBrowserPlan,
@@ -158,6 +158,99 @@ describe("browser plan runner", () => {
     expect(executions).toBe(0);
   });
 
+  it("binds an upload receipt to the resolved caller-supplied file path", async () => {
+    const uploadPlan: BrowserExecutionPlan = {
+      schemaVersion: "browser-plan-v1",
+      goal: "Upload an approved benchmark fixture",
+      requiredVariables: [
+        { name: "fixture", prompt: "Approved fixture file path" },
+      ],
+      steps: [
+        {
+          id: "upload-fixture",
+          action: {
+            type: "upload",
+            intent: "upload the caller-selected fixture",
+            target: "attachment",
+            filePath: "{{variables.fixture}}",
+            methodPreference: ["dom"],
+            riskLevel: "low",
+          },
+          verification: {
+            type: "dom",
+            description: "attachment is selected",
+            params: { selector: "#attachment" },
+          },
+        },
+      ],
+    };
+    const resolved = resolveBrowserPlanVariables(uploadPlan, {
+      fixture: "/fixtures/document.txt",
+    });
+    const receipts: Array<ActionApproval | undefined> = [];
+    const executor = {
+      execute: async (
+        action: BrowserExecutionPlan["steps"][number]["action"],
+        approval?: ActionApproval,
+      ) => {
+        receipts.push(approval);
+        return {
+          success: true,
+          method: "dom" as const,
+          latencyMs: 1,
+          evidence: [`Uploaded ${action.filePath}`],
+        };
+      },
+    };
+    const verifier = {
+      verify: async () => ({
+        success: true,
+        evidence: ["Attachment selected"],
+      }),
+    };
+
+    const waiting = await executeBrowserPlan(resolved, executor, verifier);
+    expect(waiting).toMatchObject({
+      status: "awaiting_approval",
+      stepId: "upload-fixture",
+      nextStepIndex: 0,
+    });
+    expect(receipts).toEqual([]);
+
+    const unresolvedPathApproval = createActionApproval(
+      uploadPlan.steps[0]!.action,
+      "operator@example.test",
+    );
+    const mismatched = await executeBrowserPlan(resolved, executor, verifier, {
+      approvals: { "upload-fixture": unresolvedPathApproval },
+    });
+    expect(mismatched).toMatchObject({
+      status: "awaiting_approval",
+      stepId: "upload-fixture",
+    });
+    expect(receipts).toEqual([]);
+
+    const approval = createActionApproval(
+      resolved.steps[0]!.action,
+      "operator@example.test",
+      { scope: "webarena-episode-1" },
+    );
+    if (waiting.status !== "awaiting_approval") {
+      throw new Error("Upload plan did not produce an approval challenge.");
+    }
+    expect(waiting.approval.actionHash).toBe(approval.actionHash);
+    const completed = await executeBrowserPlan(resolved, executor, verifier, {
+      approvals: { "upload-fixture": approval },
+      approvalScope: "webarena-episode-1",
+    });
+
+    expect(completed).toMatchObject({
+      status: "completed",
+      nextStepIndex: 1,
+      completedSteps: [{ approvalReceipt: approval }],
+    });
+  });
+
   it("requires all declared variables before local execution", () => {
     expect(() => resolveBrowserPlanVariables(plan, {})).toThrow("query");
   });
@@ -170,5 +263,80 @@ describe("browser plan runner", () => {
     expect(() => resolveBrowserPlanVariables(malformed, {})).toThrow(
       "undeclared variable query",
     );
+  });
+
+  it("returns resumable failures when execution boundaries reject", async () => {
+    const resolved = resolveBrowserPlanVariables(plan, { query: "notebook" });
+    const executorFailure = await executeBrowserPlan(
+      { ...resolved, steps: [resolved.steps[0]!] },
+      {
+        execute: async () => {
+          throw new Error("browser session closed");
+        },
+      },
+      {
+        verify: async () => ({ success: true, evidence: ["not reached"] }),
+      },
+    );
+    expect(executorFailure).toMatchObject({
+      status: "failed",
+      nextStepIndex: 0,
+      stepId: "fill-query",
+      error: "Browser action executor failed: browser session closed",
+    });
+
+    const verifierFailure = await executeBrowserPlan(
+      { ...resolved, steps: [resolved.steps[0]!] },
+      {
+        execute: async () => ({
+          success: true,
+          method: "accessibility" as const,
+          latencyMs: 1,
+          evidence: ["Action completed"],
+        }),
+      },
+      {
+        verify: async () => {
+          throw new Error("page detached");
+        },
+      },
+    );
+    expect(verifierFailure).toMatchObject({
+      status: "failed",
+      nextStepIndex: 0,
+      stepId: "fill-query",
+      error: "Browser plan verifier failed: page detached",
+    });
+  });
+
+  it("does not retry a verified plan step when optional learning fails", async () => {
+    const resolved = resolveBrowserPlanVariables(plan, { query: "notebook" });
+    let executions = 0;
+    const result = await executeBrowserPlan(
+      { ...resolved, steps: [resolved.steps[0]!] },
+      {
+        execute: async () => {
+          executions += 1;
+          return {
+            success: true,
+            method: "accessibility" as const,
+            latencyMs: 1,
+            evidence: ["Action completed"],
+          };
+        },
+        rememberVerifiedAction: () => {
+          throw new Error("learning store unavailable");
+        },
+      },
+      {
+        verify: async () => ({
+          success: true,
+          evidence: ["Verified after action"],
+        }),
+      },
+    );
+
+    expect(result).toMatchObject({ status: "completed", nextStepIndex: 1 });
+    expect(executions).toBe(1);
   });
 });

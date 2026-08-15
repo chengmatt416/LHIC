@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [
+    { "path": "../ledger" },
+    { "path": "../schema" },
+    { "path": "../trace" }
+  ],
+  "include": ["src/**/*.ts"]
+}

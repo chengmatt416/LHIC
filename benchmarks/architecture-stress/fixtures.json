@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "lhic-architecture-stress-v1",
+  "purpose": "Adversarial architecture-stress scenarios exercising LHIC's claimed invariants. These are architecture evidence, never official leaderboard scores.",
+  "scenarios": [
+    {
+      "id": "crash-after-browser-click",
+      "claim": "possibly_committed is written before physical dispatch; recovery re-observes and never duplicates",
+      "coveredBy": "SideEffectLedger possibly_committed transition; LedgerCoordinator recovery (sideEffectHappened=true -> verified, no repeat)"
+    },
+    {
+      "id": "crash-after-native-input",
+      "claim": "desktop ambiguous dispatch becomes needs_resolution, never blindly replayed",
+      "coveredBy": "LedgerCoordinator.recover(sideEffectHappened=false) -> needs_resolution; no retry path"
+    },
+    {
+      "id": "ambiguous-target",
+      "claim": "unresolvable semantic targets fail closed",
+      "coveredBy": "ElementGroundedDispatcher no_unique_match -> fallback evidence chain, never silent coordinates"
+    },
+    {
+      "id": "stale-accessibility-tree",
+      "claim": "stale observations cannot silently dispatch",
+      "coveredBy": "observation staleness checks in the desktop observation benchmark fixtures"
+    },
+    {
+      "id": "dom-changed-label-same",
+      "claim": "approval stays bound to the semantic action hash; changed DOM does not invalidate a matching label approval",
+      "coveredBy": "actionHash binding (hashState) with resolved-target safety-text checks"
+    },
+    {
+      "id": "duplicate-approval-replay",
+      "claim": "approval replay is detected",
+      "coveredBy": "FileApprovalReplayStore reserve() atomicity; approval-replay.test.ts"
+    },
+    {
+      "id": "expired-approval",
+      "claim": "expired approvals fail closed",
+      "coveredBy": "validateActionApproval expiry; approval-scope expiry tests"
+    },
+    {
+      "id": "malicious-low-risk-label",
+      "claim": "planner risk labels can never lower the independently inferred class",
+      "coveredBy": "effectiveSideEffectClass monotonicity; policy-fuzz; structuredRiskLevel escalation"
+    },
+    {
+      "id": "visual-parser-mismatch",
+      "claim": "backend disagreement is recorded, never silently resolved",
+      "coveredBy": "BackendAttemptEvidence chain validation in receipts"
+    },
+    {
+      "id": "desktop-focus-stolen",
+      "claim": "focus changes between observe and act invalidate the target",
+      "coveredBy": "pre-dispatch active-window verifier (GlobalComputerExecutor verifyUntil)"
+    },
+    {
+      "id": "sibling-agent-stale-write",
+      "claim": "a stale agent cannot unknowingly write over a sibling's change",
+      "coveredBy": "WorkspaceConflictStore gate + OmpWorkspaceObserver notification"
+    },
+    {
+      "id": "benchmark-version-mismatch",
+      "claim": "benchmark executable identity is measured and enforced",
+      "coveredBy": "run.mjs measureOmpVersion + OMP_BINARY_DIGEST/OMP_BINARY_VERSION enforcement"
+    },
+    {
+      "id": "tampered-evidence-manifest",
+      "claim": "tampered evidence fails validation",
+      "coveredBy": "validateBenchmarkEvidenceBundle artifact hashes + signature verification"
+    }
+  ]
+}

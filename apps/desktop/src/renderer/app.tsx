@@ -16,17 +16,24 @@ import type {
   TaskSourceConfig,
   TrainingJob,
   PublicWebTrainingRequest,
+  AccountStatus,
+  LibrarySearchParams,
+  LibrarySkillSummary,
+  SkillDetail,
 } from "../shared/contracts.js";
 import {
   createDashboardOverview,
   type DashboardDestination,
 } from "./dashboard-model.js";
 import { DemoDirector } from "./demo-director.js";
+import { Agent } from "./agent.js";
 
 type Section =
+  | "agent"
   | "demo"
   | "dashboard"
   | "skills"
+  | "account"
   | "tasks"
   | "mcp"
   | "game"
@@ -43,21 +50,24 @@ const resumableTaskStatuses = new Set<CommandEvent["status"]>([
 ]);
 
 const sections: Array<{ id: Section; label: string; mark: string }> = [
-  { id: "demo", label: "Demo Director", mark: "00" },
-  { id: "dashboard", label: "Overview", mark: "01" },
-  { id: "skills", label: "Skill Depot", mark: "02" },
-  { id: "tasks", label: "Task Console", mark: "03" },
-  { id: "mcp", label: "MCP Link", mark: "04" },
-  { id: "game", label: "Game Lab", mark: "05" },
-  { id: "security", label: "Security", mark: "06" },
-  { id: "judge", label: "Judge Center", mark: "07" },
-  { id: "admin", label: "Admin", mark: "08" },
+  { id: "agent", label: "Agent Studio", mark: "00" },
+  { id: "demo", label: "Demo Director", mark: "01" },
+  { id: "dashboard", label: "Overview", mark: "02" },
+  { id: "skills", label: "Skill Depot", mark: "03" },
+  { id: "account", label: "Account", mark: "04" },
+  { id: "tasks", label: "Task Console", mark: "05" },
+  { id: "mcp", label: "MCP Link", mark: "06" },
+  { id: "game", label: "Game Lab", mark: "07" },
+  { id: "security", label: "Security", mark: "08" },
+  { id: "judge", label: "Judge Center", mark: "09" },
+  { id: "admin", label: "Admin", mark: "10" },
 ];
 
 const navGroups: Array<{ label: string; items: Section[] }> = [
+  { label: "Agent", items: ["agent"] },
   { label: "Present", items: ["demo"] },
   { label: "Monitor", items: ["dashboard", "tasks"] },
-  { label: "Build & connect", items: ["skills", "mcp", "game"] },
+  { label: "Build & connect", items: ["skills", "account", "mcp", "game"] },
   { label: "Governance", items: ["security", "judge", "admin"] },
 ];
 
@@ -65,12 +75,33 @@ export function App(): JSX.Element {
   const [section, setSection] = useState<Section>(() =>
     new URLSearchParams(window.location.search).get("demo") === "1"
       ? "demo"
-      : "dashboard",
+      : "agent",
   );
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>();
   const [notice, setNotice] = useState(
     "Initializing the local control surface…",
   );
+
+  useEffect(() => {
+    void window.lhic.settings
+      .theme()
+      .then((settings) => {
+        document.documentElement.dataset.theme = settings.theme;
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const toggleTheme = async () => {
+    const current = document.documentElement.dataset.theme === "dark";
+    try {
+      const settings = await window.lhic.settings.setTheme(
+        current ? "light" : "dark",
+      );
+      document.documentElement.dataset.theme = settings.theme;
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
 
   const refresh = async () => {
     try {
@@ -171,6 +202,13 @@ export function App(): JSX.Element {
               >
                 ↻
               </button>
+              <button
+                className="icon-button"
+                onClick={() => void toggleTheme()}
+                title="Toggle light / dark theme"
+              >
+                ◐
+              </button>
             </div>
           </div>
         </header>
@@ -208,13 +246,22 @@ function Panel({
   navigate: (section: Section) => void;
 }): JSX.Element {
   switch (section) {
+    case "agent":
+      return <Agent setNotice={setNotice} />;
+    case "account":
+      return <Account setNotice={setNotice} />;
     case "demo":
       return <></>;
     case "dashboard":
       return <Dashboard snapshot={snapshot} navigate={navigate} />;
     case "skills":
       return (
-        <Skills snapshot={snapshot} setNotice={setNotice} refresh={refresh} />
+        <Skills
+          snapshot={snapshot}
+          setNotice={setNotice}
+          refresh={refresh}
+          navigate={navigate}
+        />
       );
     case "tasks":
       return (
@@ -395,11 +442,14 @@ function Skills({
   snapshot,
   setNotice,
   refresh,
+  navigate,
 }: {
   snapshot: DashboardSnapshot;
   setNotice: (value: string) => void;
   refresh: () => Promise<void>;
+  navigate: (section: Section) => void;
 }): JSX.Element {
+  const [libraryTab, setLibraryTab] = useState<"local" | "shared">("local");
   const [destination, setDestination] = useState("./lhic-approved-skills.zip");
   const [query, setQuery] = useState("");
   const [email, setEmail] = useState("");
@@ -482,187 +532,624 @@ function Skills({
   };
   return (
     <div className="stack">
-      <section className="panel">
-        <PanelTitle code="REGISTRY/LOGIN" title="Shared library connection" />
-        <p className="muted">
-          {snapshot.sharedLibrary.configured
-            ? `Registry mirror: ${snapshot.sharedLibrary.cachedSkillCount} approved records; ${snapshot.sharedLibrary.pendingSubmissionCount} local submissions pending review.`
-            : "The bundled Appwrite registry is waiting for Magic Link sign-in."}
-        </p>
-        {snapshot.sharedLibrary.lastSuccessAt ? (
-          <p className="verified">
-            Last verified sync: {snapshot.sharedLibrary.lastSuccessAt}
-          </p>
-        ) : null}
-        {snapshot.sharedLibrary.lastError ? (
-          <p className="muted">
-            Latest sync result: {snapshot.sharedLibrary.lastError}
-          </p>
-        ) : null}
-        <div className="form-grid">
-          <label>
-            Magic Link email for the bundled registry
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+      <div className="tab-row" role="tablist" aria-label="Skill library source">
+        <button
+          className={libraryTab === "local" ? "tab active" : "tab"}
+          onClick={() => setLibraryTab("local")}
+        >
+          Local
+        </button>
+        <button
+          className={libraryTab === "shared" ? "tab active" : "tab"}
+          onClick={() => setLibraryTab("shared")}
+        >
+          Shared Library
+        </button>
+      </div>
+      {libraryTab === "local" ? (
+        <>
+          <section className="panel">
+            <PanelTitle
+              code="REGISTRY/LOGIN"
+              title="Shared library connection"
             />
-          </label>
-        </div>
+            <p className="muted">
+              {snapshot.sharedLibrary.configured
+                ? `Registry mirror: ${snapshot.sharedLibrary.cachedSkillCount} approved records; ${snapshot.sharedLibrary.pendingSubmissionCount} local submissions pending review.`
+                : "The bundled Appwrite registry is waiting for Magic Link sign-in."}
+            </p>
+            {snapshot.sharedLibrary.lastSuccessAt ? (
+              <p className="verified">
+                Last verified sync: {snapshot.sharedLibrary.lastSuccessAt}
+              </p>
+            ) : null}
+            {snapshot.sharedLibrary.lastError ? (
+              <p className="muted">
+                Latest sync result: {snapshot.sharedLibrary.lastError}
+              </p>
+            ) : null}
+            <div className="form-grid">
+              <label>
+                Magic Link email for the bundled registry
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="actions">
+              <button className="button primary" onClick={() => void login()}>
+                Sign in with Magic Link
+              </button>
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle
+              code="DEPOT/02"
+              title="Skill lifecycle"
+              action={
+                <button className="button" onClick={() => void sync()}>
+                  Sync registry
+                </button>
+              }
+            />
+            <p className="muted">
+              Only verified candidates may enter the pending queue. Admin
+              approval is required before a shared skill becomes downloadable or
+              Fast Path eligible.
+            </p>
+            <label>
+              Search local and shared Skills
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter by Skill name"
+              />
+            </label>
+            <div className="table">
+              {visibleSkills.map((skill) => (
+                <div
+                  className="table-row"
+                  key={`${skill.source}-${skill.name}`}
+                >
+                  <strong>{skill.name}</strong>
+                  <span className="tag">{skill.source}</span>
+                  <span className={`status ${skill.status}`}>
+                    {skill.status}
+                  </span>
+                  <span>
+                    {skill.fastPathEligible ? "FAST-READY" : "SLOW ONLY"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle code="EXPORT/ZIP" title="Approved library export" />
+            <div className="form-row">
+              <label>
+                Destination
+                <input
+                  value={destination}
+                  onChange={(event) => setDestination(event.target.value)}
+                  aria-label="Export destination"
+                />
+              </label>
+              <button
+                className="button primary"
+                onClick={() => void exportAll()}
+              >
+                Create verified ZIP
+              </button>
+            </div>
+            <p className="muted">
+              The archive contains only approved definitions plus a SHA-256
+              manifest. Pending records, secrets, and raw game datasets are
+              excluded.
+            </p>
+          </section>
+          <section className="panel">
+            <PanelTitle code="TRAIN/VERIFY" title="Public-web Skill training" />
+            <p className="muted">
+              Run a read-only, allowlisted public-web workflow to create a local
+              candidate with verifier evidence. Candidates remain local until
+              three independent verified runs and an offline holdout pass are
+              recorded.
+            </p>
+            <div className="form-grid">
+              <label>
+                Scenario
+                <select
+                  value={trainingInput.scenarioId}
+                  onChange={(event) =>
+                    setTrainingInput({
+                      ...trainingInput,
+                      scenarioId: event.target
+                        .value as PublicWebTrainingRequest["scenarioId"],
+                    })
+                  }
+                >
+                  <option value="wikipedia-search">
+                    Wikipedia public search
+                  </option>
+                  <option value="mdn-search">MDN documentation search</option>
+                  <option value="github-issue-filter">
+                    GitHub public issue filter
+                  </option>
+                  <option value="openstreetmap-place-search">
+                    OpenStreetMap place search
+                  </option>
+                  <option value="psycho-flow">
+                    Psycho Flow advanced psychological survey
+                  </option>
+                </select>
+              </label>
+              <label>
+                Public query
+                <input
+                  value={trainingInput.query}
+                  onChange={(event) =>
+                    setTrainingInput({
+                      ...trainingInput,
+                      query: event.target.value,
+                    })
+                  }
+                  maxLength={256}
+                  autoComplete="off"
+                />
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={trainingInput.viewable === true}
+                  onChange={(event) => {
+                    setTrainingInput({
+                      ...trainingInput,
+                      viewable: event.target.checked,
+                    });
+                  }}
+                />
+                Show the training browser window
+              </label>
+              <p className="hint">
+                Training records a candidate only. Fast Path promotion requires
+                three independently verified executions and a separate offline
+                holdout on an unseen UI fingerprint.
+              </p>
+            </div>
+            <div className="actions">
+              <button
+                className="button caution"
+                onClick={() => void startTraining()}
+              >
+                Start verified training
+              </button>
+              {trainingJob ? (
+                <>
+                  <button
+                    className="button"
+                    onClick={() => void refreshTraining()}
+                  >
+                    Refresh status
+                  </button>
+                  {trainingJob.status === "running" ? (
+                    <button
+                      className="button ghost"
+                      onClick={() => void cancelTraining()}
+                    >
+                      Cancel training
+                    </button>
+                  ) : null}
+                  <span className={`status ${trainingJob.status}`}>
+                    {trainingJob.status}
+                  </span>
+                </>
+              ) : null}
+            </div>
+          </section>
+        </>
+      ) : (
+        <SharedLibraryPanel
+          setNotice={setNotice}
+          refresh={refresh}
+          navigate={navigate}
+        />
+      )}
+    </div>
+  );
+}
+
+function SharedLibraryPanel({
+  setNotice,
+  refresh,
+  navigate,
+}: {
+  setNotice: (value: string) => void;
+  refresh: () => Promise<void>;
+  navigate: (section: Section) => void;
+}): JSX.Element {
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>();
+  const [category, setCategory] = useState("");
+  const [q, setQ] = useState("");
+  const [result, setResult] = useState<{
+    skills: LibrarySkillSummary[];
+    nextCursor?: string;
+  }>();
+  const [selected, setSelected] = useState<SkillDetail>();
+  const [detailId, setDetailId] = useState<string>();
+
+  useEffect(() => {
+    void window.lhic.account
+      .status()
+      .then(setAccountStatus)
+      .catch((error: unknown) => setNotice(message(error)));
+  }, [setNotice]);
+
+  const signedIn = accountStatus?.mode === "signed-in";
+
+  const search = async (nextCursor?: string) => {
+    try {
+      const params: LibrarySearchParams = {
+        ...(category ? { category } : {}),
+        ...(q.trim() ? { q: q.trim() } : {}),
+        ...(nextCursor ? { cursor: nextCursor } : {}),
+      };
+      const page = await window.lhic.library.search(params);
+      setResult(page);
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  const openDetail = async (id: string) => {
+    setDetailId(id);
+    try {
+      setSelected(await window.lhic.library.detail(id));
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  const rate = async (rating: number) => {
+    if (!detailId) return;
+    try {
+      setSelected(await window.lhic.library.rate(detailId, rating));
+      setNotice(`Rated the skill ${rating}/5.`);
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  const download = async () => {
+    if (!detailId) return;
+    try {
+      await window.lhic.library.download(detailId);
+      setNotice("Skill downloaded to the local library.");
+      await refresh();
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  if (!signedIn) {
+    return (
+      <section className="panel">
+        <PanelTitle code="MARKETPLACE/03" title="Shared Skill library" />
+        <p className="muted">Sign in to browse and download shared Skills.</p>
         <div className="actions">
-          <button className="button primary" onClick={() => void login()}>
-            Sign in with Magic Link
+          <button
+            className="button primary"
+            onClick={() => navigate("account")}
+          >
+            Sign in
           </button>
         </div>
       </section>
+    );
+  }
+
+  return (
+    <div className="stack">
       <section className="panel">
         <PanelTitle
-          code="DEPOT/02"
-          title="Skill lifecycle"
+          code="MARKETPLACE/03"
+          title="Shared Skill library"
           action={
-            <button className="button" onClick={() => void sync()}>
-              Sync registry
+            <button
+              className="button"
+              onClick={() => void search()}
+              disabled={!result}
+            >
+              {result ? "Refresh" : "Search"}
             </button>
           }
         />
-        <p className="muted">
-          Only verified candidates may enter the pending queue. Admin approval
-          is required before a shared skill becomes downloadable or Fast Path
-          eligible.
-        </p>
-        <label>
-          Search local and shared Skills
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Filter by Skill name"
-          />
-        </label>
-        <div className="table">
-          {visibleSkills.map((skill) => (
-            <div className="table-row" key={`${skill.source}-${skill.name}`}>
-              <strong>{skill.name}</strong>
-              <span className="tag">{skill.source}</span>
-              <span className={`status ${skill.status}`}>{skill.status}</span>
-              <span>{skill.fastPathEligible ? "FAST-READY" : "SLOW ONLY"}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="panel">
-        <PanelTitle code="EXPORT/ZIP" title="Approved library export" />
         <div className="form-row">
           <label>
-            Destination
-            <input
-              value={destination}
-              onChange={(event) => setDestination(event.target.value)}
-              aria-label="Export destination"
-            />
-          </label>
-          <button className="button primary" onClick={() => void exportAll()}>
-            Create verified ZIP
-          </button>
-        </div>
-        <p className="muted">
-          The archive contains only approved definitions plus a SHA-256
-          manifest. Pending records, secrets, and raw game datasets are
-          excluded.
-        </p>
-      </section>
-      <section className="panel">
-        <PanelTitle code="TRAIN/VERIFY" title="Public-web Skill training" />
-        <p className="muted">
-          Run a read-only, allowlisted public-web workflow to create a local
-          candidate with verifier evidence. Candidates remain local until three
-          independent verified runs and an offline holdout pass are recorded.
-        </p>
-        <div className="form-grid">
-          <label>
-            Scenario
+            Category
             <select
-              value={trainingInput.scenarioId}
-              onChange={(event) =>
-                setTrainingInput({
-                  ...trainingInput,
-                  scenarioId: event.target
-                    .value as PublicWebTrainingRequest["scenarioId"],
-                })
-              }
+              value={category}
+              onChange={(input) => setCategory(input.target.value)}
             >
-              <option value="wikipedia-search">Wikipedia public search</option>
-              <option value="mdn-search">MDN documentation search</option>
-              <option value="github-issue-filter">
-                GitHub public issue filter
-              </option>
-              <option value="openstreetmap-place-search">
-                OpenStreetMap place search
-              </option>
-              <option value="psycho-flow">
-                Psycho Flow advanced psychological survey
-              </option>
+              <option value="">All</option>
+              <option value="browser">Browser</option>
+              <option value="desktop">Desktop</option>
+              <option value="os">OS</option>
+              <option value="mcp">MCP</option>
+              <option value="training">Training</option>
+              <option value="utility">Utility</option>
             </select>
           </label>
           <label>
-            Public query
+            Search
             <input
-              value={trainingInput.query}
-              onChange={(event) =>
-                setTrainingInput({
-                  ...trainingInput,
-                  query: event.target.value,
-                })
-              }
-              maxLength={256}
-              autoComplete="off"
+              value={q}
+              onChange={(input) => setQ(input.target.value)}
+              placeholder="Skill name or description"
             />
           </label>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={trainingInput.viewable === true}
-              onChange={(event) => {
-                setTrainingInput({
-                  ...trainingInput,
-                  viewable: event.target.checked,
-                });
-              }}
-            />
-            Show the training browser window
-          </label>
-          <p className="hint">
-            Training records a candidate only. Fast Path promotion requires
-            three independently verified executions and a separate offline
-            holdout on an unseen UI fingerprint.
-          </p>
-        </div>
-        <div className="actions">
-          <button
-            className="button caution"
-            onClick={() => void startTraining()}
-          >
-            Start verified training
+          <button className="button primary" onClick={() => void search()}>
+            Search
           </button>
-          {trainingJob ? (
-            <>
-              <button className="button" onClick={() => void refreshTraining()}>
-                Refresh status
+        </div>
+        {result ? (
+          <>
+            <div className="table">
+              {result.skills.map((skill) => (
+                <button
+                  className="table-row library-row"
+                  key={skill.id}
+                  onClick={() => void openDetail(skill.id)}
+                >
+                  <strong>{skill.name}</strong>
+                  <span className="library-description">
+                    {skill.description ?? ""}
+                  </span>
+                  <span className="library-tags">
+                    {skill.tags?.map((tag) => (
+                      <span className="tag" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </span>
+                  <span>
+                    ★ {skill.ratingAvg} ({skill.ratingCount})
+                  </span>
+                  <span>{skill.downloadCount} downloads</span>
+                  {skill.category ? (
+                    <span className="tag">{skill.category}</span>
+                  ) : null}
+                  <span>{skill.authorName ?? skill.authorId}</span>
+                </button>
+              ))}
+            </div>
+            {result.nextCursor ? (
+              <div className="actions">
+                <button
+                  className="button"
+                  onClick={() => void search(result.nextCursor)}
+                >
+                  Next page
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </section>
+      {selected ? (
+        <section className="panel">
+          <PanelTitle
+            code="DETAIL/03"
+            title={selected.skill.name}
+            action={
+              <button
+                className="button primary"
+                onClick={() => void download()}
+              >
+                Download
               </button>
-              {trainingJob.status === "running" ? (
+            }
+          />
+          {selected.skill.description ? (
+            <p className="muted">{selected.skill.description}</p>
+          ) : null}
+          <div className="boundary compact">
+            <div>
+              <b>★ {selected.rating.avg}</b>
+              <span>{selected.rating.count} ratings</span>
+            </div>
+            <div>
+              <b>{selected.skill.downloadCount}</b>
+              <span>downloads</span>
+            </div>
+            {selected.author ? (
+              <div>
+                <b>{selected.author.displayName}</b>
+                <span>{selected.author.bio ?? "Shared library author"}</span>
+              </div>
+            ) : null}
+          </div>
+          <div className="actions" aria-label="Rate this skill">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                className="button"
+                key={value}
+                onClick={() => void rate(value)}
+              >
+                ★{value}
+              </button>
+            ))}
+          </div>
+          <div className="table">
+            {selected.versions.map((version) => (
+              <div className="table-row" key={version.version}>
+                <strong>{version.version}</strong>
+                <span>{version.changelog ?? "—"}</span>
+                <small>{formatTimestamp(version.createdAt)}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function Account({
+  setNotice,
+}: {
+  setNotice: (value: string) => void;
+}): JSX.Element {
+  const [status, setStatus] = useState<AccountStatus>();
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [dismissedOffline, setDismissedOffline] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const current = await window.lhic.account.status();
+      setStatus(current);
+      setDisplayName(current.profile?.displayName ?? "");
+      setBio(current.profile?.bio ?? "");
+    } catch (error) {
+      setNotice(message(error));
+    }
+  }, [setNotice]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const login = async () => {
+    if (!email.trim()) {
+      setNotice("Enter an email address to receive the sign-in link.");
+      return;
+    }
+    try {
+      setNotice(
+        "Magic Link requested. Complete the email sign-in to continue.",
+      );
+      const current = await window.lhic.account.login(email.trim());
+      setStatus(current);
+      setDisplayName(current.profile?.displayName ?? "");
+      setNotice("Signed in. Your session is stored in the OS Keychain.");
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  const saveProfile = async () => {
+    try {
+      const current = await window.lhic.account.updateProfile({
+        displayName: displayName.trim(),
+        bio: bio.trim(),
+      });
+      setStatus(current);
+      setNotice("Profile updated on the shared library.");
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const current = await window.lhic.account.logout();
+      setStatus(current);
+      setEmail("");
+      setNotice("Signed out. LHIC continues to work fully offline.");
+    } catch (error) {
+      setNotice(message(error));
+    }
+  };
+
+  return (
+    <div className="stack">
+      {status?.mode === "offline" ? (
+        <>
+          <section className="panel">
+            <PanelTitle code="ACCOUNT/04" title="Optional account sign-in" />
+            <p className="muted">
+              You can use LHIC offline — sign in anytime to sync and publish
+              skills.
+            </p>
+            <div className="form-grid">
+              <label>
+                Email for the Magic Link
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(input) => setEmail(input.target.value)}
+                  placeholder="you@example.com"
+                />
+              </label>
+            </div>
+            <div className="actions">
+              <button className="button primary" onClick={() => void login()}>
+                Send login link
+              </button>
+              {!dismissedOffline ? (
                 <button
                   className="button ghost"
-                  onClick={() => void cancelTraining()}
+                  onClick={() => setDismissedOffline(true)}
                 >
-                  Cancel training
+                  Continue offline
                 </button>
               ) : null}
-              <span className={`status ${trainingJob.status}`}>
-                {trainingJob.status}
-              </span>
-            </>
-          ) : null}
-        </div>
-      </section>
+            </div>
+          </section>
+          <section className="panel">
+            <PanelTitle code="OFFLINE/04" title="Local-first runtime" />
+            <p className="muted">
+              Fast Path tasks, local skills, browser verification, and the
+              embedded omp agent all run without an account. Signing in only
+              unlocks the shared Skill marketplace and publishing.
+            </p>
+          </section>
+        </>
+      ) : (
+        <section className="panel">
+          <PanelTitle
+            code="PROFILE/04"
+            title="Shared library profile"
+            action={
+              <button className="button" onClick={() => void logout()}>
+                Sign out
+              </button>
+            }
+          />
+          <p className="verified">
+            Signed in as {status?.email ?? status?.userId}
+          </p>
+          <div className="form-grid">
+            <label>
+              Display name
+              <input
+                value={displayName}
+                onChange={(input) => setDisplayName(input.target.value)}
+                maxLength={128}
+              />
+            </label>
+            <label>
+              Bio
+              <input
+                value={bio}
+                onChange={(input) => setBio(input.target.value)}
+                maxLength={512}
+              />
+            </label>
+          </div>
+          <div className="actions">
+            <button
+              className="button primary"
+              onClick={() => void saveProfile()}
+            >
+              Save profile
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -1789,9 +2276,10 @@ function KeychainApiKeyVault({
       style={{
         marginTop: "12px",
         padding: compact ? "12px" : "16px",
-        borderRadius: "8px",
-        border: "1px solid var(--border-color)",
+        borderRadius: "var(--radius)",
+        border: "none",
         backgroundColor: "var(--bg-surface-raised)",
+        boxShadow: "var(--shadow-out-sm)",
       }}
     >
       <div
@@ -1811,16 +2299,14 @@ function KeychainApiKeyVault({
           <span
             style={{
               padding: "2px 8px",
-              borderRadius: "10px",
+              borderRadius: "999px",
               fontSize: "11px",
               fontWeight: 600,
               backgroundColor: present
-                ? "var(--color-success-bg)"
-                : "var(--color-warning-bg)",
+                ? "var(--accent-soft)"
+                : "color-mix(in srgb, var(--color-warning) 12%, transparent)",
               color: present ? "var(--color-success)" : "var(--color-warning)",
-              border: `1px solid ${
-                present ? "var(--color-success)" : "var(--color-warning)"
-              }`,
+              border: "none",
             }}
           >
             {present ? "🔒 Stored in Keychain" : "⚠️ Not Configured"}

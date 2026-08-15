@@ -1,6 +1,6 @@
 {
   "name": "@lhic/desktop",
-  "version": "0.1.4",
+  "version": "0.2.7",
   "description": "Native control center for the Local Human Intent Controller.",
   "desktopName": "lhic-control-center",
   "author": {
@@ -12,22 +12,28 @@
   "type": "module",
   "main": "./dist/main/main/main.js",
   "scripts": {
-    "build:runtime": "npm run build --workspace @pinyencheng/lhic && tsc -b ../../packages/schema ../../packages/trace ../../packages/memory ../../packages/security ../../packages/browser ../../packages/verifier ../../packages/controller ../../packages/skills ../../packages/shared-skills ../../packages/game-training ../mcp-server --pretty false",
+    "prebuild": "node scripts/fetch-omp.mjs",
+    "build:runtime": "npm run build --workspace @pinyencheng/lhic && tsc -b ../../packages/schema ../../packages/trace ../../packages/memory ../../packages/security ../../packages/browser ../../packages/verifier ../../packages/controller ../../packages/skills ../../packages/shared-skills ../../packages/omp-rpc ../../packages/game-training ../mcp-server --pretty false",
     "build": "npm run build:runtime && tsc -p tsconfig.main.json && node scripts/copy-preload.mjs && vite build",
     "dev": "vite --host 127.0.0.1",
     "dev:desktop": "npm run build && electron .",
     "demo:director": "npm run build && LHIC_DESKTOP_DEMO=1 LHIC_WORKSPACE_ROOT=../.. electron .",
     "start": "electron .",
     "package": "npm run build && electron-builder --config electron-builder.yml && node scripts/verify-package.mjs",
+    "package:snap": "npm run build && electron-builder --config electron-builder.snap.yml && node scripts/verify-package.mjs",
     "release:checksums": "node ../../scripts/generate-sha256-manifest.mjs release",
-    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums"
+    "package:release": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums",
+    "package:x64": "npm run build && electron-builder --config electron-builder.yml --x64 && node scripts/verify-package.mjs",
+    "package:arm64": "npm run build && electron-builder --config electron-builder.yml --arm64 && node scripts/verify-package.mjs",
+    "package:release:x64": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml --x64 && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums",
+    "package:release:arm64": "npm run build && node scripts/assert-macos-release-env.mjs && electron-builder --config electron-builder.release.yml --arm64 && LHIC_REQUIRE_NOTARIZATION=true node scripts/verify-package.mjs && npm run release:checksums"
   },
   "dependencies": {
-    "@pinyencheng/lhic": "^0.1.2",
     "@lhic/browser": "^0.1.0",
     "@lhic/controller": "^0.1.0",
     "@lhic/game-training": "^0.1.0",
     "@lhic/memory": "^0.1.0",
+    "@lhic/omp-rpc": "^0.1.0",
     "@lhic/schema": "^0.1.0",
     "@lhic/security": "^0.1.0",
     "@lhic/shared-skills": "^0.1.0",
@@ -35,11 +41,13 @@
     "@lhic/trace": "^0.1.0",
     "@lhic/verifier": "^0.1.0",
     "@napi-rs/keyring": "^1.3.0",
+    "@pinyencheng/lhic": "^0.1.2",
     "playwright": "^1.61.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",

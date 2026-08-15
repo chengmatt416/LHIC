@@ -228,21 +228,58 @@ export async function handleControlPlane({
       ),
     });
   }
-  const skillStatusMatch = route.match(/^\/control\/skills\/([^/]+)\/status$/);
+  const skillStatusMatch = route.match(/^\/control\/skills\/([^/]+)$/);
   if (skillStatusMatch && method === "PATCH") {
-    const status = requiredString(objectBody(req).status, "status", 16);
+    const body = objectBody(req);
+    const status = requiredString(body.status, "status", 16);
     if (!skillStatuses.has(status))
       throw httpError(400, "Skill status is invalid.");
+    const reviewNote =
+      body.reviewNote === undefined
+        ? undefined
+        : requiredString(body.reviewNote, "reviewNote", 1024);
+    const reviewedAt = new Date().toISOString();
+    const data = { status, reviewedBy: user.$id, reviewedAt };
+    if (reviewNote !== undefined) data.reviewNote = reviewNote;
     const row = await tables.updateRow({
       databaseId: config.databaseId,
       tableId: config.skillsTableId,
       rowId: skillStatusMatch[1],
-      data: { status },
+      data,
     });
     await audit(tables, config, user.$id, "skill.status", skillStatusMatch[1], {
       status,
     });
     return res.json({ skill: publicAdminSkill(row) });
+  }
+  const skillDeleteMatch = route.match(/^\/control\/skills\/([^/]+)$/);
+  if (skillDeleteMatch && method === "DELETE") {
+    const reviewedAt = new Date().toISOString();
+    await tables.updateRow({
+      databaseId: config.databaseId,
+      tableId: config.skillsTableId,
+      rowId: skillDeleteMatch[1],
+      data: {
+        status: "revoked",
+        reviewNote: "Admin removed",
+        reviewedBy: user.$id,
+        reviewedAt,
+      },
+    });
+    await audit(tables, config, user.$id, "skill.delete", skillDeleteMatch[1]);
+    return res.json({ deleted: true });
+  }
+  if (route === "/control/audit" && method === "GET") {
+    const result = await tables.listRows({
+      databaseId: config.databaseId,
+      tableId: config.auditTableId,
+      queries: [Query.limit(50)],
+      total: false,
+    });
+    return res.json({
+      events: result.rows.map(publicAuditEvent),
+      cursor: result.rows.at(-1)?.$id ?? null,
+    });
   }
 
   if (route === "/control/policy-packages" && method === "GET") {
@@ -683,6 +720,26 @@ function publicAdminSkill(row) {
     status: String(row.status),
     fastPathEligible: row.fastPathEligible === true,
     updatedAt: String(row.$updatedAt),
+  };
+}
+
+function publicAuditEvent(row) {
+  let metadata = {};
+  try {
+    const parsed = JSON.parse(String(row.metadata));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      metadata = parsed;
+    }
+  } catch {
+    // Malformed audit metadata is never allowed to break the audit trail.
+  }
+  return {
+    id: row.$id,
+    actorId: String(row.actorId),
+    action: String(row.action),
+    target: String(row.target),
+    metadata,
+    createdAt: String(row.$createdAt),
   };
 }
 

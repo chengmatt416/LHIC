@@ -34,6 +34,15 @@ export type BenchmarkSkill =
   | "search"
   | "test_web_flow";
 
+const benchmarkSkills: Record<BenchmarkSkill, true> = {
+  browser_plan: true,
+  fill_form: true,
+  download_file: true,
+  login: true,
+  search: true,
+  test_web_flow: true,
+};
+
 export interface BenchmarkFixture {
   id: string;
   skill: BenchmarkSkill;
@@ -76,6 +85,11 @@ export interface DailyWorkflowBenchmarkMetrics {
   verifierPassRate: number;
 }
 
+export interface P95StabilityAssessment {
+  baselineP95Ms: number;
+  passed: boolean;
+}
+
 export interface InternalBenchmarkReport {
   fixtureCount: number;
   results: BenchmarkTaskResult[];
@@ -106,6 +120,7 @@ interface VerificationCounters {
 interface FixtureExecution {
   result: SkillResult;
   verification: VerificationCounters;
+  durationMs: number;
 }
 
 export async function loadInternalFixtures(
@@ -115,7 +130,71 @@ export async function loadInternalFixtures(
     join(projectRoot, "tests", "fixtures", "internal-benchmark.json"),
     "utf8",
   );
-  return JSON.parse(content) as BenchmarkFixture[];
+  return validateInternalFixtures(JSON.parse(content) as unknown);
+}
+
+export function validateInternalFixtures(value: unknown): BenchmarkFixture[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error("Internal benchmark fixtures must be a non-empty array.");
+  }
+  const fixtureIds = new Set<string>();
+  for (const fixture of value) {
+    if (typeof fixture !== "object" || fixture === null) {
+      throw new Error("Every internal benchmark fixture must be an object.");
+    }
+    const candidate = fixture as Record<string, unknown>;
+    if (
+      typeof candidate.id !== "string" ||
+      !/^[A-Za-z0-9_-]+$/.test(candidate.id)
+    ) {
+      throw new Error(
+        "Internal benchmark fixture IDs may contain only letters, numbers, underscores, and hyphens.",
+      );
+    }
+    if (fixtureIds.has(candidate.id)) {
+      throw new Error(
+        `Duplicate internal benchmark fixture ID: ${candidate.id}`,
+      );
+    }
+    fixtureIds.add(candidate.id);
+    if (
+      typeof candidate.skill !== "string" ||
+      !(candidate.skill in benchmarkSkills)
+    ) {
+      throw new Error(
+        `Unknown internal benchmark skill for fixture ${candidate.id}.`,
+      );
+    }
+    if (
+      typeof candidate.variant !== "number" ||
+      !Number.isSafeInteger(candidate.variant) ||
+      candidate.variant < 1
+    ) {
+      throw new Error(
+        `Internal benchmark fixture ${candidate.id} must have a positive integer variant.`,
+      );
+    }
+  }
+  return value as BenchmarkFixture[];
+}
+
+export function assessP95Stability(
+  runP95Values: readonly number[],
+): P95StabilityAssessment {
+  if (
+    runP95Values.length === 0 ||
+    runP95Values.some((duration) => !Number.isFinite(duration) || duration < 0)
+  ) {
+    throw new Error(
+      "P95 stability requires one or more finite, non-negative run durations.",
+    );
+  }
+  const sorted = [...runP95Values].sort((left, right) => left - right);
+  const baselineP95Ms = percentile(sorted, 0.5);
+  return {
+    baselineP95Ms,
+    passed: runP95Values.every((duration) => duration <= baselineP95Ms * 1.1),
+  };
 }
 
 export function calculateBenchmarkMetrics(
@@ -247,31 +326,24 @@ export async function runInternalBenchmark(
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "lhic-benchmark-"));
   const browser = await chromium.launch({ headless: true });
   try {
-    const completedRuns = await Promise.all(
-      Array.from({ length: repetitions }, async (_value, index) => {
-        const repetition = index + 1;
-        const page = await browser.newPage();
-        try {
-          const results = await runInternalBenchmarkPass(
-            page,
-            fixtures,
-            join(temporaryDirectory, `run-${repetition}`),
-          );
-          return {
-            repetition,
-            metrics: calculateBenchmarkMetrics(results),
-            results,
-          };
-        } finally {
-          await page.close();
-        }
-      }),
-    );
-    runs.push(
-      ...completedRuns.sort(
-        (left, right) => left.repetition - right.repetition,
-      ),
-    );
+    for (let index = 0; index < repetitions; index += 1) {
+      const repetition = index + 1;
+      const page = await browser.newPage();
+      try {
+        const results = await runInternalBenchmarkPass(
+          page,
+          fixtures,
+          join(temporaryDirectory, `run-${repetition}`),
+        );
+        runs.push({
+          repetition,
+          metrics: calculateBenchmarkMetrics(results),
+          results,
+        });
+      } finally {
+        await page.close();
+      }
+    }
   } finally {
     await browser.close();
     await rm(temporaryDirectory, { recursive: true, force: true });
@@ -280,17 +352,13 @@ export async function runInternalBenchmark(
   const dailyWorkflow = calculateDailyWorkflowMetrics(
     runs.flatMap((run) => run.results),
   );
-  const fastOnlyBaselineP95Ms = percentile(
-    runs
-      .map((run) => run.metrics.p95TimeToCompleteMs)
-      .sort((left, right) => left - right),
-    0.5,
+  const p95Stability = assessP95Stability(
+    runs.map((run) => run.metrics.p95TimeToCompleteMs),
   );
+  const fastOnlyBaselineP95Ms = p95Stability.baselineP95Ms;
   const passCriteria = {
     ...assessBenchmark(metrics),
-    fastOnlyP95Regression: runs.every(
-      (run) => run.metrics.p95TimeToCompleteMs <= fastOnlyBaselineP95Ms * 1.1,
-    ),
+    fastOnlyP95Regression: p95Stability.passed,
     dailyWorkflowP95Ms: dailyWorkflow.p95TimeToCompleteMs <= 5_000,
     dailyWorkflowVerifierPassRate: dailyWorkflow.verifierPassRate >= 0.9,
   };
@@ -318,7 +386,6 @@ async function runInternalBenchmarkPass(
   const results: BenchmarkTaskResult[] = [];
 
   for (const fixture of fixtures) {
-    const startedAt = performance.now();
     const traceFilePath = join(temporaryDirectory, `${fixture.id}.jsonl`);
     const fixtureExecution = await executeFixture(
       page,
@@ -336,7 +403,7 @@ async function runInternalBenchmarkPass(
     results.push({
       fixtureId: fixture.id,
       skill: fixture.skill,
-      durationMs: Math.round(performance.now() - startedAt),
+      durationMs: fixtureExecution.durationMs,
       success: result.success,
       modelCalls: traces.filter((event) => isModelEvent(event.type)).length,
       mcpCalls: traces.filter((event) => isMcpEvent(event.type)).length,
@@ -359,11 +426,63 @@ async function runInternalBenchmarkPass(
   return results;
 }
 
+async function prepareFixturePage(
+  page: Page,
+  fixture: BenchmarkFixture,
+): Promise<void> {
+  switch (fixture.skill) {
+    case "fill_form":
+      await page.setContent(
+        '<form><label>Name <input name="name"></label><button type="submit">Submit</button></form><p id="result"></p><script>document.querySelector("form").addEventListener("submit", (event) => { event.preventDefault(); document.querySelector("#result").textContent = "Saved"; });</script>',
+      );
+      break;
+    case "download_file":
+      await page.setContent(
+        `<a id="download" download="report-${fixture.variant}.txt" href="data:text/plain,benchmark-${fixture.variant}">Download</a>`,
+      );
+      break;
+    case "login":
+      await page.setContent(
+        '<form><label>Email <input type="email"></label><label>Password <input type="password"></label><button type="submit">Sign in</button></form><p id="result"></p><script>document.querySelector("form").addEventListener("submit", (event) => { event.preventDefault(); document.querySelector("#result").textContent = "Welcome"; });</script>',
+      );
+      break;
+    case "search":
+      await page.setContent(
+        '<label>Search <input type="search"></label><button>Search</button><p id="result"></p><script>document.querySelector("button").addEventListener("click", () => { document.querySelector("#result").textContent = "Found"; });</script>',
+      );
+      break;
+    case "test_web_flow":
+      await page.setContent(
+        '<input id="name"><p id="result"></p><script>document.querySelector("#name").addEventListener("input", () => { document.querySelector("#result").textContent = "Ready"; });</script>',
+      );
+      break;
+    case "browser_plan":
+      await page.setContent(`
+        <label>Search <input id="search" type="search"></label>
+        <button id="find" type="button">Find project</button>
+        <p id="project-result"></p>
+        <label>Daily update <textarea id="daily-update"></textarea></label>
+        <button id="save-draft" type="button">Save draft</button>
+        <p id="save-result"></p>
+        <script>
+          document.querySelector('#find').addEventListener('click', () => {
+            document.querySelector('#project-result').textContent = 'Project result ready';
+          });
+          document.querySelector('#save-draft').addEventListener('click', () => {
+            document.querySelector('#save-result').textContent = 'Draft saved';
+          });
+        </script>
+      `);
+      break;
+  }
+}
+
 async function executeFixture(
   page: Page,
   fixture: BenchmarkFixture,
   temporaryDirectory: string,
 ): Promise<FixtureExecution> {
+  await prepareFixturePage(page, fixture);
   const traceFilePath = join(temporaryDirectory, `${fixture.id}.jsonl`);
   const verification: VerificationCounters = { calls: 0, passed: 0, failed: 0 };
   const verifier = instrumentVerifier(page, verification);
@@ -376,21 +495,16 @@ async function executeFixture(
   const value = `value-${fixture.variant}`;
   let result: SkillResult;
   let internalVerificationCount = 0;
+  const startedAt = performance.now();
 
   switch (fixture.skill) {
     case "fill_form": {
-      await page.setContent(
-        '<form><label>Name <input name="name"></label><button type="submit">Submit</button></form><p id="result"></p><script>document.querySelector("form").addEventListener("submit", (event) => { event.preventDefault(); document.querySelector("#result").textContent = "Saved"; });</script>',
-      );
       const fields = { name: value };
       internalVerificationCount = Object.keys(fields).length;
       result = await fillForm(context, { fields });
       break;
     }
     case "download_file":
-      await page.setContent(
-        `<a id="download" download="report-${fixture.variant}.txt" href="data:text/plain,benchmark-${fixture.variant}">Download</a>`,
-      );
       result = await downloadFile(context, {
         trigger: "#download",
         expectedExtension: ".txt",
@@ -402,9 +516,6 @@ async function executeFixture(
       });
       break;
     case "login":
-      await page.setContent(
-        '<form><label>Email <input type="email"></label><label>Password <input type="password"></label><button type="submit">Sign in</button></form><p id="result"></p><script>document.querySelector("form").addEventListener("submit", (event) => { event.preventDefault(); document.querySelector("#result").textContent = "Welcome"; });</script>',
-      );
       result = await login(context, {
         username: `user-${fixture.variant}@example.test`,
         password: "benchmark-password",
@@ -412,15 +523,9 @@ async function executeFixture(
       });
       break;
     case "search":
-      await page.setContent(
-        '<label>Search <input type="search"></label><button>Search</button><p id="result"></p><script>document.querySelector("button").addEventListener("click", () => { document.querySelector("#result").textContent = "Found"; });</script>',
-      );
       result = await search(context, { query: value, expectedText: "Found" });
       break;
     case "test_web_flow":
-      await page.setContent(
-        '<input id="name"><p id="result"></p><script>document.querySelector("#name").addEventListener("input", () => { document.querySelector("#result").textContent = "Ready"; });</script>',
-      );
       result = await testWebFlow(context, {
         steps: [
           {
@@ -447,6 +552,7 @@ async function executeFixture(
       );
       break;
   }
+  const durationMs = Math.round(performance.now() - startedAt);
   if (internalVerificationCount > 0) {
     // fillForm performs an explicit inputValue postcondition check for every
     // field, but it intentionally does not require a DOM verifier condition
@@ -458,7 +564,7 @@ async function executeFixture(
       verification.failed += internalVerificationCount;
     }
   }
-  return { result, verification };
+  return { result, verification, durationMs };
 }
 
 function percentile(sorted: number[], quantile: number): number {
@@ -478,22 +584,6 @@ async function executeDailyWorkflowPlan(
   traceFilePath: string,
   verifier: SkillVerifier,
 ): Promise<SkillResult> {
-  await page.setContent(`
-    <label>Search <input id="search" type="search"></label>
-    <button id="find" type="button">Find project</button>
-    <p id="project-result"></p>
-    <label>Daily update <textarea id="daily-update"></textarea></label>
-    <button id="save-draft" type="button">Save draft</button>
-    <p id="save-result"></p>
-    <script>
-      document.querySelector('#find').addEventListener('click', () => {
-        document.querySelector('#project-result').textContent = 'Project result ready';
-      });
-      document.querySelector('#save-draft').addEventListener('click', () => {
-        document.querySelector('#save-result').textContent = 'Draft saved';
-      });
-    </script>
-  `);
   const plan: BrowserExecutionPlan = {
     schemaVersion: "browser-plan-v1",
     goal: "Find a project and save its daily update",

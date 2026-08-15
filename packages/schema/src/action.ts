@@ -9,6 +9,14 @@ export const browserSemanticActionTypes = [
   "wait",
   "download",
   "custom",
+  "scroll",
+  "hover",
+  "keyboard",
+  "tab",
+  "upload",
+  "multi_tab",
+  "screenshot",
+  "drag",
 ] as const;
 
 export const globalComputerActionTypes = [
@@ -17,6 +25,10 @@ export const globalComputerActionTypes = [
   "os_press",
   "os_launch",
   "os_focus",
+  "os_screenshot",
+  "os_observe",
+  "os_scroll",
+  "os_clipboard",
 ] as const;
 
 export const semanticActionTypes = [
@@ -51,6 +63,24 @@ export interface BrowserSemanticAction {
   value?: unknown;
   methodPreference: ActionMethod[];
   riskLevel: RiskLevel;
+  /** Scroll direction and amount (scroll). */
+  scrollDirection?: "up" | "down" | "left" | "right";
+  scrollAmount?: number;
+  /** Keyboard key combination (keyboard/press). */
+  key?: string;
+  modifiers?: string[];
+  /** Tab management (tab/multi_tab). */
+  tabAction?: "new" | "close" | "switch" | "next" | "previous";
+  tabIndex?: number;
+  /** Upload file path (upload). */
+  filePath?: string;
+  /** Drag source/target (drag). */
+  dragTarget?: string;
+  /** Screenshot output (screenshot). */
+  outputPath?: string;
+  /** Coordinates for coordinate-based actions. */
+  x?: number;
+  y?: number;
 }
 
 export const globalVerificationTypes = [
@@ -93,6 +123,15 @@ export interface GlobalComputerAction {
   key?: string;
   application?: string;
   verifier: GlobalComputerVerification;
+  /** Screenshot output path (os_screenshot). */
+  outputPath?: string;
+  /** Scroll direction and amount (os_scroll). */
+  scrollDirection?: "up" | "down" | "left" | "right";
+  scrollAmount?: number;
+  /** Clipboard operation (os_clipboard). */
+  clipboardAction?: "copy" | "paste" | "read";
+  /** Observe scope (os_observe). */
+  observeScope?: "active_window" | "all_windows" | "application";
 }
 
 export type SemanticAction = BrowserSemanticAction | GlobalComputerAction;
@@ -102,6 +141,8 @@ export interface ActionExecutionResult {
   method?: ActionMethod;
   latencyMs: number;
   evidence: string[];
+  /** Ephemeral action output, such as an accessibility observation or clipboard read. */
+  output?: string;
   error?: string;
 }
 
@@ -120,14 +161,60 @@ export function isBrowserSemanticAction(
   }
 
   const candidate = value as Partial<BrowserSemanticAction>;
-  return (
-    (candidate.scope === undefined || candidate.scope === "browser") &&
-    typeof candidate.type === "string" &&
-    (browserSemanticActionTypes as readonly string[]).includes(
+  if (candidate.scope !== undefined && candidate.scope !== "browser") {
+    return false;
+  }
+  if (
+    typeof candidate.type !== "string" ||
+    !(browserSemanticActionTypes as readonly string[]).includes(
       candidate.type,
-    ) &&
-    (candidate.target === undefined || typeof candidate.target === "string")
-  );
+    ) ||
+    (candidate.target !== undefined && typeof candidate.target !== "string") ||
+    (candidate.scrollDirection !== undefined &&
+      candidate.scrollDirection !== "up" &&
+      candidate.scrollDirection !== "down" &&
+      candidate.scrollDirection !== "left" &&
+      candidate.scrollDirection !== "right") ||
+    (candidate.scrollAmount !== undefined &&
+      (typeof candidate.scrollAmount !== "number" ||
+        !Number.isFinite(candidate.scrollAmount))) ||
+    (candidate.key !== undefined && typeof candidate.key !== "string") ||
+    (candidate.modifiers !== undefined &&
+      (!Array.isArray(candidate.modifiers) ||
+        !candidate.modifiers.every(
+          (modifier) => typeof modifier === "string",
+        ))) ||
+    (candidate.tabAction !== undefined &&
+      candidate.tabAction !== "new" &&
+      candidate.tabAction !== "close" &&
+      candidate.tabAction !== "switch" &&
+      candidate.tabAction !== "next" &&
+      candidate.tabAction !== "previous") ||
+    (candidate.tabIndex !== undefined &&
+      (!Number.isSafeInteger(candidate.tabIndex) || candidate.tabIndex < 0)) ||
+    (candidate.filePath !== undefined &&
+      (typeof candidate.filePath !== "string" ||
+        candidate.filePath.trim().length === 0)) ||
+    (candidate.dragTarget !== undefined &&
+      typeof candidate.dragTarget !== "string") ||
+    (candidate.outputPath !== undefined &&
+      (typeof candidate.outputPath !== "string" ||
+        candidate.outputPath.trim().length === 0)) ||
+    (candidate.x !== undefined &&
+      (typeof candidate.x !== "number" || !Number.isFinite(candidate.x))) ||
+    (candidate.y !== undefined &&
+      (typeof candidate.y !== "number" || !Number.isFinite(candidate.y)))
+  ) {
+    return false;
+  }
+  if (candidate.type === "upload") {
+    return (
+      typeof candidate.target === "string" &&
+      candidate.target.trim().length > 0 &&
+      typeof candidate.filePath === "string"
+    );
+  }
+  return true;
 }
 
 export function isGlobalComputerAction(
@@ -153,6 +240,9 @@ export function isGlobalComputerAction(
     (candidate.key !== undefined &&
       (typeof candidate.key !== "string" ||
         candidate.key.trim().length === 0)) ||
+    (candidate.outputPath !== undefined &&
+      (typeof candidate.outputPath !== "string" ||
+        candidate.outputPath.trim().length === 0)) ||
     (candidate.x !== undefined && !isFiniteCoordinate(candidate.x)) ||
     (candidate.y !== undefined && !isFiniteCoordinate(candidate.y))
   ) {
@@ -161,7 +251,13 @@ export function isGlobalComputerAction(
 
   switch (candidate.type) {
     case "os_click":
-      return isFiniteCoordinate(candidate.x) && isFiniteCoordinate(candidate.y);
+      return (
+        (isFiniteCoordinate(candidate.x) && isFiniteCoordinate(candidate.y)) ||
+        (candidate.methodPreference?.includes("accessibility") === true &&
+          typeof candidate.target === "string" &&
+          candidate.target.trim().length > 0 &&
+          typeof candidate.application === "string")
+      );
     case "os_type":
       return typeof candidate.text === "string";
     case "os_press":
@@ -174,6 +270,38 @@ export function isGlobalComputerAction(
         typeof candidate.application === "string" &&
         candidate.application.trim().length > 0
       );
+    case "os_scroll":
+      return (
+        (candidate.scrollDirection === undefined ||
+          candidate.scrollDirection === "up" ||
+          candidate.scrollDirection === "down" ||
+          candidate.scrollDirection === "left" ||
+          candidate.scrollDirection === "right") &&
+        (candidate.scrollAmount === undefined ||
+          (Number.isInteger(candidate.scrollAmount) &&
+            candidate.scrollAmount > 0 &&
+            candidate.scrollAmount <= 100))
+      );
+    case "os_clipboard":
+      return (
+        candidate.clipboardAction === "read" ||
+        candidate.clipboardAction === "paste" ||
+        (candidate.clipboardAction === "copy" &&
+          typeof candidate.text === "string")
+      );
+    case "os_observe":
+      return (
+        (candidate.observeScope === undefined ||
+          candidate.observeScope === "active_window" ||
+          candidate.observeScope === "all_windows" ||
+          candidate.observeScope === "application") &&
+        (candidate.observeScope !== "application" ||
+          typeof candidate.application === "string")
+      );
+    case "os_screenshot":
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -225,5 +353,5 @@ function isGlobalComputerVerification(
 }
 
 function isFiniteCoordinate(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return typeof value === "number" && Number.isInteger(value);
 }

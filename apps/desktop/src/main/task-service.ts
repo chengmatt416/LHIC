@@ -403,6 +403,64 @@ export class TaskService {
     return this.browserRunner.readiness();
   }
 
+  public executeOmpBrowserPlan(
+    commandId: string,
+    plan: unknown,
+  ): Promise<BrowserRunResult> {
+    return this.browserRunner.execute(
+      commandId,
+      plan as Parameters<DesktopBrowserRunner["execute"]>[1],
+    );
+  }
+
+  public executeOmpDesktopPlan(
+    commandId: string,
+    plan: unknown,
+  ): Promise<GlobalRunResult> {
+    return Promise.resolve(
+      this.globalRunner.execute(
+        commandId,
+        plan as Parameters<DesktopGlobalRunner["execute"]>[1],
+      ),
+    );
+  }
+
+  public observeOmpDesktop(
+    request: Parameters<DesktopGlobalRunner["observe"]>[0],
+    approval?: Parameters<DesktopGlobalRunner["observe"]>[1],
+  ) {
+    return this.globalRunner.observe(request, approval);
+  }
+
+  public approveOmpBrowserPlan(
+    commandId: string,
+    approval?: TaskApproval | { approvedBy: string },
+  ): Promise<BrowserRunResult> {
+    return this.browserRunner.approve(
+      commandId,
+      approval as TaskApproval | undefined,
+    );
+  }
+
+  public approveOmpDesktopPlan(
+    commandId: string,
+    approval?: TaskApproval | { approvedBy: string },
+  ): Promise<GlobalRunResult> {
+    return this.globalRunner.approve(
+      commandId,
+      approval as TaskApproval | undefined,
+    );
+  }
+
+  public cancelOmpBrowserPlan(commandId: string): Promise<void> {
+    return this.browserRunner.cancel(commandId);
+  }
+
+  public cancelOmpDesktopPlan(commandId: string): Promise<void> {
+    this.globalRunner.cancel(commandId);
+    return Promise.resolve();
+  }
+
   public subscribe(listener: (event: CommandEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

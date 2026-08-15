@@ -114,11 +114,82 @@ contextBridge.exposeInMainWorld("lhic", {
     has: (id) => ipcRenderer.invoke("lhic:credential:has", id),
     remove: (id) => ipcRenderer.invoke("lhic:credential:remove", id),
   },
+  omp: {
+    start: () => ipcRenderer.invoke("lhic:omp:start"),
+    stop: () => ipcRenderer.invoke("lhic:omp:stop"),
+    prompt: (message) => ipcRenderer.invoke("lhic:omp:prompt", message),
+    steer: (message) => ipcRenderer.invoke("lhic:omp:steer", message),
+    followUp: (message) => ipcRenderer.invoke("lhic:omp:follow-up", message),
+    abort: () => ipcRenderer.invoke("lhic:omp:abort"),
+    newSession: () => ipcRenderer.invoke("lhic:omp:new-session"),
+    state: () => ipcRenderer.invoke("lhic:omp:state"),
+    listSessions: () => ipcRenderer.invoke("lhic:omp:list-sessions"),
+    switchSession: (path) =>
+      ipcRenderer.invoke("lhic:omp:switch-session", path),
+    setModel: (provider, modelId) =>
+      ipcRenderer.invoke("lhic:omp:set-model", { provider, modelId }),
+    listModels: () => ipcRenderer.invoke("lhic:omp:list-models"),
+    listSubagentModels: () =>
+      ipcRenderer.invoke("lhic:omp:list-subagent-models"),
+    setSubagentModels: (selectors) =>
+      ipcRenderer.invoke("lhic:omp:set-subagent-models", selectors),
+    setThinkingLevel: (level) =>
+      ipcRenderer.invoke("lhic:omp:set-thinking-level", level),
+    setFastMode: (enabled) =>
+      ipcRenderer.invoke("lhic:omp:set-fast-mode", enabled),
+    setInterruptMode: (mode) =>
+      ipcRenderer.invoke("lhic:omp:set-interrupt-mode", mode),
+    setTodos: (phases) => ipcRenderer.invoke("lhic:omp:set-todos", phases),
+    renameSession: (name) =>
+      ipcRenderer.invoke("lhic:omp:rename-session", name),
+    exportHtml: () => ipcRenderer.invoke("lhic:omp:export-html"),
+    loginProviders: () => ipcRenderer.invoke("lhic:omp:login-providers"),
+    login: (providerId) => ipcRenderer.invoke("lhic:omp:login", providerId),
+    providerKeyStatus: () => ipcRenderer.invoke("lhic:omp:provider-key:status"),
+    setProviderKey: (provider, key) =>
+      ipcRenderer.invoke("lhic:omp:provider-key:set", provider, key),
+    removeProviderKey: (provider) =>
+      ipcRenderer.invoke("lhic:omp:provider-key:remove", provider),
+    availableCommands: () => ipcRenderer.invoke("lhic:omp:available-commands"),
+    messages: (cursor) => ipcRenderer.invoke("lhic:omp:messages", cursor),
+    sessionStats: () => ipcRenderer.invoke("lhic:omp:session-stats"),
+    advanced: (input) => ipcRenderer.invoke("lhic:omp:advanced", input),
+    subagents: () => ipcRenderer.invoke("lhic:omp:subagents"),
+    respondUi: (requestId, response) =>
+      ipcRenderer.invoke("lhic:omp:respond-ui", requestId, response),
+    approveHostTool: (callId, approvedBy) =>
+      ipcRenderer.invoke("lhic:omp:approve-host-tool", callId, approvedBy),
+    rejectHostTool: (callId) =>
+      ipcRenderer.invoke("lhic:omp:reject-host-tool", callId),
+  },
+  account: {
+    status: () => ipcRenderer.invoke("lhic:account:status"),
+    login: (email) => ipcRenderer.invoke("lhic:account:login", email),
+    logout: () => ipcRenderer.invoke("lhic:account:logout"),
+    updateProfile: (profile) =>
+      ipcRenderer.invoke("lhic:account:update-profile", profile),
+  },
+  library: {
+    search: (params) => ipcRenderer.invoke("lhic:library:search", params),
+    detail: (id) => ipcRenderer.invoke("lhic:library:detail", id),
+    versions: (id) => ipcRenderer.invoke("lhic:library:versions", id),
+    rate: (id, rating) => ipcRenderer.invoke("lhic:library:rate", id, rating),
+    download: (id) => ipcRenderer.invoke("lhic:library:download", id),
+  },
+  settings: {
+    theme: () => ipcRenderer.invoke("lhic:settings:theme"),
+    setTheme: (theme) => ipcRenderer.invoke("lhic:settings:set-theme", theme),
+  },
   events: {
     onProgress: (listener) => {
       const handler = (_event, payload) => listener(payload);
       ipcRenderer.on("lhic:progress", handler);
       return () => ipcRenderer.removeListener("lhic:progress", handler);
+    },
+    onOmp: (listener) => {
+      const handler = (_event, payload) => listener(payload);
+      ipcRenderer.on("lhic:omp:event", handler);
+      return () => ipcRenderer.removeListener("lhic:omp:event", handler);
     },
   },
 });

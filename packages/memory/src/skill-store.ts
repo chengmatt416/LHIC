@@ -108,12 +108,20 @@ export function createMemoryDatabase(filePath = ":memory:"): DatabaseSync {
 function nextLifecycle(
   current: SkillLifecycle,
   successCount: number,
+  options: { fastPromote?: boolean } = {},
 ): SkillLifecycle {
   if (current === "draft") {
     return "verified";
   }
-  if (current === "verified" && successCount >= 3) {
-    return "habit";
+  if (current === "verified") {
+    // Fast promotion: 1 success → habit for low-risk skills
+    if (options.fastPromote && successCount >= 1) {
+      return "habit";
+    }
+    // Normal promotion: 3 successes → habit
+    if (successCount >= 3) {
+      return "habit";
+    }
   }
   if (current === "habit" && successCount >= 10) {
     return "trusted";
@@ -186,6 +194,7 @@ export class SkillStore {
     name: string,
     definition: Record<string, unknown>,
     verification: VerificationResult,
+    options: { fastPromote?: boolean } = {},
   ): SkillRecord {
     if (!verification.success || verification.evidence.length === 0) {
       throw new Error(
@@ -197,6 +206,7 @@ export class SkillStore {
     const lifecycle = nextLifecycle(
       existing?.lifecycle ?? "draft",
       successCount,
+      options,
     );
     const safeDefinition = JSON.stringify(redactPII(definition));
     const now = new Date().toISOString();
@@ -318,6 +328,17 @@ export class SkillStore {
       .prepare("SELECT * FROM candidate_skills WHERE name = ?")
       .get(name) as CandidateSkillRow | undefined;
     return row ? mapCandidateSkillRow(row) : undefined;
+  }
+
+  /** Distinct task IDs behind a candidate's verified runs (independence). */
+  public candidateRunTaskIds(name: string): string[] {
+    const rows = this.database
+      .prepare(
+        `SELECT DISTINCT task_id FROM candidate_skill_runs
+         WHERE candidate_name = ? ORDER BY task_id`,
+      )
+      .all(name) as Array<{ task_id: string }>;
+    return rows.map((row) => row.task_id);
   }
 
   public listCandidates(): CandidateSkillRecord[] {
@@ -610,6 +631,12 @@ function ensureColumn(
   name: string,
   definition: string,
 ): void {
+  if (!/^[a-z_][a-z0-9_]*$/.test(name)) {
+    throw new Error(`Unsafe column name: ${name}`);
+  }
+  if (!/^[A-Z][A-Z0-9 ()_',]+$/.test(definition.toUpperCase())) {
+    throw new Error(`Unsafe column definition: ${definition}`);
+  }
   const columns = database
     .prepare(`PRAGMA table_info(${table})`)
     .all() as Array<{ name: string }>;

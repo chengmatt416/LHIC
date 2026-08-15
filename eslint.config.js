@@ -6,6 +6,7 @@ export default tseslint.config(
     ignores: [
       "**/dist/**",
       "**/node_modules/**",
+      "node_modules_bak/**",
       "coverage/**",
       "demo-output/**",
       "playwright-report/**",
@@ -42,6 +43,8 @@ export default tseslint.config(
         URL: "readonly",
         document: "readonly",
         CSS: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
       },
     },
     rules: {

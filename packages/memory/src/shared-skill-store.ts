@@ -117,11 +117,22 @@ export class SharedSkillStore {
     return rows.map(mapSharedSkillRow);
   }
 
+  /**
+   * Applies a registry snapshot. A remote registry can NEVER silently
+   * replace an already stored skill: when a skill's content hash would
+   * change, the update is kept only if the caller's verifier proves the new
+   * content is trusted. New skills are inserted; revoked skills are removed.
+   */
   public applySnapshot(
     registryId: string,
     snapshot: SharedSkillSnapshot,
-  ): void {
+    options: {
+      isTrusted?: (skill: SharedSkillSnapshot["skills"][number]) => boolean;
+    } = {},
+  ): { replaced: string[]; keptLocal: string[] } {
     assertRegistryId(registryId);
+    const replaced: string[] = [];
+    const keptLocal: string[] = [];
     const insert = this.database.prepare(
       `
         INSERT INTO shared_skills (
@@ -149,6 +160,22 @@ export class SharedSkillStore {
         if (skill.registryId !== registryId) {
           throw new Error("Shared skill snapshot registryId does not match.");
         }
+        const existing = this.database
+          .prepare(
+            `SELECT content_hash FROM shared_skills
+             WHERE registry_id = ? AND skill_id = ?`,
+          )
+          .get(registryId, skill.skillId) as
+          { content_hash: string } | undefined;
+        if (
+          existing &&
+          existing.content_hash !== skill.contentHash &&
+          !(options.isTrusted?.(skill) ?? false)
+        ) {
+          // Silent replacement refused: keep the trusted local definition.
+          keptLocal.push(skill.skillId);
+          continue;
+        }
         insert.run(
           registryId,
           skill.skillId,
@@ -161,6 +188,7 @@ export class SharedSkillStore {
           skill.contentHash,
           skill.updatedAt,
         );
+        replaced.push(skill.skillId);
       }
       for (const skillId of snapshot.revokedSkillIds) {
         if (skillId.trim()) {
@@ -172,6 +200,7 @@ export class SharedSkillStore {
       this.database.exec("ROLLBACK");
       throw error;
     }
+    return { replaced, keptLocal };
   }
 
   public enqueueSubmission(

@@ -14,7 +14,7 @@ import {
 } from "@lhic/schema";
 import {
   createActionApproval,
-  evaluateRisk,
+  evaluateStructuredRisk,
   parseRuntimeConfig,
   type ActionApproval,
 } from "@lhic/security";
@@ -243,14 +243,15 @@ export class DesktopBrowserRunner {
 export function requiresInteractiveApproval(
   action: BrowserSemanticAction,
 ): boolean {
-  const risk = evaluateRisk(action);
+  const risk = evaluateStructuredRisk(action);
   return (
     risk.requiresConfirmation ||
     action.riskLevel === "high" ||
     action.riskLevel === "unknown" ||
     action.type === "click" ||
     action.type === "press" ||
-    action.type === "download"
+    action.type === "download" ||
+    action.type === "upload"
   );
 }
 

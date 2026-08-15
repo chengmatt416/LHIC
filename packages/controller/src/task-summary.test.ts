@@ -33,6 +33,22 @@ describe("task summaries and stage plans", () => {
     expect(summary.currentLocation).toBe("https://example.test/search");
   });
 
+  it("bounds every retained summary field instead of letting one event consume the context", () => {
+    const oversized = "x".repeat(10_000);
+    const summary = createTaskSummary({
+      intent: { ...intent, goal: oversized },
+      completedSteps: [oversized],
+      verifiedEvidence: [oversized],
+      failureReasons: [oversized],
+    });
+
+    expect(summary.goal).toHaveLength(2_048);
+    expect(summary.completedSteps[0]).toHaveLength(512);
+    expect(summary.verifiedEvidence[0]).toHaveLength(512);
+    expect(summary.failureReasons[0]).toHaveLength(512);
+    expect(summary.goal.endsWith("…")).toBe(true);
+  });
+
   it("keeps compact context in the ContextEngine and creates executable stage plans", () => {
     const context = new ContextEngine("task-1", intent.goal);
     context.setUIState({

@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -18,6 +18,7 @@ import {
   callComputerUseTool,
   createComputerUseServer,
   createMcpRuntime,
+  isMcpEntryPoint,
   macHumanApprovalScript,
   SerializedComputerUseSession,
   type ComputerUseActionResult,
@@ -698,6 +699,21 @@ describe("LHIC computer-use MCP server", () => {
       );
     } finally {
       runtime.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("MCP executable entrypoint", () => {
+  it("recognizes a package-manager symlink", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lhic-mcp-entry-"));
+    const modulePath = join(directory, "index.js");
+    const executablePath = join(directory, "lhic-mcp");
+    try {
+      await writeFile(modulePath, "", "utf8");
+      await symlink(modulePath, executablePath);
+      expect(isMcpEntryPoint(executablePath, modulePath)).toBe(true);
+    } finally {
       await rm(directory, { recursive: true, force: true });
     }
   });

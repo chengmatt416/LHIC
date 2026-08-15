@@ -25,6 +25,12 @@ class RecordingRunner implements GlobalCommandRunner {
     ) {
       return { stdout: "TextEdit\tUntitled\n", stderr: "" };
     }
+    if (
+      command.file === "osascript" &&
+      command.args[1]?.includes("bounds of window of desktop")
+    ) {
+      return { stdout: "0, 0, 1280, 720\n", stderr: "" };
+    }
     if (command.file === "pgrep") {
       return { stdout: "321\n", stderr: "" };
     }
@@ -274,5 +280,162 @@ describe("GlobalComputerExecutor", () => {
     const command = buildGlobalComputerCommand(action, "win32");
     expect(command.file).toBe("powershell.exe");
     expect(command.args).toContain("-EncodedCommand");
+  });
+
+  it("rejects coordinate clicks outside the current desktop geometry", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_click",
+      intent: "click the approved editor coordinate",
+      methodPreference: ["mouse"],
+      riskLevel: "high",
+      x: 1280,
+      y: 100,
+      verifier: { type: "active_window", application: "TextEdit" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("outside the current desktop bounds"),
+    });
+    expect(runner.commands).toHaveLength(2);
+    expect(
+      runner.commands.some((command) => command.args[1]?.includes("click at")),
+    ).toBe(false);
+  });
+
+  it("passes clipboard copy text over stdin without a shell", () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_clipboard",
+      intent: "copy text for the active editor",
+      methodPreference: ["api"],
+      riskLevel: "high",
+      clipboardAction: "copy",
+      text: "line one\nline two",
+      verifier: { type: "active_window", application: "TextEdit" },
+    };
+
+    expect(buildGlobalComputerCommand(action, "darwin")).toEqual({
+      file: "pbcopy",
+      args: [],
+      input: "line one\nline two",
+    });
+    expect(buildGlobalComputerCommand(action, "linux")).toEqual({
+      file: "xclip",
+      args: ["-selection", "clipboard", "-i"],
+      input: "line one\nline two",
+    });
+  });
+
+  it("preserves horizontal scrolling on Linux", () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_scroll",
+      intent: "scroll right in the active editor",
+      methodPreference: ["mouse"],
+      riskLevel: "medium",
+      scrollDirection: "right",
+      scrollAmount: 4,
+      verifier: { type: "active_window", application: "TextEdit" },
+    };
+
+    expect(buildGlobalComputerCommand(action, "linux")).toEqual({
+      file: "xdotool",
+      args: ["click", "--repeat", "4", "7"],
+    });
+  });
+
+  it("returns desktop observations as bounded ephemeral elements", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_observe",
+      intent: "observe the active editor",
+      methodPreference: ["vision"],
+      riskLevel: "medium",
+      observeScope: "active_window",
+      verifier: { type: "active_window", application: "TextEdit" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+    const observation = JSON.parse(result.output ?? "{}") as {
+      backend: string;
+      elements: Array<{ label: string }>;
+    };
+
+    expect(result.success).toBe(true);
+    expect(observation).toMatchObject({
+      backend: "native",
+      elements: [{ label: "TextEdit\tUntitled" }],
+    });
+    expect(JSON.stringify(observation)).not.toContain("screen.png");
+  });
+
+  it("denies desktop observation without executing a command", async () => {
+    const action: GlobalComputerAction = {
+      scope: "os",
+      type: "os_observe",
+      intent: "observe the active editor",
+      methodPreference: ["vision"],
+      riskLevel: "medium",
+      observeScope: "active_window",
+      verifier: { type: "active_window" },
+    };
+    const runner = new RecordingRunner();
+    const executor = new GlobalComputerExecutor({ platform: "darwin", runner });
+    const result = await executor.observe(action);
+    expect(result.success).toBe(false);
+    expect(runner.commands).toHaveLength(0);
+  });
+
+  it("bounds a verifier runner that never settles after dispatch", async () => {
+    let calls = 0;
+    const runner: GlobalCommandRunner = {
+      async run(command) {
+        calls += 1;
+        if (calls === 3) {
+          return new Promise<GlobalCommandResult>(() => undefined);
+        }
+        if (
+          command.file === "osascript" &&
+          command.args[1]?.includes("frontmost")
+        ) {
+          return { stdout: "TextEdit\tUntitled\n", stderr: "" };
+        }
+        return { stdout: "", stderr: "" };
+      },
+    };
+    const executor = new GlobalComputerExecutor({
+      platform: "darwin",
+      runner,
+      verificationTimeoutMs: 25,
+      verificationPollIntervalMs: 5,
+    });
+    const action = typeAction();
+    const startedAt = performance.now();
+
+    const result = await executor.execute(
+      action,
+      createActionApproval(action, "local-operator"),
+    );
+
+    expect(performance.now() - startedAt).toBeLessThan(500);
+    expect(calls).toBe(3);
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("timed out"),
+    });
   });
 });

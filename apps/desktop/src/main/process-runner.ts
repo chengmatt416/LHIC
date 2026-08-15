@@ -16,6 +16,7 @@ export interface SpawnProcessOptions {
   env?: NodeJS.ProcessEnv;
   signal?: AbortSignal;
   maxOutputBytes?: number;
+  timeoutMs?: number;
 }
 
 export function spawnProcess(
@@ -23,20 +24,31 @@ export function spawnProcess(
   argumentsList: readonly string[],
   options: SpawnProcessOptions = { cwd: process.cwd() },
 ): SpawnedProcess {
+  const maxOutputBytes = options.maxOutputBytes ?? 1_048_576;
+  if (!Number.isSafeInteger(maxOutputBytes) || maxOutputBytes <= 0) {
+    throw new Error("Process output limit must be a positive integer.");
+  }
+  if (
+    options.timeoutMs !== undefined &&
+    (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs <= 0)
+  ) {
+    throw new Error("Process timeout must be a positive integer.");
+  }
   const child = spawn(executable, [...argumentsList], {
     cwd: options.cwd,
     env: options.env ?? process.env,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
-  const maxOutputBytes = options.maxOutputBytes ?? 1_048_576;
   let stdout = "";
   let stderr = "";
   let outputBytes = 0;
   let stoppedForOutputLimit = false;
   let stoppedForCancellation = options.signal?.aborted ?? false;
+  let stoppedForTimeout = false;
   let closed = false;
   let forceKillTimer: NodeJS.Timeout | undefined;
+  let timeoutTimer: NodeJS.Timeout | undefined;
   const terminate = () => {
     child.kill();
     forceKillTimer ??= setTimeout(() => {
@@ -44,6 +56,13 @@ export function spawnProcess(
     }, 250);
     forceKillTimer.unref();
   };
+  if (options.timeoutMs !== undefined) {
+    timeoutTimer = setTimeout(() => {
+      stoppedForTimeout = true;
+      terminate();
+    }, options.timeoutMs);
+    timeoutTimer.unref();
+  }
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
   const appendOutput = (target: "stdout" | "stderr", chunk: string) => {
@@ -72,22 +91,31 @@ export function spawnProcess(
   return {
     child,
     completed: new Promise<ProcessResult>((resolve, reject) => {
-      child.once("error", reject);
-      child.once("close", (exitCode) => {
+      const cleanup = () => {
         closed = true;
-        if (forceKillTimer) clearTimeout(forceKillTimer);
+        clearTimeout(forceKillTimer);
+        clearTimeout(timeoutTimer);
         if (options.signal) {
           options.signal.removeEventListener("abort", abort);
         }
+      };
+      child.once("error", (error) => {
+        cleanup();
+        reject(error);
+      });
+      child.once("close", (exitCode) => {
+        cleanup();
         resolve({
           exitCode: exitCode ?? 1,
           stdout,
           stderr:
             stoppedForCancellation && !stderr
               ? "Process cancelled."
-              : stoppedForOutputLimit && !stderr
-                ? "Process output exceeded the configured limit."
-                : stderr,
+              : stoppedForTimeout && !stderr
+                ? "Process timed out."
+                : stoppedForOutputLimit && !stderr
+                  ? "Process output exceeded the configured limit."
+                  : stderr,
         });
       });
     }),

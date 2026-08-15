@@ -288,6 +288,144 @@ describe("shared-skills control plane primitives", () => {
     expect(JSON.stringify(res.value)).not.toContain("must-not-reach-renderer");
   });
 
+  it("records review notes and review metadata on skill status changes", async () => {
+    const tables = new FakeTables();
+    tables.rows.set("skills", [
+      {
+        $id: "skill-1",
+        $createdAt: "2026-07-18T00:00:00.000Z",
+        $updatedAt: "2026-07-18T00:00:00.000Z",
+        name: "verified search",
+        version: "v1",
+        status: "pending",
+        fastPathEligible: false,
+        payload: JSON.stringify({}),
+      },
+    ]);
+    const res = responseCapture();
+    await handleControlPlane({
+      req: {
+        body: JSON.stringify({
+          status: "approved",
+          reviewNote: "passes verifier checks",
+        }),
+      },
+      res,
+      path: new URL("https://function.test/control/skills/skill-1"),
+      method: "PATCH",
+      tables,
+      config: testConfig(),
+      user: { $id: "bootstrap" },
+      githubUserId: async () => undefined,
+    });
+    expect(res.value.skill).toMatchObject({
+      id: "skill-1",
+      status: "approved",
+    });
+    const row = tables.rows.get("skills")[0];
+    expect(row).toMatchObject({
+      status: "approved",
+      reviewNote: "passes verifier checks",
+      reviewedBy: "bootstrap",
+      reviewedAt: expect.any(String),
+    });
+    expect(tables.rows.get("audit")).toHaveLength(1);
+    expect(tables.rows.get("audit")[0]).toMatchObject({
+      action: "skill.status",
+      target: "skill-1",
+    });
+  });
+
+  it("revokes a skill on administrator delete and audits it", async () => {
+    const tables = new FakeTables();
+    tables.rows.set("skills", [
+      {
+        $id: "skill-1",
+        $createdAt: "2026-07-18T00:00:00.000Z",
+        $updatedAt: "2026-07-18T00:00:00.000Z",
+        name: "verified search",
+        version: "v1",
+        status: "approved",
+        fastPathEligible: false,
+        payload: JSON.stringify({}),
+      },
+    ]);
+    const res = responseCapture();
+    await handleControlPlane({
+      req: { body: "" },
+      res,
+      path: new URL("https://function.test/control/skills/skill-1"),
+      method: "DELETE",
+      tables,
+      config: testConfig(),
+      user: { $id: "bootstrap" },
+      githubUserId: async () => undefined,
+    });
+    expect(res.value).toEqual({ deleted: true });
+    expect(tables.rows.get("skills")[0]).toMatchObject({
+      status: "revoked",
+      reviewNote: "Admin removed",
+      reviewedBy: "bootstrap",
+      reviewedAt: expect.any(String),
+    });
+    expect(tables.rows.get("audit")[0]).toMatchObject({
+      action: "skill.delete",
+      target: "skill-1",
+    });
+  });
+
+  it("serves recent audit events with parsed metadata to administrators", async () => {
+    const tables = new FakeTables();
+    tables.rows.set("audit", [
+      {
+        $id: "event-1",
+        $createdAt: "2026-07-18T00:00:00.000Z",
+        actorId: "bootstrap",
+        action: "skill.status",
+        target: "skill-1",
+        metadata: JSON.stringify({ status: "approved" }),
+      },
+      {
+        $id: "event-2",
+        $createdAt: "2026-07-18T00:00:01.000Z",
+        actorId: "bootstrap",
+        action: "judge.grant",
+        target: "grant-1",
+        metadata: "not-json",
+      },
+    ]);
+    const res = responseCapture();
+    await handleControlPlane({
+      req: { body: "" },
+      res,
+      path: new URL("https://function.test/control/audit"),
+      method: "GET",
+      tables,
+      config: testConfig(),
+      user: { $id: "bootstrap" },
+      githubUserId: async () => undefined,
+    });
+    expect(res.value.events).toEqual([
+      {
+        id: "event-1",
+        actorId: "bootstrap",
+        action: "skill.status",
+        target: "skill-1",
+        metadata: { status: "approved" },
+        createdAt: "2026-07-18T00:00:00.000Z",
+      },
+      {
+        id: "event-2",
+        actorId: "bootstrap",
+        action: "judge.grant",
+        target: "grant-1",
+        metadata: {},
+        createdAt: "2026-07-18T00:00:01.000Z",
+      },
+    ]);
+    expect(res.value.cursor).toBe("event-2");
+  });
+
   it("accepts only policy-package metadata, then gates it by administrator review", async () => {
     const tables = new FakeTables();
     const config = testConfig();

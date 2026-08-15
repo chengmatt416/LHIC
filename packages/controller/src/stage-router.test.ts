@@ -99,7 +99,7 @@ describe("stage-aware multi-path routing", () => {
       profile: "balanced",
       intent,
       prediction: uncertainPrediction,
-      hasLocalPlan: false,
+      hasLocalPlan: true,
       budget,
       recoveryAttempt: 1,
       failureReason: "Selector no longer matches.",
@@ -167,6 +167,9 @@ describe("stage-aware multi-path routing", () => {
     ).resolves.toBeUndefined();
     expect(received).toMatchObject({ recentTrace: [] });
     expect(JSON.stringify(received)).not.toContain("never-send");
+    expect(budget.snapshot().usage.slowPathInputChars).toBe(
+      JSON.stringify(received).length,
+    );
   });
 
   it("does not upgrade fast_only and only permits vision on deliberative", () => {

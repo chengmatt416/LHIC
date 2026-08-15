@@ -9,7 +9,8 @@ import {
  * Encrypts cleartext using AES-256-GCM with a secret key.
  */
 export function encryptText(text: string, secret: string): string {
-  const key = deriveKey(secret);
+  const salt = randomBytes(32);
+  const key = deriveKey(secret, salt);
 
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);
@@ -18,21 +19,24 @@ export function encryptText(text: string, secret: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag().toString("hex");
 
-  return `v1:${iv.toString("hex")}:${authTag}:${encrypted}`;
+  return `v1:${salt.toString("hex")}:${iv.toString("hex")}:${authTag}:${encrypted}`;
 }
 
 /**
  * Decrypts ciphertext using AES-256-GCM.
  */
 export function decryptText(cipherText: string, secret: string): string {
-  const key = deriveKey(secret);
-  const [version, ivHex, authTagHex, encryptedHex] = cipherText.split(":");
+  const [version, saltHex, ivHex, authTagHex, encryptedHex] =
+    cipherText.split(":");
   if (version !== "v1") {
     throw new Error("Encrypted text has an unsupported format.");
   }
-  if (!ivHex || !authTagHex || !encryptedHex) {
+  if (!saltHex || !ivHex || !authTagHex || !encryptedHex) {
     throw new Error("Encrypted text is malformed.");
   }
+
+  const salt = Buffer.from(saltHex, "hex");
+  const key = deriveKey(secret, salt);
 
   const iv = Buffer.from(ivHex, "hex");
   const authTag = Buffer.from(authTagHex, "hex");
@@ -44,9 +48,9 @@ export function decryptText(cipherText: string, secret: string): string {
   return decrypted;
 }
 
-function deriveKey(secret: string): Buffer {
+function deriveKey(secret: string, salt: Buffer): Buffer {
   if (!secret.trim()) {
     throw new Error("Encryption requires a non-empty secret.");
   }
-  return scryptSync(secret, "lhic-encryption-v1", 32);
+  return scryptSync(secret, salt, 32);
 }

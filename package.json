@@ -32,6 +32,15 @@
     "pw:install": "playwright install chromium",
     "bench:internal": "tsx apps/cli/src/main.ts bench internal",
     "bench:simulate": "tsx apps/cli/src/main.ts bench simulate resilience",
+    "bench:webarena:readiness": "tsx apps/cli/src/main.ts bench readiness webarena",
+    "bench:evidence:validate": "tsx apps/cli/src/main.ts bench validate-evidence",
+    "bench:osworld:bridge:preflight": "tsx benchmarks/osworld/lhic_osworld_bridge.ts --config benchmarks/osworld/config.example.json --preflight",
+    "bench:agent:self-test": "node benchmarks/agent-competitive/run.mjs --self-test",
+    "bench:agent:lhic": "node benchmarks/agent-competitive/run.mjs --product lhic",
+    "bench:agent:goose": "node benchmarks/agent-competitive/run.mjs --product goose",
+    "bench:agent:codex": "node benchmarks/agent-competitive/run.mjs --product codex",
+    "bench:agent:validate": "tsx apps/cli/src/main.ts bench validate-competitive",
+    "product:evidence:gate": "node scripts/product-evidence-gate.mjs",
     "trace:inspect": "tsx apps/cli/src/main.ts trace inspect",
     "preflight": "tsx apps/cli/src/main.ts preflight",
     "package:smoke": "node scripts/package-smoke.mjs",
@@ -42,9 +51,14 @@
     "check:cli-release-tag": "node scripts/check-cli-release-tag.mjs",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "release:checksums": "npm run release:checksums --workspace @lhic/desktop",
+    "publish:desktop": "npm publish --workspace lhic-desktop --access public --provenance",
+    "publish:brew-tap": "node scripts/publish-brew-tap.mjs",
+    "publish:aur": "node scripts/publish-aur.mjs",
     "check:release-versions": "node scripts/check-release-versions.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
-    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets"
+    "ci": "npm run format:check && npm run typecheck && npm test && npm run lint && npm run build && npm run bench:internal && npm run preflight && npm run audit:prod && npm run check:docs && npm run check:release-versions && npm run scan:secrets",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "checksums:verify": "node scripts/verify-sha256-manifest.mjs"
   },
   "dependencies": {
     "playwright": "^1.61.1"
@@ -58,5 +72,8 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.48.1",
     "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "sharp": "0.35.3"
   }
 }

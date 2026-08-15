@@ -48,6 +48,7 @@
     "@lhic/game-training-2d",
     "@lhic/game-training-3d",
     "@lhic/memory",
+    "@lhic/omp-rpc",
     "@lhic/schema",
     "@lhic/security",
     "@lhic/shared-skills",
@@ -62,6 +63,7 @@
     "@lhic/game-training": "^0.1.0",
     "@lhic/game-training-2d": "^0.1.0",
     "@lhic/game-training-3d": "^0.1.0",
+    "@lhic/ledger": "^0.1.0",
     "@lhic/memory": "^0.1.0",
     "@lhic/schema": "^0.1.0",
     "@lhic/security": "^0.1.0",
@@ -69,6 +71,7 @@
     "@lhic/skills": "^0.1.0",
     "@lhic/trace": "^0.1.0",
     "@lhic/verifier": "^0.1.0",
-    "playwright": "^1.61.1"
+    "playwright": "^1.61.1",
+    "@lhic/omp-rpc": "^0.1.0"
   }
 }

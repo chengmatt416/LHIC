@@ -19,7 +19,7 @@ export async function appendTraceEvent(
     if (!fileStats.isFile()) {
       throw new Error("Trace path must refer to a regular file.");
     }
-    if (process.platform !== "win32") {
+    if (process.platform !== "win32" && (fileStats.mode & 0o777) !== 0o600) {
       await file.chmod(0o600);
     }
     await file.write(`${JSON.stringify(redactedEvent)}\n`);

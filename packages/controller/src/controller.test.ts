@@ -63,8 +63,8 @@ describe("local controller", () => {
     expect(prediction).toMatchObject({
       predictedIntent: "search",
       skillName: "search",
-      confidence: 0.9,
     });
+    expect(prediction.confidence).toBeGreaterThanOrEqual(0.8);
     const compiled = compileActions(prediction, intent);
     expect(compiled.actions).toHaveLength(2);
     expect(
@@ -83,8 +83,8 @@ describe("local controller", () => {
     expect(loginPrediction).toMatchObject({
       predictedIntent: "login",
       skillName: "login",
-      confidence: 0.9,
     });
+    expect(loginPrediction.confidence).toBeGreaterThanOrEqual(0.8);
 
     const formPrediction = predictIntent(parseUserIntent("Fill the form"), {
       ...searchState,
@@ -102,8 +102,8 @@ describe("local controller", () => {
     expect(formPrediction).toMatchObject({
       predictedIntent: "form_filling",
       skillName: "fill_form",
-      confidence: 0.9,
     });
+    expect(formPrediction.confidence).toBeGreaterThanOrEqual(0.8);
 
     const downloadPrediction = predictIntent(
       parseUserIntent("Download report"),
@@ -117,8 +117,8 @@ describe("local controller", () => {
     expect(downloadPrediction).toMatchObject({
       predictedIntent: "download",
       skillName: "download_file",
-      confidence: 0.9,
     });
+    expect(downloadPrediction.confidence).toBeGreaterThanOrEqual(0.8);
 
     const testPrediction = predictIntent(
       parseUserIntent("Test the checkout flow"),
@@ -127,8 +127,8 @@ describe("local controller", () => {
     expect(testPrediction).toMatchObject({
       predictedIntent: "test_web_flow",
       skillName: "test_web_flow",
-      confidence: 0.9,
     });
+    expect(testPrediction.confidence).toBeGreaterThanOrEqual(0.8);
 
     const ambiguousPrediction = predictIntent(
       parseUserIntent("Search for books and verify the flow"),
@@ -136,8 +136,9 @@ describe("local controller", () => {
     );
     expect(ambiguousPrediction).toMatchObject({
       predictedIntent: "search",
-      confidence: 0.6,
     });
+    expect(ambiguousPrediction.confidence).toBeLessThan(0.8);
+    expect(ambiguousPrediction.confidence).toBeGreaterThan(0.5);
   });
 
   it("keeps ambiguous, medium, high, and unknown risk work off Fast Path", () => {

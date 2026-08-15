@@ -29,4 +29,31 @@ describe("spawnProcess", () => {
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain("cancelled");
   });
+
+  it("terminates a process after its configured timeout", async () => {
+    const spawned = spawnProcess(
+      process.execPath,
+      ["-e", "setTimeout(() => undefined, 10000)"],
+      { cwd: process.cwd(), timeoutMs: 10 },
+    );
+
+    const result = await spawned.completed;
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("timed out");
+  });
+
+  it("rejects invalid resource bounds before spawning", () => {
+    expect(() =>
+      spawnProcess(process.execPath, ["-e", ""], {
+        cwd: process.cwd(),
+        maxOutputBytes: 0,
+      }),
+    ).toThrow("positive integer");
+    expect(() =>
+      spawnProcess(process.execPath, ["-e", ""], {
+        cwd: process.cwd(),
+        timeoutMs: Number.NaN,
+      }),
+    ).toThrow("positive integer");
+  });
 });

@@ -280,10 +280,10 @@ export class ControlPlaneClient {
     id: string,
     status: "approved" | "rejected" | "revoked",
   ): Promise<AdminSkillReview> {
-    const response = await this.request(
-      `/control/skills/${encodePath(id)}/status`,
-      { method: "PATCH", body: { status } },
-    );
+    const response = await this.request(`/control/skills/${encodePath(id)}`, {
+      method: "PATCH",
+      body: { status },
+    });
     const skill = parseAdminSkill(response.skill);
     if (skill.status !== status) {
       throw new Error(

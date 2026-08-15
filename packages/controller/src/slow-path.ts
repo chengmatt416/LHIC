@@ -38,7 +38,10 @@ export interface SlowPathResponse {
 
 export interface SlowPathProvider {
   capabilities?: { visualObservation: boolean };
-  reason(request: SlowPathRequest): Promise<SlowPathResponse>;
+  reason(
+    request: SlowPathRequest,
+    signal?: AbortSignal,
+  ): Promise<SlowPathResponse>;
 }
 
 /** Removes typed control values and opaque signals before any model boundary. */

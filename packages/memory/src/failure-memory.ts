@@ -61,6 +61,58 @@ export class FailureMemory {
     };
   }
 
+  public shouldBlock(
+    skillName: string,
+    rootCause: FailureType,
+    threshold = 2,
+  ): boolean {
+    if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold > 100) {
+      throw new Error("Failure block threshold must be between 1 and 100.");
+    }
+    const row = this.database
+      .prepare(
+        "SELECT COUNT(*) AS count FROM failures WHERE skill_name = ? AND root_cause = ?",
+      )
+      .get(skillName, rootCause) as { count: number };
+    return row.count >= threshold;
+  }
+
+  public prune(
+    options: { maxEntries?: number; olderThanDays?: number } = {},
+  ): number {
+    const maxEntries = options.maxEntries ?? 1_000;
+    const olderThanDays = options.olderThanDays ?? 30;
+    if (
+      !Number.isSafeInteger(maxEntries) ||
+      maxEntries < 1 ||
+      maxEntries > 100_000 ||
+      !Number.isSafeInteger(olderThanDays) ||
+      olderThanDays < 1 ||
+      olderThanDays > 3650
+    ) {
+      throw new Error("Failure memory pruning bounds are invalid.");
+    }
+    const cutoff = new Date(
+      Date.now() - olderThanDays * 24 * 60 * 60 * 1_000,
+    ).toISOString();
+    const removedOld = this.database
+      .prepare("DELETE FROM failures WHERE occurred_at < ?")
+      .run(cutoff).changes;
+    const removedOverflow = this.database
+      .prepare(
+        `
+        DELETE FROM failures
+        WHERE id IN (
+          SELECT id FROM failures
+          ORDER BY occurred_at DESC, id DESC
+          LIMIT -1 OFFSET ?
+        )
+      `,
+      )
+      .run(maxEntries).changes;
+    return Number(removedOld) + Number(removedOverflow);
+  }
+
   public recommendationFor(rootCause: FailureType): string {
     return recoveryRules[rootCause];
   }

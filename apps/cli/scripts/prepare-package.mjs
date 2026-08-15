@@ -20,6 +20,7 @@ const bundledPackages = [
   "schema",
   "security",
   "shared-skills",
+  "omp-rpc",
   "skills",
   "trace",
   "verifier",

@@ -12,6 +12,13 @@ export interface ControlPlaneConfig {
   rateLimitWindowMs?: number;
 }
 
+/**
+ * EXPERIMENTAL: an in-memory HTTP stub with no persistence, idempotency,
+ * cancellation, or worker leases. It is not wired into the MCP entrypoint
+ * and MUST NOT be presented as durable remote orchestration. Use
+ * DistributedTaskQueue / DurableWorkflowStore for real durability, or treat
+ * this surface as experimental until the guarantees are implemented.
+ */
 export class ControlPlaneServer {
   private server: ReturnType<typeof createServer> | null = null;
   private readonly rateLimits: Map<string, { count: number; resetAt: number }> =

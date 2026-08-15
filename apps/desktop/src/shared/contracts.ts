@@ -1,3 +1,5 @@
+import type { SemanticActionType } from "@lhic/schema";
+
 export const taskSourceKinds = [
   "codex-cli",
   "antigravity-cli",
@@ -50,19 +52,7 @@ export interface TaskProposalSummary {
   stepCount: number;
   steps: Array<{
     id: string;
-    action:
-      | "navigate"
-      | "click"
-      | "fill"
-      | "select"
-      | "press"
-      | "wait"
-      | "download"
-      | "os_click"
-      | "os_type"
-      | "os_press"
-      | "os_launch"
-      | "os_focus";
+    action: Exclude<SemanticActionType, "custom">;
     intent: string;
     riskLevel: "low" | "medium" | "high" | "unknown";
     verifier: string;
@@ -440,6 +430,239 @@ export interface DashboardSnapshot {
   recentEvents: CommandEvent[];
 }
 
+export interface OmpModelInfo {
+  provider: string;
+  id: string;
+}
+
+export interface OmpProviderKeyStatus {
+  provider: string;
+  envVar: string;
+  hasKey: boolean;
+  storage: "keychain" | "file" | "none";
+}
+
+export interface OmpSubagentModel {
+  selector: string;
+  provider: string;
+  modelId: string;
+  displayName?: string;
+  enabled: boolean;
+  connected: boolean;
+  reasoning?: boolean;
+  image?: boolean;
+  contextWindow?: number;
+  thinkingLevels?: string[];
+}
+
+export interface OmpTodoTask {
+  id: string;
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+export interface OmpTodoPhase {
+  id: string;
+  name: string;
+  tasks: OmpTodoTask[];
+}
+
+export interface OmpRuntimeState {
+  running: boolean;
+  error?: string;
+  model?: OmpModelInfo;
+  thinkingLevel?:
+    "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+  isStreaming: boolean;
+  sessionName?: string;
+  sessionFile?: string;
+  messageCount: number;
+  todoPhases: OmpTodoPhase[];
+  fastModeEnabled?: boolean;
+  fastModeActive?: boolean;
+  interruptMode?: "immediate" | "wait";
+  contextUsage?: { tokens: number; contextWindow: number; percent: number };
+  steeringMode?: "all" | "one-at-a-time";
+  followUpMode?: "all" | "one-at-a-time";
+  autoCompactionEnabled?: boolean;
+  autoRetryEnabled?: boolean;
+  recoveryState?: "running" | "restarting" | "resumed" | "recovery_failed";
+  subagents?: OmpSubagentView[];
+}
+
+export interface OmpCommandInfo {
+  name: string;
+  description?: string;
+  aliases?: string[];
+}
+export interface OmpSubagentView {
+  id: string;
+  label: string;
+  task: string;
+  status: string;
+  provider?: string;
+  model?: string;
+  progress?: string;
+  startedAt?: string;
+}
+
+export interface OmpSessionStats {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  cost?: number;
+  turns?: number;
+  durationMs?: number;
+  raw: Record<string, unknown>;
+}
+
+export interface OmpAdvancedCommand {
+  command:
+    | "abortAndPrompt"
+    | "cycleModel"
+    | "cycleThinkingLevel"
+    | "compact"
+    | "setAutoCompaction"
+    | "setAutoRetry"
+    | "abortRetry"
+    | "bash"
+    | "abortBash"
+    | "setSteeringMode"
+    | "setFollowUpMode"
+    | "branch"
+    | "getBranchMessages"
+    | "getLastAssistantText"
+    | "handoff"
+    | "setSubagentSubscription"
+    | "getSubagentMessages";
+  message?: string;
+  enabled?: boolean;
+  mode?: "all" | "one-at-a-time";
+  entryId?: string;
+  subscription?: "off" | "progress" | "events";
+  subagentId?: string;
+  sessionFile?: string;
+  fromByte?: number;
+}
+
+export interface OmpSessionInfo {
+  path: string;
+  name: string;
+  messageCount: number;
+  updatedAt: string;
+}
+
+export interface OmpMessageView {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  status: "streaming" | "complete" | "error";
+  toolCalls: OmpToolCallView[];
+}
+
+export interface OmpToolCallView {
+  id: string;
+  name: string;
+  state: "running" | "success" | "error";
+  summary?: string;
+  /** Provenance summary: executor/verifier authority and evidence count. */
+  provenance?: {
+    executor: string;
+    verifier: string;
+    evidenceRefs: number;
+  };
+}
+
+export interface OmpUiRequest {
+  id: string;
+  method: "confirm" | "input" | "select" | "editor" | "notify" | "open_url";
+  title?: string;
+  message?: string;
+  placeholder?: string;
+  timeout?: number;
+  url?: string;
+}
+
+export interface OmpHostToolCall {
+  id: string;
+  toolName: string;
+  arguments: Record<string, unknown>;
+  proposal?: TaskProposalSummary;
+}
+
+export type OmpEvent =
+  | { type: "state"; state: OmpRuntimeState }
+  | { type: "message"; message: OmpMessageView }
+  | { type: "delta"; messageId: string; text: string }
+  | { type: "tool"; tool: OmpToolCallView }
+  | { type: "agent"; phase: "start" | "end" }
+  | { type: "ui"; request: OmpUiRequest }
+  | { type: "host-tool"; call: OmpHostToolCall }
+  | { type: "status"; status: OmpRuntimeState }
+  | { type: "commands"; commands: OmpCommandInfo[] }
+  | { type: "subagents"; subagents: OmpSubagentView[] }
+  | { type: "error"; message: string };
+
+export interface UserProfile {
+  userId: string;
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+}
+
+export interface AccountStatus {
+  mode: "offline" | "signed-in";
+  email?: string;
+  userId?: string;
+  profile?: UserProfile;
+}
+
+export interface LibrarySkillSummary {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  version: string;
+  downloadCount: number;
+  ratingAvg: number;
+  ratingCount: number;
+  authorId: string;
+  authorName?: string;
+  fastPathEligible: boolean;
+  createdAt?: string;
+}
+
+export interface LibrarySearchParams {
+  category?: string;
+  q?: string;
+  cursor?: string;
+}
+
+export interface LibrarySearchResult {
+  skills: LibrarySkillSummary[];
+  nextCursor?: string;
+  total?: number;
+}
+
+export interface SkillVersionSummary {
+  version: string;
+  contentHash: string;
+  changelog?: string;
+  createdAt: string;
+}
+
+export interface SkillDetail {
+  skill: LibrarySkillSummary;
+  versions: SkillVersionSummary[];
+  author?: UserProfile;
+  rating: { avg: number; count: number };
+}
+
+export interface ThemeSettings {
+  theme: "light" | "dark";
+}
+
 export interface DesktopApi {
   dashboard(): Promise<DashboardSnapshot>;
   tasks: {
@@ -562,7 +785,73 @@ export interface DesktopApi {
     has(id: string): Promise<boolean>;
     remove(id: string): Promise<void>;
   };
+  omp: {
+    start(): Promise<OmpRuntimeState>;
+    stop(): Promise<void>;
+    prompt(message: string): Promise<void>;
+    steer(message: string): Promise<void>;
+    followUp(message: string): Promise<void>;
+    abort(): Promise<void>;
+    newSession(): Promise<OmpRuntimeState>;
+    state(): Promise<OmpRuntimeState>;
+    listSessions(): Promise<OmpSessionInfo[]>;
+    switchSession(path: string): Promise<OmpRuntimeState>;
+    setModel(provider: string, modelId: string): Promise<OmpRuntimeState>;
+    listModels(): Promise<OmpModelInfo[]>;
+    listSubagentModels(): Promise<OmpSubagentModel[]>;
+    setSubagentModels(selectors: string[]): Promise<OmpSubagentModel[]>;
+    setThinkingLevel(
+      level: NonNullable<OmpRuntimeState["thinkingLevel"]>,
+    ): Promise<OmpRuntimeState>;
+    setFastMode(enabled: boolean): Promise<OmpRuntimeState>;
+    setInterruptMode(mode: "immediate" | "wait"): Promise<OmpRuntimeState>;
+    setTodos(phases: OmpTodoPhase[]): Promise<void>;
+    renameSession(name: string): Promise<void>;
+    exportHtml(): Promise<string>;
+    loginProviders(): Promise<Array<{ id: string }>>;
+    login(providerId: string): Promise<void>;
+    providerKeyStatus(): Promise<OmpProviderKeyStatus[]>;
+    setProviderKey(provider: string, key: string): Promise<OmpRuntimeState>;
+    removeProviderKey(provider: string): Promise<OmpRuntimeState>;
+    availableCommands(): Promise<OmpCommandInfo[]>;
+    messages(cursor?: string): Promise<{
+      messages: OmpMessageView[];
+      nextCursor?: string;
+      totalMessages: number;
+    }>;
+    sessionStats(): Promise<OmpSessionStats>;
+    advanced(input: OmpAdvancedCommand): Promise<Record<string, unknown>>;
+    subagents(): Promise<OmpSubagentView[]>;
+    respondUi(
+      requestId: string,
+      response: {
+        value?: string;
+        confirmed?: boolean;
+        cancelled?: boolean;
+      },
+    ): Promise<void>;
+    approveHostTool(callId: string, approvedBy: string): Promise<void>;
+    rejectHostTool(callId: string): Promise<void>;
+  };
+  account: {
+    status(): Promise<AccountStatus>;
+    login(email: string): Promise<AccountStatus>;
+    logout(): Promise<AccountStatus>;
+    updateProfile(profile: Omit<UserProfile, "userId">): Promise<AccountStatus>;
+  };
+  library: {
+    search(params: LibrarySearchParams): Promise<LibrarySearchResult>;
+    detail(id: string): Promise<SkillDetail>;
+    versions(id: string): Promise<SkillVersionSummary[]>;
+    rate(id: string, rating: number): Promise<SkillDetail>;
+    download(id: string): Promise<LibrarySkillSummary>;
+  };
+  settings: {
+    theme(): Promise<ThemeSettings>;
+    setTheme(theme: "light" | "dark"): Promise<ThemeSettings>;
+  };
   events: {
     onProgress(listener: (event: DesktopProgressEvent) => void): () => void;
+    onOmp(listener: (event: OmpEvent) => void): () => void;
   };
 }

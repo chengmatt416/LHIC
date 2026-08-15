@@ -49,10 +49,26 @@ export class SelectorMemory {
     >,
     verification: VerificationResult,
   ): boolean {
+    const safe = redactPII(entry);
     if (!verification.success || verification.evidence.length === 0) {
+      this.database
+        .prepare(
+          `
+          INSERT INTO selectors (skill_name, target, selector, role, label, failure_count)
+          VALUES (?, ?, ?, ?, ?, 1)
+          ON CONFLICT(skill_name, target, selector) DO UPDATE SET
+            failure_count = failure_count + 1
+        `,
+        )
+        .run(
+          safe.skillName,
+          safe.target,
+          safe.selector,
+          safe.role ?? null,
+          safe.label ?? null,
+        );
       return false;
     }
-    const safe = redactPII(entry);
     this.database
       .prepare(
         `
@@ -117,5 +133,43 @@ export class SelectorMemory {
       failureCount: row.failure_count,
       ...(row.last_success_at ? { lastSuccessAt: row.last_success_at } : {}),
     }));
+  }
+
+  public prune(
+    options: {
+      maxEntries?: number;
+      maxFailureCount?: number;
+    } = {},
+  ): number {
+    const maxEntries = options.maxEntries ?? 500;
+    const maxFailureCount = options.maxFailureCount ?? 3;
+    if (
+      !Number.isSafeInteger(maxEntries) ||
+      maxEntries < 1 ||
+      maxEntries > 10_000 ||
+      !Number.isSafeInteger(maxFailureCount) ||
+      maxFailureCount < 1 ||
+      maxFailureCount > 100
+    ) {
+      throw new Error("Selector memory pruning bounds are invalid.");
+    }
+    const removedFailures = this.database
+      .prepare(
+        "DELETE FROM selectors WHERE failure_count >= ? AND success_count = 0",
+      )
+      .run(maxFailureCount).changes;
+    const removedOverflow = this.database
+      .prepare(
+        `
+        DELETE FROM selectors
+        WHERE rowid IN (
+          SELECT rowid FROM selectors
+          ORDER BY success_count DESC, last_success_at DESC
+          LIMIT -1 OFFSET ?
+        )
+      `,
+      )
+      .run(maxEntries).changes;
+    return Number(removedFailures) + Number(removedOverflow);
   }
 }

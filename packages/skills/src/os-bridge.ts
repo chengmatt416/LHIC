@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
-import { promisify } from "node:util";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { isGlobalComputerAction } from "@lhic/schema";
 import type {
@@ -20,13 +20,19 @@ import {
 } from "@lhic/security";
 import { appendTraceEvent } from "@lhic/trace";
 
-const execFileAsync = promisify(execFile);
+import type {
+  BackendDispatchResult,
+  ExecutionBackendId,
+  BoundedDesktopObservation,
+} from "./execution-backend.js";
 
 export type GlobalDesktopPlatform = "darwin" | "win32" | "linux";
 
 export interface GlobalCommand {
   file: string;
   args: string[];
+  /** Optional standard input, passed without invoking a shell. */
+  input?: string;
 }
 
 export interface GlobalCommandResult {
@@ -43,6 +49,13 @@ export interface GlobalDesktopState {
   title?: string;
 }
 
+export interface GlobalDesktopGeometry {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface GlobalComputerExecutorOptions {
   taskId?: string;
   traceFilePath?: string;
@@ -50,6 +63,23 @@ export interface GlobalComputerExecutorOptions {
   runner?: GlobalCommandRunner;
   approvalValidation?: ActionApprovalValidationOptions;
   approvalReplayStore?: ApprovalReplayStore;
+  verificationTimeoutMs?: number;
+  verificationPollIntervalMs?: number;
+  /**
+   * Optional element-grounded dispatch (Peekaboo / FlaUI / OmniParser V2).
+   * When it returns a result the action is dispatched through the backend;
+   * otherwise the executor falls back to the native platform command.
+   */
+  dispatcher?: GlobalActionDispatcher;
+}
+
+export interface GlobalActionDispatcher {
+  dispatch(
+    action: GlobalComputerAction,
+  ): Promise<BackendDispatchResult | undefined>;
+  observe?(
+    action: GlobalComputerAction,
+  ): Promise<BoundedDesktopObservation | undefined>;
 }
 
 export interface GlobalControlCapability {
@@ -70,6 +100,9 @@ export class GlobalComputerExecutor {
   private readonly runner: GlobalCommandRunner;
   private readonly approvalValidation: ActionApprovalValidationOptions;
   private readonly approvalReplayStore: ApprovalReplayStore | undefined;
+  private readonly verificationTimeoutMs: number;
+  private readonly verificationPollIntervalMs: number;
+  private readonly dispatcher: GlobalActionDispatcher | undefined;
 
   public constructor(options: GlobalComputerExecutorOptions = {}) {
     this.taskId = options.taskId ?? "global-computer-session";
@@ -77,6 +110,7 @@ export class GlobalComputerExecutor {
       options.traceFilePath ?? join("traces", `${this.taskId}.jsonl`);
     this.platform = options.platform ?? getGlobalDesktopPlatform();
     this.runner = options.runner ?? new ExecFileGlobalCommandRunner();
+    this.dispatcher = options.dispatcher;
     this.approvalValidation = {
       requireSignature: process.env.LHIC_ENV === "production",
       ...options.approvalValidation,
@@ -88,6 +122,84 @@ export class GlobalComputerExecutor {
             join(dirname(this.traceFilePath), "approval-replay"),
           )
         : undefined);
+    this.verificationTimeoutMs = boundedDuration(
+      options.verificationTimeoutMs,
+      5_000,
+      "verificationTimeoutMs",
+    );
+    this.verificationPollIntervalMs = boundedDuration(
+      options.verificationPollIntervalMs,
+      100,
+      "verificationPollIntervalMs",
+    );
+  }
+
+  public async observe(
+    action: GlobalComputerAction,
+    approval?: ActionApproval,
+  ): Promise<ActionExecutionResult> {
+    if (!isGlobalComputerAction(action) || action.type !== "os_observe") {
+      return {
+        success: false,
+        latencyMs: 0,
+        evidence: [],
+        error: "Desktop observation requires a valid os_observe action.",
+      };
+    }
+    const startedAt = performance.now();
+    try {
+      this.validateApproval(action, approval);
+      const bounded = await this.dispatcher?.observe?.(action);
+      if (bounded) {
+        const output = JSON.stringify({
+          elements: bounded.elements,
+          capturedAt: bounded.capturedAt,
+          backend: bounded.backend,
+          evidence: bounded.evidence,
+        });
+        return {
+          success: true,
+          method: "vision",
+          latencyMs: Math.round(performance.now() - startedAt),
+          evidence: bounded.evidence,
+          output,
+        };
+      }
+      const native = await this.runner.run(
+        buildGlobalComputerCommand(action, this.platform),
+      );
+      const title = outputForGlobalAction(action, native, this.platform) ?? "";
+      const output = JSON.stringify({
+        elements: title
+          ? [
+              {
+                id: "active-window",
+                label: title,
+                role: "window",
+                interactable: false,
+                backend: "native",
+              },
+            ]
+          : [],
+        capturedAt: new Date().toISOString(),
+        backend: "native",
+        evidence: ["Used the bounded native title-only observation fallback."],
+      });
+      return {
+        success: true,
+        method: "vision",
+        latencyMs: Math.round(performance.now() - startedAt),
+        evidence: ["Used the bounded native title-only observation fallback."],
+        output,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        latencyMs: Math.round(performance.now() - startedAt),
+        evidence: [],
+        error: safeGlobalActionError(error),
+      };
+    }
   }
 
   public async execute(
@@ -112,6 +224,9 @@ export class GlobalComputerExecutor {
       },
       action.riskLevel,
     );
+    if (action.type === "os_observe") {
+      return this.observe(action, approval);
+    }
 
     try {
       if (!action.methodPreference.includes(method)) {
@@ -140,18 +255,53 @@ export class GlobalComputerExecutor {
           throw new Error(replayDecision.reason);
         }
       }
+      // os_observe returns above through the dedicated bounded observation path.
 
       await this.verifyTargetBeforeDispatch(action);
-      await this.runner.run(buildGlobalComputerCommand(action, this.platform));
-      const verificationEvidence = await this.verify(action.verifier);
+      let commandResult: GlobalCommandResult | undefined;
+      let dispatchedBackend: ExecutionBackendId | undefined;
+      let dispatchEvidence: string[] = [];
+      if (this.dispatcher) {
+        try {
+          const dispatched = await this.dispatcher.dispatch(action);
+          if (dispatched?.result) {
+            commandResult = dispatched.result;
+            dispatchedBackend = dispatched.backend;
+            dispatchEvidence = dispatched.evidence ?? [];
+          }
+        } catch {
+          // Element backends must never fail the action; the native layer
+          // below is the unconditional fallback.
+        }
+      }
+      if (!commandResult) {
+        commandResult = await this.runner.run(
+          buildGlobalComputerCommand(action, this.platform),
+        );
+      }
+      const verificationEvidence = await this.verifyUntil(action.verifier);
+      const output = outputForGlobalAction(
+        action,
+        commandResult,
+        this.platform,
+      );
       const result: ActionExecutionResult = {
         success: true,
         method,
         latencyMs: Math.round(performance.now() - startedAt),
         evidence: [
-          `Dispatched ${action.type} through the ${this.platform} native ${method} API.`,
+          dispatchedBackend
+            ? `Dispatched ${action.type} through the ${dispatchedBackend} element backend.`
+            : `Dispatched ${action.type} through the ${this.platform} native ${method} API.`,
+          ...dispatchEvidence,
           verificationEvidence,
+          ...(output === undefined
+            ? []
+            : [
+                `Captured ${output.length} characters of ephemeral action output.`,
+              ]),
         ],
+        ...(output === undefined ? {} : { output }),
       };
       await this.trace(
         "global_action_completed",
@@ -173,6 +323,26 @@ export class GlobalComputerExecutor {
         action.riskLevel,
       );
       return result;
+    }
+  }
+
+  private validateApproval(
+    action: GlobalComputerAction,
+    approval?: ActionApproval,
+  ): void {
+    const approvalDecision = validateActionApproval(
+      action,
+      approval,
+      new Date(),
+      {
+        ...this.approvalValidation,
+        forceConfirmation: true,
+        confirmationReason:
+          "Global computer observations require a matching human approval.",
+      },
+    );
+    if (!approvalDecision.allowed) {
+      throw new Error(approvalDecision.reason);
     }
   }
 
@@ -208,6 +378,43 @@ export class GlobalComputerExecutor {
     return "Verified a running application against the requested verifier.";
   }
 
+  private async verifyUntil(
+    verifier: GlobalComputerVerification,
+  ): Promise<string> {
+    const deadline = performance.now() + this.verificationTimeoutMs;
+    let lastError: unknown;
+    do {
+      const remainingMs = Math.max(1, Math.ceil(deadline - performance.now()));
+      try {
+        return await this.verifyWithin(verifier, remainingMs);
+      } catch (error) {
+        lastError = error;
+      }
+      const sleepMs = Math.min(
+        this.verificationPollIntervalMs,
+        Math.max(0, deadline - performance.now()),
+      );
+      if (sleepMs > 0) await sleep(sleepMs);
+    } while (performance.now() < deadline);
+    throw lastError ?? new Error("Global desktop verification timed out.");
+  }
+
+  private async verifyWithin(
+    verifier: GlobalComputerVerification,
+    timeoutMs: number,
+  ): Promise<string> {
+    const { promise: interrupted, reject } = Promise.withResolvers<never>();
+    const timer = setTimeout(
+      () => reject(new Error("Global desktop verification timed out.")),
+      timeoutMs,
+    );
+    try {
+      return await Promise.race([this.verify(verifier), interrupted]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private async verifyTargetBeforeDispatch(
     action: GlobalComputerAction,
   ): Promise<void> {
@@ -224,7 +431,28 @@ export class GlobalComputerExecutor {
         "Keyboard and coordinate input require an active-window verifier with an application or title.",
       );
     }
-    await this.verify(action.verifier);
+    await this.verifyWithin(action.verifier, this.verificationTimeoutMs);
+    if (
+      action.type === "os_click" &&
+      methodForGlobalAction(action) === "mouse"
+    ) {
+      const geometry = await inspectGlobalDesktopGeometry(
+        this.runner,
+        this.platform,
+      );
+      const x = action.x!;
+      const y = action.y!;
+      if (
+        x < geometry.left ||
+        y < geometry.top ||
+        x >= geometry.left + geometry.width ||
+        y >= geometry.top + geometry.height
+      ) {
+        throw new Error(
+          `Coordinate (${x}, ${y}) is outside the current desktop bounds.`,
+        );
+      }
+    }
   }
 
   private async trace(
@@ -245,15 +473,28 @@ export class GlobalComputerExecutor {
 
 export class ExecFileGlobalCommandRunner implements GlobalCommandRunner {
   public async run(command: GlobalCommand): Promise<GlobalCommandResult> {
-    const result = await execFileAsync(command.file, command.args, {
-      windowsHide: true,
-      timeout: 15_000,
-      maxBuffer: 1_024 * 1_024,
-    });
-    return {
-      stdout: String(result.stdout),
-      stderr: String(result.stderr),
-    };
+    const { promise, resolve, reject } =
+      Promise.withResolvers<GlobalCommandResult>();
+    const child = execFile(
+      command.file,
+      command.args,
+      {
+        windowsHide: true,
+        timeout: 15_000,
+        maxBuffer: 1_024 * 1_024,
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve({ stdout: String(stdout), stderr: String(stderr) });
+      },
+    );
+    if (command.input !== undefined) {
+      child.stdin?.end(command.input);
+    }
+    return promise;
   }
 }
 
@@ -395,6 +636,64 @@ export async function inspectActiveGlobalDesktop(
   }
 }
 
+export async function inspectGlobalDesktopGeometry(
+  runner: GlobalCommandRunner,
+  platform: GlobalDesktopPlatform,
+): Promise<GlobalDesktopGeometry> {
+  if (platform === "darwin") {
+    const result = await runner.run({
+      file: "osascript",
+      args: [
+        "-e",
+        'tell application "Finder" to get bounds of window of desktop',
+      ],
+    });
+    const values = result.stdout.match(/-?\d+/g)?.map(Number);
+    if (!values || values.length < 4) {
+      throw new Error("macOS did not expose the desktop bounds.");
+    }
+    const [left, top, right, bottom] = values;
+    return validDesktopGeometry({
+      left: left!,
+      top: top!,
+      width: right! - left!,
+      height: bottom! - top!,
+    });
+  }
+  if (platform === "win32") {
+    const result = await runner.run(
+      powerShellCommand(windowsDesktopGeometryScript),
+    );
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.stdout);
+    } catch {
+      throw new Error("Windows did not expose the desktop bounds.");
+    }
+    if (!parsed || typeof parsed !== "object") {
+      throw new Error("Windows did not expose the desktop bounds.");
+    }
+    const candidate = parsed as Record<string, unknown>;
+    return validDesktopGeometry({
+      left: candidate.left,
+      top: candidate.top,
+      width: candidate.width,
+      height: candidate.height,
+    });
+  }
+  const result = await runner.run({
+    file: "xdotool",
+    args: ["getdisplaygeometry"],
+  });
+  const values = result.stdout.trim().split(/\s+/).map(Number);
+  return validDesktopGeometry({
+    left: 0,
+    top: 0,
+    width: values[0],
+    height: values[1],
+  });
+}
+
 async function isGlobalProcessRunning(
   runner: GlobalCommandRunner,
   platform: GlobalDesktopPlatform,
@@ -457,6 +756,44 @@ function buildMacCommand(action: GlobalComputerAction): GlobalCommand {
     case "os_launch":
     case "os_focus":
       return { file: "open", args: ["-a", action.application ?? ""] };
+    case "os_screenshot":
+      return {
+        file: "screencapture",
+        args: [
+          "-x",
+          "-t",
+          "png",
+          action.outputPath ?? "/tmp/lhic-screenshot.png",
+        ],
+      };
+    case "os_observe":
+      return appleScriptCommand(macObserveScript, [
+        action.application ?? "",
+        action.observeScope ?? "active_window",
+      ]);
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      return {
+        file: "osascript",
+        args: [
+          "-e",
+          `tell application "System Events" to scroll ${direction} ${amount}`,
+        ],
+      };
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return { file: "pbpaste", args: [] };
+      }
+      if (action.clipboardAction === "copy") {
+        return { file: "pbcopy", args: [], input: action.text ?? "" };
+      }
+      // paste: Cmd+V
+      return appleScriptCommand(
+        'tell application "System Events" to keystroke "v" using command down',
+        [],
+      );
   }
 }
 
@@ -483,6 +820,39 @@ function buildWindowsCommand(action: GlobalComputerAction): GlobalCommand {
       return powerShellCommand(windowsLaunchScript(action.application ?? ""));
     case "os_focus":
       return powerShellCommand(windowsFocusScript(action.application ?? ""));
+    case "os_screenshot":
+      return powerShellCommand(
+        windowsScreenshotScript(
+          action.outputPath ?? "\\temp\\lhic-screenshot.png",
+        ),
+      );
+    case "os_observe":
+      return powerShellCommand(
+        windowsObserveScript(
+          action.application ?? "",
+          action.observeScope ?? "active_window",
+        ),
+      );
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      return powerShellCommand(windowsScrollScript(direction, amount));
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return powerShellCommand("Get-Clipboard");
+      }
+      if (action.clipboardAction === "copy") {
+        return powerShellCommand(
+          `Set-Clipboard -Value ${powerShellString(action.text ?? "")}`,
+        );
+      }
+      // paste: Ctrl+V
+      return powerShellCommand(
+        `${windowsNativeInputScript}
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("^v")`,
+      );
   }
 }
 
@@ -525,11 +895,67 @@ function buildLinuxCommand(action: GlobalComputerAction): GlobalCommand {
         args: [
           "search",
           "--onlyvisible",
+          "--limit",
+          "1",
           "--name",
           action.application ?? "",
           "windowactivate",
           "--sync",
         ],
+      };
+    case "os_screenshot":
+      return {
+        file: "import",
+        args: [
+          "-window",
+          "root",
+          action.outputPath ?? "/tmp/lhic-screenshot.png",
+        ],
+      };
+    case "os_observe":
+      if ((action.observeScope ?? "active_window") === "active_window") {
+        return {
+          file: "xdotool",
+          args: ["getactivewindow", "getwindowname"],
+        };
+      }
+      return {
+        file: "xdotool",
+        args: [
+          "search",
+          "--onlyvisible",
+          ...(action.observeScope === "application" ? ["--limit", "1"] : []),
+          "--name",
+          action.observeScope === "application"
+            ? (action.application ?? "")
+            : ".",
+          "getwindowname",
+        ],
+      };
+    case "os_scroll": {
+      const direction = action.scrollDirection ?? "down";
+      const amount = action.scrollAmount ?? 3;
+      const button = { up: "4", down: "5", left: "6", right: "7" }[direction];
+      return {
+        file: "xdotool",
+        args: ["click", "--repeat", String(amount), button],
+      };
+    }
+    case "os_clipboard":
+      if (action.clipboardAction === "read") {
+        return { file: "xclip", args: ["-selection", "clipboard", "-o"] };
+      }
+      if (action.clipboardAction === "copy") {
+        return {
+          file: "xclip",
+          args: ["-selection", "clipboard", "-i"],
+          input: action.text ?? "",
+        };
+      }
+      // paste: Ctrl+V
+      return {
+        file: "xdotool",
+        args: ["key", "--clearmodifiers", "ctrl+v"],
       };
   }
 }
@@ -684,6 +1110,13 @@ function methodForGlobalAction(action: GlobalComputerAction): ActionMethod {
     case "os_launch":
     case "os_focus":
       return "accessibility";
+    case "os_screenshot":
+    case "os_observe":
+      return "vision";
+    case "os_scroll":
+      return "mouse";
+    case "os_clipboard":
+      return "api";
   }
 }
 
@@ -691,6 +1124,7 @@ function requiresActiveWindowTargeting(action: GlobalComputerAction): boolean {
   return (
     action.type === "os_type" ||
     action.type === "os_press" ||
+    action.type === "os_scroll" ||
     (action.type === "os_click" &&
       !(
         action.methodPreference.includes("accessibility") &&
@@ -698,6 +1132,161 @@ function requiresActiveWindowTargeting(action: GlobalComputerAction): boolean {
         action.application
       ))
   );
+}
+
+// macOS accessibility tree observation script
+const macObserveScript = `on run argv
+  set appName to item 1 of argv
+  set scope to item 2 of argv
+  set resultList to {}
+
+  tell application "System Events"
+    if scope is "active_window" then
+      set targetProcess to first application process whose frontmost is true
+    else if scope is "application" and appName is not "" then
+      set targetProcess to first application process whose name is appName
+    else
+      set targetProcess to first application process whose frontmost is true
+    end if
+
+    set procName to name of targetProcess
+    set windowList to {}
+
+    repeat with win in windows of targetProcess
+      try
+        set winTitle to name of win
+        set elementList to {}
+        set allElements to entire contents of win
+        repeat with el in allElements
+          try
+            set elRole to role of el
+            set elName to ""
+            try
+              set elName to name of el
+            end try
+            set elDesc to ""
+            try
+              set elDesc to description of el
+            end try
+            set elValue to ""
+            try
+              set elValue to value of el
+            end try
+            set elEnabled to true
+            try
+              set elEnabled to enabled of el
+            end try
+            set elFocused to false
+            try
+              set elFocused to focused of el
+            end try
+
+            set elementRecord to {role:elRole, name:elName, description:elDesc, value:elValue, enabled:elEnabled, focused:elFocused}
+            set end of elementList to elementRecord
+          end try
+        end repeat
+
+        set windowRecord to {title:winTitle, elements:elementList}
+        set end of windowList to windowRecord
+      end try
+    end repeat
+
+    return procName & "||" & (windowList as text)
+  end tell
+end run`;
+
+// Windows screenshot script
+function windowsScreenshotScript(outputPath: string): string {
+  return `Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+$graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+$bitmap.Save(${powerShellString(outputPath)}, [System.Drawing.Imaging.ImageFormat]::Png)
+$graphics.Dispose()
+$bitmap.Dispose()
+Write-Output ${powerShellString(`Screenshot saved to ${outputPath}`)}`;
+}
+
+// Windows accessibility tree observation script
+function windowsObserveScript(application: string, scope: string): string {
+  return `Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class ActiveWindowProbe {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+}
+'@
+
+$scope = ${powerShellString(scope)}
+$application = ${powerShellString(application)}
+if ($scope -eq 'active_window') {
+  $window = [ActiveWindowProbe]::GetForegroundWindow()
+  $processId = 0
+  [ActiveWindowProbe]::GetWindowThreadProcessId($window, [ref]$processId) | Out-Null
+  $processes = @(Get-Process -Id $processId -ErrorAction Stop)
+} elseif ($scope -eq 'application') {
+  $processes = @(Get-Process | Where-Object {
+    $_.MainWindowHandle -ne 0 -and
+    ($_.MainWindowTitle -like ('*' + $application + '*') -or $_.ProcessName -like ('*' + $application + '*'))
+  } | Select-Object -First 1)
+} else {
+  $processes = @(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 })
+}
+if ($processes.Count -eq 0) { throw "Application window was not found" }
+
+$walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+function Get-ElementTree($element, $depth = 0) {
+  $result = @()
+  if ($depth -gt 8) { return $result }
+  try {
+    $value = ""
+    try {
+      $vp = $element.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+      $value = $vp.Current.Value
+    } catch {}
+    $result += @{
+      role = $element.Current.ControlType.ProgrammaticName
+      name = $element.Current.Name
+      enabled = $element.Current.IsEnabled
+      focused = $element.Current.HasKeyboardFocus
+      value = $value
+      depth = $depth
+    }
+    $child = $walker.GetFirstChild($element)
+    while ($null -ne $child) {
+      $result += Get-ElementTree $child ($depth + 1)
+      $child = $walker.GetNextSibling($child)
+    }
+  } catch {}
+  return $result
+}
+
+$observations = foreach ($proc in $processes) {
+  $root = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
+  if ($null -ne $root) {
+    @{
+      application = $proc.ProcessName
+      title = $proc.MainWindowTitle
+      elements = @(Get-ElementTree $root)
+    }
+  }
+}
+@($observations) | ConvertTo-Json -Compress -Depth 12`;
+}
+
+// Windows scroll script
+function windowsScrollScript(direction: string, amount: number): string {
+  const horizontal = direction === "left" || direction === "right";
+  const positive = direction === "up" || direction === "right";
+  const scrollDelta = (positive ? amount : -amount) * 120;
+  const eventFlag = horizontal ? "0x1000" : "0x0800";
+  return `${windowsNativeInputScript}
+[Native]::mouse_event(${eventFlag}, 0, 0, ${scrollDelta}, [UIntPtr]::Zero)`;
 }
 
 function parseWindowsDesktopState(stdout: string): GlobalDesktopState {
@@ -722,6 +1311,65 @@ function parseWindowsDesktopState(stdout: string): GlobalDesktopState {
   };
 }
 
+function validDesktopGeometry(
+  geometry: Record<keyof GlobalDesktopGeometry, unknown>,
+): GlobalDesktopGeometry {
+  const { left, top, width, height } = geometry;
+  if (
+    typeof left !== "number" ||
+    !Number.isInteger(left) ||
+    typeof top !== "number" ||
+    !Number.isInteger(top) ||
+    typeof width !== "number" ||
+    !Number.isInteger(width) ||
+    width <= 0 ||
+    typeof height !== "number" ||
+    !Number.isInteger(height) ||
+    height <= 0
+  ) {
+    throw new Error("The operating system returned invalid desktop bounds.");
+  }
+  return { left, top, width, height };
+}
+
+function outputForGlobalAction(
+  action: GlobalComputerAction,
+  result: GlobalCommandResult,
+  platform: GlobalDesktopPlatform,
+): string | undefined {
+  if (action.type === "os_observe") {
+    const output = result.stdout.trim();
+    if (!output) {
+      throw new Error("Desktop observation returned no output.");
+    }
+    return output.slice(0, 256_000);
+  }
+  if (action.type === "os_clipboard" && action.clipboardAction === "read") {
+    return result.stdout.slice(0, 256_000);
+  }
+  if (action.type === "os_screenshot") {
+    return (
+      action.outputPath ??
+      (platform === "win32"
+        ? "\\temp\\lhic-screenshot.png"
+        : "/tmp/lhic-screenshot.png")
+    );
+  }
+  return undefined;
+}
+
+function boundedDuration(
+  value: number | undefined,
+  fallback: number,
+  name: string,
+): number {
+  const duration = value ?? fallback;
+  if (!Number.isInteger(duration) || duration < 1 || duration > 30_000) {
+    throw new Error(`${name} must be an integer from 1 to 30000 milliseconds.`);
+  }
+  return duration;
+}
+
 function containsNormalized(actual: string, expected: string): boolean {
   return actual.toLocaleLowerCase().includes(expected.toLocaleLowerCase());
 }
@@ -739,7 +1387,7 @@ function capabilityInstallHint(platform: GlobalDesktopPlatform): string {
 function safeGlobalActionError(error: unknown): string {
   if (
     error instanceof Error &&
-    /approval|method|verifier|active application|window title|process is not running|unsupported/i.test(
+    /approval|method|verifier|verification|timed out|active application|window title|process is not running|unsupported|coordinate|desktop bounds|observation/i.test(
       error.message,
     )
   ) {
@@ -871,8 +1519,7 @@ const windowsNativeInputScript = `Add-Type @'
 using System;
 using System.Runtime.InteropServices;
 public static class Native {
-  [DllImport("user32.dll", SetLastError = true)] public static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll", SetLastError = true)] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+  [DllImport("user32.dll", SetLastError = true)] public static extern void mouse_event(uint flags, uint dx, uint dy, int data, UIntPtr extraInfo);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 '@`;
@@ -897,21 +1544,35 @@ $processId = 0
 $process = Get-Process -Id $processId -ErrorAction Stop
 @{ application = $process.ProcessName; title = $title.ToString() } | ConvertTo-Json -Compress`;
 
+const windowsDesktopGeometryScript = `Add-Type -AssemblyName System.Windows.Forms
+$bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
+@{
+  left = $bounds.Left
+  top = $bounds.Top
+  width = $bounds.Width
+  height = $bounds.Height
+} | ConvertTo-Json -Compress`;
+
 function windowsAccessibilityClickScript(
   application: string,
   target: string,
 ): string {
   return `Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
-$proc = Get-Process | Where-Object { $_.MainWindowTitle -like '*${application}*' -or $_.ProcessName -like '*${application}*' } | Select-Object -First 1
+$application = ${powerShellString(application)}
+$target = ${powerShellString(target)}
+$proc = Get-Process | Where-Object {
+  $_.MainWindowHandle -ne 0 -and
+  ($_.MainWindowTitle -like ('*' + $application + '*') -or $_.ProcessName -like ('*' + $application + '*'))
+} | Select-Object -First 1
 if ($null -eq $proc) { throw "Application process not found" }
 $ae = [System.Windows.Automation.AutomationElement]::FromHandle($proc.MainWindowHandle)
 $condition = New-Object System.Windows.Automation.OrCondition(
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "${target}")),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, "${target}"))
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $target)),
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::AutomationIdProperty, $target))
 )
 $elem = $ae.FindFirst([System.Windows.Automation.TreeScope]::Subtree, $condition)
-if ($null -eq $elem) { throw "Accessibility element ${target} not found" }
+if ($null -eq $elem) { throw "Accessibility element was not found" }
 $invokePattern = $null
 try {
   $invokePattern = $elem.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)

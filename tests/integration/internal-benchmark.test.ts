@@ -5,19 +5,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   assessBenchmark,
+  assessP95Stability,
   calculateBenchmarkMetrics,
   calculateDailyWorkflowMetrics,
-  type BenchmarkFixture,
+  validateInternalFixtures,
 } from "../../apps/cli/src/internal-benchmark.js";
 
 describe("internal benchmark contract", () => {
   it("contains ten deterministic fixtures for each Fast Path skill and evaluates plan thresholds", async () => {
-    const fixtures = JSON.parse(
-      await readFile(
-        join(process.cwd(), "tests", "fixtures", "internal-benchmark.json"),
-        "utf8",
-      ),
-    ) as BenchmarkFixture[];
+    const fixtures = validateInternalFixtures(
+      JSON.parse(
+        await readFile(
+          join(process.cwd(), "tests", "fixtures", "internal-benchmark.json"),
+          "utf8",
+        ),
+      ) as unknown,
+    );
     expect(fixtures).toHaveLength(60);
     for (const skill of [
       "browser_plan",
@@ -80,11 +83,23 @@ describe("internal benchmark contract", () => {
     });
   });
 
-  it("requires a five-run Fast Path baseline by default and rejects p95 regression", async () => {
-    const baseline = [100, 105, 110, 115, 120].sort(
-      (left, right) => left - right,
-    );
-    expect(baseline[Math.ceil(baseline.length * 0.5) - 1]).toBe(110);
-    expect(122).toBeGreaterThan(110 * 1.1);
+  it("rejects unstable p95 runs through the production assessment", () => {
+    expect(assessP95Stability([100, 105, 110, 115, 122])).toEqual({
+      baselineP95Ms: 110,
+      passed: false,
+    });
+    expect(assessP95Stability([100, 105, 110, 115, 120])).toEqual({
+      baselineP95Ms: 110,
+      passed: true,
+    });
+  });
+
+  it("rejects duplicate fixture IDs before running the browser", () => {
+    expect(() =>
+      validateInternalFixtures([
+        { id: "duplicate", skill: "search", variant: 1 },
+        { id: "duplicate", skill: "login", variant: 2 },
+      ]),
+    ).toThrow("Duplicate internal benchmark fixture ID");
   });
 });

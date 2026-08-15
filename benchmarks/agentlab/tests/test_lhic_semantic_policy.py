@@ -27,6 +27,19 @@ class LhicSemanticPolicyTests(unittest.TestCase):
         self.assertEqual(first.action, 'fill("search-42", "release notes")')
         self.assertEqual(second.action, 'press("search-42", \'Enter\')')
 
+    def test_uses_a_searchbox_role_when_its_name_does_not_say_search(self) -> None:
+        html = '<input bid="query-7" role="searchbox" aria-label="Products">'
+
+        decision = propose_action("Search for a standing desk", html)
+
+        self.assertEqual(decision.action, 'fill("query-7", "a standing desk")')
+
+    def test_navigates_only_to_an_explicit_http_url(self) -> None:
+        decision = propose_action("Visit https://example.test/docs).", "")
+
+        self.assertEqual(decision.action, 'goto("https://example.test/docs")')
+        self.assertEqual(decision.phase, "navigated")
+
     def test_refuses_destructive_and_unsupported_goals(self) -> None:
         html = '<input bid="search-42" aria-label="Search docs">'
 
@@ -99,6 +112,30 @@ class LhicSemanticPolicyTests(unittest.TestCase):
         self.assertEqual([(control.bid, control.tag) for control in controls], [("all-1", "div")])
         decision = propose_action('Open "All"', '<div bid="all-1" role="button" aria-label="All">All</div>')
         self.assertEqual(decision.action, 'click("all-1")')
+
+    def test_parses_generic_interactive_roles_and_ignores_inactive_controls(self) -> None:
+        html = (
+            '<span bid="menu-1" role="menuitem">Preferences</span>'
+            '<button bid="disabled-2" disabled>Preferences</button>'
+            '<input bid="hidden-3" type="hidden" aria-label="Preferences">'
+        )
+
+        controls = extract_semantic_controls(html)
+        decision = propose_action("Open preferences", html)
+
+        self.assertEqual([control.bid for control in controls], ["menu-1"])
+        self.assertEqual(decision.action, 'click("menu-1")')
+
+    def test_matches_an_exact_accessible_name_alias_before_partial_names(self) -> None:
+        html = (
+            '<button bid="settings-1" aria-label="Settings" title="Account settings">'
+            "Open</button>"
+            '<button bid="account-2" aria-label="Account settings">Open</button>'
+        )
+
+        decision = propose_action("Open settings", html)
+
+        self.assertEqual(decision.action, 'click("settings-1")')
 
     def test_advances_explicit_multi_step_plan_against_fresh_observations(self) -> None:
         html = (
