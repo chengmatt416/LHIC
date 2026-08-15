@@ -5,11 +5,14 @@ These results are **artifact-validation and controlled integration results**, no
 ## Validated implementation
 
 - Branch: `research/lhic-core-academic`
-- Current results commit: `4ba7e227936d3be6c670a72ba88655f1929c8b7b`
+- Real-surface experiment commit: `4ba7e227936d3be6c670a72ba88655f1929c8b7b`
 - GitHub Actions workflow: `Real Failure Injection`
-- Validated run: `31878534758`
+- Workflow run: `31878534758`
+- Attempt 1 artifact: `9245405184`
+- Attempt 2 artifact: `9245462560`
 - Environment: Ubuntu 24.04 / Linux x64 / Node.js v22.23.2
-- Real trials: 10 per surface, 30 total
+- Trials per attempt: 10 per surface, 30 total
+- Combined real-surface trial executions across two workflow attempts: 60
 
 The real workflow contains a hard acceptance gate: it fails unless every trial demonstrates a duplicate in the blind-retry baseline and reaches `verified` with exactly one LHIC dispatch, one recovery observation, one verification, and zero duplicate side effects.
 
@@ -26,7 +29,7 @@ The academic artifact currently has eight tests:
 7. lost response after an external effect is recovered without a second dispatch;
 8. verified action identity remains terminal across later runs.
 
-The exact implementation commit above passed the normal `Academic Artifact` workflow as well as the real-surface workflow.
+The 30-trial experiment commit passed the normal `Academic Artifact` workflow as well as the real-surface workflow.
 
 ## Controlled real-surface failure injection
 
@@ -44,7 +47,7 @@ persist possibly_committed
         -> do not replay
 ```
 
-### Results
+### Primary 30-trial results
 
 | Surface | Trials | Blind-retry baseline duplicate effects | LHIC-Core duplicate effects | LHIC recovery success |
 |---|---:|---:|---:|---:|
@@ -66,6 +69,23 @@ duplicateEffects = 0
 ```
 
 Every blind-retry baseline trial produced two committed effects for the same logical action, i.e. one duplicate effect per trial.
+
+## Fresh-run repeatability check
+
+The exact same implementation commit and 30-trial workflow were re-run in a fresh GitHub Actions attempt.
+
+Attempt 2 reproduced the same aggregate outcome:
+
+| Surface | Trials | Blind-retry duplicate effects | LHIC-Core duplicate effects | Verified recovery |
+|---|---:|---:|---:|---:|
+| Browser / Chromium | 10 | 10 | 0 | 10 / 10 |
+| Desktop / X11 + Tk | 10 | 10 | 0 | 10 / 10 |
+| Code / Git | 10 | 10 | 0 | 10 / 10 |
+| **Total** | **30** | **30** | **0** | **30 / 30** |
+
+Across the two workflow attempts, this gives **60 controlled real-surface trial executions** with the same qualitative outcome: 60 baseline duplicate effects, 0 LHIC duplicate effects, and 60 verified LHIC recoveries.
+
+This repeatability check is useful evidence that the primary result is not a one-off runner artifact. It is still not a new task distribution or an external benchmark sample; both attempts use the same controlled fixtures and failure semantics.
 
 ### Browser
 
@@ -96,8 +116,21 @@ The synthetic results are not substituted for the real-surface experiments; they
 
 The controlled real-surface result supports a narrow claim:
 
-> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 30 controlled browser, desktop, and code trials, while the blind-retry baseline duplicated the effect in all 30 trials.
+> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 30 primary controlled browser, desktop, and code trials and reproduced the same outcome in a second 30-trial workflow attempt, while the blind-retry baseline duplicated the effect in every trial.
 
-This does **not** establish general computer-use capability, statistical superiority in open-world tasks, or SOTA performance on OSWorld, SWE-bench, τ-bench, or other official benchmarks. The fixtures are deliberately controlled to isolate execution semantics.
+This does **not** establish general computer-use capability, statistical superiority in open-world tasks, or SOTA performance on OSWorld, SWE-bench, tau-bench, or other official benchmarks. The fixtures are deliberately controlled to isolate execution semantics.
 
-The next evaluation layer should inject multiple failure timings and visibility delays, report confidence intervals and overhead, and then reuse the same fault-injection mechanism around official benchmark adapters without changing their scoring rules.
+## Next evaluation layer
+
+The next publication-facing experiments should vary the failure window rather than only repeat the flagship case:
+
+1. crash after durable ambiguity persistence but before physical dispatch;
+2. crash after effect commit but before response (current flagship);
+3. delayed postcondition visibility after commit;
+4. inconclusive observation that must remain `needs_resolution`;
+5. duplicate/delayed executor response;
+6. stale workspace mutation during recovery;
+7. policy understatement and approval replay negative controls;
+8. latency / extra-observation / verifier overhead.
+
+After those controlled variants, the same fault injector should wrap official benchmark adapters while preserving their scoring rules.
