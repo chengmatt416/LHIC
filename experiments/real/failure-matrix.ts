@@ -1,4 +1,4 @@
-import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,6 +23,7 @@ interface MatrixCaseResult {
 
 interface MatrixSummary {
   schemaVersion: "lhic-failure-matrix-v1";
+  generatedAt: string;
   cases: MatrixCaseResult[];
   passed: number;
   failed: number;
@@ -54,7 +55,8 @@ async function countMarkers(file: string): Promise<number> {
 
 async function appendEffect(file: string, label: string): Promise<void> {
   const previous = await countMarkers(file);
-  await writeFile(file, `${Array.from({ length: previous }, (_, i) => `LHIC_EFFECT ${i + 1}`).join("\n")}${previous ? "\n" : ""}LHIC_EFFECT ${label}\n`, "utf8");
+  const prefix = Array.from({ length: previous }, (_, i) => `LHIC_EFFECT ${i + 1}`).join("\n");
+  await writeFile(file, `${prefix}${previous ? "\n" : ""}LHIC_EFFECT ${label}\n`, "utf8");
 }
 
 async function runCase(
@@ -64,6 +66,7 @@ async function runCase(
     file: string;
     counters: { dispatches: number; observations: number; verifications: number };
   }) => KernelAdapters,
+  recoveryAttempts = 1,
 ): Promise<MatrixCaseResult> {
   const dir = await mkdtemp(join(tmpdir(), "lhic-failure-matrix-"));
   const file = join(dir, "state.txt");
@@ -78,19 +81,23 @@ async function runCase(
     const ledger1 = new FileSideEffectLedger(ledgerFile);
     await ledger1.load();
     const kernel1 = new LhicResearchKernel(ledger1, adapters);
-    await kernel1.run(action, approval);
+    let receipt = await kernel1.run(action, approval);
 
-    const ledger2 = new FileSideEffectLedger(ledgerFile);
-    await ledger2.load();
-    const kernel2 = new LhicResearchKernel(ledger2, adapters);
-    const recovered = await kernel2.run(action, approval);
+    for (let attempt = 0; attempt < recoveryAttempts; attempt += 1) {
+      const ledgerN = new FileSideEffectLedger(ledgerFile);
+      await ledgerN.load();
+      const kernelN = new LhicResearchKernel(ledgerN, adapters);
+      receipt = await kernelN.run(action, approval);
+    }
 
+    const finalLedger = new FileSideEffectLedger(ledgerFile);
+    await finalLedger.load();
     const effects = await countMarkers(file);
-    const durableLedgerState = ledger2.get(action.actionId)?.state;
+    const durableLedgerState = finalLedger.get(action.actionId)?.state;
     const result: MatrixCaseResult = {
       caseName,
       expectedState,
-      observedState: recovered.ledgerState,
+      observedState: receipt.ledgerState,
       durableLedgerState,
       dispatches: counters.dispatches,
       observations: counters.observations,
@@ -99,7 +106,7 @@ async function runCase(
       duplicateSideEffects: Math.max(0, effects - 1),
       latencyMs: Date.now() - start,
       passed:
-        recovered.ledgerState === expectedState &&
+        receipt.ledgerState === expectedState &&
         counters.dispatches === 1 &&
         Math.max(0, effects - 1) === 0,
     };
@@ -152,7 +159,7 @@ const cases = [
         return evidence("delayed-visibility", content, (await countMarkers(file)) === 1);
       },
     };
-  }),
+  }, 2),
   runCase("inconclusive-observation", "needs_resolution", ({ file, counters }) => ({
     async execute(): Promise<ExecutionResult> {
       counters.dispatches += 1;
@@ -206,12 +213,15 @@ const cases = [
 const results = await Promise.all(cases);
 const summary: MatrixSummary = {
   schemaVersion: "lhic-failure-matrix-v1",
+  generatedAt: new Date().toISOString(),
   cases: results,
   passed: results.filter((result) => result.passed).length,
   failed: results.filter((result) => !result.passed).length,
   totalLatencyMs: results.reduce((sum, result) => sum + result.latencyMs, 0),
 };
 
+await mkdir("artifacts", { recursive: true });
+await writeFile("artifacts/failure-matrix-results.json", JSON.stringify(summary, null, 2), "utf8");
 console.log(`LHIC_FAILURE_MATRIX=${JSON.stringify(summary)}`);
 
 if (summary.failed > 0) {

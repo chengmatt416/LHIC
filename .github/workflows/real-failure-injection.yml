@@ -11,6 +11,7 @@ on:
       - "package.json"
       - ".github/workflows/real-failure-injection.yml"
       - "docs/research/real-failure-injection.md"
+      - "docs/research/failure-matrix.md"
 
 jobs:
   browser-desktop-code:
@@ -48,5 +49,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lhic-real-failure-injection
-          path: artifacts/real-failure-injection-results.json
+          path: artifacts/*.json
           if-no-files-found: error
