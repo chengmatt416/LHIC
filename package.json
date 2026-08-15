@@ -1,6 +1,6 @@
 {
   "name": "lhic-core-academic",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Academic reference artifact for crash-consistent, evidence-carrying agent execution.",
@@ -10,7 +10,8 @@
     "experiment:browser": "node --experimental-strip-types experiments/real/browser.ts",
     "experiment:desktop": "xvfb-run -a node --experimental-strip-types experiments/real/desktop.ts",
     "experiment:code": "node --experimental-strip-types experiments/real/code.ts",
-    "experiment:real": "node --experimental-strip-types experiments/real/run-all.ts"
+    "experiment:matrix": "node --experimental-strip-types experiments/real/failure-matrix.ts",
+    "experiment:real": "node --experimental-strip-types experiments/real/run-all.ts && node --experimental-strip-types experiments/real/failure-matrix.ts"
   },
   "engines": {
     "node": ">=22.6"

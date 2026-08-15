@@ -78,7 +78,12 @@ export class LhicResearchKernel {
       });
     }
 
-    if (existing && (existing.state === "possibly_committed" || existing.state === "executed")) {
+    if (
+      existing &&
+      (existing.state === "possibly_committed" ||
+        existing.state === "executed" ||
+        existing.state === "needs_resolution")
+    ) {
       return this.recover(action, existing, approval);
     }
 

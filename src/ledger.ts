@@ -9,6 +9,9 @@ const allowedTransitions: Record<LedgerState, readonly LedgerState[]> = {
   executed: ["verified", "needs_resolution", "failed"],
   verified: [],
   failed: [],
+  // needs_resolution is intentionally non-dispatchable. A later observation may
+  // prove the effect and verify it, or a separate operator policy may roll it
+  // back. It must not silently re-enter physical dispatch.
   needs_resolution: ["executed", "verified", "rolled_back"],
   rolled_back: [],
 };
@@ -90,13 +93,20 @@ export class FileSideEffectLedger {
   /** Ambiguous outcomes must be re-observed before replay. */
   public ambiguousForRecovery(): SideEffectLedgerEntry[] {
     return this.list().filter((entry) =>
-      entry.state === "possibly_committed" || entry.state === "executed",
+      entry.state === "possibly_committed" ||
+      entry.state === "executed" ||
+      entry.state === "needs_resolution",
     );
   }
 
   public canDispatch(actionId: string): boolean {
     const state = this.entries.get(actionId)?.state;
-    return state !== "verified" && state !== "possibly_committed" && state !== "executed";
+    return (
+      state !== "verified" &&
+      state !== "possibly_committed" &&
+      state !== "executed" &&
+      state !== "needs_resolution"
+    );
   }
 
   private async persist(): Promise<void> {
