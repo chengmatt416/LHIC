@@ -6,9 +6,9 @@
 
 Autonomous agents increasingly act through browsers, desktop interfaces, coding workspaces, shell commands, and external services. These actions are not atomic with the agent's tool-call response: an external side effect may commit before the dispatcher fails, a completion may be lost after the world has changed, a postcondition may become visible only after a delay, or a stale logical completion may arrive after recovery has already succeeded. Conventional agent loops often collapse these cases into binary tool-call success/failure and retry after missing completion, creating duplicate side effects, false completion, unsafe replay, or ambiguous provenance.
 
-We present **LHIC-Core**, a model-independent execution kernel that separates probabilistic planning from execution truth. A planner proposes actions, while LHIC-Core independently classifies risk, enforces bounded approval, persists `possibly_committed` state before external dispatch, observes the external world during recovery, verifies postconditions, records authority-separated receipts, and blocks replay while an action remains unresolved. The academic artifact extracts these mechanisms from the full LHIC product into a compact TypeScript reference implementation with executable invariants, synthetic ablations, real Chromium/X11/Git failure-injection experiments, and an external benchmark boundary scaffold.
+We present **LHIC-Core**, a model-independent execution kernel that separates probabilistic planning from execution truth. A planner proposes actions, while LHIC-Core independently classifies risk, enforces bounded approval, persists `possibly_committed` state before external dispatch, observes the external world during recovery, verifies postconditions, records authority-separated receipts, and blocks replay while an action remains unresolved. The academic artifact extracts these mechanisms from the full LHIC product into a compact TypeScript reference implementation with executable invariants, synthetic ablations, real Chromium/X11/Git failure-injection experiments, a split-phase boundary for external runners, and an OSWorld-compatible cross-language bridge scaffold.
 
-In a controlled post-commit/pre-response crash experiment over Chromium, X11/Tk, and Git, blind retry produced one duplicate side effect in every one of 30 trials, while LHIC-Core produced zero duplicates and recovered to `verified` in all 30. A five-case semantic matrix validates adjacent ambiguity states. A third seeded randomized campaign executed **108 additional real-surface trials** over six fault modes and two timing schedules; all 108 matched their expected durable state and produced zero duplicate side effects. Delayed-visibility trials required between two and six recovery observations while retaining exactly one physical dispatch. These experiments support a narrow systems claim about execution semantics under controlled non-atomic failures; they do not establish general planning superiority or benchmark SOTA. The next external-validity layer interposes the same trust boundary into a pinned official benchmark runner while leaving its task setup and evaluator unchanged.
+In a controlled post-commit/pre-response crash experiment over Chromium, X11/Tk, and Git, blind retry produced one duplicate side effect in every one of 30 trials, while LHIC-Core produced zero duplicates and recovered to `verified` in all 30. A five-case semantic matrix validates adjacent ambiguity states. A third seeded randomized campaign executed **108 additional real-surface trials** over six fault modes and two timing schedules; all 108 matched their expected durable state and produced zero duplicate side effects. Delayed-visibility trials required between two and six recovery observations while retaining exactly one physical dispatch. In an 80-trial-per-variant local no-fault microbenchmark of the academic JSON reference artifact, median latency was 0.182 ms for direct execution, 0.367 ms for direct execution plus read-back verification, 1.506 ms for a split durable boundary, and 2.108 ms for the full kernel. These measurements are artifact-scoped rather than production latency claims. The current adapter additionally validates a persistent Python→Node→TypeScript boundary against the pinned OSWorld 2.0 runner contract without modifying official evaluator semantics.
 
 ## 1. Introduction
 
@@ -67,15 +67,7 @@ The runtime must preserve this uncertainty instead of collapsing it into a singl
 
 LHIC-Core does not require a malicious base model. It assumes only that model output, tool responses, observations, and learned state can be incomplete, stale, mistaken, delayed, or interrupted.
 
-The planner is consequently not trusted to self-certify:
-
-- authorization;
-- side-effect risk;
-- execution success;
-- postcondition verification;
-- evidence quality.
-
-The execution layer should fail closed when it lacks evidence about a potentially irreversible effect.
+The planner is consequently not trusted to self-certify authorization, side-effect risk, execution success, postcondition verification, or evidence quality. The execution layer should fail closed when it lacks evidence about a potentially irreversible effect.
 
 ## 3. Design overview
 
@@ -85,20 +77,11 @@ The runtime independently infers a side-effect class from the action surface, to
 
 ### 3.2 Bounded approval scopes
 
-Approval is structured authority rather than a boolean flag. The reference model supports:
-
-- exact-action scope;
-- plan-step scope;
-- read-only task scope;
-- bounded origin/action-class scope.
-
-High-risk actions cannot inherit broad reusable scopes. Approval can bind action hash, expiry, origin, class, and usage count.
+Approval is structured authority rather than a boolean flag. The reference model supports exact-action, plan-step, read-only task, and bounded origin/action-class scopes. High-risk actions cannot inherit broad reusable scopes. Approval can bind action hash, expiry, origin, class, and usage count.
 
 ### 3.3 Durable side-effect ledger
 
-Before physical dispatch, LHIC-Core persists the action as `possibly_committed`.
-
-This ordering is the crash-consistency mechanism. If the process dies immediately after dispatch, durable state already records that the external world may have changed. The system does not silently return to a clean pre-dispatch state.
+Before physical dispatch, LHIC-Core persists the action as `possibly_committed`. This ordering is the crash-consistency mechanism. If the process dies immediately after dispatch, durable state already records that the external world may have changed.
 
 The reference state set is:
 
@@ -115,22 +98,11 @@ When the ledger contains unresolved ambiguity, the runtime re-observes the exter
 
 ```text
 effect present   -> verify the intended postcondition; do not replay
-effect absent    -> retain explicit resolution state; retry requires policy admission
+effect absent    -> retain explicit resolution state; retry requires separate policy admission
 inconclusive     -> needs_resolution; do not replay
 ```
 
 A critical refinement from the failure-matrix experiments is that `needs_resolution` is itself an unresolved recovery state. A later call must re-observe it; it is not a clean slate that can fall through to normal dispatch.
-
-The runtime therefore treats the following states as non-dispatchable without recovery analysis:
-
-```text
-possibly_committed
-executed
-needs_resolution
-verified
-```
-
-`verified` is terminal; the other three require recovery semantics.
 
 ### 3.5 Authority-separated receipts
 
@@ -142,11 +114,7 @@ Executor success is not upgraded to verification unless an independent verifier 
 
 Reusable learned behavior is promoted only after multiple independent verified task identities plus holdout success, with code-anchor staleness checks where applicable. Repeating one task identity cannot manufacture independent evidence.
 
-This mechanism does not assume that memory improves raw task performance. Its purpose is narrower: if behavior becomes reusable, its trust state should reflect objective execution evidence rather than model narration.
-
 ## 4. Formal execution model
-
-The operational model is specified in `docs/research/formal-model.md`.
 
 The nominal success path is:
 
@@ -180,60 +148,68 @@ The current artifact is an executable operational model, not a machine-checked p
 
 ## 5. Academic artifact
 
-The research branch is intentionally smaller than the product branch. The executable kernel is under `src/`:
+The research branch deliberately removes product shell code and exposes the protocol directly.
 
-- `model.ts` — actions, risk classes, approvals, ledger entries, evidence, receipts, and memory;
-- `policy.ts` — independent risk inference and monotonic effective risk;
-- `approval.ts` — bounded approval semantics;
-- `ledger.ts` — persistent fail-closed state transitions;
-- `recovery.ts` — observe-before-replay decisions;
-- `receipt.ts` — authority-separated receipts;
-- `memory.ts` — evidence-gated trusted promotion and staleness;
-- `kernel.ts` — composition of policy, ledger, execution, observation, verification, and receipt emission.
+### 5.1 Reference kernel
 
-The product branch uses richer database-backed storage and multiple surface integrations. The academic branch replaces product coupling with inspectable reference interfaces and atomic JSON persistence. The goal is auditability of the protocol, not production throughput.
+- `src/model.ts` — actions, approvals, ledger entries, evidence, receipts, and memory;
+- `src/policy.ts` — independent risk inference and monotonic effective risk;
+- `src/approval.ts` — bounded approval semantics;
+- `src/ledger.ts` — atomic persistent reference ledger;
+- `src/recovery.ts` — observe-before-replay decisions;
+- `src/receipt.ts` — authority-separated receipts;
+- `src/memory.ts` — evidence-gated trusted promotion;
+- `src/kernel.ts` — monolithic reference execution protocol;
+- `src/boundary.ts` — split-phase execution boundary for external runners.
 
-### 5.1 Executable tests
+### 5.2 Split-phase boundary
 
-The current artifact has 13 Node.js tests:
+Some external runners must retain control of the physical action call. `SplitExecutionBoundary` therefore separates persistence from external dispatch:
+
+```text
+prepare(action)
+    -> policy / approval
+    -> durable possibly_committed
+    -> caller may dispatch
+
+recordResponse(actionId)
+    -> executed only
+
+recordLostResponse(actionId)
+    -> ambiguity remains durable
+
+recover(actionId, observation, evidence)
+    -> verified / executed / needs_resolution
+```
+
+This interface allows a benchmark to keep its official `env.step(...)` implementation while LHIC owns the durable execution state around it.
+
+### 5.3 Tests
+
+The current artifact contains **16 Node.js tests**:
 
 - 6 core invariant tests;
-- 2 kernel-level crash/recovery integration tests;
-- 5 recovery-matrix tests covering adjacent ambiguity semantics.
+- 2 monolithic kernel crash/recovery tests;
+- 5 recovery-matrix tests;
+- 3 split-boundary integration tests.
 
-The five matrix-related properties are:
-
-1. absent effect after ambiguous dispatch state does not auto-dispatch;
-2. delayed visibility can later verify without duplicate dispatch;
-3. repeated inconclusive observations remain non-dispatchable;
-4. duplicate logical delivery cannot re-dispatch a verified identity;
-5. workspace conflict prevents false verified completion without replay.
-
-### 5.2 Experiment layers
-
-The artifact intentionally separates three forms of evidence:
-
-1. **synthetic semantic regression** — fast deterministic ablation coverage;
-2. **controlled real-surface integration** — real Chromium, X11/Tk, and Git side effects under injected failures;
-3. **external benchmark interposition** — a thin adapter boundary intended to preserve an official benchmark's task and scoring contract.
+Additional Python adapter tests exercise the cross-language runner bridge and restart semantics.
 
 ## 6. Controlled evaluation
 
-### 6.1 Research question
+The primary research question is:
 
-The primary evaluation asks:
+> With planner and logical action fixed, does durable ambiguous state plus observation/verification prevent duplicate side effects after non-atomic execution failure?
 
-> With the planner and logical action fixed, does durable ambiguous state plus observation/verification prevent duplicate side effects after non-atomic execution failure?
+The evaluation is intentionally systems-oriented and does not test whether LHIC-Core improves planner reasoning quality.
 
-The evaluation is intentionally systems-oriented. It does not test whether LHIC-Core improves the planner's reasoning quality.
+### 6.1 Real surfaces
 
-### 6.2 Real execution surfaces
+**Browser.** Real Chromium submits an HTML form to a local HTTP service. Recovery observes DOM state; screenshot bytes can contribute verifier evidence.
 
-**Browser.** A real Chromium instance submits an HTML form to a local HTTP server. The server commits external state. Recovery performs fresh DOM observation; screenshot bytes can contribute verifier evidence.
+**Desktop.** A real Tk window runs in Xvfb and receives an X11 pointer click via `xdotool`. Native window state exposes persisted count and complete/partial postcondition status.
 
-**Desktop.** A real Tk window runs inside Xvfb. `xdotool` delivers an X11 pointer click to a visible button. The fixture persists its count and exposes both `count` and `status=complete|partial` in native observable state.
-
-**Code.** An isolated real Git repository is created. The action writes a feature marker and creates a real commit. Complete-postcondition cases additionally create a required state file; partial cases deliberately omit it.
+**Code.** Each controlled run uses a real isolated Git repository with actual file writes and commits.
 
 ## 7. Flagship post-commit crash experiment
 
@@ -251,51 +227,39 @@ persist possibly_committed
         -> do not replay
 ```
 
-The baseline uses blind retry after lost completion. LHIC-Core uses durable recovery.
-
-### 7.1 Results
-
-The workflow runs 10 trials per surface.
-
-| Surface | Trials | Blind-retry duplicate effects | LHIC duplicate effects | LHIC verified recovery |
+| Surface | Trials | Blind-retry duplicates | LHIC duplicates | Verified recovery |
 |---|---:|---:|---:|---:|
 | Chromium browser | 10 | 10 | 0 | 10 / 10 |
 | X11/Tk desktop | 10 | 10 | 0 | 10 / 10 |
 | Git/code | 10 | 10 | 0 | 10 / 10 |
 | **Total** | **30** | **30** | **0** | **30 / 30** |
 
-Every LHIC trial in the flagship experiment exhibits one physical dispatch, one committed side effect, and zero duplicate side effects. The blind-retry baseline commits the same logical effect twice.
+Every accepted LHIC flagship trial physically dispatches once and commits one side effect. The blind-retry baseline commits the same logical effect twice.
 
-An earlier fresh GitHub Actions rerun reproduced the same aggregate result. That is useful runner-repeatability evidence, but both attempts use the same controlled fixtures and do not represent independent open-world tasks.
+An earlier fresh workflow attempt reproduced the same aggregate flagship result. This is runner-repeatability evidence, not a second open-world task distribution.
 
-## 8. Expanded five-case recovery matrix
+## 8. Expanded recovery-semantics matrix
 
-The second evaluation layer varies adjacent ambiguity semantics.
+| Case | Expected durable behavior | Duplicates | Result |
+|---|---|---:|---|
+| Pre-dispatch failure | `needs_resolution`; no automatic replay | 0 | PASS |
+| Delayed visibility | later re-observe and reach `verified` | 0 | PASS |
+| Persistent inconclusive | remain `needs_resolution` | 0 | PASS |
+| Duplicate logical delivery | terminal verified identity blocks replay | 0 | PASS |
+| Workspace conflict | executed/unverified; no replay | 0 | PASS |
 
-| Case | External truth | Expected durable behavior | Result |
-|---|---|---|---|
-| Pre-dispatch / absent effect | no side effect exists | `needs_resolution`; no automatic replay | PASS |
-| Delayed visibility | effect exists but first observation is inconclusive | later re-observe and reach `verified` | PASS |
-| Persistent inconclusive observation | evidence cannot determine external state | remain `needs_resolution` | PASS |
-| Duplicate logical delivery | action identity already verified | block second dispatch | PASS |
-| Workspace conflict | effect exists but postcondition conflicts | remain executed/unverified; no replay | PASS |
-
-All five controlled cases preserve one-dispatch semantics and zero duplicate side effects.
-
-This layer exposed a meaningful design requirement: `needs_resolution` must remain part of the recovery state set. A later invocation re-observes rather than silently returning to normal dispatch.
+This layer directly motivated treating `needs_resolution` as an explicit recovery state rather than a state that can fall back into ordinary dispatch.
 
 ## 9. Seeded randomized cross-surface campaign
 
-The third evaluation layer runs six fault modes on all three real surfaces under deterministic seed-derived timing.
+The third layer runs six fault modes on all three real surfaces under deterministic seed-derived timing:
 
-Fault modes are:
-
-1. `pre_dispatch_failure`;
-2. `post_commit_lost_response`;
-3. `delayed_visibility`;
-4. `partial_postcondition`;
-5. `duplicate_delivery`;
-6. `late_completion_after_recovery`.
+1. pre-dispatch failure;
+2. post-commit lost response;
+3. delayed visibility;
+4. partial postcondition;
+5. duplicate delivery;
+6. late completion after recovery.
 
 Each timing seed executes:
 
@@ -303,12 +267,7 @@ Each timing seed executes:
 3 surfaces x 6 modes x 3 trials = 54 trials
 ```
 
-Two schedules were evaluated:
-
-- seed `2026-08-15`;
-- seed `2026-08-16`.
-
-### 9.1 Aggregate result
+Two timing seeds were evaluated: `2026-08-15` and `2026-08-16`.
 
 | Seed | Trials | Passed | Failed | Duplicate side effects |
 |---|---:|---:|---:|---:|
@@ -316,25 +275,15 @@ Two schedules were evaluated:
 | `2026-08-16` | 54 | 54 | 0 | 0 |
 | **Combined** | **108** | **108** | **0** | **0** |
 
-Each fault mode contributes 18 trials across both seeds. All 18/18 trials for each mode matched the expected durable state.
+Each fault mode contributes 18 trials across both seeds, and all 18/18 trials for each mode matched the intended durable state.
 
-### 9.2 Delayed visibility
+Injected visibility delays ranged from **41 ms to 220 ms**. Delayed-visibility trials required between **2 and 6 recovery observations** before the external state became visible and verifiable, while physical dispatch remained exactly one.
 
-Injected visibility delays ranged from **41 ms to 220 ms**. Delayed-visibility trials required between **2 and 6 recovery observations** before the external state became visible and verifiable. Despite repeated recovery entry, the physical dispatch count remained exactly one.
-
-This result is stronger than a fixed two-observation test because different seeded timing schedules produce different recovery depths while exercising the same durable state semantics.
-
-### 9.3 Partial postconditions
-
-For partial-postcondition trials, a real side effect commits but the complete verifier condition is deliberately false. LHIC-Core observes the effect, fails verification, preserves the action as executed/unverified, and does not replay it. A second recovery invocation repeats observation/verification rather than physical execution.
-
-### 9.4 Duplicate and late logical delivery
-
-Duplicate-delivery trials first complete and verify normally, then deliver the same action identity again. Late-completion trials lose the first completion, recover and verify independently, then deliver the logical action again. In both cases, terminal verified identity prevents a second physical dispatch.
+Partial-postcondition trials committed a real effect while deliberately leaving the complete verifier condition false. LHIC observed the effect, failed verification, preserved executed/unverified state, and did not replay.
 
 ## 10. Synthetic ablation harness
 
-The deterministic synthetic harness remains a fast semantic regression suite. It runs 100 trials per strategy over five modeled failure modes.
+The deterministic simulator runs 100 trials per strategy over five modeled failure modes.
 
 | Strategy | Task success | Duplicate side effects / trial | False success | Human resolution |
 |---|---:|---:|---:|---:|
@@ -343,37 +292,83 @@ The deterministic synthetic harness remains a fast semantic regression suite. It
 | Ledger only | 0.80 | 0.00 | 0.00 | 0.80 |
 | Full LHIC-Core | 0.80 | 0.00 | 0.00 | 0.20 |
 
-The simulator does not replace the real-surface experiments. It provides fast semantic coverage and exposes the safety/availability trade-off of explicit uncertainty.
+The simulator is a semantic regression/ablation tool; it does not substitute for real-surface or official benchmark evidence.
 
-## 11. Diagnostic timing and overhead methodology
+## 11. Paired no-fault reference overhead
 
-The randomized campaign records harness-level elapsed time:
+To separate safety behavior from runtime cost, the artifact includes an 80-trial-per-variant local code microbenchmark. Variants are interleaved and one warm-up per variant is excluded.
 
-| Surface | Randomized trials | Mean case latency | Median case latency |
+| Variant | Mean | Median | p95 |
 |---|---:|---:|---:|
-| Browser / Chromium | 36 | ~302 ms | 289 ms |
-| Desktop / X11 + Tk | 36 | ~199 ms | 196 ms |
-| Code / Git | 36 | ~43 ms | 21 ms |
+| Direct execute | 0.258 ms | 0.182 ms | 0.291 ms |
+| Direct execute + read-back verify | 0.406 ms | 0.367 ms | 0.553 ms |
+| Split durable boundary | 1.494 ms | 1.506 ms | 1.777 ms |
+| Full LHIC-Core | 2.157 ms | 2.108 ms | 2.667 ms |
 
-These values are **not LHIC runtime-overhead claims**. They include deliberately injected wait time, browser/navigation cost, UI fixture startup, Git operations, and verification work.
+Median differences are:
 
-A publication-quality overhead claim requires paired no-fault trials with the same external action under at least:
+```text
+split boundary - direct execute       = +1.324 ms
+full kernel - direct execute + verify = +1.741 ms
+```
 
-- direct execution baseline;
-- durable-ledger boundary only;
-- ledger + verifier;
-- full LHIC-Core.
+These measurements characterize the **academic atomic-JSON reference artifact** only. They do not characterize product SQLite performance, Chromium/UI actions, network APIs, or OSWorld task latency. Because the direct baseline itself is sub-millisecond, the raw full/direct ratio is not a useful production metric.
 
-Metrics should decompose:
+A publication-quality systems overhead result should next repeat this paired design on the real browser, desktop, and Git fixtures and report confidence intervals.
 
-- pre-dispatch persistence latency;
-- action execution latency;
-- observation count and time;
-- verifier count and time;
-- total end-to-end latency;
-- additional filesystem writes/tool calls/tokens where relevant.
+## 12. External validity: OSWorld 2.0
 
-## 12. Evaluation methodology and ablations
+The first external benchmark target is OSWorld 2.0. The integration point is the boundary between planner output and the official environment step:
+
+```text
+agent.predict(instruction, obs)
+        -> proposed action
+        -> LHIC split boundary
+        -> official env.step(action, ...)
+```
+
+The benchmark task specification, environment image, action budget, and evaluator remain unchanged. Official task score must be reported separately from LHIC execution metrics.
+
+### 12.1 Cross-language bridge
+
+The current adapter path is:
+
+```text
+Python benchmark wrapper
+        -> persistent Node subprocess
+        -> TypeScript SplitExecutionBoundary
+        -> FileSideEffectLedger
+        -> durable state
+```
+
+Cross-language integration tests validate:
+
+1. `possibly_committed` is durable before the fake benchmark calls `env.step`;
+2. successful executor return records `executed`, not `verified`;
+3. an exception/lost completion preserves `possibly_committed`;
+4. durable state survives bridge-process restart;
+5. externally supplied independent evidence can recover to `verified`;
+6. adapter failure handling introduces no synthetic blind retry.
+
+### 12.2 Pinned upstream compatibility gate
+
+Academic CI checks out the pinned OSWorld `v2026.06.24` source and statically verifies that the runner still exposes the planner/action/`env.step(...)` boundary assumed by the adapter. This protects the academic artifact from silently drifting away from the pinned upstream runner.
+
+The automatic exact-action approval currently used by the benchmark bridge is a sandbox evaluation configuration intended to isolate execution semantics. It is not a production policy recommendation.
+
+### 12.3 Remaining benchmark work
+
+The adapter can carry durable state, but an official evaluation still requires:
+
+- actual OSWorld VM/environment execution;
+- a benchmark-appropriate per-action observation/verifier strategy;
+- fault injection that does not alter official task/evaluator scoring;
+- runtime ablations under the same planner/model/task budget;
+- separate reporting of official OSWorld score and LHIC execution metrics.
+
+Therefore the current work is **OSWorld runner compatibility and boundary integration**, not an OSWorld result.
+
+## 13. Evaluation methodology and ablations
 
 Publication-facing experiments should hold planner, task, environment, action budget, and evaluator fixed while changing only the execution substrate.
 
@@ -385,42 +380,7 @@ At minimum compare:
 4. ledger + verifier;
 5. full LHIC-Core.
 
-Report task success together with:
-
-- duplicate side effects;
-- false success;
-- unauthorized actions;
-- unsafe replay;
-- recovery success;
-- `needs_resolution` rate;
-- human intervention;
-- verifier failure;
-- added observations;
-- latency overhead;
-- token/tool-call overhead where relevant.
-
-## 13. External validity: OSWorld 2.0 boundary
-
-The first external benchmark target is OSWorld 2.0. The adapter must preserve the benchmark contract rather than create an LHIC-specific evaluator.
-
-The intended integration point is the boundary between planner output and the official environment step:
-
-```text
-agent.predict(instruction, obs)
-        -> proposed action
-        -> LHIC execution boundary
-        -> official env.step(action, ...)
-```
-
-The OSWorld task specification, environment image, max-step budget, and evaluator remain unchanged. Official task score is reported separately from LHIC execution metrics.
-
-`adapters/osworld-v2/runner_boundary.py` currently defines the benchmark-side interposition contract. Its tests require:
-
-1. `before_dispatch` to execute before `env.step`, so ambiguity can be made durable before any physical action;
-2. a return from `env.step` to be recorded as execution evidence only, not independent verification;
-3. exceptions/timeouts to be recorded as lost responses and re-raised rather than converted into blind retry.
-
-The Python scaffold deliberately does not reimplement the TypeScript LHIC state machine. The next implementation step is a bridge from this benchmark-side boundary to the research kernel or product runtime.
+Report task success together with duplicate side effects, false success, unauthorized actions, unsafe replay, recovery success, `needs_resolution` rate, human intervention, verifier failure, added observations, latency overhead, and token/tool-call overhead where relevant.
 
 ## 14. Related work
 
@@ -436,21 +396,15 @@ The Python scaffold deliberately does not reimplement the TypeScript LHIC state 
 
 ## 15. Limitations and threats to validity
 
-The current evidence remains controlled. The surfaces are genuine, but the tasks are purpose-built fixtures designed to isolate execution semantics. Two randomized seeds vary timing schedules, not task distribution. The policy classifier is conservative and incomplete. Atomic JSON persistence favors auditability over production throughput. Verifier evidence can itself be wrong. `needs_resolution` improves safety but can reduce availability. Trusted-memory thresholds remain empirical design choices.
+The current evidence remains controlled. The real surfaces are genuine, but tasks are purpose-built fixtures designed to isolate execution semantics. Two randomized seeds vary timing schedules, not task distribution. The policy classifier is conservative and incomplete. Atomic JSON persistence favors auditability over production throughput. Verifier evidence can itself be wrong. `needs_resolution` improves safety but can reduce availability. Trusted-memory thresholds remain empirical design choices.
 
-The current experiments do not establish:
-
-- higher planner accuracy;
-- general computer-use competence;
-- statistical superiority on open-world tasks;
-- official OSWorld, SWE-bench, or tau-bench performance;
-- production-scale throughput.
+The current experiments do not establish higher planner accuracy, general computer-use competence, statistical superiority on open-world tasks, official OSWorld/SWE-bench/tau-bench performance, or production-scale throughput.
 
 ## 16. Discussion
 
 LHIC-Core makes a deliberate systems trade-off: explicit uncertainty is preferable to silent replay. In a digital benchmark, a `needs_resolution` outcome may look like lower completion. In irreversible workflows, however, a duplicate purchase, message, destructive write, or credential change may be more costly than a deferred action.
 
-The randomized campaign illustrates this trade-off. Pre-dispatch ambiguity with evidence of absence does not cause an automatic retry. Partial postconditions remain executed but unverified. Delayed visibility can trigger multiple observations without another physical dispatch. Duplicate and late logical delivery are absorbed by terminal verified identity.
+The randomized campaign illustrates this trade-off. Pre-dispatch ambiguity with evidence of absence does not cause automatic retry. Partial postconditions remain executed but unverified. Delayed visibility can trigger multiple observations without another physical dispatch. Duplicate and late logical delivery are absorbed by terminal verified identity.
 
 The architecture also separates model progress from execution reliability. Better planners can be substituted without changing the trust contract. Conversely, the same planner can be compared under multiple runtime ablations, making execution-system effects experimentally distinguishable from planner capability.
 
@@ -458,4 +412,4 @@ The architecture also separates model progress from execution reliability. Bette
 
 LHIC-Core reframes agent reliability as an execution-systems problem. If planning may be probabilistic, execution truth can still be durable, inspectable, authority-aware, and recoverable. By persisting ambiguity before dispatch, separating execution from verification, bounding approval, retaining unresolved states across invocations, and observing the world before replay, LHIC-Core provides a compact research kernel for safer autonomous execution.
 
-Current controlled evidence shows that these semantics survive real Chromium, X11/Tk, and Git boundaries across a fixed SIGKILL window, adjacent recovery cases, and **108 seeded randomized trials without duplicate replay**. The next step is external validity: connect the same boundary to pinned official benchmark runners while preserving their task and evaluator contracts, and pair safety measurements with explicit no-fault overhead analysis.
+Current controlled evidence shows that these semantics survive real Chromium, X11/Tk, and Git boundaries across a fixed SIGKILL window, adjacent recovery cases, and **108 seeded randomized trials without duplicate replay**. A split-phase boundary now connects the same durable semantics to an OSWorld-style external runner through a tested Python→Node→TypeScript bridge, while a paired no-fault microbenchmark quantifies reference-artifact cost without presenting it as production latency. The next step is an actual pinned official benchmark run with independent per-action verification and unchanged evaluator scoring.
