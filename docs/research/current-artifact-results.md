@@ -5,11 +5,11 @@ These results are **artifact-validation and controlled integration results**, no
 ## Validated implementation
 
 - Branch: `research/lhic-core-academic`
-- Real-surface implementation commit: `d145970295e645d7790647cb237ed20eff6172c2`
+- Current results commit: `4ba7e227936d3be6c670a72ba88655f1929c8b7b`
 - GitHub Actions workflow: `Real Failure Injection`
-- Validated run: `31878130504`
+- Validated run: `31878534758`
 - Environment: Ubuntu 24.04 / Linux x64 / Node.js v22.23.2
-- Real trials: 3 per surface, 9 total
+- Real trials: 10 per surface, 30 total
 
 The real workflow contains a hard acceptance gate: it fails unless every trial demonstrates a duplicate in the blind-retry baseline and reaches `verified` with exactly one LHIC dispatch, one recovery observation, one verification, and zero duplicate side effects.
 
@@ -48,10 +48,10 @@ persist possibly_committed
 
 | Surface | Trials | Blind-retry baseline duplicate effects | LHIC-Core duplicate effects | LHIC recovery success |
 |---|---:|---:|---:|---:|
-| Browser / Chromium | 3 | 3 | 0 | 3 / 3 |
-| Desktop / X11 + Tk | 3 | 3 | 0 | 3 / 3 |
-| Code / Git | 3 | 3 | 0 | 3 / 3 |
-| **Total** | **9** | **9** | **0** | **9 / 9** |
+| Browser / Chromium | 10 | 10 | 0 | 10 / 10 |
+| Desktop / X11 + Tk | 10 | 10 | 0 | 10 / 10 |
+| Code / Git | 10 | 10 | 0 | 10 / 10 |
+| **Total** | **30** | **30** | **0** | **30 / 30** |
 
 Every LHIC-Core trial had the same state/evidence pattern:
 
@@ -96,8 +96,8 @@ The synthetic results are not substituted for the real-surface experiments; they
 
 The controlled real-surface result supports a narrow claim:
 
-> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 9 controlled browser, desktop, and code trials, while the blind-retry baseline duplicated the effect in all 9 trials.
+> Under the injected post-commit / pre-response crash window, LHIC-Core's durable `possibly_committed` state plus observe-and-verify recovery prevented duplicate replay in all 30 controlled browser, desktop, and code trials, while the blind-retry baseline duplicated the effect in all 30 trials.
 
 This does **not** establish general computer-use capability, statistical superiority in open-world tasks, or SOTA performance on OSWorld, SWE-bench, τ-bench, or other official benchmarks. The fixtures are deliberately controlled to isolate execution semantics.
 
-The next evaluation layer should increase trial counts, inject multiple failure timings and visibility delays, report confidence intervals and overhead, and then reuse the same fault-injection mechanism around official benchmark adapters without changing their scoring rules.
+The next evaluation layer should inject multiple failure timings and visibility delays, report confidence intervals and overhead, and then reuse the same fault-injection mechanism around official benchmark adapters without changing their scoring rules.
