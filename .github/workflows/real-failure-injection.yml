@@ -12,14 +12,18 @@ on:
       - ".github/workflows/real-failure-injection.yml"
       - "docs/research/real-failure-injection.md"
       - "docs/research/failure-matrix.md"
+      - "docs/research/randomized-cross-surface.md"
 
 jobs:
   browser-desktop-code:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      # 10 trials per surface = 30 controlled real-surface trials.
+      # Flagship: 10 trials per surface = 30 post-commit crash trials.
       LHIC_REAL_TRIALS: "10"
+      # Second layer: 3 trials x 6 modes x 3 surfaces = 54 seeded trials.
+      LHIC_CAMPAIGN_TRIALS: "3"
+      LHIC_CAMPAIGN_SEED: "2026-08-15"
     steps:
       - uses: actions/checkout@v4
 
@@ -41,8 +45,11 @@ jobs:
       - name: Run core invariant tests
         run: npm test
 
-      - name: Run real browser, desktop, and code failure injection
+      - name: Run flagship real-surface suite and semantic matrix
         run: npm run experiment:real
+
+      - name: Run seeded randomized cross-surface fault campaign
+        run: npm run experiment:randomized
 
       - name: Upload real experiment evidence
         if: always()
