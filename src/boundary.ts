@@ -26,7 +26,11 @@ export interface BoundaryResult {
  * then recordResponse()/recordLostResponse() afterward.
  */
 export class SplitExecutionBoundary {
-  public constructor(private readonly ledger: FileSideEffectLedger) {}
+  private readonly ledger: FileSideEffectLedger;
+
+  public constructor(ledger: FileSideEffectLedger) {
+    this.ledger = ledger;
+  }
 
   public async prepare(
     action: ResearchAction,
@@ -102,8 +106,6 @@ export class SplitExecutionBoundary {
       });
     }
 
-    // The core ordering invariant: ambiguity is durable before the caller is
-    // allowed to perform the external action.
     const prepared = await this.ledger.transition(action.actionId, "possibly_committed");
     return {
       actionId: action.actionId,
@@ -181,8 +183,6 @@ export class SplitExecutionBoundary {
     return {
       actionId,
       state,
-      // Recovery may determine that retry could be safe, but the boundary never
-      // auto-dispatches. A separate policy/operator decision is required.
       dispatchAllowed: false,
       reason: decision.reason,
     };
