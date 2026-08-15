@@ -23,9 +23,9 @@ scope-bound approval
 persist possibly_committed BEFORE external dispatch
         |
         v
-execution adapter
+execution adapter / external benchmark runner
         |
-        +---- completion ----------> verify independently
+        +---- completion ----------> executed, then verify independently
         |
         +---- crash / timeout -----> re-observe external state
                                       | present -> verify; no replay
@@ -33,11 +33,11 @@ execution adapter
                                       | unclear -> needs_resolution
 ```
 
-`needs_resolution` is itself a recovery state: later invocations re-observe rather than silently returning to normal dispatch.
+`needs_resolution` remains a recovery state: later invocations re-observe rather than silently returning to normal dispatch.
 
 ## What was extracted from the product branch
 
-The academic kernel is derived from the mechanisms in `feature/sota-improvements`, but rewritten to remove product dependencies and expose research invariants directly:
+The academic kernel is derived from `feature/sota-improvements`, but rewritten to remove product dependencies and expose research invariants directly:
 
 - action receipts and side-effect taxonomy;
 - independent/effective side-effect classification;
@@ -46,47 +46,53 @@ The academic kernel is derived from the mechanisms in `feature/sota-improvements
 - evidence-backed verification;
 - trust-aware skill promotion.
 
-The academic branch excludes the Electron app, installer, OMP UI/product integration, Appwrite services, release tooling, and provider-specific model setup.
+The branch excludes the Electron app, installer, OMP product/UI integration, Appwrite services, release tooling, and provider-specific model setup.
 
 ## Repository map
 
-### Executable research kernel
+### Research kernel
 
-- `src/model.ts` — academic action, approval, ledger, evidence, receipt, and memory types.
-- `src/policy.ts` — independent risk inference and “planner may raise risk, never lower it.”
+- `src/model.ts` — action, approval, ledger, evidence, receipt, and memory types.
+- `src/policy.ts` — independent risk inference and monotonic effective risk.
 - `src/approval.ts` — bounded approval scopes.
 - `src/ledger.ts` — persistent fail-closed state transitions.
 - `src/recovery.ts` — observe-before-replay recovery decisions.
 - `src/receipt.ts` — authority-separated evidence-carrying receipts.
 - `src/memory.ts` — evidence-gated trusted promotion and staleness.
-- `src/kernel.ts` — composition of policy, ledger, execution, observation, verification, and recovery.
+- `src/kernel.ts` — monolithic reference execution protocol.
+- `src/boundary.ts` — split-phase boundary for external runners that retain control of physical dispatch.
 
-### Tests and synthetic ablation
+### Tests and ablations
 
-- `test/core.test.ts` — 6 core invariant checks.
+- `test/core.test.ts` — 6 core invariants.
 - `test/kernel.integration.test.ts` — 2 crash/recovery integration tests.
-- `test/recovery-matrix.test.ts` — 5 adjacent recovery-semantic tests.
+- `test/recovery-matrix.test.ts` — 5 ambiguity/recovery tests.
+- `test/boundary.integration.test.ts` — 3 split-phase boundary tests.
 - `benchmark/failure-injection.ts` — deterministic synthetic strategy ablation.
+- `benchmark/no-fault-overhead.ts` — paired reference-artifact overhead experiment.
 
-Current Node.js test count: **13**.
+Current Node.js test count: **16**.
 
-### Real failure-injection experiments
+### Real failure injection
 
 - `experiments/real/browser.ts` — real Chromium + HTTP form side effects.
 - `experiments/real/desktop.ts` — real X11/Tk actions through `xdotool`.
 - `experiments/real/desktop-fixture.py` — native GUI fixture with committed count and complete/partial postcondition state.
 - `experiments/real/code.ts` — real isolated Git edits and commits.
-- `experiments/real/run-all.ts` — flagship 30-trial real-surface suite.
-- `experiments/real/failure-matrix.ts` — five-case recovery-semantics matrix.
+- `experiments/real/run-all.ts` — flagship 30-trial suite.
+- `experiments/real/failure-matrix.ts` — five-case semantic matrix.
 - `experiments/real/randomized-campaign.ts` — seeded six-mode cross-surface campaign.
 
-### External benchmark adapters
+### OSWorld 2.0 adapter
 
-- `adapters/osworld-v2/runner_boundary.py` — thin benchmark-side boundary around official `env.step(...)` execution.
-- `adapters/osworld-v2/test_runner_boundary.py` — validates persistence-before-dispatch ordering and lost-response handling.
-- `adapters/osworld-v2/README.md` — pinned benchmark integration and claim discipline.
+- `adapters/osworld-v2/runner_boundary.py` — thin wrapper around official `env.step(...)`.
+- `adapters/osworld-v2/bridge_client.py` — persistent Python client.
+- `adapters/osworld-v2/bridge_server.ts` — JSONL TypeScript service backed by `SplitExecutionBoundary`.
+- `adapters/osworld-v2/test_runner_boundary.py` — benchmark-side ordering tests.
+- `adapters/osworld-v2/test_bridge_client.py` — Python→Node→TypeScript durable restart/recovery tests.
+- `adapters/osworld-v2/check_pinned_contract.py` — checks the pinned upstream runner still exposes the expected planner/action/`env.step` boundary.
 
-The adapter scaffold does not change official benchmark scoring and does not treat an executor return as LHIC verification.
+A successful benchmark executor return is recorded as `executed`, **not** LHIC-verified. Verification remains evidence-driven.
 
 ### Research documentation
 
@@ -97,6 +103,7 @@ The adapter scaffold does not change official benchmark scoring and does not tre
 - `docs/research/real-failure-injection.md`
 - `docs/research/failure-matrix.md`
 - `docs/research/randomized-cross-surface.md`
+- `docs/research/no-fault-overhead.md`
 - `docs/research/code-provenance.md`
 - `docs/research/academic-positioning.md`
 - `docs/research/references.md`
@@ -104,9 +111,7 @@ The adapter scaffold does not change official benchmark scoring and does not tre
 
 ## Current controlled evidence
 
-### Flagship post-commit crash experiment
-
-10 trials per real surface:
+### Flagship post-commit crash
 
 | Surface | Blind-retry duplicates | LHIC duplicates | LHIC verified recovery |
 |---|---:|---:|---:|
@@ -117,11 +122,9 @@ The adapter scaffold does not change official benchmark scoring and does not tre
 
 ### Five-case semantic matrix
 
-Pre-dispatch ambiguity, delayed visibility, persistent inconclusive observation, duplicate logical delivery, and workspace conflict all pass the hard no-replay acceptance gates.
+Pre-dispatch ambiguity, delayed visibility, persistent inconclusive observation, duplicate logical delivery, and workspace conflict all pass the hard no-replay gates.
 
-### Seeded randomized real-surface campaign
-
-Two timing seeds run:
+### Seeded randomized campaign
 
 ```text
 3 surfaces x 6 fault modes x 3 trials x 2 seeds = 108 trials
@@ -132,23 +135,35 @@ Result:
 - **108 / 108 passed**;
 - **0 duplicate side effects**;
 - delayed visibility required **2–6 recovery observations**;
-- injected visibility delays covered **41–220 ms**;
+- injected visibility delay covered **41–220 ms**;
 - every accepted logical action physically dispatched at most once.
 
-These are controlled-fixture results, not official benchmark scores.
+These remain controlled-fixture results, not official benchmark scores.
+
+### Paired no-fault academic overhead
+
+80 trials per variant on a local marker action:
+
+| Variant | Median | p95 |
+|---|---:|---:|
+| Direct execute | 0.182 ms | 0.291 ms |
+| Direct + read-back verify | 0.367 ms | 0.553 ms |
+| Split durable boundary | 1.506 ms | 1.777 ms |
+| Full LHIC-Core | 2.108 ms | 2.667 ms |
+
+These numbers describe the atomic-JSON **academic reference implementation**, not production latency.
 
 ## Run the artifact
 
-Node.js 22.6+ can execute the TypeScript reference code directly.
+Node.js 22.6+ can execute the TypeScript directly.
 
 ```bash
 npm test
 npm run bench
+npm run bench:overhead
 ```
 
-### Real-surface experiments
-
-Flagship browser/desktop/code suite + semantic matrix:
+Flagship real suite + semantic matrix:
 
 ```bash
 LHIC_REAL_TRIALS=3 npm run experiment:real
@@ -166,9 +181,7 @@ Full local experiment layer:
 npm run experiment:full
 ```
 
-Browser experiments require pinned Playwright + Chromium; desktop experiments require Xvfb, `xdotool`, and Tk. Git experiments require Git.
-
-Machine-readable output is written under `artifacts/`.
+Browser runs require pinned Playwright + Chromium; desktop runs require Xvfb, `xdotool`, and Tk; code runs require Git.
 
 ## Primary research contributions
 
@@ -177,14 +190,15 @@ Machine-readable output is written under `artifacts/`.
 3. **Authority-separated receipts.** Planner, approver, executor, verifier, and evidence remain distinct facts.
 4. **Policy-bound execution.** Planner-supplied risk labels may raise effective risk but may never lower independently inferred risk.
 5. **Trust-aware learned behavior.** Reusable behavior requires multiple independent verified tasks plus holdout success.
+6. **Split-phase external-runner boundary.** Benchmark/framework runners can preserve their own physical dispatch while LHIC owns durable ambiguity and recovery state.
 
 ## Claim boundary
 
-The intended claim is not “LHIC is a smarter planner” or “LHIC is universally SOTA.” A defensible current claim is:
+A defensible current claim is:
 
-> In the validated controlled fixtures, LHIC-Core prevented duplicate replay in the flagship post-commit crash experiment and matched the expected durable execution state in 108/108 additional seeded browser, desktop, and code trials spanning six non-atomic execution variants, with zero duplicate side effects.
+> In validated controlled fixtures, LHIC-Core prevented duplicate replay in the flagship post-commit crash experiment and matched the expected durable execution state in 108/108 additional seeded browser, desktop, and code trials spanning six non-atomic execution variants, with zero duplicate side effects. The same durable semantics are exposed through a tested split-phase Python→Node→TypeScript boundary for an OSWorld-style external runner.
 
-External validity still requires a real bridge into pinned official benchmark runners and official evaluator output. Performance claims also require paired no-fault overhead experiments.
+This is not an official OSWorld/SWE-bench/tau-bench result and not a production latency claim.
 
 ## Suggested paper title
 
