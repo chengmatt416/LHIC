@@ -15,9 +15,10 @@ on:
 jobs:
   browser-desktop-code:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
-      LHIC_REAL_TRIALS: "3"
+      # 10 trials per surface = 30 controlled real-surface trials.
+      LHIC_REAL_TRIALS: "10"
     steps:
       - uses: actions/checkout@v4
 
