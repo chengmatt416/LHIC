@@ -2,71 +2,93 @@
 
 **Crash-consistent, evidence-carrying execution for autonomous agents.**
 
-This branch is the academic-facing artifact for LHIC-Core. It intentionally narrows the product branch into a research problem: how can an AI agent execute real computer actions while preserving authority separation, postcondition verification, durable side-effect recovery, and trust-aware learning?
+This branch is the research-facing extraction of LHIC. It deliberately removes the product shell and keeps only the mechanisms needed to study one question:
+
+> How should an autonomous agent execute real side effects when tool calls are non-atomic, outcomes can be ambiguous, and model output is not trustworthy execution evidence?
 
 ## Research thesis
 
-Modern agents are good at proposing tool calls, but a tool-call result is not proof that the intended external state changed safely. Real environments are non-atomic: a process can crash after dispatch, a UI can change between observation and action, a tool can timeout after the side effect occurred, and a model can understate the risk of its own proposed action.
-
-LHIC-Core treats agent execution as a monitored runtime problem rather than a model-quality problem.
+LHIC-Core treats planning and execution truth as different concerns. A model or agent may propose an action, but a deterministic runtime owns risk classification, approval scope, durable side-effect state, postcondition verification, recovery, and evidence-carrying receipts.
 
 ```text
-agent plan / human intent
+planner / human intent
         |
         v
-policy + authority check
+independent risk classification
         |
         v
-approval scope + action hash
+scope-bound approval
         |
         v
-durable side-effect ledger
+persist possibly_committed BEFORE external dispatch
         |
         v
-local execution adapter
+execution adapter
         |
         v
 postcondition verifier
         |
-        v
-evidence-carrying receipt
+        +---- success + evidence ----> verified receipt
         |
-        v
-trusted memory / recovery state
+        +---- crash / timeout -------> re-observe external state
+                                        | present -> do not replay
+                                        | absent  -> safe retry path
+                                        | unclear -> needs_resolution
 ```
 
-## Academic code artifact
+## What was extracted from the product branch
 
-This branch includes a minimal TypeScript reference model under `core/`. It is not the full product runtime; it is a small, auditable implementation of the research contract selected and adapted from the `feature/sota-improvements` design.
+The reference implementation is derived from `feature/sota-improvements` at product commit `f519c94eadee15d0f4b4995995f6054326a39c24`, but rewritten to remove product dependencies and expose the research invariants directly:
 
-Run the artifact with:
+- action receipts and side-effect taxonomy;
+- independent/effective side-effect classification;
+- narrow approval scopes and high-risk exclusions;
+- crash-safe side-effect ledger semantics;
+- evidence-backed verification;
+- trust-aware skill promotion.
 
-```bash
-npm install
-npm run typecheck
-npm test
-```
+The academic branch does **not** copy the Electron app, installer, OMP UI integration, Appwrite services, release tooling, or provider-specific model setup.
 
 ## Repository map
 
-- `core/lhic-core-model.ts` — reference implementation for classification, approval validation, side-effect ledger recovery, receipts, memory promotion, and reliability metrics.
-- `tests/lhic-core-model.test.ts` — invariant tests for the academic kernel.
-- `core/invariants.md` — core safety and correctness invariants.
-- `docs/research/academic-positioning.md` — problem framing, novelty, and related-work positioning.
-- `docs/research/evaluation-protocol.md` — proposed failure-injection and ablation protocol.
-- `docs/research/code-artifact.md` — what was selected and changed from the product branch.
-- `docs/research/paper-outline.md` — paper-facing outline.
+- `src/model.ts` — minimal academic types for actions, approvals, ledger entries, receipts, evidence, and memory.
+- `src/policy.ts` — conservative independent side-effect classification and the “planner may raise risk, never lower it” rule.
+- `src/approval.ts` — exact-action, plan-step, read-only, and bounded origin/class approval scopes.
+- `src/ledger.ts` — persistent reference ledger with atomic JSON replacement and fail-closed state transitions.
+- `src/recovery.ts` — verify/observe-before-retry recovery semantics.
+- `src/receipt.ts` — authority-separated evidence-carrying action receipts.
+- `src/memory.ts` — independent-task + holdout promotion rule and code-anchor staleness.
+- `src/kernel.ts` — minimal execution kernel composing policy, approval, ledger, adapters, verification, and recovery.
+- `test/core.test.ts` — executable checks for the core invariants.
+- `benchmark/failure-injection.ts` — deterministic synthetic non-atomic failure harness.
+- `core/invariants.md` — paper-facing safety/correctness invariants.
+- `docs/research/` — positioning, artifact scope, evaluation protocol, and code provenance.
 
-## What this branch is not
+## Run the artifact
 
-- Not a claim that LHIC is universally SOTA.
-- Not a model benchmark leaderboard submission by itself.
-- Not a product installer branch.
-- Not a claim that OMP-native tool success equals LHIC verification.
-- Not a replacement for official OSWorld, SWE-bench, or tau-bench evaluator output.
+Node.js 22.6+ can execute the TypeScript directly using type stripping. There are no third-party runtime dependencies.
 
-## Minimal evaluation claim
+```bash
+npm test
+npm run bench
+```
 
-The intended claim is not “a smarter agent.” The intended claim is:
+The benchmark is a **controlled synthetic failure-injection harness**, not an official OSWorld, SWE-bench, or tau-bench score.
 
-> Under non-atomic failures and adversarial planning errors, an execution kernel with durable side-effect state, independent verification, and authority-aware receipts reduces duplicate side effects, false completion, and unsafe replay compared with a vanilla tool-calling loop using the same planner.
+## Primary research contributions
+
+1. **Crash-consistent side-effect semantics.** Ambiguous external outcomes become persistent runtime state rather than implicit tool-call failure.
+2. **Verify-before-retry recovery.** The runtime observes the external world before replaying a possibly committed action.
+3. **Authority-separated receipts.** Planner, approver, executor, verifier, and evidence remain distinct facts.
+4. **Policy-bound execution.** Planner-supplied risk labels may increase effective risk but may never reduce independently inferred risk.
+5. **Trust-aware learned behavior.** Reusable behavior requires multiple independent verified tasks plus holdout success.
+
+## Intended claim
+
+The intended claim is not “LHIC is a smarter planner” or “LHIC is universally SOTA.” The intended claim is:
+
+> With the same planner, a deterministic execution kernel with durable side-effect state, independent verification, and authority-aware receipts can reduce duplicate side effects, false completion, and unsafe replay under non-atomic failures.
+
+## Suggested paper title
+
+**LHIC-Core: Crash-Consistent, Evidence-Carrying Execution for Autonomous Agents**
