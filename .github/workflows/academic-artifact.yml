@@ -25,6 +25,10 @@ jobs:
       - name: Validate OSWorld runner interposition and TypeScript bridge
         working-directory: adapters/osworld-v2
         run: python3 -m unittest -v test_runner_boundary.py test_bridge_client.py
+      - name: Validate pinned OSWorld v2026.06.24 upstream runner contract
+        run: |
+          git clone --depth 1 --branch v2026.06.24 https://github.com/xlang-ai/OSWorld-V2.git /tmp/osworld-v2
+          python3 adapters/osworld-v2/check_pinned_contract.py /tmp/osworld-v2
       - name: Upload academic overhead evidence
         uses: actions/upload-artifact@v4
         with:
