@@ -21,9 +21,8 @@ jobs:
     env:
       # Flagship: 10 trials per surface = 30 post-commit crash trials.
       LHIC_REAL_TRIALS: "10"
-      # Second layer: 3 trials x 6 modes x 3 surfaces = 54 seeded trials.
+      # Randomized layer: 3 trials x 6 modes x 3 surfaces = 54 trials per seed.
       LHIC_CAMPAIGN_TRIALS: "3"
-      LHIC_CAMPAIGN_SEED: "2026-08-15"
     steps:
       - uses: actions/checkout@v4
 
@@ -48,8 +47,19 @@ jobs:
       - name: Run flagship real-surface suite and semantic matrix
         run: npm run experiment:real
 
-      - name: Run seeded randomized cross-surface fault campaign
-        run: npm run experiment:randomized
+      - name: Run randomized campaign seed A
+        env:
+          LHIC_CAMPAIGN_SEED: "2026-08-15"
+        run: |
+          npm run experiment:randomized
+          mv artifacts/randomized-cross-surface-results.json artifacts/randomized-cross-surface-seed-a.json
+
+      - name: Run randomized campaign seed B
+        env:
+          LHIC_CAMPAIGN_SEED: "2026-08-16"
+        run: |
+          npm run experiment:randomized
+          mv artifacts/randomized-cross-surface-results.json artifacts/randomized-cross-surface-seed-b.json
 
       - name: Upload real experiment evidence
         if: always()
