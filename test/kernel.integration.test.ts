@@ -119,8 +119,8 @@ test("verified action identity remains terminal across subsequent runs", async (
     await kernel.run(action, exactApproval());
     const replay = await kernel.run(action, exactApproval());
 
-    assert.equal(replay.ledgerState, "verified");
     assert.match(replay.failureReason ?? "", /replay blocked/i);
+    assert.equal(ledger.get(action.actionId)?.state, "verified");
     assert.equal(dispatches, 1);
   } finally {
     await rm(dir, { recursive: true, force: true });
