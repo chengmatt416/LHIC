@@ -61,7 +61,8 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 - `src/receipt.ts` — authority-separated evidence-carrying action receipts.
 - `src/memory.ts` — independent-task + holdout promotion rule and code-anchor staleness.
 - `src/kernel.ts` — minimal execution kernel composing policy, approval, ledger, adapters, verification, and recovery.
-- `test/core.test.ts` — executable checks for the core invariants.
+- `test/core.test.ts` — six focused invariant tests.
+- `test/kernel.integration.test.ts` — two end-to-end crash-recovery / replay-exclusion kernel tests.
 - `benchmark/failure-injection.ts` — deterministic synthetic non-atomic failure harness.
 
 ### Paper-facing material
@@ -89,7 +90,8 @@ The benchmark is a **controlled synthetic failure-injection harness**, not an of
 
 Current reference checks:
 
-- 6 invariant tests, expected `6 passed / 0 failed`;
+- 8 tests total: 6 invariant tests + 2 kernel-level crash/recovery integration tests;
+- expected `8 passed / 0 failed`;
 - 100 deterministic synthetic trials per runtime strategy;
 - current synthetic harness demonstrates the intended safety/availability trade-off and is recorded in `docs/research/current-artifact-results.md`.
 
