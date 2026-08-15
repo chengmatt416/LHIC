@@ -1,0 +1,14 @@
+{
+  "name": "lhic-core-academic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal academic reference artifact for crash-consistent, evidence-carrying agent execution.",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "bench": "node --experimental-strip-types benchmark/failure-injection.ts"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}
