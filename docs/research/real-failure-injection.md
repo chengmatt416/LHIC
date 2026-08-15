@@ -87,16 +87,16 @@ This gate was added after an early desktop fixture run exposed a false-green con
 
 ## Validated result
 
-Implementation commit:
+Current results commit:
 
 ```text
-d145970295e645d7790647cb237ed20eff6172c2
+4ba7e227936d3be6c670a72ba88655f1929c8b7b
 ```
 
 GitHub Actions `Real Failure Injection` run:
 
 ```text
-31878130504
+31878534758
 ```
 
 Environment:
@@ -105,18 +105,18 @@ Environment:
 Ubuntu 24.04
 Linux x64
 Node.js v22.23.2
-3 trials per surface
-9 trials total
+10 trials per surface
+30 trials total
 ```
 
 Measured result:
 
 | Surface | Trials | Baseline duplicate effects | LHIC duplicate effects | Verified recovery |
 |---|---:|---:|---:|---:|
-| Browser / Chromium | 3 | 3 | 0 | 3 / 3 |
-| Desktop / X11 + Tk | 3 | 3 | 0 | 3 / 3 |
-| Code / Git | 3 | 3 | 0 | 3 / 3 |
-| **Total** | **9** | **9** | **0** | **9 / 9** |
+| Browser / Chromium | 10 | 10 | 0 | 10 / 10 |
+| Desktop / X11 + Tk | 10 | 10 | 0 | 10 / 10 |
+| Code / Git | 10 | 10 | 0 | 10 / 10 |
+| **Total** | **30** | **30** | **0** | **30 / 30** |
 
 The workflow uploads the complete machine-readable evidence as:
 
@@ -144,7 +144,7 @@ Each surface emits `LHIC_REAL_RESULT=<json>` with:
 Code-only experiment needs Node and Git:
 
 ```bash
-LHIC_REAL_TRIALS=3 npm run experiment:code
+LHIC_REAL_TRIALS=10 npm run experiment:code
 ```
 
 Browser experiment:
@@ -152,20 +152,20 @@ Browser experiment:
 ```bash
 npm install --no-save --ignore-scripts playwright@1.62.1
 npx playwright install --with-deps chromium
-LHIC_REAL_TRIALS=3 npm run experiment:browser
+LHIC_REAL_TRIALS=10 npm run experiment:browser
 ```
 
 Desktop experiment on Debian/Ubuntu:
 
 ```bash
 sudo apt-get install xvfb xauth xdotool python3-tk
-LHIC_REAL_TRIALS=3 npm run experiment:desktop
+LHIC_REAL_TRIALS=10 npm run experiment:desktop
 ```
 
 Full suite:
 
 ```bash
-LHIC_REAL_TRIALS=3 npm run experiment:real
+LHIC_REAL_TRIALS=10 npm run experiment:real
 ```
 
 The GitHub workflow `.github/workflows/real-failure-injection.yml` pins Playwright and runs the full suite on Ubuntu 24.04.
