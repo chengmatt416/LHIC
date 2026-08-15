@@ -2,23 +2,32 @@
 
 These results are **artifact-validation and controlled integration results**, not external benchmark claims.
 
-## Validated implementation
+## Validated implementation and evidence
 
-- Branch: `research/lhic-core-academic`
-- Randomized campaign implementation commit: `33dd603125d8e2a1a62455f855ba7adf87e6e327`
-- Real Failure Injection workflow run: `31880913272`
-- Evidence artifact: `9246004589`
-- Evidence digest: `sha256:e2c047a01fc5ba70ec909edf47ef25e0a0e6c2b52e82d21ec2b03ecd7abe4f79`
-- Environment: Ubuntu 24.04 / Linux x64 / Node.js 22
-- Flagship real-surface trials: 30
-- Expanded semantic matrix: 5 cases
-- Randomized cross-surface trials: 108 across two timing seeds
+### Real-surface fault campaign
 
-The workflow contains hard acceptance gates. It fails if a flagship baseline trial does not demonstrate the intended duplicate, if LHIC produces a duplicate side effect, if the expected durable state is not reached, or if the randomized campaign violates a mode-specific dispatch/recovery invariant.
+- implementation commit: `dccaf0505aa79850687e10516336b746a69515bc`
+- workflow: `Real Failure Injection`
+- workflow run: `31881515462`
+- evidence artifact: `9246160051`
+- artifact digest: `sha256:7b5a84577f848d3f01809196b69aeb48c9b4c455d38cef6d0934db3c3b957872`
+- environment: Ubuntu 24.04 / Linux x64 / Node.js 22
 
-## Core invariant and kernel tests
+The exact implementation passed the flagship real-surface suite, the five-case semantic matrix, and both randomized timing seeds.
 
-The academic artifact has thirteen Node.js tests:
+### Core / adapter / overhead validation
+
+- split-boundary implementation commit: `dccaf0505aa79850687e10516336b746a69515bc`
+- `Academic Artifact` run: `31881515546` — success
+- overhead evidence artifact: `9246140145`
+- overhead artifact digest: `sha256:70f16517cc9d9a447c29d6bcd2c294aabcb14b53bdea4ea6ef5c609af6d86690`
+- pinned-upstream OSWorld contract run: `31881642593` — success
+
+The academic workflow validates TypeScript invariants/integration tests, the synthetic ablation harness, the paired no-fault microbenchmark, Python runner-boundary tests, the live Python→Node→TypeScript durable bridge, and the pinned OSWorld upstream runner contract.
+
+## 1. Executable tests
+
+The academic artifact currently has **16 Node.js tests**:
 
 1. planner cannot lower independently inferred risk;
 2. high-risk action cannot use reusable origin scope;
@@ -32,11 +41,14 @@ The academic artifact has thirteen Node.js tests:
 10. delayed visibility can verify later without duplicate dispatch;
 11. repeated inconclusive observations remain `needs_resolution` and non-dispatchable;
 12. duplicate action delivery after verification is blocked without a second dispatch;
-13. workspace conflict during recovery prevents verified completion without replay.
+13. workspace conflict during recovery prevents verified completion without replay;
+14. split boundary durably persists `possibly_committed` before permitting external dispatch;
+15. executor response reaches only `executed`, not self-certified `verified`;
+16. lost-response state can survive and recover to `verified` without re-dispatch.
 
-The Academic Artifact workflow also validates the OSWorld 2.0 runner-interposition scaffold with Python unit tests.
+In addition, Python adapter tests verify benchmark-side call ordering and the cross-language bridge.
 
-## 1. Flagship real-surface failure injection
+## 2. Flagship real-surface failure injection
 
 Injected failure:
 
@@ -52,7 +64,7 @@ persist possibly_committed
         -> do not replay
 ```
 
-### Current 30-trial result
+### Result
 
 | Surface | Trials | Blind-retry duplicate effects | LHIC-Core duplicate effects | Verified recovery |
 |---|---:|---:|---:|---:|
@@ -61,33 +73,33 @@ persist possibly_committed
 | Code / Git | 10 | 10 | 0 | 10 / 10 |
 | **Total** | **30** | **30** | **0** | **30 / 30** |
 
-Every accepted LHIC trial has one physical dispatch and one committed effect. The blind-retry baseline commits the same logical effect twice.
+Every accepted LHIC flagship trial physically dispatches once and commits one side effect. The blind-retry baseline commits the same logical effect twice.
 
-An earlier fresh GitHub Actions rerun of the same 30-trial flagship experiment reproduced the same aggregate outcome, giving 60 controlled flagship executions across those two attempts: 60 baseline duplicate effects, 0 LHIC duplicate effects, and 60 verified LHIC recoveries. This is runner repeatability evidence, not 60 independent open-world tasks.
+An earlier fresh GitHub Actions rerun reproduced the same aggregate flagship result. That is runner-repeatability evidence, not 60 independent open-world tasks.
 
-## 2. Expanded five-case semantic matrix
+## 3. Expanded five-case semantic matrix
 
 | Case | Durable result | Dispatches | Observations | Verifications | Side effects | Duplicates | Result |
 |---|---|---:|---:|---:|---:|---:|---|
 | Pre-dispatch crash | `needs_resolution` | 1 | 1 | 0 | 0 | 0 | PASS |
 | Delayed visibility | `verified` | 1 | 2 | 1 | 1 | 0 | PASS |
-| Persistent inconclusive observation | `needs_resolution` | 1 | 1 | 0 | 1 | 0 | PASS |
+| Persistent inconclusive | `needs_resolution` | 1 | 1 | 0 | 1 | 0 | PASS |
 | Duplicate delivery | durable `verified` | 1 | 0 | 1 | 1 | 0 | PASS |
 | Workspace conflict | `executed` / unverified | 1 | 1 | 1 | 1 | 0 | PASS |
 
-The delayed-visibility case is important because the first recovery can enter `needs_resolution` and a later invocation must re-observe rather than re-dispatch.
+This layer established an important kernel rule: `needs_resolution` remains part of the ambiguity-recovery state set. A later invocation must re-observe rather than fall through to normal physical dispatch.
 
-## 3. Seeded randomized cross-surface campaign
+## 4. Seeded randomized cross-surface campaign
 
-The randomized layer runs the same six fault semantics on real Chromium, X11/Tk, and Git surfaces. Timing is derived from a deterministic seed so the experiment varies while remaining reproducible.
+The randomized layer exercises six fault semantics on real Chromium, X11/Tk, and Git surfaces. A deterministic seed varies visibility delay and polling schedule while preserving reproducibility.
 
-Each seed executes:
+Each timing seed executes:
 
 ```text
 3 surfaces x 6 fault modes x 3 trials = 54 trials
 ```
 
-Two independent timing seeds were used:
+Seeds:
 
 - `2026-08-15`
 - `2026-08-16`
@@ -100,46 +112,56 @@ Two independent timing seeds were used:
 | `2026-08-16` | 54 | 54 | 0 | 0 |
 | **Combined** | **108** | **108** | **0** | **0** |
 
-### Mode results across both seeds
+### Mode results
 
 | Fault mode | Trials | Expected durable behavior | Result |
 |---|---:|---|---|
-| Pre-dispatch failure | 18 | `needs_resolution`, no auto-replay | 18 / 18 |
+| Pre-dispatch failure | 18 | `needs_resolution`, no automatic replay | 18 / 18 |
 | Post-commit lost response | 18 | recover to `verified` | 18 / 18 |
 | Delayed visibility | 18 | repeated re-observation, then `verified` | 18 / 18 |
 | Partial postcondition | 18 | `executed` / unverified, no replay | 18 / 18 |
 | Duplicate delivery | 18 | verified identity blocks second dispatch | 18 / 18 |
 | Late completion after recovery | 18 | verified identity remains terminal | 18 / 18 |
 
-Injected visibility delays ranged from **41 ms to 220 ms**. Delayed-visibility trials required **2 to 6 recovery observations** before the external effect became visible and verifiable, while the physical dispatch count remained one.
+Injected visibility delays span **41–220 ms**. Delayed-visibility trials require **2–6 recovery observations** before the effect becomes visible and independently verifiable, while physical dispatch remains exactly one.
 
-### Diagnostic harness latency
-
-These are controlled harness timings, not optimized LHIC overhead measurements.
-
-| Surface | Randomized trials | Mean case latency | Median case latency |
-|---|---:|---:|---:|
-| Browser / Chromium | 36 | ~302 ms | 289 ms |
-| Desktop / X11 + Tk | 36 | ~199 ms | 196 ms |
-| Code / Git | 36 | ~43 ms | 21 ms |
-
-The delayed-visibility mode ranged from 120–496 ms because wait time is intentionally injected. A paired no-fault overhead experiment is still required before making a runtime-cost claim.
-
-## Real surface details
+## 5. Real surface definitions
 
 ### Browser
 
-The browser experiments use a real local HTTP service and Chromium through Playwright. External actions are actual form submissions. The DOM exposes committed count and postcondition state, while screenshot bytes are hashed into verifier evidence.
+A real Chromium process submits forms to a local HTTP service. The DOM exposes committed count and postcondition state; screenshot bytes can be hashed into verifier evidence.
 
 ### Desktop
 
-The desktop experiments run a real Tk window in Xvfb and deliver an X11 pointer action using `xdotool`. The native window title exposes the persisted committed count and `status=complete|partial`, so a committed effect can be distinguished from a complete postcondition.
+A real Tk window runs inside Xvfb. `xdotool` delivers an X11 mouse click. Native window state exposes the persisted committed count and `status=complete|partial`, allowing the verifier to separate “an effect happened” from “the requested postcondition is complete.”
 
 ### Code
 
-The code experiments create isolated real Git repositories. External actions create real files and commits. Complete cases include a required postcondition file; partial cases intentionally omit it. Recovery inspects file content and Git history.
+Each controlled trial uses an isolated real Git repository. The action performs real writes and commits. Complete cases include a required postcondition file; partial cases intentionally omit it. Recovery inspects file state and Git history.
 
-## Deterministic synthetic failure injection
+## 6. Paired no-fault reference-artifact overhead
+
+The microbenchmark uses 80 interleaved trials per variant on a local code-side marker action. One warm-up per variant is excluded.
+
+| Variant | Mean | Median | p95 |
+|---|---:|---:|---:|
+| Direct execute | 0.258 ms | 0.182 ms | 0.291 ms |
+| Direct execute + read-back verification | 0.406 ms | 0.367 ms | 0.553 ms |
+| Split durable boundary | 1.494 ms | 1.506 ms | 1.777 ms |
+| Full LHIC-Core | 2.157 ms | 2.108 ms | 2.667 ms |
+
+Median differences:
+
+```text
+split boundary - direct execute       = +1.324 ms
+full kernel - direct execute + verify = +1.741 ms
+```
+
+These are **academic atomic-JSON reference-artifact** numbers. They are not product SQLite latency, browser latency, remote API latency, or an OSWorld overhead claim. The direct operation is sub-millisecond, so the raw ~11.6x full-kernel/direct ratio is especially inappropriate as a production characterization.
+
+See `docs/research/no-fault-overhead.md` for methodology and claim boundaries.
+
+## 7. Synthetic ablation harness
 
 The synthetic harness remains a fast semantic regression suite. It runs 100 deterministic trials per strategy over five modeled failure modes.
 
@@ -150,31 +172,83 @@ The synthetic harness remains a fast semantic regression suite. It runs 100 dete
 | Ledger only | 0.80 | 0.00 | 0.00 | 0.80 |
 | Full LHIC-Core | 0.80 | 0.00 | 0.00 | 0.20 |
 
-Synthetic and real-surface results serve different purposes. The simulator provides fast ablation coverage; the real-surface suite verifies that the protocol survives real process boundaries and external state changes.
+Synthetic and real-surface results serve different purposes: the simulator provides cheap ablation coverage; the real fixtures establish that the execution protocol survives actual process boundaries and external state transitions.
 
-## OSWorld 2.0 adapter status
+## 8. Split-phase boundary for external runners
 
-`adapters/osworld-v2/` now contains the first external-validity scaffold. It is designed to interpose between planner action output and OSWorld's official `env.step(...)` call while leaving task setup, step budget, environment, and evaluator unchanged.
+`src/boundary.ts` exposes a split-phase API so an official benchmark runner can retain control of its physical action call:
 
-The current scaffold validates two ordering properties:
+```text
+prepare(action)
+    -> policy / exact approval
+    -> durable possibly_committed
+    -> returns dispatchAllowed=true
 
-1. durable-boundary `before_dispatch` is invoked before `env.step`;
-2. an exception/timeout is reported as a lost response and is not converted into a synthetic retry.
+external runner performs its own action
 
-This is an adapter contract test, not an OSWorld score. A real LHIC bridge and pinned OSWorld environment run remain future work.
+recordResponse(actionId)
+    -> executed, NOT verified
 
-## Interpretation and claim boundary
+recordLostResponse(actionId)
+    -> preserves ambiguity
 
-The controlled evidence supports the following narrow statement:
+recover(actionId, observation, evidence)
+    -> verified / executed / needs_resolution
+```
 
-> In the validated controlled fixtures, LHIC-Core prevented duplicate replay in the flagship post-commit crash experiment and matched the expected durable execution state in 108/108 additional seeded browser, desktop, and code trials spanning pre-dispatch failure, lost completion, delayed visibility, partial postconditions, duplicate delivery, and late completion after recovery. No randomized trial produced a duplicate side effect.
+This solves a practical integration problem: an official runner such as OSWorld can keep its own `env.step(...)` call and evaluator while LHIC owns durable execution semantics around that call.
 
-This does **not** establish general computer-use capability, higher planner accuracy, statistical superiority over agents on an open-world task distribution, or SOTA performance on OSWorld, SWE-bench, tau-bench, or other official benchmarks.
+## 9. OSWorld 2.0 adapter status
 
-## Next evaluation layer
+`adapters/osworld-v2/` now contains:
 
-1. connect the OSWorld 2.0 scaffold to the TypeScript LHIC kernel;
-2. run a pinned OSWorld 2.0 release without changing official evaluator scoring;
-3. add paired no-fault overhead measurements for ledger persistence, observations, and verification;
-4. add larger same-repository concurrent code mutations;
-5. build a coding-benchmark adapter that preserves official patch extraction and evaluation.
+- a Python `execute_with_lhic_boundary(...)` wrapper around `env.step`;
+- a persistent Python `NodeBoundaryClient`;
+- a JSONL TypeScript bridge server backed by `SplitExecutionBoundary` and the durable ledger;
+- cross-language restart/recovery tests;
+- a pinned-upstream contract checker.
+
+The cross-language test path is real:
+
+```text
+Python benchmark wrapper
+        -> persistent Node subprocess
+        -> TypeScript SplitExecutionBoundary
+        -> FileSideEffectLedger
+        -> durable JSON state
+```
+
+Validated properties include:
+
+1. `possibly_committed` exists before the fake benchmark `env.step` is called;
+2. successful executor return records only `executed`;
+3. lost response remains `possibly_committed`;
+4. ledger state survives bridge restart;
+5. externally supplied verifier evidence can recover to `verified`;
+6. adapter failure paths do not add a blind retry.
+
+The Academic CI also checks out the pinned OSWorld `v2026.06.24` source and statically verifies that its runner still contains the planner/action/`env.step(...)` boundary assumed by this adapter.
+
+This is **not yet an official OSWorld run**. A real OSWorld environment plus task execution and a benchmark-appropriate per-action verifier are still required.
+
+## 10. Interpretation and claim boundary
+
+The current controlled evidence supports the following statement:
+
+> In validated controlled fixtures, LHIC-Core prevented duplicate replay in the flagship post-commit crash experiment and matched the expected durable state in 108/108 additional seeded browser, desktop, and code trials spanning six non-atomic execution variants, with zero duplicate side effects. A split-phase cross-language boundary also preserved pre-dispatch durability and restart recovery for an OSWorld-style external runner.
+
+This does **not** establish:
+
+- general computer-use capability;
+- higher planner accuracy;
+- open-world statistical superiority;
+- official OSWorld, SWE-bench, or tau-bench performance;
+- production latency or throughput.
+
+## 11. Next evaluation layer
+
+1. connect an OSWorld action observation/verifier to the live bridge and execute a pinned official task subset;
+2. keep official OSWorld task score separate from LHIC execution metrics;
+3. add paired no-fault overhead on the real browser/desktop/Git surfaces;
+4. add larger same-repository concurrent code mutation campaigns;
+5. build a coding-benchmark adapter that preserves official patch extraction and evaluator scoring.
