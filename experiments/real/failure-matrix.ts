@@ -11,6 +11,7 @@ interface MatrixCaseResult {
   caseName: string;
   expectedState: string;
   observedState: string;
+  durableLedgerState: string | undefined;
   dispatches: number;
   observations: number;
   verifications: number;
@@ -85,10 +86,12 @@ async function runCase(
     const recovered = await kernel2.run(action, approval);
 
     const effects = await countMarkers(file);
+    const durableLedgerState = ledger2.get(action.actionId)?.state;
     const result: MatrixCaseResult = {
       caseName,
       expectedState,
       observedState: recovered.ledgerState,
+      durableLedgerState,
       dispatches: counters.dispatches,
       observations: counters.observations,
       verifications: counters.verifications,
@@ -165,7 +168,7 @@ const cases = [
       return evidence("inconclusive-observation", "", false);
     },
   })),
-  runCase("duplicate-delivery", "verified", ({ file, counters }) => ({
+  runCase("duplicate-delivery", "executed", ({ file, counters }) => ({
     async execute(): Promise<ExecutionResult> {
       counters.dispatches += 1;
       await appendEffect(file, "duplicate-delivery");

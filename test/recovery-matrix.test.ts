@@ -131,7 +131,7 @@ test("repeated inconclusive observations remain needs_resolution and non-dispatc
   });
 });
 
-test("duplicate action delivery after verification is blocked", async () => {
+test("duplicate action delivery after verification is blocked without a second dispatch", async () => {
   let dispatches = 0;
   const adapters: KernelAdapters = {
     async execute(): Promise<ExecutionResult> {
@@ -146,11 +146,15 @@ test("duplicate action delivery after verification is blocked", async () => {
     },
   };
 
-  await withKernel("duplicate-delivery", adapters, async (kernel, _ledger, a) => {
+  await withKernel("duplicate-delivery", adapters, async (kernel, ledger, a) => {
     assert.equal((await kernel.run(a, exactApproval(a))).ledgerState, "verified");
+    assert.equal(ledger.get(a.actionId)?.state, "verified");
     const duplicate = await kernel.run(a, exactApproval(a));
-    assert.equal(duplicate.ledgerState, "verified");
+    // A new receipt without new evidence may not claim a fresh verified result,
+    // but the durable ledger identity remains terminal and no dispatch occurs.
+    assert.equal(duplicate.ledgerState, "executed");
     assert.match(duplicate.failureReason ?? "", /Replay blocked/i);
+    assert.equal(ledger.get(a.actionId)?.state, "verified");
     assert.equal(dispatches, 1);
   });
 });
