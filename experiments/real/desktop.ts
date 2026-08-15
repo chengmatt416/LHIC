@@ -80,15 +80,20 @@ function crashWorker(token: string): void {
     env: process.env,
   });
   if (result.error) throw result.error;
-  if (result.status === 0) {
-    throw new Error("Desktop failure worker returned success; crash injection did not occur.");
+  if (result.signal !== "SIGKILL") {
+    throw new Error(
+      `Desktop worker did not reach the intended post-commit SIGKILL point (status=${result.status}, signal=${result.signal}).\n${result.stderr ?? ""}`,
+    );
   }
 }
 
 async function worker(token: string): Promise<never> {
+  const before = countFromTitle(windowTitle(token));
   const id = windowId(token);
-  xdotool(["key", "--window", id, "ctrl+Return"]);
-  await waitFor(() => countFromTitle(windowTitle(token)) >= 1, 3_000, 50);
+  // The fixture uses deterministic geometry. This is a real X11 pointer action
+  // delivered to the visible Tk button, not a direct function invocation.
+  xdotool(["mousemove", "--window", id, "230", "160", "click", "1"]);
+  await waitFor(() => countFromTitle(windowTitle(token)) > before, 3_000, 50);
   process.kill(process.pid, "SIGKILL");
   throw new Error("unreachable");
 }
@@ -117,9 +122,9 @@ async function runLhic(dir: string, trial: number): Promise<SurfaceTrialResult["
       actionId: `desktop-action-${trial}`,
       taskId: `desktop-task-${trial}`,
       surface: "desktop",
-      tool: "key",
+      tool: "click",
       intent: "commit desktop experimental action",
-      target: "Ctrl+Enter in LHIC Desktop Fixture",
+      target: "Commit desktop action button in LHIC Desktop Fixture",
       actionHash: deterministicHash(`desktop:${trial}`),
     };
     const approval = exactApproval(action);
@@ -137,7 +142,7 @@ async function runLhic(dir: string, trial: number): Promise<SurfaceTrialResult["
           accepted: true,
           sideEffectOccurred: true,
           responseReceived: false,
-          detail: "xdotool dispatcher was killed after the Tk action committed.",
+          detail: "X11 pointer dispatcher was killed after the Tk action committed.",
         };
       },
       async observe() {
@@ -150,10 +155,12 @@ async function runLhic(dir: string, trial: number): Promise<SurfaceTrialResult["
         verifications += 1;
         const title = windowTitle(token);
         const count = countFromTitle(title);
-        const condition = "desktop postcondition: exactly one committed action is visible in the native window";
-        return count === 1
-          ? passedEvidence(`desktop-evidence-${trial}`, condition, title)
-          : failedEvidence(`desktop-evidence-${trial}`, condition, title);
+        const persisted = (await readFile(stateFile, "utf8")).trim();
+        const artifact = `${title}\npersisted=${persisted}`;
+        const condition = "desktop postcondition: exactly one committed action is visible and persisted";
+        return count === 1 && persisted === "1"
+          ? passedEvidence(`desktop-evidence-${trial}`, condition, artifact)
+          : failedEvidence(`desktop-evidence-${trial}`, condition, artifact);
       },
     });
 

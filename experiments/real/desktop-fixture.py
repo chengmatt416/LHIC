@@ -15,11 +15,11 @@ def read_count() -> int:
 
 count = read_count()
 root = tk.Tk()
-root.geometry("460x220")
+root.geometry("460x240")
 root.resizable(False, False)
 
 label = tk.Label(root, text="", font=("Sans", 20))
-label.pack(pady=35)
+label.place(x=0, y=30, width=460, height=60)
 
 def persist() -> None:
     state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -31,15 +31,14 @@ def refresh() -> None:
     label.config(text=f"Committed desktop actions: {count}")
     root.title(f"LHIC Desktop Fixture {token} count={count}")
 
-def commit(event=None) -> None:
+def commit() -> None:
     global count
     count += 1
     persist()
     refresh()
 
-button = tk.Button(root, text="Commit desktop action", command=commit, width=24, height=2)
-button.pack()
-root.bind("<Control-Return>", commit)
+button = tk.Button(root, text="Commit desktop action", command=commit)
+button.place(x=80, y=125, width=300, height=70)
 
 persist()
 refresh()
