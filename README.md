@@ -35,18 +35,27 @@ evidence-carrying receipt
 trusted memory / recovery state
 ```
 
-## Academic scope
+## Academic code artifact
 
-This branch contains the academic core specification, reference model, invariants, and evaluation protocol. Product layers such as installers, Electron packaging, Appwrite deployment, release marketing, and provider-specific branding are excluded from the research question.
+This branch includes a minimal TypeScript reference model under `core/`. It is not the full product runtime; it is a small, auditable implementation of the research contract selected and adapted from the `feature/sota-improvements` design.
 
-The relevant core ideas are:
+Run the artifact with:
 
-1. **Authority separation** — planner, approver, executor, and verifier are distinct roles.
-2. **Crash-consistent side-effect ledger** — ambiguous outcomes are recovered by observation, not blind retry.
-3. **Evidence-carrying receipts** — execution, verification, risk, approval, and provenance remain separate facts.
-4. **Policy-bound execution** — the planner cannot lower independently inferred risk.
-5. **Trust-aware learned behavior** — skills and recipes require verifier-backed evidence, independence, and staleness checks.
-6. **Workspace state mediation** — concurrent coding agents receive stale-read/conflict signals before unsafe writes.
+```bash
+npm install
+npm run typecheck
+npm test
+```
+
+## Repository map
+
+- `core/lhic-core-model.ts` — reference implementation for classification, approval validation, side-effect ledger recovery, receipts, memory promotion, and reliability metrics.
+- `tests/lhic-core-model.test.ts` — invariant tests for the academic kernel.
+- `core/invariants.md` — core safety and correctness invariants.
+- `docs/research/academic-positioning.md` — problem framing, novelty, and related-work positioning.
+- `docs/research/evaluation-protocol.md` — proposed failure-injection and ablation protocol.
+- `docs/research/code-artifact.md` — what was selected and changed from the product branch.
+- `docs/research/paper-outline.md` — paper-facing outline.
 
 ## What this branch is not
 
@@ -55,26 +64,6 @@ The relevant core ideas are:
 - Not a product installer branch.
 - Not a claim that OMP-native tool success equals LHIC verification.
 - Not a replacement for official OSWorld, SWE-bench, or tau-bench evaluator output.
-
-## Suggested paper title
-
-**LHIC-Core: Crash-Consistent, Evidence-Carrying Execution for Autonomous Agents**
-
-## Suggested paper contributions
-
-- A formal execution model for non-atomic agent side effects.
-- A durable ledger protocol that distinguishes proposed, approved, possibly committed, executed, verified, and needs-resolution states.
-- Authority-aware receipts that prevent planner success, executor success, and verifier evidence from being collapsed into one boolean.
-- A failure-injection benchmark measuring duplicate side effects, false success, recovery, and unauthorized action rates.
-- A trust-aware learning rule for promoting repeated verified behavior into reusable capabilities.
-
-## Repository map
-
-- `core/lhic-core-model.ts` — academic reference types for the execution kernel.
-- `core/invariants.md` — core safety and correctness invariants.
-- `docs/research/academic-positioning.md` — problem framing, novelty, and related-work positioning.
-- `docs/research/evaluation-protocol.md` — proposed failure-injection and ablation protocol.
-- `docs/research/artifact-scope.md` — what is included/excluded from the academic artifact.
 
 ## Minimal evaluation claim
 
