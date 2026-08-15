@@ -62,7 +62,10 @@ The academic branch does **not** copy the Electron app, installer, OMP UI integr
 - `test/core.test.ts` — executable checks for the core invariants.
 - `benchmark/failure-injection.ts` — deterministic synthetic non-atomic failure harness.
 - `core/invariants.md` — paper-facing safety/correctness invariants.
-- `docs/research/` — positioning, artifact scope, evaluation protocol, and code provenance.
+- `docs/research/formal-model.md` — compact formal model and transition rules.
+- `docs/research/ablation-matrix.md` — evaluation variants, failure modes, and metrics.
+- `docs/research/references.md` — related-work positioning map.
+- `paper/lhic-core-paper.md` — English paper draft scaffold.
 
 ## Run the artifact
 
