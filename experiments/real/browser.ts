@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -92,15 +92,40 @@ async function observeCount(origin: string): Promise<{ count: number; screenshot
   }
 }
 
-function crashWorker(origin: string): void {
-  const result = spawnSync(process.execPath, [...nodeArgs, "worker", origin], {
-    encoding: "utf8",
-    timeout: 30_000,
+async function crashWorker(origin: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, [...nodeArgs, "worker", origin], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error(`Browser failure worker timed out. ${stderr}`));
+    }, 30_000);
+
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("exit", (code, signal) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        reject(new Error("Browser failure worker returned success; crash injection did not occur."));
+        return;
+      }
+      if (signal !== "SIGKILL" && !stderr.includes("SIGKILL")) {
+        // A non-zero exit is still a failure injection, but preserve diagnostics if
+        // the worker crashed earlier than the intended kill point.
+        if (stderr.trim()) process.stderr.write(stderr);
+      }
+      resolve();
+    });
   });
-  if (result.error) throw result.error;
-  if (result.status === 0) {
-    throw new Error("Browser failure worker returned success; crash injection did not occur.");
-  }
 }
 
 async function worker(origin: string): Promise<never> {
@@ -120,8 +145,8 @@ async function worker(origin: string): Promise<never> {
 async function runTrial(fixture: BrowserFixture, trial: number): Promise<SurfaceTrialResult> {
   fixture.reset();
 
-  crashWorker(fixture.origin);
-  crashWorker(fixture.origin);
+  await crashWorker(fixture.origin);
+  await crashWorker(fixture.origin);
   const baseline = await observeCount(fixture.origin);
   const baselineSideEffects = baseline.count;
 
@@ -148,7 +173,7 @@ async function runTrial(fixture: BrowserFixture, trial: number): Promise<Surface
     const makeAdapters = () => ({
       async execute(): Promise<ExecutionResult> {
         dispatches += 1;
-        crashWorker(fixture.origin);
+        await crashWorker(fixture.origin);
         return {
           accepted: true,
           sideEffectOccurred: true,
