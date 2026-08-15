@@ -1,9 +1,0 @@
-extends: ./electron-builder.common.yml
-mac:
-  icon: build/icon.icns
-  forceCodeSigning: true
-  hardenedRuntime: true
-  notarize: true
-  target:
-    - dmg
-    - zip

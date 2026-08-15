@@ -1,9 +1,0 @@
-extends: ./electron-builder.common.yml
-mac:
-  icon: build/icon.icns
-  identity: "-"
-  hardenedRuntime: false
-  notarize: false
-  target:
-    - dmg
-    - zip
