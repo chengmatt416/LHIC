@@ -18,6 +18,6 @@ jobs:
         run: npm test
       - name: Run deterministic failure injection
         run: npm run bench
-      - name: Validate OSWorld runner interposition scaffold
+      - name: Validate OSWorld runner interposition and TypeScript bridge
         working-directory: adapters/osworld-v2
-        run: python3 -m unittest -v test_runner_boundary.py
+        run: python3 -m unittest -v test_runner_boundary.py test_bridge_client.py
