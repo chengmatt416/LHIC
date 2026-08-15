@@ -1,0 +1,51 @@
+name: Real Failure Injection
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/lhic-core-academic
+    paths:
+      - "src/**"
+      - "experiments/real/**"
+      - "package.json"
+      - ".github/workflows/real-failure-injection.yml"
+      - "docs/research/real-failure-injection.md"
+
+jobs:
+  browser-desktop-code:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      LHIC_REAL_TRIALS: "3"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install desktop experiment dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth xdotool python3-tk git
+
+      - name: Install pinned Playwright library
+        run: npm install --no-save --ignore-scripts playwright@1.62.1
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Run core invariant tests
+        run: npm test
+
+      - name: Run real browser, desktop, and code failure injection
+        run: npm run experiment:real
+
+      - name: Upload real experiment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lhic-real-failure-injection
+          path: artifacts/real-failure-injection-results.json
+          if-no-files-found: error
