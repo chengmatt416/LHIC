@@ -1,111 +1,133 @@
-# Local Human Intent Controller (LHIC)
+# LHIC — Local Human Intent Controller
 
-LHIC is a secure, high-performance, local-first browser and desktop automation
-runtime designed to translate human intent into deterministic, verifiable
-computer actions.
+**A local-first execution, verification, and control layer for AI agents that act on real computers.**
 
-**The secure execution runtime for computer-use agents.** GPT-5.6 can handle
-ambiguous Slow Path planning through a strict, redacted schema; LHIC validates,
-executes, verifies, and audits actions locally. The Fast Path never calls a
-model or MCP server.
+LHIC turns high-level intent into controlled browser, desktop, and coding actions while keeping the execution authority outside the model. It combines deterministic fast paths, policy and approval gates, post-action verification, crash-safe side-effect recovery, trusted memory, and auditable action receipts.
 
-## How Codex and GPT-5.6 were used
+LHIC is not a model and does not depend on one specific model family. Models and coding agents can plan or propose work; **LHIC decides what may execute, records what actually happened, and distinguishes execution from verification.**
 
-This project uses the two systems at different boundaries. **Codex** was the
-development collaborator: it helped turn the maintainer's product direction,
-architecture, threat model, and acceptance decisions into TypeScript modules,
-Playwright/browser flows, desktop-control paths, tests, benchmark tooling,
-debugging fixes, release checks, and documentation. The maintainer remained the
-author of the product decisions and reviewed and accepted the resulting
-changes. The verifiable Build Week timeline is in the
-[build-week changelog](docs/build-week-changelog.md), with the broader
-[Codex collaboration record](docs/codex-usage.md).
+> **Core principle:** an agent saying “done” is not proof. LHIC treats successful execution, verifier evidence, provenance, and policy compliance as separate facts.
 
-**GPT-5.6** is an optional runtime component, not the execution authority. In
-the Slow Path it proposes a next step for ambiguous browser tasks from a
-redacted goal, UI state, and trace context. LHIC then validates the structured
-proposal, applies policy and approval gates, executes it locally, and requires
-verifier evidence. It is deliberately absent from Fast Path execution,
-benchmark baselines, and local game-training loops. See the
-[GPT-5.6 integration guide](docs/gpt-5.6-integration.md) for the exact
-contract, redaction boundary, and fail-closed behavior.
+## Why LHIC
 
-## Key Features
+Most computer-use agents are optimized around planning and tool calling. The difficult part begins after a tool call is proposed: Was it allowed? Did it target the right object? Did the side effect really happen? Can a crash safely resume? Can learned behavior be trusted later? Can benchmark claims be reproduced?
 
-- **Fast Path Execution Engine**: Executes common browser tasks (login, forms, search, navigation) locally using Playwright and high-level skills, bypassing LLMs entirely. Each Fast Path action has **zero LLM calls** and therefore incurs no LLM-token cost; latency and success claims are reported only from the included controlled benchmarks.
-- **Global Desktop Control**: Executes approved native actions across macOS, Windows, and Linux: focus or launch apps, type, press hotkeys, and click. Every desktop action requires a matching human approval and a post-action window or process verifier.
-- **Semantic Locator Resilience**: In the included 100-task, five-layout local ablation, verified semantic targeting succeeds on all fixtures while the intentionally limited static-selector baseline succeeds on 20%; this is an 80-percentage-point controlled result, not a general web benchmark.
-- **Security & KMS Controls**:
-  - **KmsKeyManager**: Verifies Ed25519 approval keys from local configuration or explicitly configured GCP KMS / HashiCorp Vault. Missing, invalid, or unsupported resolvers fail closed; AWS requires a SigV4-authenticated resolver.
-  - **AES-256-GCM Encryption**: Secure software-based database-level static encryption for sensitive user cookies and sessions when the deployment supplies an encryption secret.
-  - **PII & Credential Guard**: Automatically redacts credentials, passwords, and personally identifiable information from all system traces.
-- **Concurrency & Durability Utilities**:
-  - **BrowserPool**: Chromium context pooling with pre-warming and state purification; callers own its lifecycle.
-  - **Account-level Locking**: A lease-based, encrypted SQLite queue that prevents overlapping executions when an explicit worker integrates it.
-  - **Durable Workflows**: Encrypted workflow state with step recovery; deployments must provide the storage secret and worker lifecycle.
-- **CDP Screencast Streaming**: Real-time JPEG frame broadcast at configurable frame rates; it provides frames, not a complete VNC or remote-input service.
-- **Optional Observability**: Redacted trace JSONL, explicit pruning, and an opt-in OpenTelemetry (OTLP) exporter.
+LHIC focuses on that execution boundary.
 
-## 📁 Package Monorepo Structure
-
-- `packages/schema`: Core TypeScript schemas and validation types.
-- `packages/browser`: Playwright CDP wrappers, Screencast, and BrowserPool.
-- `packages/verifier`: Dynamic DOM, URL, and file download verification.
-- `packages/trace`: Redacted JSONL event logs and OTel APM export.
-- `packages/memory`: SQLite workflow state and resilient selector memory.
-- `packages/security`: KMS key managers, PII redaction, and database encryption.
-- `packages/skills`: Fault-tolerant browser skills and the native global-desktop executor.
-- `packages/controller`: Decision routing, confidence scorer, and Slow Path interface.
-- `packages/shared-skills`: Reviewed-skill cache, registry sync, and publication outbox.
-- `packages/game-training`: Local dataset, policy-artifact, and game-control contracts.
-- `packages/game-training-2d` / `packages/game-training-3d`: Core-specific control bounds.
-- `apps/cli`: LHIC CLI command entrypoint (`lhic`).
-- `apps/lhic`: Compatibility entrypoint for `npx lhic`.
-- `apps/desktop`: Electron Control Center.
-- `apps/mcp-server`: Standard Model Context Protocol stdio entrypoint. The
-  HTTP API Control Plane class is an experimental, unwired stub (no
-  persistence/idempotency/leases) and must not be treated as durable remote
-  orchestration; durable task state lives in the lease-based SQLite
-  `DistributedTaskQueue` and encrypted `DurableWorkflowStore`.
-
-## Install desktop app and CLI
-
-The release installer works without a preinstalled Node.js runtime:
-
-```sh
-curl -fsSL https://github.com/chengmatt416/LHIC/releases/latest/download/install.sh | sh
+```text
+Human intent / agent plan
+          │
+          ▼
+┌──────────────────────────────┐
+│           LHIC               │
+│                              │
+│  policy + risk classification│
+│  approvals + authority       │
+│  workspace conflict checks   │
+│  execution coordination      │
+│  receipts + durable ledger   │
+│  verification + evidence     │
+│  recovery + trusted memory   │
+└──────────────┬───────────────┘
+               │
+      ┌────────┼─────────┐
+      ▼        ▼         ▼
+   Browser   Desktop    Coding
+ Playwright  Native      OMP
+ / CDP       control     RPC
+      │        │         │
+      └────────┼─────────┘
+               ▼
+       evidence + provenance
 ```
 
-Windows PowerShell:
+## What is implemented
 
-```powershell
-irm https://github.com/chengmatt416/LHIC/releases/latest/download/install.ps1 | iex
+### Verifiable browser execution
+
+LHIC includes a local browser runtime built around Playwright/CDP, semantic targeting, resilient selector memory, verifier-backed plans, downloads, forms, login flows, and reusable skills.
+
+A `browser-plan-v1` plan declares a goal and verifier for every step. Interactive development can request local confirmation before risky actions; production flows can use externally signed approvals.
+
+The **Fast Path** executes reviewed browser behavior locally without calling a model or MCP server during execution.
+
+### Controlled desktop automation
+
+LHIC can execute approved native actions across macOS, Windows, and Linux, including app focus/launch, typing, hotkeys, and clicks.
+
+Desktop execution is not treated as inherently trustworthy. Actions are paired with approval requirements and post-action verification such as process or window evidence. Platform support still depends on the operating system's accessibility and automation permissions.
+
+### OMP-powered coding agent integration
+
+LHIC uses OMP as its coding-agent engine while keeping the trust boundary explicit.
+
+OMP can perform coding work and produce tool results. LHIC adds the surrounding execution contract: policy, receipts, workspace conflict awareness, evidence, recovery, and objective coding verification. Provenance is preserved in the UI and action records so an OMP tool result is never mislabeled as “LHIC verified” unless an LHIC verifier actually produced evidence.
+
+The OMP runtime is pinned and acquired through a fail-closed integrity path before execution.
+
+### Action receipts and provenance
+
+Cross-surface actions can produce structured receipts containing execution identity, verification identity, evidence, authority, and result state.
+
+This makes distinctions such as these explicit:
+
+```text
+executedBy: omp
+verifiedBy: lhic
+
+evidenceCount: 3
 ```
 
-On native Termux, the same one-liner detects Android/Bionic and automatically
-installs `proot-distro`, a Debian glibc environment, and the Termux:X11
-companion package. It installs LHIC inside Debian and creates native-Termux
-`lhic`, `lhicd`, and `lhic-control-center` forwarding launchers. Package
-setup inside Debian runs with concise progress lines; details are logged to
-`/tmp/lhic-apt.log` and shown only on failure.
+or, when no LHIC verifier ran:
 
-After installation, open the Termux:X11 Android app and start its server:
-
-```sh
-termux-x11 :1 &
-DISPLAY=:1 lhicd
+```text
+executedBy: omp
+verifiedBy: none
 ```
 
-On first launch, open Agent Studio and add a model API key under **Model
-management** (or sign in with a provider) — the agent starts as soon as a
-model is configured. The CLI runs directly through the generated wrapper with
-`lhic`. A full Xfce session is optional; LHIC can be the only X client.
+That distinction is intentional and is part of LHIC's claim discipline.
 
-## CLI Commands & Usage
+### Policy and approval system
 
-### Quick start
+LHIC uses structured risk taxonomy and approval checks rather than trusting a planner to declare its own action safe.
 
-Install dependencies and the local Chromium runtime:
+The policy layer is designed so that a proposed action cannot lower its own effective risk classification simply by changing planner-supplied metadata. High-impact desktop and browser operations remain subject to the local authority layer.
+
+### Crash-safe side-effect recovery
+
+LHIC includes a durable side-effect ledger and recovery model for work that may be interrupted after a real-world effect has occurred.
+
+The goal is to avoid the classic agent failure mode of blindly replaying an operation after a crash and creating duplicate effects. Recovery logic can distinguish planned, started, externally committed, verified, and recoverable states.
+
+### Workspace conflict awareness
+
+Coding work can track read sets and detect same-repository conflicts before accepting stale assumptions. Conflict state survives restart so recovery does not silently erase the fact that the workspace changed underneath an earlier plan.
+
+### Trusted memory and learning
+
+LHIC can learn from successful execution, but learned behavior does not immediately become trusted Fast Path behavior.
+
+Selector memory, workflow candidates, recipes, and shared skills pass through explicit trust and staleness rules. Fast Path promotion requires verifier-backed evidence rather than a single successful run.
+
+### MCP integration
+
+The repository includes a standard MCP stdio server and reviewable client configuration helpers. LHIC exposes controlled runtime, skill, and memory surfaces without requiring clients to directly own the execution authority.
+
+The HTTP API control-plane class in the repository is **experimental and not wired as a durable remote orchestration service**. It does not provide the persistence, idempotency, or lease semantics of the durable local workflow components.
+
+### Audit, observability, and release integrity
+
+LHIC includes redacted JSONL traces, optional OpenTelemetry export, secret scanning, release checksum verification, SBOM generation, and release hardening checks.
+
+Sensitive values are redacted at the tracing boundary. Release tooling is designed to fail closed when expected integrity evidence is missing or mismatched.
+
+## Quick start from source
+
+Requirements:
+
+- Node.js 24
+- npm 11+
+- a supported local environment for Playwright Chromium
 
 ```bash
 npm ci
@@ -113,255 +135,199 @@ npm run pw:install
 npm run build
 ```
 
-Run the credential-free local Judge Demo. It executes a real browser fixture,
-verifies the result, and shows that a destructive intent is approval-gated:
+Run the credential-free local demo:
 
 ```bash
 npm run demo -- --safe
 ```
 
-The npm registry contains `@pinyencheng/lhic@0.1.1`, but that release predates
-the current Judge Demo and its `npx @pinyencheng/lhic@0.1.1 demo` command does
-not exist. Do not use it as release evidence. Until the `0.1.2` release is
-published and passes the registry smoke test, use this checkout's commands
-above or run `npm run package:smoke` to verify the release tarball. The package
-requires Node.js 24 and a local Playwright Chromium installation; it declares
-support for macOS, Windows, and Linux. Native desktop control has additional
-platform permissions described in the [global control guide](docs/global-control.md).
+The safe demo exercises a real local browser fixture, verifier-backed execution, and approval gating without requiring a model credential.
 
-To include a real GPT-5.6 Slow Path planning request in the demo, set an API
-key only in the process environment. The provider sends a redacted request,
-uses `store: false`, and remains disabled unless explicitly enabled. This is
-the interactive learning path; the credential-free Judge Demo above must keep
-using `--safe`:
+Run the full repository verification pipeline:
 
 ```bash
-OPENAI_SLOW_PATH_ENABLED=true OPENAI_API_KEY=... npm run demo
+npm run ci
 ```
 
-See the [GPT-5.6 integration guide](docs/gpt-5.6-integration.md) for the
-schema, safety boundary, and failure behavior. Never put a key in an action
-file, trace, repository, screenshot, or demo recording.
-
-See the [0.1.2 release notes](docs/release-notes-0.1.2.md) for the exact
-release-candidate evidence and the remaining publication gates.
-The CLI and Desktop release independently; see the machine-checked
-[release status](docs/release-status.md) before using a version as release
-evidence.
-
-### npm CLI and desktop installation (after the current release is verified)
-
-`npx` fetches a package into a temporary execution directory; it does not add a
-command to your shell PATH. To install the complete scoped CLI, its npm
-dependencies, and the matching local Playwright Chromium runtime persistently,
-run this once:
+Or run individual checks:
 
 ```bash
-npx @pinyencheng/lhic install cli
+npm run typecheck
+npm test
+npm run lint
+npm run build
+npm run preflight
+npm run audit:prod
+npm run scan:secrets
 ```
 
-On macOS and Linux this creates `~/.local/bin/lhic` and adds that directory to
-your zsh/bash interactive shell configuration. Restart the terminal before using `lhic` directly. On
-Windows, npm's global bin directory is used; ensure the normal npm global bin
-path is available after restarting the terminal.
+## CLI
 
-The public `lhic` compatibility package is not published yet. After the scoped
-CLI and compatibility package both pass their registry smoke tests, it will run
-the same full CLI without a global install:
+After building the repository, the CLI entrypoint is available through the workspace package.
 
-```bash
-npx lhic preflight
-```
-
-The native Control Center is still a development build. Do not use the desktop
-installer as Build Week release evidence until a platform package and matching
-SHA-256 manifest have passed the desktop release workflow. When that gate is
-green, install the native Control Center for the current operating system and
-architecture with a SHA-256-verified GitHub Release asset. macOS installs to
-`~/Applications`, Linux installs a user-local AppImage and launcher, and
-Windows runs the release NSIS installer:
-
-```bash
-npx @pinyencheng/lhic install desktop
-```
-
-The desktop installer rejects assets without a matching entry in the release
-checksum manifest and does not require an administrator password on macOS or
-Linux.
-
-### Published CLI commands
-
-After the current npm release passes `npm run package:published-smoke -- 0.1.2`,
-initialize the local-first runtime and its
-persistent SQLite skill database. This preloads the shipped `download_file`,
-`fill_form`, `login`, `search`, and `test_web_flow` skills without overwriting
-learned skills:
+Initialize the runtime:
 
 ```bash
 npx @pinyencheng/lhic start
+```
+
+Check the local environment:
+
+```bash
 npx @pinyencheng/lhic preflight
 npx @pinyencheng/lhic global doctor
 ```
 
-The database is created at `.lhic/skills.sqlite` in the current directory. Use
-`npx @pinyencheng/lhic start <memory-database>` to choose a different
-location. See [the quick-start guide](docs/quickstart.md) for the MCP setup and
-the first automation workflow.
+Run an approval-gated action:
 
-For Codex, print a reviewed MCP entry using the built-in command. It never
-modifies client configuration automatically:
+```bash
+npx @pinyencheng/lhic run action <action-file> [approval-file]
+```
+
+Run a verifier-backed browser plan:
+
+```bash
+npx @pinyencheng/lhic run plan <plan-file>
+```
+
+Generate a reviewable MCP configuration:
 
 ```bash
 npx @pinyencheng/lhic mcp config codex
 ```
 
-For a local graphical companion, run the visible learning Demo or generate a
-reviewable MCP client configuration in a browser tab:
+Inspect traces:
 
 ```bash
-npx @pinyencheng/lhic gui
-npx @pinyencheng/lhic gui mcp
+npx @pinyencheng/lhic trace
 ```
 
-The companion binds only to loopback, requires a per-launch capability token,
-and does not modify MCP client configuration automatically.
+The repository contains release and compatibility packaging work in addition to the source workflow above. Before treating a registry or desktop package as current release evidence, check the repository's machine-checked release status and release notes.
 
-For the full native Control Center (Skills, task admission, MCP review, game
-training, security, and Judge Center), build and launch the Electron app:
+## Desktop Control Center
+
+Build and launch the Electron Control Center:
 
 ```bash
 npm run desktop:build
 npm run desktop:start
 ```
 
-The Security panel stores only the selected local Slow Path budget profile in
-`.lhic/security-settings.json` (mode `0600`); provider credentials remain in
-the operating-system Keychain. Selecting `fast_only` prevents provider calls
-for new tasks. Interactive approvals, verifier evidence, redaction, and the
-model-free Fast Path are mandatory controls and cannot be disabled from the
-desktop app.
+The desktop application exposes operational surfaces for Agent Studio, skills, task admission, MCP review, security, game training, and judge/benchmark inspection.
 
-See the [Desktop Control Center guide](docs/desktop-control-center.md) for the
-Appwrite GitHub-OAuth judge setup, local Keychain boundary, and packaging.
+Agent Studio renders execution provenance explicitly. A tool executed by OMP is shown as OMP-executed; it is shown as LHIC-verified only when corresponding verifier evidence exists.
 
-Run preflight environment verification:
+## Shared skills
 
-```bash
-npx @pinyencheng/lhic preflight
-```
-
-Run action with human approval:
-
-```bash
-npx @pinyencheng/lhic run action <action-file> [approval-file]
-```
-
-Run a complete, locally verified browser recipe with declared variables:
-
-```bash
-npx @pinyencheng/lhic run plan <plan-file>
-```
-
-A `browser-plan-v1` recipe contains a goal and a verifier for every browser
-step. In an interactive development or test terminal, LHIC prompts locally for
-any declared variables and asks for confirmation before each click, key press,
-download, or elevated-risk step. It executes entirely through the model-free
-Fast Path and returns execution plus verifier evidence for every completed
-step. Scripts can instead provide `[approvals-file] --var name=value`; production
-requires matching externally signed approvals keyed by plan step ID. See the
-[quick-start guide](docs/quickstart.md) for the plan contract and invocation
-details.
-
-For desktop actions, run `npx @pinyencheng/lhic global doctor` first and use an action file
-with `scope: "os"`, a native method preference, and a required `verifier`.
-Global actions are always approval-gated, including low-risk labels. See the
-[global control guide](docs/global-control.md) for the JSON contract, platform
-requirements, and examples.
-
-Slow Path integrations can use a budgeted `MultiPathTaskController` with a
-`SlowPathLearningCoordinator`. When every proposed action has a successful
-execution result and non-empty verifier evidence, LHIC stores only a redacted
-candidate in SQLite. A candidate becomes Fast Path eligible only after three
-independent task IDs and a deterministic offline holdout pass. Successful
-direct DOM actions also add local selector-memory candidates; the MCP server
-exposes redacted `lhic_runtime_status`, `lhic_skills_list`, and
-`lhic_selector_memory_list` views for inspection.
-
-A completed `lhic_browser_execute_plan` MCP batch is also eligible for local
-Skill training when every step has execution and verifier evidence. LHIC stores
-a redacted, parameterized candidate only after the batch completes; individual
-MCP actions, approval pauses, and failed plans are excluded. A planner can
-specify or declare parameters before the batch starts, but the executor never
-calls a model while it runs.
-
-### Optional public shared skills
-
-Deploy the reviewed Appwrite Function template in
-[`services/appwrite-shared-skills`](services/appwrite-shared-skills), then
-enable the registry for a workspace. In a terminal, the short command guides
-you through the Appwrite endpoint, project, function URL, and Magic URL email:
+LHIC can optionally synchronize reviewed low-risk skills through the Appwrite-based shared-skill service.
 
 ```bash
 npx @pinyencheng/lhic shared enable
 ```
 
-The explicit form remains available for scripts and CI:
+The local cache remains authoritative for Fast Path execution. Registry synchronization does not make an arbitrary remote skill trusted: publication, review, identity, and local eligibility checks remain separate gates.
+
+## Benchmarks and evidence
+
+LHIC includes internal regression benchmarks, deterministic browser resilience fixtures, desktop grounding fixtures, agent-competitive harnesses, and adapters for external benchmark workflows.
+
+Run internal checks:
 
 ```bash
-npx @pinyencheng/lhic shared enable \
-  --endpoint https://<region>.cloud.appwrite.io/v1 \
-  --project <project-id> \
-  --function-url https://<function-domain> \
-  --email you@example.com
+npm run bench:internal
+npm run bench:simulate -- resilience
+npm run bench:agent:self-test
 ```
 
-The CLI stores only non-secret registry configuration in `.lhic`; the Appwrite
-session stays in the OS credential store. The local cache is refreshed on the
-next runtime start after 24 hours, and failed syncs retain the last verified
-cache. Use `lhic shared status`, `lhic shared sync --force`, and
-`lhic shared list` to inspect it. Only approved low-risk browser skills with a
-unique local operation/UI-fingerprint match can enter Fast Path; no Fast Path
-request accesses the network.
-
-Running `lhic` with no command opens the same terminal guide. It also asks for
-missing required values for `mcp config`, `run action`, benchmark readiness and
-evidence validation, and trace inspection. Supplying every argument keeps the
-commands non-interactive for scripts and CI.
-
-Single-purpose command groups are shortened too: `lhic global` runs the
-desktop capability doctor, `lhic bench simulate` runs the resilience
-simulation, `lhic mcp` starts MCP configuration, and `lhic trace` starts trace
-inspection.
-
-Run internal regression benchmarks:
+Additional benchmark tooling includes:
 
 ```bash
-npx @pinyencheng/lhic bench internal
+npm run bench:webarena:readiness
+npm run bench:osworld:bridge:preflight
+npm run bench:agent:lhic
+npm run bench:agent:goose
+npm run bench:agent:codex
+npm run bench:agent:validate
+npm run bench:evidence:validate
 ```
 
-Run selector resilience simulation:
+### Claim policy
 
-```bash
-npx @pinyencheng/lhic bench simulate resilience
+LHIC deliberately separates **implemented benchmark infrastructure** from **official benchmark results**.
+
+Current repository evidence supports claims about the pinned LHIC-controlled fixtures and implemented verification/recovery properties. Official OSWorld, SWE-bench, τ-bench, or similar scores should only be claimed after the corresponding official evaluator has produced a reproducible result with the exact revision, configuration, model, and score recorded.
+
+Do not interpret local competitive suites as proof that LHIC is universally state of the art or universally better than another agent.
+
+See [`docs/sota/claim-matrix.md`](docs/sota/claim-matrix.md) and [`docs/sota/benchmark-methodology.md`](docs/sota/benchmark-methodology.md).
+
+## Repository structure
+
+```text
+apps/
+  cli/                 command-line interface
+  desktop/             Electron Control Center
+  lhic/                compatibility entrypoint
+  mcp-server/          MCP stdio server
+
+packages/
+  browser/             Playwright/CDP execution and browser pooling
+  controller/          routing, admission, and task coordination
+  game-training/       local training/control contracts
+  ledger/              durable action/side-effect records
+  memory/              workflow and selector memory
+  schema/              shared schemas and contracts
+  security/            approvals, KMS, encryption, redaction
+  shared-skills/       reviewed skill cache and registry sync
+  skills/              browser and desktop skills
+  trace/               redacted trace and observability
+  verifier/            objective post-action verification
+
+benchmarks/             internal and external benchmark adapters
+docs/                   architecture, security, release, and usage docs
+services/               optional supporting services
+scripts/                CI, release, integrity, and evidence tooling
 ```
 
-## Build Week evidence
+## Security model
 
-Judge-facing material is collected in the following documents:
+LHIC is designed around several boundaries:
 
-- [Judge guide](docs/judge-guide.md): 60-second and extended verification paths.
-- [GPT-5.6 integration](docs/gpt-5.6-integration.md): runtime role and trust boundary.
-- [Build Week changelog](docs/build-week-changelog.md): dated commit evidence.
-- [Benchmark methodology](docs/benchmark-methodology.md): controlled-fixture scope and limitations.
-- [Reproducibility](docs/reproducibility.md), [troubleshooting](docs/troubleshooting.md), and [known limitations](docs/known-limitations.md).
-- [Codex collaboration](docs/codex-usage.md) and the [recording script](docs/demo-script.md).
-- [Devpost submission draft](docs/devpost-submission.md), with owner-only evidence fields clearly separated from verified repository facts.
+1. **Planning is not authority.** A planner or coding agent may suggest work, but LHIC owns admission and policy decisions.
+2. **Execution is not verification.** A successful tool return is not automatically verifier evidence.
+3. **Verification is explicit.** Evidence is attached to the action or workflow that produced it.
+4. **Sensitive data is minimized.** Traces are redacted and credential storage is kept outside ordinary action logs.
+5. **Side effects are durable state.** Recovery must account for external effects rather than blindly replaying commands.
+6. **Learned behavior earns trust.** Memory and skills are subject to provenance, staleness, evidence, and promotion gates.
+7. **Release integrity is checked.** Checksums, SBOM generation, dependency auditing, and fail-closed verification are part of the release path.
 
-The remaining submission-only evidence—public video URL, Devpost entry,
-official `/feedback` session ID, clean-room platform matrix, and release
-publication—must be supplied and verified at submission time. LHIC does not
-claim these are complete before that evidence exists.
+For implementation details, start with:
 
-## 📄 License
+- [`docs/sota/action-receipts.md`](docs/sota/action-receipts.md)
+- [`docs/sota/policy-and-approvals.md`](docs/sota/policy-and-approvals.md)
+- [`docs/sota/side-effect-recovery.md`](docs/sota/side-effect-recovery.md)
+- [`docs/sota/coding-verification.md`](docs/sota/coding-verification.md)
+- [`docs/sota/workspace-conflicts.md`](docs/sota/workspace-conflicts.md)
+- [`docs/sota/memory-and-learning-trust.md`](docs/sota/memory-and-learning-trust.md)
+- [`docs/sota/desktop-grounding.md`](docs/sota/desktop-grounding.md)
+- [`docs/sota/release-security.md`](docs/sota/release-security.md)
 
-Dual-licensed under the MIT License and the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+## Development philosophy
+
+LHIC aims to make capable agents safer and more dependable by improving the part between **intent** and **real-world effect**.
+
+The project therefore prioritizes:
+
+- deterministic execution where possible;
+- explicit authority instead of implicit trust;
+- evidence over self-reported success;
+- recoverable side effects;
+- truthful provenance;
+- reproducible benchmarks;
+- model/provider independence at the control boundary.
+
+The long-term goal is not to replace every planner or coding agent. It is to provide the execution kernel they can safely act through.
+
+## License
+
+See the repository license files for applicable licensing terms.
