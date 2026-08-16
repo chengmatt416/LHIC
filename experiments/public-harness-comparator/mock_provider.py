@@ -13,6 +13,7 @@ USAGE = {
     "total_tokens": 0,
 }
 
+
 class Handler(BaseHTTPRequestHandler):
     log_path: Path
 
@@ -27,7 +28,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.rstrip("/").endswith("models"):
             body = {
                 "object": "list",
-                "data": [{"id": "gpt-5.2", "object": "model", "created": 0, "owned_by": "lhic-mock"}],
+                "data": [
+                    {
+                        "id": "gpt-5.2",
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": "lhic-mock",
+                    }
+                ],
             }
             raw = json.dumps(body).encode()
             self.send_response(200)
@@ -53,22 +61,57 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    @staticmethod
+    def _metadata(rid, status, output, usage=None):
+        value = {
+            "id": rid,
+            "object": "response",
+            "created_at": int(time.time()),
+            "status": status,
+            "model": "gpt-5.2",
+            "output": output,
+        }
+        if usage is not None:
+            value["usage"] = usage
+        return value
+
     def _responses_probe(self):
         rid = f"resp-{int(time.time() * 1000)}"
+        item = {
+            "type": "message",
+            "id": "msg-probe",
+            "status": "completed",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "output_text",
+                    "text": "PROBE_OK",
+                    "annotations": [],
+                    "logprobs": [],
+                }
+            ],
+        }
         events = [
-            {"type": "response.created", "response": {"id": rid}},
+            {
+                "type": "response.created",
+                "sequence_number": 0,
+                "response": self._metadata(rid, "in_progress", []),
+            },
             {
                 "type": "response.output_item.done",
-                "item": {
-                    "type": "message",
-                    "role": "assistant",
-                    "id": "msg-probe",
-                    "content": [{"type": "output_text", "text": "PROBE_OK"}],
-                },
+                "sequence_number": 1,
+                "output_index": 0,
+                "item": item,
             },
-            {"type": "response.completed", "response": {"id": rid, "usage": USAGE}},
+            {
+                "type": "response.completed",
+                "sequence_number": 2,
+                "response": self._metadata(rid, "completed", [item], USAGE),
+            },
         ]
-        body = "".join(f"data: {json.dumps(e, separators=(',', ':'))}\n\n" for e in events).encode()
+        body = "".join(
+            f"data: {json.dumps(e, separators=(',', ':'))}\n\n" for e in events
+        ).encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -85,17 +128,31 @@ class Handler(BaseHTTPRequestHandler):
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
                     "model": "gpt-5.2",
-                    "choices": [{"index": 0, "delta": {"role": "assistant", "content": "PROBE_OK"}, "finish_reason": None}],
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"role": "assistant", "content": "PROBE_OK"},
+                            "finish_reason": None,
+                        }
+                    ],
                 },
                 {
                     "id": cid,
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
                     "model": "gpt-5.2",
-                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                    "choices": [
+                        {"index": 0, "delta": {}, "finish_reason": "stop"}
+                    ],
                 },
             ]
-            body = "".join(f"data: {json.dumps(c, separators=(',', ':'))}\n\n" for c in chunks) + "data: [DONE]\n\n"
+            body = (
+                "".join(
+                    f"data: {json.dumps(c, separators=(',', ':'))}\n\n"
+                    for c in chunks
+                )
+                + "data: [DONE]\n\n"
+            )
             raw = body.encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -109,8 +166,18 @@ class Handler(BaseHTTPRequestHandler):
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": "gpt-5.2",
-                "choices": [{"index": 0, "message": {"role": "assistant", "content": "PROBE_OK"}, "finish_reason": "stop"}],
-                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "PROBE_OK"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
             }
             raw = json.dumps(body).encode()
             self.send_response(200)
@@ -130,6 +197,7 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"mock provider listening on {args.port}", flush=True)
     server.serve_forever()
+
 
 if __name__ == "__main__":
     main()
