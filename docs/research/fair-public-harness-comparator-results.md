@@ -9,10 +9,10 @@ These results are a controlled execution-semantics experiment. They are **not** 
 ## Exact final validated run
 
 - branch: `research/lhic-core-academic`
-- exact implementation/evidence SHA: `c9f80528c78615ae7f9ee82fb554a1e826f8d988`
+- exact implementation/evidence SHA: `9d964c53cdd7cdb950bb5c0d458bc9fd67992469`
 - workflow: `Fair Public Harness Comparator`
-- workflow run ID: `31952588633`
-- job ID: `95178256598`
+- workflow run ID: `31952760007`
+- job ID: `95178686715`
 - result: `success`
 - runner: GitHub Actions `ubuntu-24.04`
 - Node: `v22.23.2`
@@ -23,11 +23,11 @@ These results are a controlled execution-semantics experiment. They are **not** 
 
 Evidence artifact:
 
-- artifact ID: `9265081573`
+- artifact ID: `9265128568`
 - artifact name: `fair-public-harness-comparator-evidence`
-- artifact SHA-256 digest: `cc1494301f3cb27b515a5bf4d51e62658652e02f956199390a8adb054b8f26e5`
+- artifact SHA-256 digest: `05632185eec097f39b030c8ac31d2ffd0f0b77139ee7c4324851e3beb17c045f`
 - fixture manifest SHA-256: `0063215e3c8a457be0158466d8dc89017a121b1d374da0d6679cb607c76477d5`
-- combined-summary SHA-256: `64b26a291e2c02f39169a525d72c222860e97b13c919494ea42603714c88cb28`
+- combined-summary SHA-256: `d325823603468b8c4afe02aa74666307bce652d1bfe2cce025d16926b4ba6a84`
 - rendered `RESULTS.md` SHA-256: `32100ff64a3051c0131fa262283b7744714b63cfebc681bc00daada27db202c7`
 
 The final run uses a **committed npm lockfile + `npm ci`** for Codex. The committed reproducibility inputs have SHA-256:
@@ -167,14 +167,20 @@ The LHIC result records two planner proposals but only one adapter/physical disp
 
 ## Repeatability
 
-The immediately preceding fair run, before converting Codex installation from a runtime-generated lock to the committed lock + `npm ci`, also passed all 120 trials with **identical experimental outcomes**:
+Two preceding fair runs also produced the same experimental table:
 
-- run ID: `31952358477`
-- SHA: `71c7b2aa8b6c779880b13e26d1ff30b1695ab737`
-- artifact ID: `9265018931`
-- artifact digest: `dd194d25dbbb03675a81918cc8e809b406dfb95dbd3133142286d4ef0622f067`
+1. locked-install run before the README-only alignment change:
+   - run ID: `31952588633`
+   - SHA: `c9f80528c78615ae7f9ee82fb554a1e826f8d988`
+   - artifact ID: `9265081573`
+   - artifact digest: `cc1494301f3cb27b515a5bf4d51e62658652e02f956199390a8adb054b8f26e5`
+2. initial fair run before converting Codex installation to the committed lock + `npm ci`:
+   - run ID: `31952358477`
+   - SHA: `71c7b2aa8b6c779880b13e26d1ff30b1695ab737`
+   - artifact ID: `9265018931`
+   - artifact digest: `dd194d25dbbb03675a81918cc8e809b406dfb95dbd3133142286d4ef0622f067`
 
-A direct diff of the two combined summaries changes only temporary installation paths and the LHIC Git SHA. The per-condition result metrics are unchanged. `RESULTS.md` is byte-identical between the two runs, with SHA-256 `32100ff64a3051c0131fa262283b7744714b63cfebc681bc00daada27db202c7`.
+Across all three fair runs, `RESULTS.md` is byte-identical with SHA-256 `32100ff64a3051c0131fa262283b7744714b63cfebc681bc00daada27db202c7`. Direct comparison of the machine-readable summaries shows the experimental metrics unchanged; only temporary installation paths and the expected Git SHA metadata differ.
 
 ## Defensible claim
 
