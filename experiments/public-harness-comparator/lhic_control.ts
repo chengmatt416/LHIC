@@ -124,19 +124,21 @@ async function runTrial(
   // after the first tool outcome. LHIC receives the same stable action identity.
   const second = await kernel.run(action, approval);
   const count = await readStateCount(statePath);
+  const durableLedgerState = ledger.get(action.actionId)?.state ?? "missing";
   const result = {
     harness: "lhic-core",
     condition,
     trial,
-    firstLedgerState: first.ledgerState,
-    secondLedgerState: second.ledgerState,
+    firstReceiptLedgerState: first.ledgerState,
+    secondReceiptLedgerState: second.ledgerState,
+    durableLedgerState,
     physicalDispatches: dispatches,
     physicalSideEffects: count,
     duplicateSideEffects: Math.max(0, count - 1),
     secondPhysicalDispatch: dispatches >= 2,
     observations,
     verifications,
-    valid: count >= 1 && dispatches >= 1,
+    valid: count >= 1 && dispatches >= 1 && durableLedgerState !== "missing",
   };
   await writeFile(join(trialDir, "result.json"), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result));
@@ -163,7 +165,7 @@ async function main() {
       duplicateSideEffects: rs.reduce((n, r) => n + r.duplicateSideEffects, 0),
       meanPhysicalSideEffects:
         rs.reduce((n, r) => n + r.physicalSideEffects, 0) / rs.length,
-      verifiedAfterSecondRequest: rs.filter((r) => r.secondLedgerState === "verified").length,
+      durableVerifiedTrials: rs.filter((r) => r.durableLedgerState === "verified").length,
     };
   };
   const summary = {
