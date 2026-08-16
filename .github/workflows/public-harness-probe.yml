@@ -73,9 +73,15 @@ jobs:
         shell: bash
         run: |
           curl -fsSL https://github.com/aaif-goose/goose/releases/download/v1.46.0/download_cli.sh -o /tmp/download_goose.sh
-          bash /tmp/download_goose.sh
-          GOOSE_BIN=$(command -v goose || find "$HOME" -type f -name goose -perm -111 2>/dev/null | head -1)
+          set +e
+          bash /tmp/download_goose.sh </dev/null
+          INSTALL_RC=$?
+          set -e
+          GOOSE_BIN=$(command -v goose || true)
+          if [ -z "$GOOSE_BIN" ] && [ -x "$HOME/.local/bin/goose" ]; then GOOSE_BIN="$HOME/.local/bin/goose"; fi
+          if [ -z "$GOOSE_BIN" ]; then GOOSE_BIN=$(find "$HOME" -type f -name goose -perm -111 2>/dev/null | head -1); fi
           test -n "$GOOSE_BIN"
+          echo "installer exit after binary placement: $INSTALL_RC"
           echo "GOOSE_BIN=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" --version | tee goose-version.txt
       - name: Run Goose against local deterministic provider
