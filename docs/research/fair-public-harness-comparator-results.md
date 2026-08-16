@@ -6,13 +6,13 @@ This is the **primary named public-harness comparator evidence**. It supersedes 
 
 These results are a controlled execution-semantics experiment. They are **not** a public benchmark score, a planner-intelligence comparison, or a claim that Codex/Goose normally choose to retry more often.
 
-## Exact validated run
+## Exact final validated run
 
 - branch: `research/lhic-core-academic`
-- exact implementation/evidence SHA: `71c7b2aa8b6c779880b13e26d1ff30b1695ab737`
+- exact implementation/evidence SHA: `c9f80528c78615ae7f9ee82fb554a1e826f8d988`
 - workflow: `Fair Public Harness Comparator`
-- workflow run ID: `31952358477`
-- job ID: `95177682340`
+- workflow run ID: `31952588633`
+- job ID: `95178256598`
 - result: `success`
 - runner: GitHub Actions `ubuntu-24.04`
 - Node: `v22.23.2`
@@ -23,12 +23,17 @@ These results are a controlled execution-semantics experiment. They are **not** 
 
 Evidence artifact:
 
-- artifact ID: `9265018931`
+- artifact ID: `9265081573`
 - artifact name: `fair-public-harness-comparator-evidence`
-- artifact SHA-256 digest: `dd194d25dbbb03675a81918cc8e809b406dfb95dbd3133142286d4ef0622f067`
+- artifact SHA-256 digest: `cc1494301f3cb27b515a5bf4d51e62658652e02f956199390a8adb054b8f26e5`
 - fixture manifest SHA-256: `0063215e3c8a457be0158466d8dc89017a121b1d374da0d6679cb607c76477d5`
-- combined-summary SHA-256: `329218dd0b5f1445fbaa5c286028cf2a4a814a4330834fe1b59243d6e7ea73ef`
+- combined-summary SHA-256: `64b26a291e2c02f39169a525d72c222860e97b13c919494ea42603714c88cb28`
 - rendered `RESULTS.md` SHA-256: `32100ff64a3051c0131fa262283b7744714b63cfebc681bc00daada27db202c7`
+
+The final run uses a **committed npm lockfile + `npm ci`** for Codex. The committed reproducibility inputs have SHA-256:
+
+- `codex-package.json`: `dc1ccdae0215eb124599229dc903aab1a013cbebe884cb6ade12b462a68588ff`
+- `codex-package-lock.json`: `4eb38050c8def847e9df40ddd4c55f58e52d72c5c12d75e91c2a8b5aa9f0e032`
 
 ## Reproduction
 
@@ -40,7 +45,7 @@ bash experiments/fair-harness-comparator/reproduce.sh --trials 10
 
 The reproducer needs no model/API credentials. It installs/pins:
 
-- OpenAI Codex CLI `0.147.0` into an isolated temporary npm prefix and archives the generated package lock;
+- OpenAI Codex CLI `0.147.0` from the **committed npm package manifest and integrity lock**, using `npm ci` in an isolated temporary prefix;
 - Goose `v1.46.0` using the exact official `goose-x86_64-unknown-linux-gnu.tar.bz2` release asset and verifies archive SHA-256 `a1cf4856a765d07d6b95689a53c7bca21fcc6e6d65c0dfd064fc704052b85a7b` before extraction.
 
 The evidence archive records the actual executed versions:
@@ -159,6 +164,17 @@ For primary trial 01, all three archived result files report:
 The Codex and Goose raw provider traces both record proposal 1, a validated real tool result with `committedCount: 1` and exit 17, proposal 2 with the same command, and then a second real tool result with `committedCount: 2`.
 
 The LHIC result records two planner proposals but only one adapter/physical dispatch, with one committed effect and a durable verified ledger entry.
+
+## Repeatability
+
+The immediately preceding fair run, before converting Codex installation from a runtime-generated lock to the committed lock + `npm ci`, also passed all 120 trials with **identical experimental outcomes**:
+
+- run ID: `31952358477`
+- SHA: `71c7b2aa8b6c779880b13e26d1ff30b1695ab737`
+- artifact ID: `9265018931`
+- artifact digest: `dd194d25dbbb03675a81918cc8e809b406dfb95dbd3133142286d4ef0622f067`
+
+A direct diff of the two combined summaries changes only temporary installation paths and the LHIC Git SHA. The per-condition result metrics are unchanged. `RESULTS.md` is byte-identical between the two runs, with SHA-256 `32100ff64a3051c0131fa262283b7744714b63cfebc681bc00daada27db202c7`.
 
 ## Defensible claim
 
