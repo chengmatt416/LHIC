@@ -21,16 +21,21 @@ python3 experiments/fair-harness-comparator/generate_fixtures.py --trials "$TRIA
 python3 experiments/fair-harness-comparator/self_test.py | tee "$OUT/reproducibility/fixture-self-test.txt"
 
 mkdir -p "$TOOLS/codex"
-cat > "$TOOLS/codex/package.json" <<'EOF'
-{"private":true,"dependencies":{"@openai/codex":"0.147.0"}}
-EOF
-npm install --prefix "$TOOLS/codex" --no-audit --no-fund
-cp "$TOOLS/codex/package-lock.json" "$OUT/reproducibility/codex-package-lock.json"
+cp experiments/fair-harness-comparator/codex-package.json "$TOOLS/codex/package.json"
+cp experiments/fair-harness-comparator/codex-package-lock.json "$TOOLS/codex/package-lock.json"
+npm ci --prefix "$TOOLS/codex" --no-audit --no-fund
+cp experiments/fair-harness-comparator/codex-package-lock.json "$OUT/reproducibility/codex-package-lock.json"
+sha256sum \
+  experiments/fair-harness-comparator/codex-package.json \
+  experiments/fair-harness-comparator/codex-package-lock.json \
+  > "$OUT/reproducibility/codex-input-sha256.txt"
 CODEX_BIN="$TOOLS/codex/node_modules/.bin/codex"
 "$CODEX_BIN" --version | tee "$OUT/reproducibility/codex-version.txt"
 
 GOOSE_URL="https://github.com/aaif-goose/goose/releases/download/v1.46.0/goose-x86_64-unknown-linux-gnu.tar.bz2"
 GOOSE_SHA="a1cf4856a765d07d6b95689a53c7bca21fcc6e6d65c0dfd064fc704052b85a7b"
+printf '%s\n' "$GOOSE_URL" > "$OUT/reproducibility/goose-release-url.txt"
+printf '%s\n' "$GOOSE_SHA" > "$OUT/reproducibility/goose-archive-sha256.txt"
 curl -fL --retry 3 "$GOOSE_URL" -o "$TOOLS/goose.tar.bz2"
 echo "$GOOSE_SHA  $TOOLS/goose.tar.bz2" | sha256sum -c - | tee "$OUT/reproducibility/goose-sha256-check.txt"
 mkdir -p "$TOOLS/goose"
