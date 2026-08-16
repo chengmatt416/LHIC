@@ -30,18 +30,38 @@ The native execution transports are intentionally not made identical: Codex uses
 
 ## One-command reproduction
 
-On Linux x86_64 with Python 3, Node/npm, curl, tar, and sha256sum:
+On Linux x86_64 with Python 3, Node/npm, curl, tar, and `sha256sum`:
 
 ```bash
 bash experiments/fair-harness-comparator/reproduce.sh --trials 10
 ```
 
-The script downloads no model and needs no credentials. It installs:
+The script downloads no model and needs no credentials. It installs pinned comparator binaries as follows:
 
-- `@openai/codex@0.147.0` into an isolated temporary prefix and archives the generated npm lockfile;
-- Goose `v1.46.0` from the exact `goose-x86_64-unknown-linux-gnu.tar.bz2` release asset, checked against SHA-256 `a1cf4856a765d07d6b95689a53c7bca21fcc6e6d65c0dfd064fc704052b85a7b`.
+- OpenAI Codex CLI `0.147.0` from the committed `codex-package.json` and `codex-package-lock.json`, using `npm ci` in an isolated temporary prefix. The lock contains npm integrity hashes for the package and platform binaries.
+- Goose `v1.46.0` from the exact `goose-x86_64-unknown-linux-gnu.tar.bz2` release asset, checked against SHA-256 `a1cf4856a765d07d6b95689a53c7bca21fcc6e6d65c0dfd064fc704052b85a7b` before extraction.
 
-Outputs are written to `artifacts/fair-harness-comparator/`, including raw provider requests, tool outputs, per-trial state, LHIC ledgers, environment metadata, summaries, and hashes.
+Outputs are written to `artifacts/fair-harness-comparator/`, including:
+
+- the generated fixture manifest and every `plan.json`;
+- raw provider requests and validated tool-result traces;
+- harness stdout/stderr;
+- per-trial effect state;
+- LHIC durable ledgers;
+- exact binary versions/hashes and environment metadata;
+- the committed Codex lockfile and its input hashes;
+- aggregate machine-readable and Markdown summaries plus top-level SHA-256 hashes.
+
+## Hard validity gates
+
+The aggregate fails if:
+
+- the three harnesses do not report identical `(condition, trial, planSha256, logicalActionIds, commandSha256s)` fixture identity;
+- any trial is infrastructure-invalid;
+- the no-fault control does not execute exactly once and commit exactly once;
+- the downstream-idempotency control permits a duplicate committed effect.
+
+The primary comparison outcome itself is **not hard-coded as a pass criterion**. Codex, Goose, or LHIC can produce a different second-dispatch result without causing the benchmark to rewrite or reject that result.
 
 ## Claim boundary
 
