@@ -1,0 +1,122 @@
+name: Public Harness Comparator
+
+on:
+  push:
+    branches:
+      - research/lhic-core-academic
+    paths:
+      - 'experiments/public-harness-comparator/**'
+      - '.github/workflows/public-harness-comparator.yml'
+
+jobs:
+  codex:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install official Codex CLI 0.147.0
+        run: |
+          npm install -g @openai/codex@0.147.0
+          codex --version
+      - name: Run 10 no-fault + 10 post-commit-error trials
+        run: |
+          python3 experiments/public-harness-comparator/run_harness_trials.py \
+            --harness codex \
+            --binary "$(command -v codex)" \
+            --trials 10 \
+            --out artifacts/public-harness-comparator/codex
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-harness-comparator-codex
+          path: artifacts/public-harness-comparator/codex
+          if-no-files-found: error
+
+  goose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official Goose 1.46.0 release CLI
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/aaif-goose/goose/releases/download/v1.46.0/download_cli.sh -o /tmp/download_goose.sh
+          set +e
+          bash /tmp/download_goose.sh </dev/null
+          INSTALL_RC=$?
+          set -e
+          GOOSE_BIN=$(command -v goose || true)
+          if [ -z "$GOOSE_BIN" ] && [ -x "$HOME/.local/bin/goose" ]; then GOOSE_BIN="$HOME/.local/bin/goose"; fi
+          if [ -z "$GOOSE_BIN" ]; then GOOSE_BIN=$(find "$HOME" -type f -name goose -perm -111 2>/dev/null | head -1); fi
+          test -n "$GOOSE_BIN"
+          echo "installer exit after binary placement: $INSTALL_RC"
+          "$GOOSE_BIN" --version
+          echo "GOOSE_BIN=$GOOSE_BIN" >> "$GITHUB_ENV"
+      - name: Run 10 no-fault + 10 post-commit-error trials
+        run: |
+          python3 experiments/public-harness-comparator/run_harness_trials.py \
+            --harness goose \
+            --binary "$GOOSE_BIN" \
+            --trials 10 \
+            --out artifacts/public-harness-comparator/goose
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-harness-comparator-goose
+          path: artifacts/public-harness-comparator/goose
+          if-no-files-found: error
+
+  lhic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the same durable side-effect fixture through LHIC-Core
+        run: |
+          node --experimental-strip-types experiments/public-harness-comparator/lhic_control.ts \
+            --trials 10 \
+            --out artifacts/public-harness-comparator/lhic
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-harness-comparator-lhic
+          path: artifacts/public-harness-comparator/lhic
+          if-no-files-found: error
+
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: [codex, goose, lhic]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: public-harness-comparator-*
+          path: downloaded
+      - name: Build combined machine-readable summary
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          rows = []
+          for p in sorted(Path('downloaded').glob('public-harness-comparator-*/summary.json')):
+              data = json.loads(p.read_text())
+              rows.append({
+                  'harness': data['harness'],
+                  'no_fault': data['conditions']['no_fault'],
+                  'post_commit_error': data['conditions']['post_commit_error'],
+              })
+          assert len(rows) == 3, rows
+          out = {
+              'schemaVersion': 'lhic-public-harness-comparator-combined-v1',
+              'fixture': 'same durable effect; post-commit non-zero tool outcome; deterministic retry-oriented planner',
+              'trialsPerConditionPerHarness': 10,
+              'rows': rows,
+          }
+          Path('combined').mkdir()
+          Path('combined/summary.json').write_text(json.dumps(out, indent=2))
+          print(json.dumps(out, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-harness-comparator-combined
+          path: combined/summary.json
+          if-no-files-found: error
