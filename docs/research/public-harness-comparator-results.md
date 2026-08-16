@@ -1,4 +1,6 @@
-# Real Public-Harness Comparator Results
+# Real Public-Harness Comparator Results — PRELIMINARY / SUPERSEDED
+
+> **Do not use this experiment as the primary paper, deck, or benchmark evidence.** The executions and archived GitHub Actions artifacts below are real, but the comparison has an important fairness asymmetry: LHIC was given an explicit stable `actionId`, while Codex and Goose only received the same shell command and a new protocol-level tool-call ID. The Goose installer path also resolved a moving `stable` release internally. This experiment is retained for provenance only. The replacement is `experiments/fair-harness-comparator/`, where all three systems consume the same SHA-verified plan, the stable logical action ID is visible in the identical command payload, binaries are version-pinned, controls are explicit, and a one-command reproducer is provided.
 
 These results are **controlled execution-layer experiments**, not public benchmark scores and not a comparison of planner intelligence.
 
@@ -127,9 +129,9 @@ Earlier combined artifact:
 - artifact ID: `9264105067`
 - digest: `3f7862601ac5b402f1bca3cc152ecf3f23e3ca365c3c517592db37740f2684b3`
 
-## What this supports
+## Historical claim only — do not promote
 
-A defensible statement is:
+The original text below was the claim boundary before the fairness issue was identified. It is retained only so the research record explains what was previously presented; use the replacement fair comparator before making any named-harness claim.
 
 > Under a controlled post-commit tool-error fixture with a fixed retry-oriented planner, official Codex CLI 0.147.0 and Goose 1.46.0 both physically dispatched the identical logical shell side effect a second time in 10/10 trials, while LHIC-Core blocked the second physical dispatch in 10/10 trials after independently verifying the first committed effect. All three harnesses executed exactly once in the matched no-fault control.
 
