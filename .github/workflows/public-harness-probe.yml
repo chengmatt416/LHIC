@@ -84,7 +84,7 @@ jobs:
           echo "installer exit after binary placement: $INSTALL_RC"
           echo "GOOSE_BIN=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" --version | tee goose-version.txt
-      - name: Run Goose against local deterministic provider
+      - name: Run Goose against local deterministic provider with developer tools
         shell: bash
         run: |
           set -u
@@ -100,7 +100,7 @@ jobs:
           GOOSE_DISABLE_SESSION_NAMING=true \
           GOOSE_TELEMETRY_ENABLED=false \
           OPENAI_BASE_URL=http://127.0.0.1:8765/v1 \
-          "$GOOSE_BIN" run --no-session --no-profile -t "Reply exactly PROBE_OK and do not use tools." >artifacts/public-harness-probe/goose-output.log 2>artifacts/public-harness-probe/goose-stderr.log
+          "$GOOSE_BIN" run --no-session --no-profile --with-builtin developer -t "Reply exactly PROBE_OK and do not use tools." >artifacts/public-harness-probe/goose-output.log 2>artifacts/public-harness-probe/goose-stderr.log
           RC=$?
           set -e
           kill $SERVER_PID || true
@@ -109,8 +109,15 @@ jobs:
           import json
           from pathlib import Path
           out = Path('artifacts/public-harness-probe/goose-output.log').read_text(errors='replace')
-          req = Path('artifacts/public-harness-probe/goose-provider.jsonl').read_text(errors='replace') if Path('artifacts/public-harness-probe/goose-provider.jsonl').exists() else ''
-          result = {'harness':'goose','version':'1.46.0','exitCode':int('$RC'),'providerRequests':len([x for x in req.splitlines() if x.strip()]),'probeOk':'PROBE_OK' in out}
+          req_path = Path('artifacts/public-harness-probe/goose-provider.jsonl')
+          req_lines = [x for x in req_path.read_text(errors='replace').splitlines() if x.strip()] if req_path.exists() else []
+          tool_names = []
+          if req_lines:
+              first = json.loads(req_lines[0]).get('body', {})
+              for t in first.get('tools', []) or []:
+                  name = t.get('name') or (t.get('function') or {}).get('name')
+                  if name: tool_names.append(name)
+          result = {'harness':'goose','version':'1.46.0','exitCode':int('$RC'),'providerRequests':len(req_lines),'probeOk':'PROBE_OK' in out,'toolNames':tool_names}
           Path('artifacts/public-harness-probe/goose-result.json').write_text(json.dumps(result, indent=2))
           print(result)
           PY
